@@ -1,0 +1,375 @@
+[gd_scene load_steps=3 format=3 uid="uid://c2qx8ydlq8vny"]
+
+[ext_resource type="Script" uid="uid://g0qrs80ptukf" path="res://scripts/main_game.gd" id="1_main"]
+[ext_resource type="PackedScene" uid="uid://lii54yv84srg" path="res://scenes/unit.tscn" id="2_72e8q"]
+
+[node name="MainGame" type="Node2D"]
+script = ExtResource("1_main")
+
+[node name="GameState" type="Node" parent="."]
+
+[node name="BattleGrid" type="Node2D" parent="."]
+position = Vector2(50, 50)
+
+[node name="Unit" parent="BattleGrid" instance=ExtResource("2_72e8q")]
+
+[node name="AutoBattleManager" type="Node" parent="."]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="TopBar" type="Panel" parent="UI"]
+offset_right = 1152.0
+offset_bottom = 60.0
+
+[node name="GoldLabel" type="Label" parent="UI/TopBar"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 15.0
+offset_right = 150.0
+offset_bottom = 45.0
+theme_override_font_sizes/font_size = 20
+text = "Gold: 0"
+
+[node name="CrystalsLabel" type="Label" parent="UI/TopBar"]
+layout_mode = 0
+offset_left = 180.0
+offset_top = 15.0
+offset_right = 310.0
+offset_bottom = 45.0
+theme_override_font_sizes/font_size = 20
+text = "Crystals: 0"
+
+[node name="RoundLabel" type="Label" parent="UI/TopBar"]
+layout_mode = 0
+offset_left = 500.0
+offset_top = 15.0
+offset_right = 650.0
+offset_bottom = 45.0
+theme_override_font_sizes/font_size = 20
+text = "Round: 0"
+horizontal_alignment = 1
+
+[node name="StateLabel" type="Label" parent="UI/TopBar"]
+layout_mode = 0
+offset_left = 700.0
+offset_top = 15.0
+offset_right = 900.0
+offset_bottom = 45.0
+theme_override_font_sizes/font_size = 20
+text = "PLAYER TURN"
+horizontal_alignment = 1
+
+[node name="ActionPanel" type="Panel" parent="UI"]
+offset_left = 1300.0
+offset_top = 6.415
+offset_right = 1800.0
+offset_bottom = 226.415
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/ActionPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 7.0
+offset_right = -8.0
+offset_bottom = -13.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Player Actions"
+horizontal_alignment = 1
+
+[node name="ChangeElementBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+text = "Change Element"
+
+[node name="ChangeEquipmentBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+text = "Change Equipment"
+
+[node name="UseItemsBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+text = "Use Items"
+
+[node name="HSeparator" type="HSeparator" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="ReadyBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "READY FOR BATTLE"
+
+[node name="BottomBar" type="Panel" parent="UI"]
+offset_left = 5.0
+offset_top = 1127.655
+offset_right = 1157.0
+offset_bottom = 1195.655
+
+[node name="InfoLabel" type="Label" parent="UI/BottomBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -3.0
+offset_top = -5.0
+offset_right = -3.0
+offset_bottom = -5.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 16
+text = "Click on the grid to place units. Use action buttons during your turn."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="UnitDetailsPanel" type="Panel" parent="UI"]
+visible = false
+offset_left = 250.0
+offset_top = 80.0
+offset_right = 650.0
+offset_bottom = 580.0
+
+[node name="ScrollContainer" type="ScrollContainer" parent="UI/UnitDetailsPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/UnitDetailsPanel/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="TitleBar" type="HBoxContainer" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/TitleBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "Unit Details"
+
+[node name="CloseBtn" type="Button" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/TitleBar"]
+layout_mode = 2
+text = "X"
+
+[node name="HSeparator" type="HSeparator" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="UnitName" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Fire Warrior"
+
+[node name="ClassLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Class: Warrior"
+
+[node name="ElementLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Element: Fire"
+
+[node name="LevelLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Level: 1"
+
+[node name="HSeparator2" type="HSeparator" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="StatsTitle" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Stats:"
+
+[node name="HPLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "HP: 100 / 100"
+
+[node name="ManaLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Mana: 50 / 50"
+
+[node name="StrLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "STR: 10"
+
+[node name="DexLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "DEX: 10"
+
+[node name="IntLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "INT: 10"
+
+[node name="ResLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "RES: 10"
+
+[node name="HSeparator3" type="HSeparator" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="DerivedStatsTitle" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Combat Stats:"
+
+[node name="AttackLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Attack Damage: 15"
+
+[node name="MagicLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Magic Power: 12"
+
+[node name="DefenseLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Defense: 8"
+
+[node name="HSeparator4" type="HSeparator" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="MovementTitle" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Movement & Range:"
+
+[node name="MoveSpeedLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Movement Speed: 3"
+
+[node name="AttackRangeLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Attack Range: 1"
+
+[node name="HSeparator5" type="HSeparator" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="OffensiveAffinityTitle" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Offensive Affinity:"
+
+[node name="OffNormalLabel" type="RichTextLabel" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+bbcode_enabled = true
+text = "Normal: +0%"
+fit_content = true
+scroll_active = false
+
+[node name="OffFireLabel" type="RichTextLabel" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+bbcode_enabled = true
+text = "Fire: +0%"
+fit_content = true
+scroll_active = false
+
+[node name="OffWaterLabel" type="RichTextLabel" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+bbcode_enabled = true
+text = "Water: +0%"
+fit_content = true
+scroll_active = false
+
+[node name="OffEarthLabel" type="RichTextLabel" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+bbcode_enabled = true
+text = "Earth: +0%"
+fit_content = true
+scroll_active = false
+
+[node name="OffAirLabel" type="RichTextLabel" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+bbcode_enabled = true
+text = "Air: +0%"
+fit_content = true
+scroll_active = false
+
+[node name="OffLightningLabel" type="RichTextLabel" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+bbcode_enabled = true
+text = "Lightning: +0%"
+fit_content = true
+scroll_active = false
+
+[node name="HSeparator6" type="HSeparator" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="DefensiveAffinityTitle" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Defensive Affinity:"
+
+[node name="DefNormalLabel" type="RichTextLabel" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+bbcode_enabled = true
+text = "Normal: 0"
+fit_content = true
+scroll_active = false
+
+[node name="DefFireLabel" type="RichTextLabel" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+bbcode_enabled = true
+text = "Fire: 0"
+fit_content = true
+scroll_active = false
+
+[node name="DefWaterLabel" type="RichTextLabel" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+bbcode_enabled = true
+text = "Water: 0"
+fit_content = true
+scroll_active = false
+
+[node name="DefEarthLabel" type="RichTextLabel" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+bbcode_enabled = true
+text = "Earth: 0"
+fit_content = true
+scroll_active = false
+
+[node name="DefAirLabel" type="RichTextLabel" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+bbcode_enabled = true
+text = "Air: 0"
+fit_content = true
+scroll_active = false
+
+[node name="DefLightningLabel" type="RichTextLabel" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+bbcode_enabled = true
+text = "Lightning: 0"
+fit_content = true
+scroll_active = false

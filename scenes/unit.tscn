@@ -1,0 +1,276 @@
+[gd_scene load_steps=6 format=3 uid="uid://lii54yv84srg"]
+
+[ext_resource type="Script" uid="uid://c0e8fvu8dyoh3" path="res://scripts/visual_unit.gd" id="1_o7ajc"]
+[ext_resource type="Script" uid="uid://dn724gbsh1jky" path="res://addons/addons/LPCAnimatedSprite/LPCAnimatedSprite2D.gd" id="14_wcmtr"]
+[ext_resource type="Script" uid="uid://disydpnnfdxdy" path="res://addons/addons/LPCAnimatedSprite/LPCAnimationData.gd" id="15_6epuo"]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_1jvru"]
+
+[sub_resource type="Resource" id="Resource_lolxa"]
+resource_name = "LPCAnimationData"
+script = ExtResource("15_6epuo")
+available_animations = Array[String](["spellcast", "thrust", "walk", "slash", "shoot", "hurt", "climb", "idle", "jump", "sit", "emote", "run", "combat_idle", "backslash", "halfslash", "slash_oversize", "slash_reverse_oversize", "thrust_oversize"])
+required_spritesheets = {
+"backslash": "standard/backslash",
+"climb": "standard/climb",
+"combat_idle": "standard/combat_idle",
+"emote": "standard/emote",
+"halfslash": "standard/halfslash",
+"hurt": "standard/hurt",
+"idle": "standard/idle",
+"jump": "standard/jump",
+"run": "standard/run",
+"shoot": "standard/shoot",
+"sit": "standard/sit",
+"slash": "standard/slash",
+"slash_oversize": "custom/slash_oversize",
+"slash_reverse_oversize": "custom/slash_reverse_oversize",
+"spellcast": "standard/spellcast",
+"thrust": "standard/thrust",
+"thrust_oversize": "custom/thrust_oversize",
+"walk": "standard/walk"
+}
+available_directions = {
+"backslash": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"climb": {
+"north": 0
+},
+"combat_idle": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"emote": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"halfslash": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"hurt": {
+"south": 0
+},
+"idle": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"jump": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"run": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"shoot": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"sit": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"slash": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"slash_oversize": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"slash_reverse_oversize": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"spellcast": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"thrust": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"thrust_oversize": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+},
+"walk": {
+"east": 3,
+"north": 0,
+"south": 2,
+"west": 1
+}
+}
+animation_frame_counts = {
+"backslash": 13,
+"climb": 6,
+"combat_idle": 2,
+"emote": 3,
+"halfslash": 7,
+"hurt": 6,
+"idle": 2,
+"jump": 5,
+"run": 8,
+"shoot": 13,
+"sit": 3,
+"slash": 6,
+"slash_oversize": 6,
+"slash_reverse_oversize": 6,
+"spellcast": 7,
+"thrust": 8,
+"thrust_oversize": 6,
+"walk": 9
+}
+initial_sprite_indices = {
+"backslash": 0,
+"climb": 0,
+"combat_idle": 0,
+"emote": 0,
+"halfslash": 0,
+"hurt": 0,
+"idle": 0,
+"jump": 0,
+"run": 0,
+"shoot": 0,
+"sit": 0,
+"slash": 0,
+"slash_oversize": 0,
+"slash_reverse_oversize": 0,
+"spellcast": 0,
+"thrust": 0,
+"thrust_oversize": 0,
+"walk": 1
+}
+animation_loops = {
+"backslash": true,
+"climb": true,
+"combat_idle": true,
+"emote": true,
+"halfslash": true,
+"hurt": false,
+"idle": true,
+"jump": true,
+"run": true,
+"shoot": true,
+"sit": true,
+"slash": true,
+"slash_oversize": true,
+"slash_reverse_oversize": true,
+"spellcast": true,
+"thrust": true,
+"thrust_oversize": true,
+"walk": true
+}
+animation_speeds = {
+"backslash": 8,
+"climb": 8,
+"combat_idle": 8,
+"emote": 8,
+"halfslash": 8,
+"hurt": 8,
+"idle": 8,
+"jump": 8,
+"run": 8,
+"shoot": 8,
+"sit": 8,
+"slash": 8,
+"slash_oversize": 8,
+"slash_reverse_oversize": 8,
+"spellcast": 8,
+"thrust": 8,
+"thrust_oversize": 8,
+"walk": 8
+}
+animation_rows = {
+"backslash": 0,
+"climb": 0,
+"combat_idle": 0,
+"emote": 0,
+"halfslash": 0,
+"hurt": 0,
+"idle": 0,
+"jump": 0,
+"run": 0,
+"shoot": 0,
+"sit": 0,
+"slash": 0,
+"slash_oversize": 0,
+"slash_reverse_oversize": 0,
+"spellcast": 0,
+"thrust": 0,
+"thrust_oversize": 0,
+"walk": 0
+}
+frame_sizes = {
+"backslash": 64,
+"climb": 64,
+"combat_idle": 64,
+"emote": 64,
+"halfslash": 64,
+"hurt": 64,
+"idle": 64,
+"jump": 64,
+"run": 64,
+"shoot": 64,
+"sit": 64,
+"slash": 64,
+"slash_oversize": 192,
+"slash_reverse_oversize": 192,
+"spellcast": 64,
+"thrust": 64,
+"thrust_oversize": 192,
+"walk": 64
+}
+custom_frames = {
+"backslash": [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12],
+"combat_idle": [0, 0, 1],
+"emote": [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2],
+"idle": [0, 0, 1],
+"jump": [0, 1, 2, 3, 4, 1],
+"sit": [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2],
+"walk": [1, 2, 3, 4, 5, 6, 7, 8]
+}
+
+[node name="Unit" type="Node2D"]
+script = ExtResource("1_o7ajc")
+
+[node name="LPCAnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_1jvru")
+speed_scale = 0.2
+script = ExtResource("14_wcmtr")
+spritesheets_path = "res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57"
+animation_data = SubResource("Resource_lolxa")
+metadata/_custom_type_script = "uid://dn724gbsh1jky"
