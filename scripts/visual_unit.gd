@@ -41,11 +41,10 @@ func _ready():
 	if element_glow and not element_glow.get_parent():
 		add_child(element_glow)
 	
-		# Get the LPCAnimatedSprite2D child node if this is a warrior
-	# Get the LPCAnimatedSprite2D child node if this is a warrior
-	if unit_class == UnitBase.UnitClass.WARRIOR:
-		animated_sprite = get_node_or_null("LPCAnimatedSprite2D")
-		if animated_sprite:
+		# Get the LPCAnimatedSprite2D child node if present (only used for Warriors)
+	animated_sprite = get_node_or_null("LPCAnimatedSprite2D")
+	if animated_sprite:
+		if unit_class == UnitBase.UnitClass.WARRIOR:
 			print("Found LPCAnimatedSprite2D!")
 			animated_sprite.visible = true  # Make sure it's visible
 			animated_sprite.modulate = Color.WHITE  # Make sure it's not transparent
@@ -53,8 +52,14 @@ func _ready():
 			# Pick a good animation and start playback
 			_select_and_play_animation_for_sprite(animated_sprite)
 		else:
-			print("WARNING: LPCAnimatedSprite2D not found on warrior!")
+			# Hide and stop the warrior sprite when this unit is not a Warrior
+			animated_sprite.visible = false
+			# Ensure no animations are playing
+			if animated_sprite.has_method("stop"):
+				animated_sprite.stop()
 	else:
+		if unit_class == UnitBase.UnitClass.WARRIOR:
+			print("WARNING: LPCAnimatedSprite2D not found on warrior!")
 		# For non-warriors, use shape visuals
 		fill_color = get_element_color()
 		if element_glow:
@@ -149,7 +154,7 @@ func _select_and_play_animation_for_sprite(sprite: AnimatedSprite2D) -> void:
 			speed = s
 	sprite.speed_scale = speed
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	update_animation()
 
 func update_animation() -> void:
@@ -340,7 +345,7 @@ func _input(event: InputEvent) -> void:
 	
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			var anim_name = "IdleSouth" # Always use South-facing animation
+			var _anim_name = "IdleSouth" # Always use South-facing animation
 			var mouse_pos = get_global_mouse_position()
 			var distance = global_position.distance_to(mouse_pos)
 			if distance <= shape_size:

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbwpln15p6unj"
-path="res://.godot/imported/watering.png-dfd9b5fafd23c033d5f400780e406092.ctex"
+uid="uid://ctx8b4aexoytg"
+path="res://.godot/imported/archer_0000.png-211f3fff367e6bf9a4ac1833a34546d6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/standard/watering.png"
-dest_files=["res://.godot/imported/watering.png-dfd9b5fafd23c033d5f400780e406092.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/archer_0000.png"
+dest_files=["res://.godot/imported/archer_0000.png-211f3fff367e6bf9a4ac1833a34546d6.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://baeouarf0m2va"
-path="res://.godot/imported/spellcast.png-c361d9beec6e24cc5c2a8a1c7542d8b6.ctex"
+uid="uid://0ltbncv5r5si"
+path="res://.godot/imported/single.png-1f7ce895a48772d9fd68c5d63eccbe9c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/standard/spellcast.png"
-dest_files=["res://.godot/imported/spellcast.png-c361d9beec6e24cc5c2a8a1c7542d8b6.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Ranger/single.png"
+dest_files=["res://.godot/imported/single.png-1f7ce895a48772d9fd68c5d63eccbe9c.ctex"]
 
 [params]
 

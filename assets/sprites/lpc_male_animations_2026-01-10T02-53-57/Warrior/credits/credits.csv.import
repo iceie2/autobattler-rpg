@@ -1,0 +1,17 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://bqijlxotgllk6"
+
+[deps]
+
+files=["res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/credits/credits.notes.translation", "res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/credits/credits.authors.translation", "res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/credits/credits.licenses.translation", "res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/credits/credits.urls.translation"]
+
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/credits/credits.csv"
+dest_files=["res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/credits/credits.notes.translation", "res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/credits/credits.authors.translation", "res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/credits/credits.licenses.translation", "res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/credits/credits.urls.translation"]
+
+[params]
+
+compress=true
+delimiter=0

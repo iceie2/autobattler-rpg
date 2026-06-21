@@ -13,7 +13,7 @@ extends Node2D
 @onready var info_label = $UI/BottomBar/InfoLabel
 
 @onready var change_element_btn = $UI/ActionPanel/VBoxContainer/ChangeElementBtn
-@onready var change_equipment_btn = $UI/ActionPanel/VBoxContainer/ChangeEquipmentBtn
+@onready var spawn_hero_btn = $UI/ActionPanel/VBoxContainer/spawn_heroBtn
 @onready var use_items_btn = $UI/ActionPanel/VBoxContainer/UseItemsBtn
 @onready var ready_btn = $UI/ActionPanel/VBoxContainer/ReadyBtn
 
@@ -119,7 +119,7 @@ func connect_signals() -> void:
 	
 	# UI button signals
 	change_element_btn.pressed.connect(_on_change_element_pressed)
-	change_equipment_btn.pressed.connect(_on_change_equipment_pressed)
+	spawn_hero_btn.pressed.connect(_on_spawn_hero_pressed)
 	use_items_btn.pressed.connect(_on_use_items_pressed)
 	ready_btn.pressed.connect(_on_ready_pressed)
 	details_close_btn.pressed.connect(_on_details_close_pressed)
@@ -145,7 +145,7 @@ func _integrate_scene_units() -> void:
 			else:
 				unit.is_player_unit = false
 			# Reparent under the runtime battle_grid for consistent transforms
-			battle_grid.add_child(unit)
+			unit.reparent(battle_grid)
 			# Place into grid data structure
 			if battle_grid.place_unit(unit, grid_pos):
 				if unit.is_player_unit:
@@ -159,7 +159,7 @@ func _integrate_scene_units() -> void:
 
 
 func start_new_game() -> void:
-	game_state.gold = 100
+	game_state.gold = 10000
 	game_state.crystals = 0
 	game_state.start_battle_round()
 	open_shop()
@@ -189,7 +189,7 @@ func update_ui() -> void:
 
 func enable_action_buttons(enabled: bool) -> void:
 	change_element_btn.disabled = not enabled
-	change_equipment_btn.disabled = not enabled
+	spawn_hero_btn.disabled = not enabled
 	use_items_btn.disabled = not enabled
 	ready_btn.disabled = not enabled
 
@@ -242,7 +242,7 @@ func _on_battle_ended(player_won: bool) -> void:
 	await get_tree().create_timer(2.0).timeout
 	game_state.start_battle_round()
 
-func _on_unit_action(unit, action_type: String) -> void:
+func _on_unit_action(_unit, _action_type: String) -> void:
 	# Visual feedback for unit actions could go here
 	pass
 
@@ -256,11 +256,14 @@ func _on_cell_clicked(grid_pos: Vector2i) -> void:
 	
 	info_label.text = "Right-clicked grid cell: (%d, %d)" % [grid_pos.x, grid_pos.y]
 
-func _on_unit_placed(unit, grid_pos: Vector2i) -> void:
+func _on_unit_placed(_unit, grid_pos: Vector2i) -> void:
 	info_label.text = "Unit placed at: (%d, %d)" % [grid_pos.x, grid_pos.y]
 
 # Action button handlers
 func _on_change_element_pressed() -> void:
+		info_label.text = "Use Items - Not yet implemented"
+
+func _on_spawn_hero_pressed() -> void:
 	if not shop_open:
 		info_label.text = "Shop is closed!"
 		return
@@ -273,8 +276,6 @@ func _on_change_element_pressed() -> void:
 	else:
 		info_label.text = "Not enough gold! Need %d gold." % cost
 
-func _on_change_equipment_pressed() -> void:
-	info_label.text = "Change Equipment - Not yet implemented"
 
 func _on_use_items_pressed() -> void:
 	info_label.text = "Use Items - Not yet implemented"
@@ -381,23 +382,8 @@ func spawn_random_player_unit() -> void:
 		info_label.text = "No room for more units!"
 		return
 
-	# Randomly pick a class (for demo, always Warrior)
-	var chosen_class = UnitBase.UnitClass.WARRIOR # Replace with random if needed
-
-	var unit = null
-	if chosen_class == UnitBase.UnitClass.WARRIOR:
-		var warrior_scene = preload("res://scenes/Unit.tscn")
-		unit = warrior_scene.instantiate()
-		unit.unit_class = UnitBase.UnitClass.WARRIOR
-		# Mark spawned unit as player-owned so visuals default to South-facing
-		if unit.has_method("set_is_player_unit"):
-			unit.set_is_player_unit(true)
-		else:
-			unit.is_player_unit = true
-		# Optionally set other Inspector properties here
-	else:
-		unit = UnitFactory.create_random_class_unit(true)
-		unit.unit_class = chosen_class
+	# Create random player unit via factory
+	var unit = UnitFactory.create_random_class_unit(true)
 
 	unit.grid_position = spawn_pos
 	var world_pos = battle_grid.grid_to_world(spawn_pos)

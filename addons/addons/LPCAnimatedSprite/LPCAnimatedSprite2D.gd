@@ -2,8 +2,6 @@
 @icon("res://addons/LPCAnimatedSprite/icon2d.png")
 class_name LPCAnimatedSprite2D extends AnimatedSprite2D
 
-@onready var animated_sprite = $LPCAnimatedSprite2D
-
 var _spritesheets_path: String
 var _atlas_cache = {}
 

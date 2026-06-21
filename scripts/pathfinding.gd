@@ -19,7 +19,7 @@ static func find_path(start: Vector2i, goal: Vector2i, grid: BattleGrid, max_ste
 	var f_score: Dictionary = {start: heuristic(start, target_pos)}
 	
 	var iterations = 0
-	while open_set.size() > 0 and iterations < 100:
+	while open_set.size() > 0 and iterations < max_steps:
 		iterations += 1
 		
 		# Find node in open_set with lowest f_score
@@ -52,7 +52,6 @@ static func find_nearest_unoccupied_to_target(target: Vector2i, grid: BattleGrid
 	# Find nearest unoccupied cell adjacent to target
 	var neighbors = get_all_neighbors(target)
 	var best_pos = Vector2i(-1, -1)
-	var min_dist = INF
 	
 	for neighbor in neighbors:
 		if grid.is_valid_position(neighbor) and not grid.is_cell_occupied(neighbor):

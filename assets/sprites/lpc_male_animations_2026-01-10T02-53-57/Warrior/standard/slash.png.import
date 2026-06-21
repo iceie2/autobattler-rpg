@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bogi3pl32ijhy"
-path="res://.godot/imported/hurt.png-8de18bad177c198742961316e4900dc4.ctex"
+uid="uid://cck5mm20p80v6"
+path="res://.godot/imported/slash.png-825cfaae2cb5d8c121f77c4a13a3afda.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/standard/hurt.png"
-dest_files=["res://.godot/imported/hurt.png-8de18bad177c198742961316e4900dc4.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/standard/slash.png"
+dest_files=["res://.godot/imported/slash.png-825cfaae2cb5d8c121f77c4a13a3afda.ctex"]
 
 [params]
 

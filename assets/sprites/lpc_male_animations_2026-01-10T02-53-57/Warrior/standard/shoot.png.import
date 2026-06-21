@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cmetcmi8712sx"
-path="res://.godot/imported/idle.png-5582aa2c51c2989b15e73cf585da3798.ctex"
+uid="uid://dyqif6yt1t2k8"
+path="res://.godot/imported/shoot.png-c516a39823a5a5b31cee64ca70a5af67.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/standard/idle.png"
-dest_files=["res://.godot/imported/idle.png-5582aa2c51c2989b15e73cf585da3798.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/standard/shoot.png"
+dest_files=["res://.godot/imported/shoot.png-c516a39823a5a5b31cee64ca70a5af67.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dyqif6yt1t2k8"
-path="res://.godot/imported/shoot.png-b4275f244e857980d48904b4e7d14d40.ctex"
+uid="uid://2i55njk60ipo"
+path="res://.godot/imported/thrust.png-48ba9abf7a3ca928abb5e023a2735a80.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/standard/shoot.png"
-dest_files=["res://.godot/imported/shoot.png-b4275f244e857980d48904b4e7d14d40.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/standard/thrust.png"
+dest_files=["res://.godot/imported/thrust.png-48ba9abf7a3ca928abb5e023a2735a80.ctex"]
 
 [params]
 

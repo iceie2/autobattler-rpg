@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://chyr43lnet4ee"
-path="res://.godot/imported/1h_backslash.png-9b8d9a27b1c19b2699f31e11348b537b.ctex"
+uid="uid://daw1le8u1gm0k"
+path="res://.godot/imported/climb.png-29934ca5ef1a918c4fa4ed1abfc1ca56.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/standard/1h_backslash.png"
-dest_files=["res://.godot/imported/1h_backslash.png-9b8d9a27b1c19b2699f31e11348b537b.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/standard/climb.png"
+dest_files=["res://.godot/imported/climb.png-29934ca5ef1a918c4fa4ed1abfc1ca56.ctex"]
 
 [params]
 

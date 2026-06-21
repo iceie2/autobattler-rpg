@@ -1,7 +1,111 @@
-[gd_scene load_steps=3 format=3 uid="uid://c2qx8ydlq8vny"]
+[gd_scene load_steps=11 format=3 uid="uid://c2qx8ydlq8vny"]
 
 [ext_resource type="Script" uid="uid://g0qrs80ptukf" path="res://scripts/main_game.gd" id="1_main"]
 [ext_resource type="PackedScene" uid="uid://lii54yv84srg" path="res://scenes/unit.tscn" id="2_72e8q"]
+
+[sub_resource type="StyleBoxFlat" id="TopBarStyle"]
+bg_color = Color(0.15, 0.15, 0.2, 0.9)
+border_color = Color(0.3, 0.3, 0.4, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 2
+
+[sub_resource type="StyleBoxFlat" id="ActionPanelStyle"]
+bg_color = Color(0.12, 0.12, 0.18, 0.95)
+border_color = Color(0.4, 0.4, 0.5, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="ButtonNormal"]
+bg_color = Color(0.2, 0.2, 0.3, 1)
+border_color = Color(0.4, 0.4, 0.5, 0.8)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="ButtonHover"]
+bg_color = Color(0.3, 0.3, 0.4, 1)
+border_color = Color(0.6, 0.6, 0.7, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="ButtonPressed"]
+bg_color = Color(0.15, 0.15, 0.25, 1)
+border_color = Color(0.2, 0.2, 0.3, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="ButtonReadyNormal"]
+bg_color = Color(0.3, 0.15, 0.15, 1)
+border_color = Color(0.7, 0.3, 0.3, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="ButtonReadyHover"]
+bg_color = Color(0.4, 0.2, 0.2, 1)
+border_color = Color(0.9, 0.4, 0.4, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="BottomBarStyle"]
+bg_color = Color(0.15, 0.15, 0.2, 0.9)
+border_color = Color(0.3, 0.3, 0.4, 1)
+border_width_left = 1
+border_width_top = 2
+border_width_right = 1
+border_width_bottom = 1
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+
+[sub_resource type="StyleBoxFlat" id="DetailsPanelStyle"]
+bg_color = Color(0.12, 0.12, 0.18, 0.98)
+border_color = Color(0.5, 0.4, 0.6, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 4
 
 [node name="MainGame" type="Node2D"]
 script = ExtResource("1_main")
@@ -20,6 +124,7 @@ position = Vector2(50, 50)
 [node name="TopBar" type="Panel" parent="UI"]
 offset_right = 1152.0
 offset_bottom = 60.0
+theme_override_styles/panel = SubResource("TopBarStyle")
 
 [node name="GoldLabel" type="Label" parent="UI/TopBar"]
 layout_mode = 0
@@ -29,6 +134,7 @@ offset_right = 150.0
 offset_bottom = 45.0
 theme_override_font_sizes/font_size = 20
 text = "Gold: 0"
+theme_override_colors/font_color = Color(1, 0.84, 0, 1)
 
 [node name="CrystalsLabel" type="Label" parent="UI/TopBar"]
 layout_mode = 0
@@ -38,6 +144,7 @@ offset_right = 310.0
 offset_bottom = 45.0
 theme_override_font_sizes/font_size = 20
 text = "Crystals: 0"
+theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
 
 [node name="RoundLabel" type="Label" parent="UI/TopBar"]
 layout_mode = 0
@@ -48,6 +155,7 @@ offset_bottom = 45.0
 theme_override_font_sizes/font_size = 20
 text = "Round: 0"
 horizontal_alignment = 1
+theme_override_colors/font_color = Color(1, 1, 1, 1)
 
 [node name="StateLabel" type="Label" parent="UI/TopBar"]
 layout_mode = 0
@@ -58,12 +166,14 @@ offset_bottom = 45.0
 theme_override_font_sizes/font_size = 20
 text = "PLAYER TURN"
 horizontal_alignment = 1
+theme_override_colors/font_color = Color(0, 1, 0, 1)
 
 [node name="ActionPanel" type="Panel" parent="UI"]
 offset_left = 1300.0
 offset_top = 6.415
 offset_right = 1800.0
 offset_bottom = 226.415
+theme_override_styles/panel = SubResource("ActionPanelStyle")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="UI/ActionPanel"]
 layout_mode = 1
@@ -83,18 +193,34 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Player Actions"
 horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
 
 [node name="ChangeElementBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
-text = "Change Element"
+text = "Buy Unit (30g)"
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_colors/font_color = Color(0.9, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 14
 
-[node name="ChangeEquipmentBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
+[node name="spawn_heroBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
-text = "Change Equipment"
+text = "Buy Unit (30g)"
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_colors/font_color = Color(0.9, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 14
 
 [node name="UseItemsBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
 text = "Use Items"
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_colors/font_color = Color(0.9, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 14
 
 [node name="HSeparator" type="HSeparator" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
@@ -103,12 +229,17 @@ layout_mode = 2
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "READY FOR BATTLE"
+theme_override_styles/normal = SubResource("ButtonReadyNormal")
+theme_override_styles/hover = SubResource("ButtonReadyHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_colors/font_color = Color(1, 0.6, 0.6, 1)
 
 [node name="BottomBar" type="Panel" parent="UI"]
 offset_left = 5.0
 offset_top = 1127.655
 offset_right = 1157.0
 offset_bottom = 1195.655
+theme_override_styles/panel = SubResource("BottomBarStyle")
 
 [node name="InfoLabel" type="Label" parent="UI/BottomBar"]
 layout_mode = 1
@@ -125,6 +256,7 @@ theme_override_font_sizes/font_size = 16
 text = "Click on the grid to place units. Use action buttons during your turn."
 horizontal_alignment = 1
 vertical_alignment = 1
+theme_override_colors/font_color = Color(0.85, 0.85, 1, 1)
 
 [node name="UnitDetailsPanel" type="Panel" parent="UI"]
 visible = false
@@ -132,6 +264,7 @@ offset_left = 250.0
 offset_top = 80.0
 offset_right = 650.0
 offset_bottom = 580.0
+theme_override_styles/panel = SubResource("DetailsPanelStyle")
 
 [node name="ScrollContainer" type="ScrollContainer" parent="UI/UnitDetailsPanel"]
 layout_mode = 1
@@ -155,10 +288,14 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 20
 text = "Unit Details"
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
 
 [node name="CloseBtn" type="Button" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/TitleBar"]
 layout_mode = 2
 text = "X"
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_colors/font_color = Color(1, 0.6, 0.6, 1)
 
 [node name="HSeparator" type="HSeparator" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
@@ -167,21 +304,25 @@ layout_mode = 2
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "Fire Warrior"
+theme_override_colors/font_color = Color(1, 0.9, 0.6, 1)
 
 [node name="ClassLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Class: Warrior"
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
 
 [node name="ElementLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Element: Fire"
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
 
 [node name="LevelLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Level: 1"
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
 
 [node name="HSeparator2" type="HSeparator" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
@@ -190,36 +331,43 @@ layout_mode = 2
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Stats:"
+theme_override_colors/font_color = Color(0.7, 1, 0.7, 1)
 
 [node name="HPLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "HP: 100 / 100"
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
 
 [node name="ManaLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Mana: 50 / 50"
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
 
 [node name="StrLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "STR: 10"
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
 
 [node name="DexLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "DEX: 10"
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
 
 [node name="IntLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "INT: 10"
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
 
 [node name="ResLabel" type="Label" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "RES: 10"
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
 
 [node name="HSeparator3" type="HSeparator" parent="UI/UnitDetailsPanel/ScrollContainer/VBoxContainer"]
 layout_mode = 2

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c5hrga4o3e4nm"
-path="res://.godot/imported/walk_128.png-f547988e7478547cff3abca48c133436.ctex"
+uid="uid://c8jyocxl8avch"
+path="res://.godot/imported/emote.png-29c744452f31ab23b4f5b4fa28656a79.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/custom/walk_128.png"
-dest_files=["res://.godot/imported/walk_128.png-f547988e7478547cff3abca48c133436.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/standard/emote.png"
+dest_files=["res://.godot/imported/emote.png-29c744452f31ab23b4f5b4fa28656a79.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://daw1le8u1gm0k"
-path="res://.godot/imported/climb.png-dc431728d40f1f242cb37c21de1ead0b.ctex"
+uid="uid://bkpld3by26gw3"
+path="res://.godot/imported/walk.png-d5c6434a02bb32b2460129cb8c819816.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/standard/climb.png"
-dest_files=["res://.godot/imported/climb.png-dc431728d40f1f242cb37c21de1ead0b.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/standard/walk.png"
+dest_files=["res://.godot/imported/walk.png-d5c6434a02bb32b2460129cb8c819816.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c3xm3mxacqr4e"
-path="res://.godot/imported/run.png-af3d960fa68fc5e40528e19b0852d448.ctex"
+uid="uid://dbwpln15p6unj"
+path="res://.godot/imported/watering.png-7f670be65b9afff13b9337828325e258.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/standard/run.png"
-dest_files=["res://.godot/imported/run.png-af3d960fa68fc5e40528e19b0852d448.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/standard/watering.png"
+dest_files=["res://.godot/imported/watering.png-7f670be65b9afff13b9337828325e258.ctex"]
 
 [params]
 

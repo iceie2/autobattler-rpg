@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cps0vclirwpse"
-path="res://.godot/imported/1h_halfslash.png-1a8fb1ed63ab70095007f7347aadea60.ctex"
+uid="uid://c5hrga4o3e4nm"
+path="res://.godot/imported/walk_128.png-817eff46406d6ac1d0f747b96eeb89c9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/standard/1h_halfslash.png"
-dest_files=["res://.godot/imported/1h_halfslash.png-1a8fb1ed63ab70095007f7347aadea60.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/custom/walk_128.png"
+dest_files=["res://.godot/imported/walk_128.png-817eff46406d6ac1d0f747b96eeb89c9.ctex"]
 
 [params]
 

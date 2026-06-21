@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c8jyocxl8avch"
-path="res://.godot/imported/emote.png-d602204e3046a398f37b9144d902ad05.ctex"
+uid="uid://cmetcmi8712sx"
+path="res://.godot/imported/idle.png-2098e1fe10e8a1af7513298ba0bd558e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/standard/emote.png"
-dest_files=["res://.godot/imported/emote.png-d602204e3046a398f37b9144d902ad05.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/standard/idle.png"
+dest_files=["res://.godot/imported/idle.png-2098e1fe10e8a1af7513298ba0bd558e.ctex"]
 
 [params]
 

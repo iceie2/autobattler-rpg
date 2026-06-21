@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://7ua42neiqiv"
-path="res://.godot/imported/sit.png-300b9185f7e2a4453e65f670e2589cab.ctex"
+uid="uid://chyr43lnet4ee"
+path="res://.godot/imported/1h_backslash.png-4dab38e46671976ffcb98a698ff6895a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/standard/sit.png"
-dest_files=["res://.godot/imported/sit.png-300b9185f7e2a4453e65f670e2589cab.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/standard/1h_backslash.png"
+dest_files=["res://.godot/imported/1h_backslash.png-4dab38e46671976ffcb98a698ff6895a.ctex"]
 
 [params]
 

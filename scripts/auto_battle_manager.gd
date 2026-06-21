@@ -166,12 +166,12 @@ func move_unit_towards_with_pathfinding(unit: UnitBase, target_pos: Vector2i) ->
 	if not unit_paths.has(unit):
 		needs_new_path = true
 	else:
-		var path = unit_paths[unit]
+		var cached_path = unit_paths[unit]
 		# If path is empty or target moved significantly, recalculate
-		if path.is_empty():
+		if cached_path.is_empty():
 			needs_new_path = true
-		elif path.size() > 0:
-			var path_goal = path[path.size() - 1]
+		elif cached_path.size() > 0:
+			var path_goal = cached_path[cached_path.size() - 1]
 			# Recalculate if target moved more than 2 cells from path goal
 			if path_goal.distance_to(target_pos) > 2:
 				needs_new_path = true

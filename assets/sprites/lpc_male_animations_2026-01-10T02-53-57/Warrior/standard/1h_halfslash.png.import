@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cck5mm20p80v6"
-path="res://.godot/imported/slash.png-623af2baa34e084017462f3724beefda.ctex"
+uid="uid://cps0vclirwpse"
+path="res://.godot/imported/1h_halfslash.png-b7409b7749febc8c06742bf1605356ac.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/standard/slash.png"
-dest_files=["res://.godot/imported/slash.png-623af2baa34e084017462f3724beefda.ctex"]
+source_file="res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior/standard/1h_halfslash.png"
+dest_files=["res://.godot/imported/1h_halfslash.png-b7409b7749febc8c06742bf1605356ac.ctex"]
 
 [params]
 
