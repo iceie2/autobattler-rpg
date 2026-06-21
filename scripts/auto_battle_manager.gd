@@ -41,24 +41,28 @@ func start_battle() -> void:
 	battle_timer = 0.0
 	unit_paths.clear()
 	collect_units()
+	print("[Battle] Started — players: %d, enemies: %d" % [player_units.size(), enemy_units.size()])
 	battle_started.emit()
 
 func collect_units() -> void:
 	player_units.clear()
 	enemy_units.clear()
-	
+
 	if not battle_grid:
+		print("[Battle] ERROR: battle_grid is null!")
 		return
-	
+
+	print("[Battle] occupied_cells count: %d" % battle_grid.occupied_cells.size())
 	for grid_pos in battle_grid.occupied_cells:
 		var unit = battle_grid.get_unit_at(grid_pos)
 		if unit and unit is UnitBase:
-			unit.battle_manager = self  # Set reference for projectile spawning
-			# Note: damage_text_container is set by main_game when units spawn
+			unit.battle_manager = self
 			if unit.is_player_unit:
 				player_units.append(unit)
 			else:
 				enemy_units.append(unit)
+		else:
+			print("[Battle] Cell %s has non-unit or null: %s" % [grid_pos, unit])
 
 func _process(delta: float) -> void:
 	if not battle_active:
@@ -74,8 +78,7 @@ func _process(delta: float) -> void:
 		execute_battle_turn()
 
 func execute_battle_turn() -> void:
-	# Auto-battle with pathfinding and range checking
-	
+	print("[Battle] Turn — players: %d, enemies: %d" % [player_units.size(), enemy_units.size()])
 	# Player units move and attack
 	for unit in player_units:
 		if unit == null or not is_instance_valid(unit):
