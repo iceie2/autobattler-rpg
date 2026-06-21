@@ -72,12 +72,13 @@ func _setup_lpc_sprite() -> void:
 	lpc.sprite_frames = SpriteFrames.new()
 	lpc.z_index = 1
 	lpc.spritesheets_path = sprite_path
-	lpc.animation_data = LPCAnimationDataSingleSprite.new()
+	lpc.animation_data = LPCGeneratedAnimData.new()
 	add_child(lpc)
 
-	var idle = "idle_south" if is_player_unit else "idle_north"
-	if lpc.sprite_frames and lpc.sprite_frames.has_animation(idle):
+	# walk_south is always present in the generated 6-animation sheets
+	if lpc.sprite_frames and lpc.sprite_frames.has_animation("walk_south"):
 		animated_sprite = lpc
+		var idle = "idle_south" if is_player_unit else "idle_north"
 		lpc.play(idle)
 	else:
 		lpc.queue_free()
@@ -125,19 +126,17 @@ func _update_animation() -> void:
 			dir_suffix = "south" if last_move_direction.y > 0 else "north"
 
 	if is_moving and move_target_pos != move_start_pos:
-		var prefix = "run" if movement_speed >= 3 else "walk"
-		var want = prefix + "_" + dir_suffix
+		var want = "walk_" + dir_suffix
 		if not frames.has_animation(want):
-			want = "walk_" + dir_suffix if frames.has_animation("walk_" + dir_suffix) else "walk_south"
+			want = "walk_south"
 		if want != curr:
 			animated_sprite.play(want)
 		return
 
 	var idle = "idle_south" if is_player_unit else "idle_north"
 	if not frames.has_animation(idle):
-		var names = frames.get_animation_names()
-		idle = names[0] if names.size() > 0 else ""
-	if idle != "" and idle != curr:
+		idle = "walk_south"
+	if idle != curr:
 		animated_sprite.play(idle)
 
 
