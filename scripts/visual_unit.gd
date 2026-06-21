@@ -25,13 +25,13 @@ var fill_color: Color = Color(1, 1, 1, 1)
 
 func get_class_sprite_folder() -> String:
 	match unit_class:
-		UnitBase.UnitClass.WARRIOR:   return "warrior"
-		UnitBase.UnitClass.RANGER:    return "archer"
-		UnitBase.UnitClass.MONK:      return "monk"
-		UnitBase.UnitClass.THIEF:     return "thief"
+		UnitBase.UnitClass.WARRIOR:    return "warrior"
+		UnitBase.UnitClass.RANGER:     return "archer"
+		UnitBase.UnitClass.MONK:       return "monk"
+		UnitBase.UnitClass.THIEF:      return "thief"
 		UnitBase.UnitClass.BLACK_MAGE: return "black_mage"
 		UnitBase.UnitClass.WHITE_MAGE: return "white_mage"
-		UnitBase.UnitClass.RED_MAGE:  return "red_mage"
+		UnitBase.UnitClass.RED_MAGE:   return "red_mage"
 		_: return ""
 
 
@@ -41,43 +41,12 @@ func _ready():
 	if sprite_variant == -1:
 		sprite_variant = randi() % 3
 
-	# Element glow behind sprite
 	element_glow = Sprite2D.new()
 	element_glow.texture = _create_glow_texture()
 	element_glow.scale = Vector2(1.5, 1.5)
-<<<<<<< Updated upstream
-	if element_glow and not element_glow.get_parent():
-		add_child(element_glow)
-	
-		# Get the LPCAnimatedSprite2D child node if present (only used for Warriors)
-	animated_sprite = get_node_or_null("LPCAnimatedSprite2D")
-	if animated_sprite:
-		if unit_class == UnitBase.UnitClass.WARRIOR:
-			print("Found LPCAnimatedSprite2D!")
-			animated_sprite.visible = true  # Make sure it's visible
-			animated_sprite.modulate = Color.WHITE  # Make sure it's not transparent
-			animated_sprite.z_index = 1  # Put it above other elements
-			# Pick a good animation and start playback
-			_select_and_play_animation_for_sprite(animated_sprite)
-		else:
-			# Hide and stop the warrior sprite when this unit is not a Warrior
-			animated_sprite.visible = false
-			# Ensure no animations are playing
-			if animated_sprite.has_method("stop"):
-				animated_sprite.stop()
-	else:
-		if unit_class == UnitBase.UnitClass.WARRIOR:
-			print("WARNING: LPCAnimatedSprite2D not found on warrior!")
-		# For non-warriors, use shape visuals
-		fill_color = get_element_color()
-		if element_glow:
-			element_glow.modulate = fill_color
-			element_glow.modulate.a = 0.4
-=======
 	add_child(element_glow)
 
 	_setup_lpc_sprite()
->>>>>>> Stashed changes
 
 	fill_color = get_element_color()
 	if element_glow:
@@ -102,12 +71,10 @@ func _setup_lpc_sprite() -> void:
 	var lpc = LPCAnimatedSprite2D.new()
 	lpc.sprite_frames = SpriteFrames.new()
 	lpc.z_index = 1
-	# Set path before data so the data setter triggers the refresh with the path ready
 	lpc.spritesheets_path = sprite_path
 	lpc.animation_data = LPCAnimationDataSingleSprite.new()
 	add_child(lpc)
 
-	# Confirm at least one animation loaded; fall back to shape if not
 	var idle = "idle_south" if is_player_unit else "idle_north"
 	if lpc.sprite_frames and lpc.sprite_frames.has_animation(idle):
 		animated_sprite = lpc
@@ -144,60 +111,12 @@ func _update_animation() -> void:
 	if not frames:
 		return
 
-<<<<<<< Updated upstream
-	# Prefer idle animation based on ownership if it exists and has >1 frames
-	var prefer = "idle_south" if is_player_unit else "idle_north"
-	var chosen = ""
-	if frames.has_animation(prefer) and frames.get_frame_count(prefer) > 1:
-		chosen = prefer
-	else:
-		# Find the first animation with more than one frame
-		var anims = frames.get_animation_names()
-		for a in anims:
-			if frames.get_frame_count(a) > 1:
-				chosen = a
-				break
-		# Fallback to any available animation
-		if chosen == "" and anims.size() > 0:
-			chosen = anims[0]
-
-	if chosen == "":
-		# No animations available
-		print("LPCAnimatedSprite2D: no animations found to play")
-		return
-
-	# Apply chosen animation and reset progress
-	sprite.animation = chosen
-	sprite.frame_progress = 0.0
-	# Start playback via play() (correct for Godot 4)
-	sprite.play(chosen)
-
-	# Set speed_scale using SpriteFrames animation speed if available, use sensible default otherwise
-	var speed = 1.0
-	if frames.has_method("get_animation_speed"):
-		var s = frames.get_animation_speed(chosen)
-		if typeof(s) in [TYPE_INT, TYPE_FLOAT] and s > 0:
-			speed = s
-	sprite.speed_scale = speed
-
-func _process(_delta: float) -> void:
-	update_animation()
-
-func update_animation() -> void:
-	if unit_class != UnitBase.UnitClass.WARRIOR or not animated_sprite:
-		return
-
-	var frames = animated_sprite.sprite_frames
-=======
->>>>>>> Stashed changes
 	var curr = animated_sprite.animation
 
-	# Don't cut off a non-looping animation mid-play
 	if curr != "" and not frames.get_animation_loop(curr):
 		if animated_sprite.frame < frames.get_frame_count(curr) - 1:
 			return
 
-	# Derive facing from last movement
 	var dir_suffix = "south"
 	if last_move_direction.length() > 0:
 		if abs(last_move_direction.x) > abs(last_move_direction.y):
@@ -214,7 +133,7 @@ func update_animation() -> void:
 			animated_sprite.play(want)
 		return
 
-	var idle = ("idle_south" if is_player_unit else "idle_north")
+	var idle = "idle_south" if is_player_unit else "idle_north"
 	if not frames.has_animation(idle):
 		var names = frames.get_animation_names()
 		idle = names[0] if names.size() > 0 else ""
@@ -223,19 +142,18 @@ func update_animation() -> void:
 
 
 func _draw():
-	# Shape fallback: only drawn when no LPC sprite loaded
 	if animated_sprite:
 		return
 	var color = fill_color if fill_color else get_element_color()
 	var outline = Color.WHITE
 	match unit_class:
-		UnitBase.UnitClass.RANGER:    _draw_triangle(color, outline)
-		UnitBase.UnitClass.MONK:      _draw_circle(color, outline)
-		UnitBase.UnitClass.THIEF:     _draw_diamond(color, outline)
+		UnitBase.UnitClass.RANGER:     _draw_triangle(color, outline)
+		UnitBase.UnitClass.MONK:       _draw_circle(color, outline)
+		UnitBase.UnitClass.THIEF:      _draw_diamond(color, outline)
 		UnitBase.UnitClass.BLACK_MAGE: _draw_polygon(5, color, outline)
 		UnitBase.UnitClass.WHITE_MAGE: _draw_polygon(6, color, outline)
-		UnitBase.UnitClass.RED_MAGE:  _draw_star(color, outline)
-		_:                            _draw_square(color, outline)
+		UnitBase.UnitClass.RED_MAGE:   _draw_star(color, outline)
+		_:                             _draw_square(color, outline)
 
 
 func _draw_square(color: Color, outline: Color) -> void:
@@ -308,10 +226,6 @@ func _input(event: InputEvent) -> void:
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-<<<<<<< Updated upstream
-			var _anim_name = "IdleSouth" # Always use South-facing animation
-=======
->>>>>>> Stashed changes
 			var mouse_pos = get_global_mouse_position()
 			if global_position.distance_to(mouse_pos) <= shape_size:
 				mouse_down_position = mouse_pos
