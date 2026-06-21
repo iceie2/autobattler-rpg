@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 [gd_scene load_steps=386 format=3 uid="uid://lii54yv84srg"]
 
 [ext_resource type="Script" uid="uid://c0e8fvu8dyoh3" path="res://scripts/visual_unit.gd" id="1_o7ajc"]
@@ -3201,3 +3202,11 @@ script = ExtResource("14_wcmtr")
 spritesheets_path = "res://assets/sprites/lpc_male_animations_2026-01-10T02-53-57/Warrior"
 animation_data = SubResource("Resource_dj87a")
 metadata/_custom_type_script = "uid://dn724gbsh1jky"
+=======
+[gd_scene load_steps=2 format=3 uid="uid://lii54yv84srg"]
+
+[ext_resource type="Script" uid="uid://c0e8fvu8dyoh3" path="res://scripts/visual_unit.gd" id="1_o7ajc"]
+
+[node name="Unit" type="Node2D"]
+script = ExtResource("1_o7ajc")
+>>>>>>> Stashed changes

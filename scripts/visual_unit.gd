@@ -1,10 +1,9 @@
 extends UnitBase
 class_name VisualUnit
 
-# Visual settings
 @export var shape_size: float = 40.0
 @export var outline_width: float = 3.0
-
+var sprite_variant: int = -1  # set by factory; -1 = pick randomly in _ready
 
 # Drag and drop
 var is_dragging: bool = false
@@ -12,32 +11,41 @@ var drag_offset: Vector2 = Vector2.ZERO
 var original_position: Vector2 = Vector2.ZERO
 var can_be_dragged: bool = true
 var mouse_down_position: Vector2 = Vector2.ZERO
-var drag_threshold: float = 5.0  # Minimum distance to start drag
+var drag_threshold: float = 5.0
 
 # Components
 var health_bar: HealthBar
 var animated_sprite: LPCAnimatedSprite2D
 var element_glow: Sprite2D
-var sprite_frame_size: Vector2 = Vector2.ZERO
 
 # Animation state
-var current_direction: String = "South"
 var last_move_direction: Vector2 = Vector2.ZERO
+var fill_color: Color = Color(1, 1, 1, 1)
 
-# Inspector overrides removed — shape-only visuals in effect
-var fill_color: Color = Color(1,1,1,1)
 
+func get_class_sprite_folder() -> String:
+	match unit_class:
+		UnitBase.UnitClass.WARRIOR:   return "warrior"
+		UnitBase.UnitClass.RANGER:    return "archer"
+		UnitBase.UnitClass.MONK:      return "monk"
+		UnitBase.UnitClass.THIEF:     return "thief"
+		UnitBase.UnitClass.BLACK_MAGE: return "black_mage"
+		UnitBase.UnitClass.WHITE_MAGE: return "white_mage"
+		UnitBase.UnitClass.RED_MAGE:  return "red_mage"
+		_: return ""
 
 
 func _ready():
 	super._ready()
 
-	# Create element glow (behind sprite)
+	if sprite_variant == -1:
+		sprite_variant = randi() % 3
+
+	# Element glow behind sprite
 	element_glow = Sprite2D.new()
-	element_glow.texture = create_glow_texture()
-	element_glow.modulate = get_element_color()
-	element_glow.modulate.a = 0.4  # Semi-transparent
+	element_glow.texture = _create_glow_texture()
 	element_glow.scale = Vector2(1.5, 1.5)
+<<<<<<< Updated upstream
 	if element_glow and not element_glow.get_parent():
 		add_child(element_glow)
 	
@@ -65,27 +73,47 @@ func _ready():
 		if element_glow:
 			element_glow.modulate = fill_color
 			element_glow.modulate.a = 0.4
+=======
+	add_child(element_glow)
 
-	# Use simple shape visuals for all units (no sprites)
+	_setup_lpc_sprite()
+>>>>>>> Stashed changes
+
 	fill_color = get_element_color()
-	# ensure element glow reflects current element
 	if element_glow:
 		element_glow.modulate = fill_color
 		element_glow.modulate.a = 0.4
-		if not element_glow.get_parent():
-			add_child(element_glow)
 
-	# Create health bar (on top)
 	health_bar = HealthBar.new()
-	if health_bar and not health_bar.get_parent():
-		add_child(health_bar)
-		health_bar.update_health(current_hp, max_hp)
+	add_child(health_bar)
+	health_bar.update_health(current_hp, max_hp)
 
-	# Connect to health changes
 	health_changed.connect(_on_health_changed)
-
 	update_visuals()
-	# No sprite scanning in shape-only mode
+
+
+func _setup_lpc_sprite() -> void:
+	var folder = get_class_sprite_folder()
+	if folder == "":
+		return
+
+	var sprite_path = "res://assets/sprites/generated/%s/%d" % [folder, sprite_variant]
+
+	var lpc = LPCAnimatedSprite2D.new()
+	lpc.sprite_frames = SpriteFrames.new()
+	lpc.z_index = 1
+	# Set path before data so the data setter triggers the refresh with the path ready
+	lpc.spritesheets_path = sprite_path
+	lpc.animation_data = LPCAnimationDataSingleSprite.new()
+	add_child(lpc)
+
+	# Confirm at least one animation loaded; fall back to shape if not
+	var idle = "idle_south" if is_player_unit else "idle_north"
+	if lpc.sprite_frames and lpc.sprite_frames.has_animation(idle):
+		animated_sprite = lpc
+		lpc.play(idle)
+	else:
+		lpc.queue_free()
 
 
 func _on_health_changed(current: int, maximum: int) -> void:
@@ -93,32 +121,30 @@ func _on_health_changed(current: int, maximum: int) -> void:
 		health_bar.update_health(current, maximum)
 
 
-
-func create_glow_texture() -> Texture2D:
-	# Create a simple circular glow
+func _create_glow_texture() -> Texture2D:
 	var img = Image.create(64, 64, false, Image.FORMAT_RGBA8)
 	var center = Vector2(32, 32)
 	var radius = 28.0
-	
 	for y in range(64):
 		for x in range(64):
-			var pos = Vector2(x, y)
-			var dist = pos.distance_to(center)
-			var alpha = clamp(1.0 - (dist / radius), 0.0, 1.0)
-			# Smooth falloff
-			alpha = pow(alpha, 2.0)
+			var dist = Vector2(x, y).distance_to(center)
+			var alpha = pow(clamp(1.0 - dist / radius, 0.0, 1.0), 2.0)
 			img.set_pixel(x, y, Color(1, 1, 1, alpha))
-	
 	return ImageTexture.create_from_image(img)
 
-# Select a multi-frame animation when possible and start playback safely
-func _select_and_play_animation_for_sprite(sprite: AnimatedSprite2D) -> void:
-	if not sprite:
+
+func _process(_delta: float) -> void:
+	_update_animation()
+
+
+func _update_animation() -> void:
+	if not animated_sprite:
 		return
-	var frames = sprite.sprite_frames
+	var frames = animated_sprite.sprite_frames
 	if not frames:
 		return
 
+<<<<<<< Updated upstream
 	# Prefer idle animation based on ownership if it exists and has >1 frames
 	var prefer = "idle_south" if is_player_unit else "idle_north"
 	var chosen = ""
@@ -162,173 +188,107 @@ func update_animation() -> void:
 		return
 
 	var frames = animated_sprite.sprite_frames
+=======
+>>>>>>> Stashed changes
 	var curr = animated_sprite.animation
-	# If current animation is non-looping and not finished, don't interrupt
-	if frames and curr != "" and not frames.get_animation_loop(curr):
-		var fc = frames.get_frame_count(curr)
-		if animated_sprite.frame < fc - 1:
+
+	# Don't cut off a non-looping animation mid-play
+	if curr != "" and not frames.get_animation_loop(curr):
+		if animated_sprite.frame < frames.get_frame_count(curr) - 1:
 			return
 
-	# Determine facing direction from last_move_direction if available
-	var direction_suffix = "south"
+	# Derive facing from last movement
+	var dir_suffix = "south"
 	if last_move_direction.length() > 0:
 		if abs(last_move_direction.x) > abs(last_move_direction.y):
-			direction_suffix = "east" if last_move_direction.x > 0 else "west"
+			dir_suffix = "east" if last_move_direction.x > 0 else "west"
 		else:
-			direction_suffix = "south" if last_move_direction.y > 0 else "north"
+			dir_suffix = "south" if last_move_direction.y > 0 else "north"
 
-	# If moving, prefer walk/run animation
 	if is_moving and move_target_pos != move_start_pos:
 		var prefix = "run" if movement_speed >= 3 else "walk"
-		var anim_name = prefix + "_" + direction_suffix
-		# Fallbacks if missing
-		if frames:
-			if not frames.has_animation(anim_name):
-				if frames.has_animation("walk_" + direction_suffix):
-					anim_name = "walk_" + direction_suffix
-				elif frames.has_animation("run_" + direction_suffix):
-					anim_name = "run_" + direction_suffix
-				elif frames.has_animation("walk_south"):
-					anim_name = "walk_south"
-		# Switch only when changed
-		if anim_name != curr:
-			animated_sprite.play(anim_name)
+		var want = prefix + "_" + dir_suffix
+		if not frames.has_animation(want):
+			want = "walk_" + dir_suffix if frames.has_animation("walk_" + dir_suffix) else "walk_south"
+		if want != curr:
+			animated_sprite.play(want)
 		return
 
-	# Otherwise idle
-	var prefer_idle = "idle_south" if is_player_unit else "idle_north"
-	var idle_name = prefer_idle
-	if frames and not frames.has_animation(prefer_idle):
-		var anims = frames.get_animation_names()
-		if anims.size() > 0:
-			idle_name = anims[0]
-	if idle_name != curr:
-		animated_sprite.play(idle_name)
-
+	var idle = ("idle_south" if is_player_unit else "idle_north")
+	if not frames.has_animation(idle):
+		var names = frames.get_animation_names()
+		idle = names[0] if names.size() > 0 else ""
+	if idle != "" and idle != curr:
+		animated_sprite.play(idle)
 
 
 func _draw():
-	# Shape-only visuals
-	# Warriors use LPCAnimatedSprite2D, skip shape rendering
-	if unit_class == UnitBase.UnitClass.WARRIOR:
+	# Shape fallback: only drawn when no LPC sprite loaded
+	if animated_sprite:
 		return
 	var color = fill_color if fill_color else get_element_color()
-	var outline_color = Color.WHITE
-
+	var outline = Color.WHITE
 	match unit_class:
-		UnitBase.UnitClass.RANGER:
-			draw_triangle(color, outline_color)
-		UnitBase.UnitClass.MONK:
-			draw_circle_shape(color, outline_color)
-		UnitBase.UnitClass.THIEF:
-			draw_diamond(color, outline_color)
-		UnitBase.UnitClass.BLACK_MAGE:
-			draw_pentagon(color, outline_color)
-		UnitBase.UnitClass.WHITE_MAGE:
-			draw_hexagon(color, outline_color)
-		UnitBase.UnitClass.RED_MAGE:
-			draw_star(color, outline_color)
-		_:
-			draw_square(color, outline_color)
+		UnitBase.UnitClass.RANGER:    _draw_triangle(color, outline)
+		UnitBase.UnitClass.MONK:      _draw_circle(color, outline)
+		UnitBase.UnitClass.THIEF:     _draw_diamond(color, outline)
+		UnitBase.UnitClass.BLACK_MAGE: _draw_polygon(5, color, outline)
+		UnitBase.UnitClass.WHITE_MAGE: _draw_polygon(6, color, outline)
+		UnitBase.UnitClass.RED_MAGE:  _draw_star(color, outline)
+		_:                            _draw_square(color, outline)
 
-func draw_square(color: Color, outline_color: Color) -> void:
-	var half_size = shape_size / 2
-	var points = PackedVector2Array([
-		Vector2(-half_size, -half_size),
-		Vector2(half_size, -half_size),
-		Vector2(half_size, half_size),
-		Vector2(-half_size, half_size)
-	])
-	
-	# Fill
-	draw_colored_polygon(points, color)
-	# Outline
-	for i in range(points.size()):
-		var p1 = points[i]
-		var p2 = points[(i + 1) % points.size()]
-		draw_line(p1, p2, outline_color, outline_width)
 
-func draw_triangle(color: Color, outline_color: Color) -> void:
-	var height = shape_size
-	var half_base = shape_size * 0.866  # sqrt(3)/2 for equilateral
-	
-	var points = PackedVector2Array([
-		Vector2(0, -height * 0.577),  # Top
-		Vector2(half_base, height * 0.433),  # Bottom right
-		Vector2(-half_base, height * 0.433)  # Bottom left
-	])
-	
-	draw_colored_polygon(points, color)
-	for i in range(points.size()):
-		var p1 = points[i]
-		var p2 = points[(i + 1) % points.size()]
-		draw_line(p1, p2, outline_color, outline_width)
+func _draw_square(color: Color, outline: Color) -> void:
+	var h = shape_size / 2
+	var pts = PackedVector2Array([Vector2(-h,-h), Vector2(h,-h), Vector2(h,h), Vector2(-h,h)])
+	draw_colored_polygon(pts, color)
+	for i in pts.size():
+		draw_line(pts[i], pts[(i+1) % pts.size()], outline, outline_width)
 
-func draw_circle_shape(color: Color, outline_color: Color) -> void:
-	var radius = shape_size / 2
-	draw_circle(Vector2.ZERO, radius, color)
-	draw_arc(Vector2.ZERO, radius, 0, TAU, 32, outline_color, outline_width)
+func _draw_triangle(color: Color, outline: Color) -> void:
+	var h = shape_size
+	var hb = shape_size * 0.866
+	var pts = PackedVector2Array([Vector2(0, -h*0.577), Vector2(hb, h*0.433), Vector2(-hb, h*0.433)])
+	draw_colored_polygon(pts, color)
+	for i in pts.size():
+		draw_line(pts[i], pts[(i+1) % pts.size()], outline, outline_width)
 
-func draw_diamond(color: Color, outline_color: Color) -> void:
-	var half_size = shape_size / 2
-	var points = PackedVector2Array([
-		Vector2(0, -half_size),  # Top
-		Vector2(half_size, 0),   # Right
-		Vector2(0, half_size),   # Bottom
-		Vector2(-half_size, 0)   # Left
-	])
-	
-	draw_colored_polygon(points, color)
-	for i in range(points.size()):
-		var p1 = points[i]
-		var p2 = points[(i + 1) % points.size()]
-		draw_line(p1, p2, outline_color, outline_width)
+func _draw_circle(color: Color, outline: Color) -> void:
+	var r = shape_size / 2
+	draw_circle(Vector2.ZERO, r, color)
+	draw_arc(Vector2.ZERO, r, 0, TAU, 32, outline, outline_width)
 
-func draw_pentagon(color: Color, outline_color: Color) -> void:
-	var points = create_regular_polygon(5, shape_size / 2)
-	draw_colored_polygon(points, color)
-	for i in range(points.size()):
-		var p1 = points[i]
-		var p2 = points[(i + 1) % points.size()]
-		draw_line(p1, p2, outline_color, outline_width)
+func _draw_diamond(color: Color, outline: Color) -> void:
+	var h = shape_size / 2
+	var pts = PackedVector2Array([Vector2(0,-h), Vector2(h,0), Vector2(0,h), Vector2(-h,0)])
+	draw_colored_polygon(pts, color)
+	for i in pts.size():
+		draw_line(pts[i], pts[(i+1) % pts.size()], outline, outline_width)
 
-func draw_hexagon(color: Color, outline_color: Color) -> void:
-	var points = create_regular_polygon(6, shape_size / 2)
-	draw_colored_polygon(points, color)
-	for i in range(points.size()):
-		var p1 = points[i]
-		var p2 = points[(i + 1) % points.size()]
-		draw_line(p1, p2, outline_color, outline_width)
+func _draw_polygon(sides: int, color: Color, outline: Color) -> void:
+	var pts = PackedVector2Array()
+	for i in sides:
+		var a = -PI/2 + i * TAU / sides
+		pts.append(Vector2(cos(a), sin(a)) * (shape_size / 2))
+	draw_colored_polygon(pts, color)
+	for i in pts.size():
+		draw_line(pts[i], pts[(i+1) % pts.size()], outline, outline_width)
 
-func draw_star(color: Color, outline_color: Color) -> void:
-	var outer_radius = shape_size / 2
-	var inner_radius = outer_radius * 0.4
-	var points = PackedVector2Array()
-	
-	for i in range(5):
-		# Outer point
-		var angle_out = -PI / 2 + (i * TAU / 5)
-		points.append(Vector2(cos(angle_out), sin(angle_out)) * outer_radius)
-		
-		# Inner point
-		var angle_in = -PI / 2 + (i * TAU / 5) + (TAU / 10)
-		points.append(Vector2(cos(angle_in), sin(angle_in)) * inner_radius)
-	
-	draw_colored_polygon(points, color)
-	for i in range(points.size()):
-		var p1 = points[i]
-		var p2 = points[(i + 1) % points.size()]
-		draw_line(p1, p2, outline_color, outline_width)
+func _draw_star(color: Color, outline: Color) -> void:
+	var outer = shape_size / 2
+	var inner = outer * 0.4
+	var pts = PackedVector2Array()
+	for i in 5:
+		var ao = -PI/2 + i * TAU / 5
+		pts.append(Vector2(cos(ao), sin(ao)) * outer)
+		var ai = ao + TAU / 10
+		pts.append(Vector2(cos(ai), sin(ai)) * inner)
+	draw_colored_polygon(pts, color)
+	for i in pts.size():
+		draw_line(pts[i], pts[(i+1) % pts.size()], outline, outline_width)
 
-func create_regular_polygon(sides: int, radius: float) -> PackedVector2Array:
-	var points = PackedVector2Array()
-	for i in range(sides):
-		var angle = -PI / 2 + (i * TAU / sides)
-		points.append(Vector2(cos(angle), sin(angle)) * radius)
-	return points
 
 func update_visuals() -> void:
-	# Shape-only visuals: update fill color and glow
 	fill_color = get_element_color()
 	if element_glow:
 		element_glow.modulate = fill_color
@@ -339,80 +299,62 @@ func change_element(new_element: Element) -> void:
 	super.change_element(new_element)
 	update_visuals()
 
+
+# ── Drag & drop ────────────────────────────────────────────────────────────────
+
 func _input(event: InputEvent) -> void:
 	if not can_be_dragged:
 		return
-	
+
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
+<<<<<<< Updated upstream
 			var _anim_name = "IdleSouth" # Always use South-facing animation
+=======
+>>>>>>> Stashed changes
 			var mouse_pos = get_global_mouse_position()
-			var distance = global_position.distance_to(mouse_pos)
-			if distance <= shape_size:
+			if global_position.distance_to(mouse_pos) <= shape_size:
 				mouse_down_position = mouse_pos
 				drag_offset = global_position - mouse_pos
 				original_position = position
-				# Don't set handled yet - allow click to pass through
 		else:
 			if is_dragging:
 				is_dragging = false
-				try_place_at_mouse_position()
+				_try_place_at_mouse()
 				get_viewport().set_input_as_handled()
-			# If not dragging, let the click through for unit details
-	
+
 	if event is InputEventMouseMotion:
-		# Only start dragging if mouse moved beyond threshold
 		if not is_dragging and mouse_down_position != Vector2.ZERO:
-			var mouse_pos = get_global_mouse_position()
-			if mouse_down_position.distance_to(mouse_pos) > drag_threshold:
+			if mouse_down_position.distance_to(get_global_mouse_position()) > drag_threshold:
 				is_dragging = true
 				get_viewport().set_input_as_handled()
-		
 		if is_dragging:
-			var mouse_pos = get_global_mouse_position()
-			global_position = mouse_pos + drag_offset
+			global_position = get_global_mouse_position() + drag_offset
 			get_viewport().set_input_as_handled()
-		
-		# Reset mouse down when button released
 		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			mouse_down_position = Vector2.ZERO
 
-func try_place_at_mouse_position() -> void:
+
+func _try_place_at_mouse() -> void:
 	if not battle_manager:
 		return
-	
-	var battle_grid = battle_manager.battle_grid
-	if not battle_grid:
+	var bg = battle_manager.battle_grid
+	if not bg:
 		return
-	
-	var mouse_pos = get_global_mouse_position()
-	var new_grid_pos = battle_grid.world_to_grid(mouse_pos)
-	
-	# Check if position is valid for this unit's team
-	if not is_valid_placement_position(new_grid_pos, battle_grid):
-		# Snap back to original position
+	var new_pos = bg.world_to_grid(get_global_mouse_position())
+	if not _is_valid_placement(new_pos, bg):
 		position = original_position
 		return
-	
-	# Remove from old position
-	battle_grid.remove_unit(grid_position)
-	
-	# Try to place at new position
-	if battle_grid.place_unit(self, new_grid_pos):
-		grid_position = new_grid_pos
-		position = battle_grid.grid_to_world(new_grid_pos)
+	bg.remove_unit(grid_position)
+	if bg.place_unit(self, new_pos):
+		grid_position = new_pos
+		position = bg.grid_to_world(new_pos)
 	else:
-		# Position occupied, snap back
-		battle_grid.place_unit(self, grid_position)  # Re-place at old position
+		bg.place_unit(self, grid_position)
 		global_position = original_position
 
-func is_valid_placement_position(pos: Vector2i, battle_grid) -> bool:
-	if not battle_grid.is_valid_position(pos):
+
+func _is_valid_placement(pos: Vector2i, bg) -> bool:
+	if not bg.is_valid_position(pos):
 		return false
-	
-	# Player units can only be in rows 10-13 (bottom 4 rows)
-	if is_player_unit:
-		return pos.y >= 10 and pos.y < 14
-	# Enemy units can only be in rows 0-3 (top 4 rows)
-	else:
-		return pos.y >= 0 and pos.y < 4
+	return (pos.y >= 10 and pos.y < 14) if is_player_unit else (pos.y >= 0 and pos.y < 4)
