@@ -93,12 +93,18 @@ func initialize_game_components() -> void:
 	damage_text_container = Node2D.new()
 	damage_text_container.name = "DamageTextContainer"
 	battle_grid_node.add_child(damage_text_container)
-	
+
+	# Create skill effect container
+	var skill_effect_container := Node2D.new()
+	skill_effect_container.name = "SkillEffectContainer"
+	battle_grid_node.add_child(skill_effect_container)
+
 	# Create and attach AutoBattleManager
 	auto_battle_manager = AutoBattleManager.new()
 	auto_battle_manager_node.add_child(auto_battle_manager)
 	auto_battle_manager.initialize(battle_grid, game_state)
 	auto_battle_manager.projectile_container = projectile_container
+	auto_battle_manager.skill_effect_container = skill_effect_container
 
 	# Integrate any pre-placed unit nodes in the scene into the runtime grid
 	_integrate_scene_units()

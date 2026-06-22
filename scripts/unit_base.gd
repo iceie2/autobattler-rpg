@@ -75,12 +75,20 @@ var equipped_weapon = null
 var equipped_armor = null
 var equipped_accessory = null
 
+# Skill
+var skill_name: String = ""
+var skill_damage_multiplier: float = 1.5
+var skill_range: int = 2
+var skill_cooldown_max: int = 4   # turns between uses
+var skill_cooldown: int = 0       # counts down each turn; fires at 0
+
 # Battle state
 var grid_position: Vector2i = Vector2i.ZERO
 var target_unit = null
 var is_player_unit: bool = true
-var battle_manager = null  # Reference to spawn projectiles
-var damage_text_container: Node2D = null  # Reference to spawn damage text
+var battle_manager = null
+var damage_text_container: Node2D = null
+var skill_effect_container: Node2D = null
 
 # Derived stats
 var attack_damage: int:

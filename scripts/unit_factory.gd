@@ -119,6 +119,45 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 	# Random sprite variant (0–2) so same class looks different each spawn
 	unit.sprite_variant = randi() % 3
 
+	# Assign class skill
+	match unit_class:
+		UnitBase.UnitClass.WARRIOR:
+			unit.skill_name = "Whirlwind"
+			unit.skill_damage_multiplier = 1.2
+			unit.skill_range = 1
+			unit.skill_cooldown_max = 3
+		UnitBase.UnitClass.RANGER:
+			unit.skill_name = "Arrow Rain"
+			unit.skill_damage_multiplier = 0.8
+			unit.skill_range = 5
+			unit.skill_cooldown_max = 4
+		UnitBase.UnitClass.MONK:
+			unit.skill_name = "Chi Burst"
+			unit.skill_damage_multiplier = 1.0
+			unit.skill_range = 2
+			unit.skill_cooldown_max = 4
+		UnitBase.UnitClass.THIEF:
+			unit.skill_name = "Shadow Strike"
+			unit.skill_damage_multiplier = 2.5
+			unit.skill_range = 2
+			unit.skill_cooldown_max = 5
+		UnitBase.UnitClass.BLACK_MAGE:
+			unit.skill_name = "Inferno"
+			unit.skill_damage_multiplier = 2.0
+			unit.skill_range = 5
+			unit.skill_cooldown_max = 4
+		UnitBase.UnitClass.WHITE_MAGE:
+			unit.skill_name = "Holy Light"
+			unit.skill_damage_multiplier = 0.0   # healing skill
+			unit.skill_range = 99
+			unit.skill_cooldown_max = 5
+		UnitBase.UnitClass.RED_MAGE:
+			unit.skill_name = "Chaos Bolt"
+			unit.skill_damage_multiplier = 1.8
+			unit.skill_range = 4
+			unit.skill_cooldown_max = 3
+	unit.skill_cooldown = unit.skill_cooldown_max  # start on cooldown
+
 	return unit
 
 static func create_random_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Element = UnitBase.Element.NORMAL, is_player: bool = true) -> VisualUnit:

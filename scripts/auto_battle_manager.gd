@@ -4,7 +4,8 @@ class_name AutoBattleManager
 # References
 var battle_grid: BattleGrid
 var game_state: GameState
-var projectile_container: Node2D  # Container for projectiles
+var projectile_container: Node2D
+var skill_effect_container: Node2D
 
 # Battle state
 var player_units: Array = []
@@ -78,45 +79,29 @@ func _process(delta: float) -> void:
 		execute_battle_turn()
 
 func execute_battle_turn() -> void:
-	# Player units move and attack
-	for unit in player_units:
-		if unit == null or not is_instance_valid(unit):
-			continue
-		var target = find_nearest_enemy(unit, enemy_units)
-		if not target:
-			print("[Battle] player unit has no target!")
-			continue
-		var dist = unit.grid_position.distance_to(target.grid_position)
-		print("[Battle] player %s gpos=%s → target %s gpos=%s dist=%.1f range=%d moving=%s" % [
-			unit.unit_name, unit.grid_position, target.unit_name, target.grid_position,
-			dist, unit.attack_range, unit.is_moving])
-		if unit.is_in_attack_range(target.grid_position):
-			print("[Battle] player ATTACKING")
-			unit.attack(target)
-			unit_action.emit(unit, "attack")
-			unit_paths.erase(unit)
-		elif not unit.is_moving:
-			print("[Battle] player MOVING")
-			move_unit_towards_with_pathfinding(unit, target.grid_position)
-			unit_action.emit(unit, "move")
-
-	# Enemy units move and attack
-	for unit in enemy_units:
-		if unit == null or not is_instance_valid(unit):
-			continue
-		var target = find_nearest_enemy(unit, player_units)
-		if not target:
-			continue
-		if unit.is_in_attack_range(target.grid_position):
-			unit.attack(target)
-			unit_action.emit(unit, "attack")
-			unit_paths.erase(unit)
-		elif not unit.is_moving:
-			move_unit_towards_with_pathfinding(unit, target.grid_position)
-			unit_action.emit(unit, "move")
-	
-	# Check battle end conditions
+	_run_side(player_units, enemy_units)
+	_run_side(enemy_units, player_units)
 	check_battle_end()
+
+func _run_side(units: Array, opponents: Array) -> void:
+	for unit in units:
+		if unit == null or not is_instance_valid(unit):
+			continue
+
+		# Tick skill cooldown
+		if unit.skill_cooldown > 0:
+			unit.skill_cooldown -= 1
+
+		var target = find_nearest_enemy(unit, opponents)
+		if not target:
+			continue
+
+		# Try to use skill first if off cooldown
+		if unit.skill_cooldown == 0 and unit.skill_name != "":
+			_use_skill(unit, opponents)
+			unit.skill_cooldown = unit.skill_cooldown_max
+			unit_action.emit(unit, "skill")
+			continue
 
 func find_nearest_enemy(unit: UnitBase, enemies: Array) -> UnitBase:
 	var nearest: UnitBase = null
@@ -134,8 +119,128 @@ func find_nearest_enemy(unit: UnitBase, enemies: Array) -> UnitBase:
 	return nearest
 
 func assign_preferred_target(unit: UnitBase, target: UnitBase) -> void:
-	# This implements the "assign preferred target" from your flowchart
 	unit.target_unit = target
+
+# ── Skill execution ───────────────────────────────────────────────────────────
+
+func _use_skill(caster: UnitBase, opponents: Array) -> void:
+	var effect_type: SkillEffect.Type
+	match caster.unit_class:
+		UnitBase.UnitClass.WARRIOR:
+			effect_type = SkillEffect.Type.WHIRLWIND
+			_whirlwind(caster, opponents)
+		UnitBase.UnitClass.RANGER:
+			effect_type = SkillEffect.Type.ARROW_RAIN
+			_arrow_rain(caster, opponents)
+		UnitBase.UnitClass.MONK:
+			effect_type = SkillEffect.Type.CHI_BURST
+			_chi_burst(caster, opponents)
+		UnitBase.UnitClass.THIEF:
+			effect_type = SkillEffect.Type.SHADOW_STRIKE
+			_shadow_strike(caster, opponents)
+		UnitBase.UnitClass.BLACK_MAGE:
+			effect_type = SkillEffect.Type.INFERNO
+			_inferno(caster, opponents)
+		UnitBase.UnitClass.WHITE_MAGE:
+			effect_type = SkillEffect.Type.HOLY_LIGHT
+			_holy_light(caster)
+		UnitBase.UnitClass.RED_MAGE:
+			effect_type = SkillEffect.Type.CHAOS_BOLT
+			_chaos_bolt(caster, opponents)
+		_:
+			return
+	_spawn_skill_effect(effect_type, caster.global_position)
+
+func _spawn_skill_effect(type: SkillEffect.Type, world_pos: Vector2) -> void:
+	if not skill_effect_container:
+		return
+	var fx := SkillEffect.new()
+	skill_effect_container.add_child(fx)
+	fx.setup(type, world_pos, 56.0)
+
+# Warrior: hits all adjacent enemies
+func _whirlwind(caster: UnitBase, opponents: Array) -> void:
+	for opp in opponents:
+		if opp == null or not is_instance_valid(opp):
+			continue
+		if caster.grid_position.distance_to(opp.grid_position) <= 1.5:
+			var dmg := int(caster.attack_damage * caster.skill_damage_multiplier)
+			opp.take_damage(dmg, caster.current_element)
+
+# Ranger: hits up to 3 nearest enemies with ranged shots
+func _arrow_rain(caster: UnitBase, opponents: Array) -> void:
+	var sorted := opponents.filter(func(u): return u != null and is_instance_valid(u))
+	sorted.sort_custom(func(a, b):
+		return caster.grid_position.distance_to(a.grid_position) < \
+			   caster.grid_position.distance_to(b.grid_position))
+	var count := mini(3, sorted.size())
+	for i in range(count):
+		var target: UnitBase = sorted[i]
+		if caster.grid_position.distance_to(target.grid_position) <= caster.skill_range:
+			var dmg := int(caster.attack_damage * caster.skill_damage_multiplier)
+			caster.spawn_projectile(target, dmg)
+			_spawn_skill_effect(SkillEffect.Type.ARROW_RAIN, target.global_position)
+
+# Monk: damages nearby enemies AND heals adjacent allies
+func _chi_burst(caster: UnitBase, opponents: Array) -> void:
+	for opp in opponents:
+		if opp == null or not is_instance_valid(opp):
+			continue
+		if caster.grid_position.distance_to(opp.grid_position) <= caster.skill_range:
+			var dmg := int(caster.attack_damage * caster.skill_damage_multiplier)
+			opp.take_damage(dmg, caster.current_element)
+	# Heal allies adjacent to caster
+	var allies := player_units if caster.is_player_unit else enemy_units
+	for ally in allies:
+		if ally == null or not is_instance_valid(ally) or ally == caster:
+			continue
+		if caster.grid_position.distance_to(ally.grid_position) <= 2.0:
+			ally.heal(int(caster.magic_power * 0.8))
+
+# Thief: high-damage critical strike on nearest enemy
+func _shadow_strike(caster: UnitBase, opponents: Array) -> void:
+	var target := find_nearest_enemy(caster, opponents)
+	if target and is_instance_valid(target):
+		var dmg := int(caster.attack_damage * caster.skill_damage_multiplier)
+		target.take_damage(dmg, caster.current_element)
+		_spawn_skill_effect(SkillEffect.Type.SHADOW_STRIKE, target.global_position)
+
+# Black Mage: large AOE explosion around nearest enemy
+func _inferno(caster: UnitBase, opponents: Array) -> void:
+	var center := find_nearest_enemy(caster, opponents)
+	if not center or not is_instance_valid(center):
+		return
+	_spawn_skill_effect(SkillEffect.Type.INFERNO, center.global_position)
+	for opp in opponents:
+		if opp == null or not is_instance_valid(opp):
+			continue
+		if center.grid_position.distance_to(opp.grid_position) <= 2.0:
+			var dmg := int(caster.magic_power * caster.skill_damage_multiplier)
+			opp.take_damage(dmg, caster.current_element)
+
+# White Mage: heals all allies
+func _holy_light(caster: UnitBase) -> void:
+	var allies := player_units if caster.is_player_unit else enemy_units
+	for ally in allies:
+		if ally == null or not is_instance_valid(ally):
+			continue
+		var heal_amount := int(caster.magic_power * 1.2)
+		ally.heal(heal_amount)
+		_spawn_skill_effect(SkillEffect.Type.HOLY_LIGHT, ally.global_position)
+
+# Red Mage: random-element bolt at the nearest 2 enemies
+func _chaos_bolt(caster: UnitBase, opponents: Array) -> void:
+	var sorted := opponents.filter(func(u): return u != null and is_instance_valid(u))
+	sorted.sort_custom(func(a, b):
+		return caster.grid_position.distance_to(a.grid_position) < \
+			   caster.grid_position.distance_to(b.grid_position))
+	var random_elem := UnitBase.Element.values()[randi() % UnitBase.Element.values().size()]
+	var count := mini(2, sorted.size())
+	for i in range(count):
+		var target: UnitBase = sorted[i]
+		var dmg := int((caster.attack_damage + caster.magic_power) * 0.5 * caster.skill_damage_multiplier)
+		caster.spawn_projectile(target, dmg)
+		_spawn_skill_effect(SkillEffect.Type.CHAOS_BOLT, target.global_position)
 
 func check_battle_end() -> void:
 	# Remove dead units
