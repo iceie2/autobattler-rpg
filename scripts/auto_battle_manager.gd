@@ -175,33 +175,28 @@ func move_unit_towards_with_pathfinding(unit: UnitBase, target_pos: Vector2i) ->
 			if path_goal.distance_to(target_pos) > 2:
 				needs_new_path = true
 	
-	# Calculate new path if needed
 	if needs_new_path:
 		var new_path = Pathfinding.find_path(current_pos, target_pos, battle_grid)
 		if new_path.is_empty():
-			return  # No path found, unit stays put
-		
-		# Remove first element (current position)
+			print("[Path] NO PATH from %s to %s" % [current_pos, target_pos])
+			return
 		if new_path.size() > 0 and new_path[0] == current_pos:
 			new_path.remove_at(0)
-		
 		unit_paths[unit] = new_path
-	
-	# Follow the path
+		print("[Path] found len=%d first=%s" % [new_path.size(), new_path[0] if new_path.size() > 0 else "EMPTY"])
+
 	var path = unit_paths[unit]
 	if path.is_empty():
+		print("[Path] path empty after cache")
 		return
-	
-	# Take next step in path
+
 	var next_pos = path[0]
-	
-	# Verify next position is still valid and unoccupied
-	if not battle_grid.is_valid_position(next_pos) or battle_grid.is_cell_occupied(next_pos):
-		# Path is blocked, recalculate next turn
+	var occupied = battle_grid.is_cell_occupied(next_pos)
+	if not battle_grid.is_valid_position(next_pos) or occupied:
+		print("[Path] next_pos %s blocked (occupied=%s)" % [next_pos, occupied])
 		unit_paths.erase(unit)
 		return
-	
-	# Start smooth movement to next position
+
 	if not unit.is_moving:
 		start_unit_movement(unit, current_pos, next_pos)
 
@@ -210,17 +205,17 @@ func add_projectile(projectile: Projectile) -> void:
 		projectile_container.add_child(projectile)
 
 func start_unit_movement(unit: UnitBase, from_pos: Vector2i, to_pos: Vector2i) -> void:
-	# Set up smooth movement
+	print("[Move] START %s → %s" % [from_pos, to_pos])
 	unit.is_moving = true
 	unit.move_start_pos = battle_grid.grid_to_world(from_pos)
 	unit.move_target_pos = battle_grid.grid_to_world(to_pos)
 	unit.move_progress = 0.0
 	unit.target_grid_pos = to_pos
-	
-	# Reserve the target position immediately to prevent overlap
+
 	battle_grid.remove_unit(from_pos)
-	battle_grid.place_unit(unit, to_pos)
+	var placed = battle_grid.place_unit(unit, to_pos)
 	unit.grid_position = to_pos
+	print("[Move] placed=%s gpos_after=%s is_moving=%s" % [placed, unit.grid_position, unit.is_moving])
 
 func update_unit_movements(delta: float) -> void:
 	# Update all player units
