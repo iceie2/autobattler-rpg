@@ -51,7 +51,7 @@ func _draw() -> void:
 	_draw_bar(x, (bar_height + GAP) * 2.0,  ult_current, ult_max, ULT_READY if is_ready else ULT_COLOR)
 
 func _draw_bar(x: float, y: float, current: float, maximum: float, fill: Color) -> void:
-	var pct := clamp(current / max(maximum, 1.0), 0.0, 1.0)
+	var pct: float = clamp(current / max(maximum, 1.0), 0.0, 1.0)
 	# Background
 	draw_rect(Rect2(x, y, bar_width, bar_height), BG_COLOR)
 	# Fill
