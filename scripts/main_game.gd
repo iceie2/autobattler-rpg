@@ -448,7 +448,7 @@ func spawn_random_player_unit() -> void:
 
 func spawn_enemies() -> void:
 	# Round 1 = 3 enemies, Round 2 = 5, Round 3 = 7, capped at 10
-	var count := min(3 + (game_state.battle_round - 1) * 2, 10)
+	var count: int = min(3 + (game_state.battle_round - 1) * 2, 10)
 	for i in range(count):
 		var spawn_pos = find_empty_enemy_slot()
 		if spawn_pos == Vector2i(-1, -1):
