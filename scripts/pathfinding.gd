@@ -2,7 +2,7 @@ extends Node
 class_name Pathfinding
 
 # Simple A* pathfinding for the battle grid
-static func find_path(start: Vector2i, goal: Vector2i, grid: BattleGrid, max_steps: int = 20) -> Array[Vector2i]:
+static func find_path(start: Vector2i, goal: Vector2i, grid: BattleGrid, max_steps: int = 500) -> Array[Vector2i]:
 	if not grid.is_valid_position(start) or not grid.is_valid_position(goal):
 		return []
 	
@@ -49,15 +49,24 @@ static func find_path(start: Vector2i, goal: Vector2i, grid: BattleGrid, max_ste
 	return []  # No path found
 
 static func find_nearest_unoccupied_to_target(target: Vector2i, grid: BattleGrid) -> Vector2i:
-	# Find nearest unoccupied cell adjacent to target
-	var neighbors = get_all_neighbors(target)
-	var best_pos = Vector2i(-1, -1)
-	
-	for neighbor in neighbors:
-		if grid.is_valid_position(neighbor) and not grid.is_cell_occupied(neighbor):
-			return neighbor  # Return first valid one
-	
-	return best_pos
+	# BFS outward from target until we find an unoccupied cell
+	var visited: Dictionary = {}
+	var queue: Array[Vector2i] = [target]
+	visited[target] = true
+
+	while queue.size() > 0:
+		var current = queue.pop_front()
+		for neighbor in get_all_neighbors(current):
+			if visited.has(neighbor):
+				continue
+			visited[neighbor] = true
+			if not grid.is_valid_position(neighbor):
+				continue
+			if not grid.is_cell_occupied(neighbor):
+				return neighbor
+			queue.append(neighbor)
+
+	return Vector2i(-1, -1)
 
 static func get_neighbors(pos: Vector2i, grid: BattleGrid) -> Array[Vector2i]:
 	var neighbors: Array[Vector2i] = []
