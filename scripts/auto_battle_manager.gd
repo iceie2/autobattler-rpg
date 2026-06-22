@@ -264,9 +264,7 @@ func check_battle_end() -> void:
 func end_battle(player_won: bool) -> void:
 	battle_active = false
 	battle_ended.emit(player_won)
-	
-	if game_state:
-		game_state.end_auto_battle()
+	# State transition is handled by _on_battle_ended in main_game.gd
 
 func move_unit_towards_with_pathfinding(unit: UnitBase, target_pos: Vector2i) -> void:
 	if not battle_grid:

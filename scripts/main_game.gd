@@ -72,6 +72,7 @@ var damage_text_container: Node2D
 var player_units: Array = []
 var enemy_units: Array = []
 var shop_open: bool = false
+var _panel_dragging: bool = false
 
 func _ready():
 	initialize_game_components()
@@ -134,6 +135,7 @@ func connect_signals() -> void:
 	use_items_btn.pressed.connect(_on_use_items_pressed)
 	ready_btn.pressed.connect(_on_ready_pressed)
 	details_close_btn.pressed.connect(_on_details_close_pressed)
+	unit_details_panel.gui_input.connect(_on_details_panel_input)
 
 
 func _integrate_scene_units() -> void:
@@ -379,6 +381,12 @@ func show_unit_details(unit: UnitBase) -> void:
 
 func _on_details_close_pressed() -> void:
 	unit_details_panel.visible = false
+
+func _on_details_panel_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		_panel_dragging = event.pressed
+	elif event is InputEventMouseMotion and _panel_dragging:
+		unit_details_panel.position += event.relative
 
 func update_affinity_label(label: RichTextLabel, element_name: String, value: float, element: UnitBase.Element, is_offensive: bool) -> void:
 	var color = get_element_color_hex(element)
