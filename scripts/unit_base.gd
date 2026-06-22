@@ -284,7 +284,6 @@ func attack(target) -> void:
 		damage_dealt += actual
 		_charge_ultimate(actual / 2)
 
-	_grant_xp(15)
 	attacked.emit(target)
 
 func _charge_ultimate(amount: int) -> void:
@@ -294,11 +293,15 @@ func _charge_ultimate(amount: int) -> void:
 	if ultimate_charge >= ultimate_charge_max:
 		ultimate_ready = true
 
-func _grant_xp(amount: int) -> void:
+func grant_xp(amount: int) -> void:
 	current_xp += amount
-	if current_xp >= xp_to_level:
+	while current_xp >= xp_to_level:
 		current_xp -= xp_to_level
 		xp_to_level = int(xp_to_level * 1.5)
+		level_up()
+
+func set_level(target_level: int) -> void:
+	while level < target_level:
 		level_up()
 
 func spawn_projectile(target, damage: int) -> void:
