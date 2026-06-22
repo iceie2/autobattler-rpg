@@ -15,6 +15,7 @@ extends Node2D
 @onready var change_element_btn = $UI/ActionPanel/VBoxContainer/ChangeElementBtn
 @onready var spawn_hero_btn = $UI/ActionPanel/VBoxContainer/spawn_heroBtn
 @onready var use_items_btn = $UI/ActionPanel/VBoxContainer/UseItemsBtn
+@onready var roster_btn = $UI/ActionPanel/VBoxContainer/RosterBtn
 @onready var ready_btn = $UI/ActionPanel/VBoxContainer/ReadyBtn
 
 # Team status panel
@@ -75,6 +76,7 @@ var player_units: Array = []
 var enemy_units: Array = []
 var shop_open: bool = false
 var _panel_dragging: bool = false
+var _character_menu: CharacterMenu
 
 func _ready():
 	initialize_game_components()
@@ -135,9 +137,15 @@ func connect_signals() -> void:
 	change_element_btn.pressed.connect(_on_change_element_pressed)
 	spawn_hero_btn.pressed.connect(_on_spawn_hero_pressed)
 	use_items_btn.pressed.connect(_on_use_items_pressed)
+	roster_btn.pressed.connect(_on_roster_pressed)
 	ready_btn.pressed.connect(_on_ready_pressed)
 	details_close_btn.pressed.connect(_on_details_close_pressed)
 	unit_details_panel.gui_input.connect(_on_details_panel_input)
+
+	# Instantiate character menu overlay
+	var cm_scene := load("res://scenes/character_menu.tscn") as PackedScene
+	_character_menu = cm_scene.instantiate() as CharacterMenu
+	add_child(_character_menu)
 
 
 func _integrate_scene_units() -> void:
@@ -207,6 +215,8 @@ func enable_action_buttons(enabled: bool) -> void:
 	spawn_hero_btn.disabled = not enabled
 	use_items_btn.disabled = not enabled
 	ready_btn.disabled = not enabled
+	# Roster is always accessible
+	roster_btn.disabled = false
 
 func enable_unit_dragging(enabled: bool) -> void:
 	for unit in player_units:
@@ -383,6 +393,9 @@ func _on_spawn_hero_pressed() -> void:
 
 func _on_use_items_pressed() -> void:
 	info_label.text = "Use Items - Not yet implemented"
+
+func _on_roster_pressed() -> void:
+	_character_menu.open(player_units, enemy_units, true)
 
 func _on_ready_pressed() -> void:
 	if player_units.is_empty():
