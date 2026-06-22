@@ -273,7 +273,7 @@ theme_override_colors/font_color = Color(1, 0.6, 0.6, 1)
 offset_left = 1300.0
 offset_top = 236.0
 offset_right = 1800.0
-offset_bottom = 460.0
+offset_bottom = 880.0
 theme_override_styles/panel = SubResource("TeamPanelStyle")
 
 [node name="VBox" type="VBoxContainer" parent="UI/TeamStatsPanel"]
@@ -320,6 +320,10 @@ text = "— / — HP  (0 units)"
 horizontal_alignment = 1
 theme_override_colors/font_color = Color(0.65, 0.9, 0.65, 1)
 
+[node name="PlayerUnitList" type="VBoxContainer" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
 [node name="HSep2" type="HSeparator" parent="UI/TeamStatsPanel/VBox"]
 layout_mode = 2
 
@@ -343,6 +347,10 @@ theme_override_font_sizes/font_size = 11
 text = "— / — HP  (0 units)"
 horizontal_alignment = 1
 theme_override_colors/font_color = Color(0.9, 0.65, 0.65, 1)
+
+[node name="EnemyUnitList" type="VBoxContainer" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
 
 [node name="BottomBar" type="Panel" parent="UI"]
 offset_left = 0.0

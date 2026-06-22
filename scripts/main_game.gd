@@ -18,10 +18,12 @@ extends Node2D
 @onready var ready_btn = $UI/ActionPanel/VBoxContainer/ReadyBtn
 
 # Team status panel
-@onready var player_hp_bar   = $UI/TeamStatsPanel/VBox/PlayerHPBar
-@onready var player_hp_label = $UI/TeamStatsPanel/VBox/PlayerHPLabel
-@onready var enemy_hp_bar    = $UI/TeamStatsPanel/VBox/EnemyHPBar
-@onready var enemy_hp_label  = $UI/TeamStatsPanel/VBox/EnemyHPLabel
+@onready var player_hp_bar    = $UI/TeamStatsPanel/VBox/PlayerHPBar
+@onready var player_hp_label  = $UI/TeamStatsPanel/VBox/PlayerHPLabel
+@onready var player_unit_list = $UI/TeamStatsPanel/VBox/PlayerUnitList
+@onready var enemy_hp_bar     = $UI/TeamStatsPanel/VBox/EnemyHPBar
+@onready var enemy_hp_label   = $UI/TeamStatsPanel/VBox/EnemyHPLabel
+@onready var enemy_unit_list  = $UI/TeamStatsPanel/VBox/EnemyUnitList
 
 # Unit details panel
 @onready var unit_details_panel = $UI/UnitDetailsPanel
@@ -295,6 +297,58 @@ func update_team_health_bars() -> void:
 	else:
 		enemy_hp_bar.value = 0
 		enemy_hp_label.text = "No units"
+
+	_rebuild_unit_list(player_unit_list, player_units, Color(0.35, 0.92, 0.45, 1))
+	_rebuild_unit_list(enemy_unit_list,  enemy_units,  Color(0.95, 0.4,  0.4,  1))
+
+func _rebuild_unit_list(container: VBoxContainer, units: Array, name_color: Color) -> void:
+	for child in container.get_children():
+		child.queue_free()
+	for unit in units:
+		if not (unit and is_instance_valid(unit)):
+			continue
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+
+		# Name + element dot
+		var name_lbl := Label.new()
+		var elem_color := unit.get_element_color()
+		name_lbl.text = "● %s" % unit.unit_name
+		name_lbl.add_theme_font_size_override("font_size", 11)
+		name_lbl.add_theme_color_override("font_color", name_color)
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name_lbl)
+
+		# HP bar (mini)
+		var hp_bar := ProgressBar.new()
+		hp_bar.custom_minimum_size = Vector2(60, 10)
+		hp_bar.max_value = unit.max_hp
+		hp_bar.value = unit.current_hp
+		hp_bar.show_percentage = false
+		hp_bar.size_flags_horizontal = 0
+		var fill_style := StyleBoxFlat.new()
+		fill_style.bg_color = name_color
+		fill_style.corner_radius_top_left = 2
+		fill_style.corner_radius_top_right = 2
+		fill_style.corner_radius_bottom_left = 2
+		fill_style.corner_radius_bottom_right = 2
+		var bg_style := StyleBoxFlat.new()
+		bg_style.bg_color = Color(name_color.r * 0.2, name_color.g * 0.2, name_color.b * 0.2)
+		hp_bar.add_theme_stylebox_override("fill", fill_style)
+		hp_bar.add_theme_stylebox_override("background", bg_style)
+		row.add_child(hp_bar)
+
+		# Stats label
+		var stats_lbl := Label.new()
+		stats_lbl.text = "  Lv.%d  %d/%d HP  %d/%d MP" % [
+			unit.level, unit.current_hp, unit.max_hp,
+			unit.current_mana, unit.max_mana
+		]
+		stats_lbl.add_theme_font_size_override("font_size", 10)
+		stats_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8, 1))
+		row.add_child(stats_lbl)
+
+		container.add_child(row)
 
 func _on_cell_clicked(grid_pos: Vector2i) -> void:
 	# Right-click to show unit details
