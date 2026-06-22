@@ -257,6 +257,15 @@ theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_colors/font_color = Color(0.9, 0.9, 1, 1)
 theme_override_font_sizes/font_size = 14
 
+[node name="ClassesBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+text = "View Classes"
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_colors/font_color = Color(0.8, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 14
+
 [node name="RosterBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
 text = "View Roster"
