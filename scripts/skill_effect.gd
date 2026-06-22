@@ -17,7 +17,7 @@ var elapsed: float = 0.0
 var radius: float = 48.0      # base visual radius
 
 # Random seeds for particles so each effect looks slightly different
-var _seeds: Array = []
+var _seeds: Array[float] = []
 
 func setup(type: Type, world_pos: Vector2, r: float = 48.0) -> void:
 	effect_type = type
@@ -70,11 +70,11 @@ func _draw_whirlwind(t: float, inv: float) -> void:
 func _draw_arrow_rain(t: float, inv: float) -> void:
 	var count := 8
 	for i in range(count):
-		var seed_x := _seeds[i] * 2.0 - 1.0
-		var seed_t := _seeds[i + count % _seeds.size()]
-		var phase   := fmod(t * 1.5 + seed_t, 1.0)
-		var x       := seed_x * radius
-		var y       := -radius + phase * radius * 2.0
+		var seed_x: float = _seeds[i] * 2.0 - 1.0
+		var seed_t: float = _seeds[(i + count) % _seeds.size()]
+		var phase: float  = fmod(t * 1.5 + seed_t, 1.0)
+		var x: float      = seed_x * radius
+		var y: float      = -radius + phase * radius * 2.0
 		var alpha   := inv * (1.0 - phase * 0.5)
 		var col     := Color(0.2, 1.0, 0.35, alpha)
 		# Arrow body
@@ -116,11 +116,11 @@ func _draw_shadow_strike(t: float, inv: float) -> void:
 	# Slash streaks
 	var num := 6
 	for i in range(num):
-		var angle := _seeds[i] * TAU
-		var phase  := fmod(t * 2.0 + _seeds[i], 1.0)
-		var r1     := phase * radius * 0.3
-		var r2     := phase * radius
-		var alpha  := (1.0 - phase) * inv
+		var angle: float = _seeds[i] * TAU
+		var phase: float = fmod(t * 2.0 + _seeds[i], 1.0)
+		var r1: float    = phase * radius * 0.3
+		var r2: float    = phase * radius
+		var alpha: float = (1.0 - phase) * inv
 		var col    := Color(0.7, 0.1, 1.0, alpha)
 		draw_line(
 			Vector2(cos(angle), sin(angle)) * r1,
@@ -135,17 +135,17 @@ func _draw_shadow_strike(t: float, inv: float) -> void:
 # ── Black Mage: fiery explosion ───────────────────────────────────────────────
 func _draw_inferno(t: float, inv: float) -> void:
 	# Growing fireball core
-	var core_r := radius * min(t * 2.0, 1.0)
+	var core_r: float = radius * min(t * 2.0, 1.0)
 	draw_circle(Vector2.ZERO, core_r, Color(1.0, 0.4, 0.0, inv * 0.6))
 	draw_circle(Vector2.ZERO, core_r * 0.6, Color(1.0, 0.8, 0.2, inv * 0.8))
 	# Flame tendrils
 	var count := 12
 	for i in range(count):
-		var base_a := _seeds[i] * TAU
-		var wobble  := sin(t * 15.0 + i) * 0.3
-		var angle   := base_a + wobble
-		var dist    := (0.5 + _seeds[i] * 0.5) * radius * min(t * 2.5, 1.0)
-		var tip     := Vector2(cos(angle), sin(angle)) * dist
+		var base_a: float = _seeds[i] * TAU
+		var wobble: float = sin(t * 15.0 + i) * 0.3
+		var angle: float  = base_a + wobble
+		var dist: float   = (0.5 + _seeds[i] * 0.5) * radius * min(t * 2.5, 1.0)
+		var tip: Vector2  = Vector2(cos(angle), sin(angle)) * dist
 		var col     := Color(1.0, 0.3 + _seeds[i] * 0.4, 0.0, inv * 0.7)
 		draw_line(Vector2.ZERO, tip, col, 3.0 * inv)
 		draw_circle(tip, 4.0 * inv, Color(1.0, 0.7, 0.1, inv * 0.5))
@@ -164,12 +164,12 @@ func _draw_holy_light(t: float, inv: float) -> void:
 	# Rising beams
 	var count := 7
 	for i in range(count):
-		var angle  := _seeds[i] * TAU
-		var height := radius * 1.8 * t
-		var offset := Vector2(cos(angle), sin(angle)) * (radius * 0.25 * _seeds[i])
-		var base   := offset
-		var tip    := offset + Vector2(0, -height)
-		var alpha  := inv * 0.7 * (1.0 - abs(sin(angle)) * 0.3)
+		var angle: float   = _seeds[i] * TAU
+		var height: float  = radius * 1.8 * t
+		var offset: Vector2 = Vector2(cos(angle), sin(angle)) * (radius * 0.25 * _seeds[i])
+		var base: Vector2  = offset
+		var tip: Vector2   = offset + Vector2(0.0, -height)
+		var alpha: float   = inv * 0.7 * (1.0 - abs(sin(angle)) * 0.3)
 		var col    := Color(1.0, 0.95, 0.6, alpha)
 		draw_line(base, tip, col, (2.0 + _seeds[i] * 2.0) * inv)
 	# Star burst
@@ -190,14 +190,14 @@ func _draw_chaos_bolt(t: float, inv: float) -> void:
 	# Multi-color sparks flying outward
 	var count := 14
 	for i in range(count):
-		var angle  := _seeds[i] * TAU + t * TAU * (1.5 + _seeds[i])
-		var dist   := _seeds[i] * radius * t
-		var pos    := Vector2(cos(angle), sin(angle)) * dist
-		var hue    := fmod(_seeds[i] + t * 0.5, 1.0)
-		var col    := Color.from_hsv(hue, 0.9, 1.0, inv * 0.85)
+		var angle: float  = _seeds[i] * TAU + t * TAU * (1.5 + _seeds[i])
+		var dist: float   = _seeds[i] * radius * t
+		var pos: Vector2  = Vector2(cos(angle), sin(angle)) * dist
+		var hue: float    = fmod(_seeds[i] + t * 0.5, 1.0)
+		var col: Color    = Color.from_hsv(hue, 0.9, 1.0, inv * 0.85)
 		draw_circle(pos, (3.0 + _seeds[i] * 4.0) * inv, col)
 		# Spark trail
-		var trail  := pos * 0.6
+		var trail: Vector2 = pos * 0.6
 		draw_line(trail, pos, Color(col.r, col.g, col.b, inv * 0.4), 1.5)
 	# Central swirl
 	draw_circle(Vector2.ZERO, 14.0 * inv, Color(0.8, 0.3, 1.0, inv * 0.8))
