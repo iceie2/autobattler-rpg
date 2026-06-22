@@ -265,7 +265,7 @@ func attack(target) -> void:
 	if not (target and target.has_method("take_damage")):
 		return
 
-	var target_element := target.current_element if target is UnitBase else Element.NORMAL
+	var target_element: Element = target.current_element if target is UnitBase else Element.NORMAL
 	var damage := int(attack_damage * get_attack_multiplier(target_element))
 
 	# Headhunter passive: every 7th hit is a crit (3× damage)

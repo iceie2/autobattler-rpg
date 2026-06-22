@@ -113,7 +113,7 @@ func _run_side(units: Array, opponents: Array) -> void:
 			continue
 
 		# ── Active skill ──────────────────────────────────────────────────────
-		var can_afford_mana := unit.current_mana >= unit.skill_mana_cost
+		var can_afford_mana: bool = unit.current_mana >= unit.skill_mana_cost
 		if unit.skill_cooldown == 0 and unit.skill_name != "" and can_afford_mana:
 			if unit.skill_mana_cost > 0:
 				unit.current_mana -= unit.skill_mana_cost
@@ -127,7 +127,7 @@ func _run_side(units: Array, opponents: Array) -> void:
 		if not target:
 			continue
 
-		var effective_range := unit.attack_range + (2 if unit.rapid_fire_turns > 0 else 0)
+		var effective_range: int = unit.attack_range + (2 if unit.rapid_fire_turns > 0 else 0)
 		if unit.grid_position.distance_to(target.grid_position) <= effective_range:
 			# Extra target for Headhunter Rapid Fire
 			if unit.rapid_fire_turns > 0 and opponents.size() > 1:
@@ -243,10 +243,10 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 			_use_skill(caster, opponents)
 
 func _nearest_open_adjacent(center: Vector2i) -> Vector2i:
-	var dirs := [Vector2i(1,0),Vector2i(-1,0),Vector2i(0,1),Vector2i(0,-1),
+	var dirs: Array[Vector2i] = [Vector2i(1,0),Vector2i(-1,0),Vector2i(0,1),Vector2i(0,-1),
 				 Vector2i(1,1),Vector2i(-1,1),Vector2i(1,-1),Vector2i(-1,-1)]
 	for d in dirs:
-		var c := center + d
+		var c: Vector2i = center + d
 		if battle_grid.is_valid_position(c) and not battle_grid.is_cell_occupied(c):
 			return c
 	return Vector2i(-1, -1)
@@ -272,8 +272,8 @@ func _check_line_of_fire(shooter: UnitBase, target: UnitBase, opponents: Array) 
 		if not (opp and is_instance_valid(opp)) or opp == target:
 			continue
 		# Simple: is this unit roughly on the line?
-		var ox := opp.grid_position.x; var oy := opp.grid_position.y
-		var cross := abs((tx - sx) * (sy - oy) - (sx - ox) * (ty - sy))
+		var ox: int = opp.grid_position.x; var oy: int = opp.grid_position.y
+		var cross: int = abs((tx - sx) * (sy - oy) - (sx - ox) * (ty - sy))
 		if cross <= 1:  # within 1 unit of the line
 			var d := shooter.grid_position.distance_to(opp.grid_position)
 			if d < best_d:
