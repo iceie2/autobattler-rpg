@@ -9,6 +9,8 @@ enum Type {
 	INFERNO,      # BlackMage — fire explosion
 	HOLY_LIGHT,   # WhiteMage — rising light beams
 	CHAOS_BOLT,   # RedMage  — swirling sparks
+	GRAVITY_DROP, # Bouncer  — inward pull with warning ring
+	ABSORBED,     # Small absorption burst (hit by Gravity Drop)
 }
 
 var effect_type: Type = Type.WHIRLWIND
@@ -47,6 +49,8 @@ func _draw() -> void:
 		Type.INFERNO:       _draw_inferno(t, inv)
 		Type.HOLY_LIGHT:    _draw_holy_light(t, inv)
 		Type.CHAOS_BOLT:    _draw_chaos_bolt(t, inv)
+		Type.GRAVITY_DROP:  _draw_gravity_drop(t, inv)
+		Type.ABSORBED:      _draw_absorbed(t, inv)
 
 
 # ── Warrior: orange spinning sword arcs ──────────────────────────────────────
@@ -201,3 +205,84 @@ func _draw_chaos_bolt(t: float, inv: float) -> void:
 		draw_line(trail, pos, Color(col.r, col.g, col.b, inv * 0.4), 1.5)
 	# Central swirl
 	draw_circle(Vector2.ZERO, 14.0 * inv, Color(0.8, 0.3, 1.0, inv * 0.8))
+
+
+# ── Bouncer Gravity Drop: three phases ───────────────────────────────────────
+func _draw_gravity_drop(t: float, inv: float) -> void:
+	var blue  := Color(0.3,  0.55, 1.0)
+	var white := Color(0.8,  0.9,  1.0)
+	var gold  := Color(1.0,  0.85, 0.2)
+
+	# Phase 1 (0 → 0.35): expanding warning ring telegraphs the pull area
+	if t < 0.35:
+		var p: float = t / 0.35
+		var r: float = radius * 2.2 * p
+		# Outer ring
+		draw_arc(Vector2.ZERO, r, 0, TAU, 40,
+			Color(blue.r, blue.g, blue.b, p * 0.65), 3.0)
+		# 8 radial tick marks at the perimeter
+		for i in range(8):
+			var ang: float = i * (TAU / 8.0)
+			var outer: Vector2 = Vector2(cos(ang), sin(ang)) * r
+			var inner: Vector2 = outer * 0.82
+			draw_line(inner, outer, Color(gold.r, gold.g, gold.b, p * 0.9), 2.5)
+		# Pulsing core
+		draw_circle(Vector2.ZERO, 10.0 * p, Color(blue.r, blue.g, blue.b, p * 0.5))
+
+	# Phase 2 (0.35 → 0.75): ring contracts with inward-pointing arrows — the pull
+	elif t < 0.75:
+		var p: float = (t - 0.35) / 0.40
+		var r: float = radius * 2.2 * (1.0 - p * 0.85)
+		# Contracting outer ring (thickens as it closes in)
+		draw_arc(Vector2.ZERO, r, 0, TAU, 40,
+			Color(blue.r, blue.g, blue.b, inv * 0.85), 4.0 + p * 3.0)
+
+		# Inward arrows along the ring
+		var num_arrows := 10
+		for i in range(num_arrows):
+			var ang: float = i * (TAU / num_arrows) + t * TAU * 0.5
+			var tip: Vector2  = Vector2(cos(ang), sin(ang)) * (r * 0.15)
+			var tail: Vector2 = Vector2(cos(ang), sin(ang)) * r
+			draw_line(tail, tip, Color(white.r, white.g, white.b, inv * 0.75), 2.5)
+			# Arrowhead at the inner end
+			var perp: Vector2 = Vector2(-sin(ang), cos(ang))
+			draw_line(tip + perp * 7, tip, Color(gold.r, gold.g, gold.b, inv), 2.0)
+			draw_line(tip - perp * 7, tip, Color(gold.r, gold.g, gold.b, inv), 2.0)
+
+		# Ripple rings moving inward
+		for i in range(4):
+			var ripple_t: float = fmod(p * 2.0 + i * 0.25, 1.0)
+			var rr: float = r * (1.0 - ripple_t * 0.9)
+			draw_arc(Vector2.ZERO, rr, 0, TAU, 28,
+				Color(blue.r, blue.g, blue.b, (1.0 - ripple_t) * inv * 0.4), 1.5)
+
+		# Growing central core
+		draw_circle(Vector2.ZERO, 18.0 * p, Color(white.r, white.g, white.b, p * 0.7))
+
+	# Phase 3 (0.75 → 1.0): central impact burst
+	else:
+		var p: float = (t - 0.75) / 0.25
+		var core_r: float = p * radius * 0.7
+		draw_circle(Vector2.ZERO, core_r, Color(white.r, white.g, white.b, inv * 0.9))
+		draw_circle(Vector2.ZERO, core_r * 0.55, Color(1.0, 1.0, 1.0, inv))
+		# Shockwave ring expanding outward
+		draw_arc(Vector2.ZERO, p * radius * 1.4, 0, TAU, 32,
+			Color(blue.r, blue.g, blue.b, (1.0 - p) * inv * 0.8), 3.5)
+		# 6 energy spikes bursting out
+		for i in range(6):
+			var ang: float = i * (TAU / 6.0) + p * PI * 0.5
+			var spike: Vector2 = Vector2(cos(ang), sin(ang)) * (p * radius)
+			draw_line(Vector2.ZERO, spike,
+				Color(gold.r, gold.g, gold.b, (1.0 - p) * inv * 0.9), 3.0)
+
+
+# ── Absorbed: small blue implosion on each pulled enemy ──────────────────────
+func _draw_absorbed(t: float, inv: float) -> void:
+	var r: float = radius * (1.0 - t) * 0.8
+	draw_arc(Vector2.ZERO, r, 0, TAU, 20, Color(0.3, 0.6, 1.0, inv * 0.8), 2.5)
+	draw_circle(Vector2.ZERO, r * 0.4, Color(0.6, 0.8, 1.0, inv * 0.6))
+	# 4 inward dashes
+	for i in range(4):
+		var ang: float = i * (TAU / 4.0)
+		var outer: Vector2 = Vector2(cos(ang), sin(ang)) * r
+		draw_line(outer, outer * 0.3, Color(1.0, 1.0, 1.0, inv * 0.7), 2.0)

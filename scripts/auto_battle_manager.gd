@@ -208,14 +208,24 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 			_spawn_skill_effect(SkillEffect.Type.SHADOW_STRIKE, caster.global_position)
 
 		UnitBase.UnitClass.BOUNCER:
-			# Gravity Drop — pull enemies in 4×4 to nearest open cell beside Bouncer
+			# Gravity Drop — warning ring + pull all enemies in range + impact
 			var dmg := int(caster.magic_power * caster.ultimate_damage_mult)
-			var bonus: float = caster.get_meta("presence_bonus") if caster.has_meta("presence_bonus") else 0.0
+			var bonus: float = caster.get_meta("presence_bonus") if caster.has_meta("presence_bypass") else 0.0
+			if caster.has_meta("presence_bonus"):
+				bonus = float(caster.get_meta("presence_bonus"))
 			dmg = int(dmg * (1.0 + bonus))
+
+			# Large gravity drop effect centred on Bouncer (covers the pull area)
+			_spawn_skill_effect_sized(SkillEffect.Type.GRAVITY_DROP,
+				caster.global_position, 80.0)
+
 			for opp in opponents:
 				if not (opp and is_instance_valid(opp)):
 					continue
 				if caster.grid_position.distance_to(opp.grid_position) <= 4:
+					var prev_pos: Vector2 = opp.global_position
+					# Small absorbed burst on the enemy before pulling
+					_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, prev_pos, 28.0)
 					# Pull to nearest open cell next to Bouncer
 					var open_cell := _nearest_open_adjacent(caster.grid_position)
 					if open_cell != Vector2i(-1, -1) and open_cell != opp.grid_position:
@@ -225,7 +235,6 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 							opp.position = battle_grid.grid_to_world(open_cell)
 					opp.take_damage(dmg, caster.current_element)
 					caster.damage_dealt += dmg
-			_spawn_skill_effect(SkillEffect.Type.CHI_BURST, caster.global_position)
 
 		UnitBase.UnitClass.HEADHUNTER:
 			# Snipe — shoot farthest enemy, blocked by any enemy in line
@@ -364,11 +373,14 @@ func _headhunter_rapid_fire(caster: UnitBase) -> void:
 	caster.rapid_fire_turns = 3  # lasts 3 battle turns
 
 func _spawn_skill_effect(type: SkillEffect.Type, world_pos: Vector2) -> void:
+	_spawn_skill_effect_sized(type, world_pos, 56.0)
+
+func _spawn_skill_effect_sized(type: SkillEffect.Type, world_pos: Vector2, r: float) -> void:
 	if not skill_effect_container:
 		return
 	var fx := SkillEffect.new()
 	skill_effect_container.add_child(fx)
-	fx.setup(type, world_pos, 56.0)
+	fx.setup(type, world_pos, r)
 
 # Warrior: hits all adjacent enemies
 func _whirlwind(caster: UnitBase, opponents: Array) -> void:
