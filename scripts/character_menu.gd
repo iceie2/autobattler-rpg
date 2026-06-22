@@ -156,7 +156,7 @@ func _refresh() -> void:
 	if units.is_empty():
 		_unit_name_lbl.text  = "No units"
 		_portrait_bg.color = Color(0.08, 0.08, 0.14)
-	_portrait.texture = null
+		_portrait.texture = null
 		_unit_class_lbl.text = ""
 		_unit_elem_lbl.text  = ""
 		_unit_level_lbl.text = ""
