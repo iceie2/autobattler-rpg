@@ -88,14 +88,14 @@ func _build_ui() -> void:
 	_unit_elem_lbl  = _lbl(_panel, "", 14, Color(0.75, 0.9, 0.75), Vector2(160, 130), Vector2(280, 24))
 
 	# Navigation
-	_prev_btn = _btn("◀ Prev", Rect2(160, 158), Vector2(100, 32))
+	_prev_btn = _btn("◀ Prev", Rect2(160, 158, 100, 32))
 	_prev_btn.pressed.connect(_prev)
 	_panel.add_child(_prev_btn)
 
 	_unit_idx_lbl = _lbl(_panel, "", 14, Color(0.6, 0.6, 0.8),
 		Vector2(268, 162), Vector2(100, 26), true)
 
-	_next_btn = _btn("Next ▶", Rect2(376, 158), Vector2(100, 32))
+	_next_btn = _btn("Next ▶", Rect2(376, 158, 100, 32))
 	_next_btn.pressed.connect(_next)
 	_panel.add_child(_next_btn)
 

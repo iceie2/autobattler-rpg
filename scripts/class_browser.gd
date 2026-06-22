@@ -2,6 +2,13 @@ extends CanvasLayer
 class_name ClassBrowser
 
 # ── Class data ────────────────────────────────────────────────────────────────
+# Sprite folder names matching assets/sprites/generated/{folder}/0/single.png
+# idle south standing frame = Rect2(0, 640, 64, 64) in every LPC sheet
+const CLASS_SPRITE_FOLDERS := [
+	"warrior", "archer", "monk", "thief", "black_mage", "white_mage", "red_mage"
+]
+const IDLE_SOUTH_FRAME := Rect2(0, 640, 64, 64)
+
 const CLASSES := [
 	{
 		"name": "Warrior",
@@ -136,7 +143,8 @@ signal closed()
 
 # UI refs
 var _panel: Panel
-var _portrait: ColorRect
+var _portrait_bg: ColorRect
+var _portrait: TextureRect
 var _class_idx_lbl: Label
 var _class_name_lbl: Label
 var _role_lbl: Label
@@ -178,13 +186,22 @@ func _build_ui() -> void:
 	close_btn.pressed.connect(_close)
 	_panel.add_child(close_btn)
 
-	var sep_top := _hsep(_panel, 58, 720)
+	var _sep_top := _hsep(_panel, 58, 720)
 
 	# ── Portrait area (left column) ───────────────────────────────────────────
-	_portrait = ColorRect.new()
+	# Dark tinted background behind the sprite
+	_portrait_bg = ColorRect.new()
+	_portrait_bg.position = Vector2(24, 72)
+	_portrait_bg.size = Vector2(140, 140)
+	_portrait_bg.color = Color(0.08, 0.08, 0.14)
+	_panel.add_child(_portrait_bg)
+
+	# Actual LPC sprite (zoomed in, centered)
+	_portrait = TextureRect.new()
 	_portrait.position = Vector2(24, 72)
 	_portrait.size = Vector2(140, 140)
-	_portrait.color = Color(0.3, 0.3, 0.4)
+	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_panel.add_child(_portrait)
 
 	# Class number badge on portrait
@@ -201,14 +218,14 @@ func _build_ui() -> void:
 	_lore_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 	# ── Stats row ─────────────────────────────────────────────────────────────
-	var sep_stat := _hsep(_panel, 228, 720)
+	var _sep_stat := _hsep(_panel, 228, 720)
 	_lbl(_panel, "BASE STATS", 12, Color(0.55, 0.6, 0.85),
 		Vector2(24, 238), Vector2(200, 20))
 	_stat_lbl = _lbl(_panel, "", 13, Color(0.82, 0.82, 0.95),
 		Vector2(24, 260), Vector2(672, 80))
 
 	# ── Skill section ─────────────────────────────────────────────────────────
-	var sep_skill := _hsep(_panel, 352, 720)
+	var _sep_skill := _hsep(_panel, 352, 720)
 	_lbl(_panel, "CLASS SKILL", 12, Color(0.55, 0.6, 0.85),
 		Vector2(24, 362), Vector2(200, 20))
 	_skill_name_lbl = _lbl(_panel, "", 20, Color(1.0, 0.85, 0.3),
@@ -236,7 +253,19 @@ func _center_panel() -> void:
 func _refresh() -> void:
 	var c: Dictionary = CLASSES[_idx]
 
-	_portrait.color = c["color"].darkened(0.25)
+	# Load the idle-south standing frame from the LPC sprite sheet
+	_portrait_bg.color = c["color"].darkened(0.55)
+	var folder := CLASS_SPRITE_FOLDERS[_idx]
+	var sheet_path := "res://assets/sprites/generated/%s/0/single.png" % folder
+	var sheet := load(sheet_path) as Texture2D
+	if sheet:
+		var atlas := AtlasTexture.new()
+		atlas.atlas = sheet
+		atlas.region = IDLE_SOUTH_FRAME
+		_portrait.texture = atlas
+	else:
+		_portrait.texture = null
+
 	_class_idx_lbl.text  = "%s  (%d / %d)" % [c["name"], _idx + 1, CLASSES.size()]
 	_class_name_lbl.text = c["name"]
 	_class_name_lbl.add_theme_color_override("font_color", c["color"])

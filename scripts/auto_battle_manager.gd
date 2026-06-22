@@ -243,7 +243,7 @@ func _chaos_bolt(caster: UnitBase, opponents: Array) -> void:
 	sorted.sort_custom(func(a, b):
 		return caster.grid_position.distance_to(a.grid_position) < \
 			   caster.grid_position.distance_to(b.grid_position))
-	var random_elem: UnitBase.Element = UnitBase.Element.values()[randi() % UnitBase.Element.values().size()]
+	var _random_elem: UnitBase.Element = UnitBase.Element.values()[randi() % UnitBase.Element.values().size()]
 	var count := mini(2, sorted.size())
 	for i in range(count):
 		var target: UnitBase = sorted[i]
