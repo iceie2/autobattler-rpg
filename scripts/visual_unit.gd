@@ -59,9 +59,12 @@ func _ready():
 
 	health_bar = HealthBar.new()
 	add_child(health_bar)
-	health_bar.update_health(current_hp, max_hp)
+	health_bar.update_hp(current_hp, max_hp)
+	health_bar.update_mp(current_mana, max_mana)
+	health_bar.update_ult(ultimate_charge, max(ultimate_charge_max, 1))
 
 	health_changed.connect(_on_health_changed)
+	mana_changed.connect(_on_mana_changed)
 	update_visuals()
 
 
@@ -90,7 +93,11 @@ func _setup_lpc_sprite() -> void:
 
 func _on_health_changed(current: int, maximum: int) -> void:
 	if health_bar:
-		health_bar.update_health(current, maximum)
+		health_bar.update_hp(current, maximum)
+
+func _on_mana_changed(current: int, maximum: int) -> void:
+	if health_bar:
+		health_bar.update_mp(current, maximum)
 
 
 func _create_glow_texture() -> Texture2D:
@@ -107,6 +114,8 @@ func _create_glow_texture() -> Texture2D:
 
 func _process(_delta: float) -> void:
 	_update_animation()
+	if health_bar and ultimate_charge_max > 0:
+		health_bar.update_ult(ultimate_charge, ultimate_charge_max)
 
 
 func _update_animation() -> void:
