@@ -1,7 +1,6 @@
-[gd_scene load_steps=15 format=3 uid="uid://c2qx8ydlq8vny"]
+[gd_scene load_steps=14 format=3 uid="uid://c2qx8ydlq8vny"]
 
 [ext_resource type="Script" uid="uid://g0qrs80ptukf" path="res://scripts/main_game.gd" id="1_main"]
-[ext_resource type="PackedScene" uid="uid://lii54yv84srg" path="res://scenes/unit.tscn" id="2_72e8q"]
 [ext_resource type="Script" path="res://scripts/background_layer.gd" id="3_bg"]
 
 [sub_resource type="StyleBoxFlat" id="TopBarStyle"]
@@ -152,7 +151,6 @@ script = ExtResource("3_bg")
 [node name="BattleGrid" type="Node2D" parent="."]
 position = Vector2(0, 60)
 
-[node name="Unit" parent="BattleGrid" instance=ExtResource("2_72e8q")]
 
 [node name="AutoBattleManager" type="Node" parent="."]
 

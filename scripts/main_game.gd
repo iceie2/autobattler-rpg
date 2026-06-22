@@ -112,8 +112,7 @@ func initialize_game_components() -> void:
 	auto_battle_manager.projectile_container = projectile_container
 	auto_battle_manager.skill_effect_container = skill_effect_container
 
-	# Integrate any pre-placed unit nodes in the scene into the runtime grid
-	_integrate_scene_units()
+	pass  # no pre-placed units
 
 func connect_signals() -> void:
 	# Game state signals
@@ -448,8 +447,9 @@ func spawn_random_player_unit() -> void:
 		unit.queue_free()
 
 func spawn_enemies() -> void:
-	# Spawn 3 random enemy units on right side
-	for i in range(3):
+	# Round 1 = 3 enemies, Round 2 = 5, Round 3 = 7, capped at 10
+	var count := min(3 + (game_state.battle_round - 1) * 2, 10)
+	for i in range(count):
 		var spawn_pos = find_empty_enemy_slot()
 		if spawn_pos == Vector2i(-1, -1):
 			continue
