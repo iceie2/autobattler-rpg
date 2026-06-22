@@ -255,7 +255,7 @@ func _refresh() -> void:
 
 	# Load the idle-south standing frame from the LPC sprite sheet
 	_portrait_bg.color = c["color"].darkened(0.55)
-	var folder := CLASS_SPRITE_FOLDERS[_idx]
+	var folder: String = CLASS_SPRITE_FOLDERS[_idx]
 	var sheet_path := "res://assets/sprites/generated/%s/0/single.png" % folder
 	var sheet := load(sheet_path) as Texture2D
 	if sheet:
