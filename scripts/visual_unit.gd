@@ -8,7 +8,8 @@ var sprite_variant: int = -1  # set by factory; -1 = pick randomly in _ready
 # Drag and drop
 var is_dragging: bool = false
 var drag_offset: Vector2 = Vector2.ZERO
-var original_position: Vector2 = Vector2.ZERO
+var original_position: Vector2 = Vector2.ZERO       # local coords saved on drag start
+var original_global_pos: Vector2 = Vector2.ZERO    # global coords saved on drag start
 var can_be_dragged: bool = true
 var mouse_down_position: Vector2 = Vector2.ZERO
 var drag_threshold: float = 5.0
@@ -230,6 +231,7 @@ func _input(event: InputEvent) -> void:
 				mouse_down_position = mouse_pos
 				drag_offset = global_position - mouse_pos
 				original_position = position
+				original_global_pos = global_position
 		else:
 			if is_dragging:
 				is_dragging = false
@@ -250,13 +252,15 @@ func _input(event: InputEvent) -> void:
 
 func _try_place_at_mouse() -> void:
 	if not battle_manager:
+		global_position = original_global_pos
 		return
 	var bg = battle_manager.battle_grid
 	if not bg:
+		global_position = original_global_pos
 		return
 	var new_pos = bg.world_to_grid(get_global_mouse_position())
 	if not _is_valid_placement(new_pos, bg):
-		position = original_position
+		global_position = original_global_pos
 		return
 	bg.remove_unit(grid_position)
 	if bg.place_unit(self, new_pos):
@@ -264,7 +268,7 @@ func _try_place_at_mouse() -> void:
 		position = bg.grid_to_world(new_pos)
 	else:
 		bg.place_unit(self, grid_position)
-		global_position = original_position
+		global_position = original_global_pos
 
 
 func _is_valid_placement(pos: Vector2i, bg) -> bool:
