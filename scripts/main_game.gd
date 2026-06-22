@@ -329,7 +329,7 @@ func _rebuild_unit_list(container: VBoxContainer, units: Array, name_color: Colo
 
 		# Name + element dot
 		var name_lbl := Label.new()
-		var elem_color := unit.get_element_color()
+		var elem_color: Color = unit.get_element_color()
 		name_lbl.text = "● %s" % unit.unit_name
 		name_lbl.add_theme_font_size_override("font_size", 11)
 		name_lbl.add_theme_color_override("font_color", name_color)

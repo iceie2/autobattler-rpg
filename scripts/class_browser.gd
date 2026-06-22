@@ -218,7 +218,7 @@ func _build_ui() -> void:
 	_skill_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 	# ── Navigation ────────────────────────────────────────────────────────────
-	var sep_nav := _hsep(_panel, 560, 720)
+	var _sep_nav := _hsep(_panel, 560, 720)
 	var prev_btn := _btn("◀  Previous", Rect2(24, 570, 160, 22))
 	prev_btn.pressed.connect(_prev)
 	_panel.add_child(prev_btn)
