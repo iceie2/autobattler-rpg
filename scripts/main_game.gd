@@ -20,12 +20,18 @@ extends Node2D
 @onready var ready_btn = $UI/ActionPanel/VBoxContainer/ReadyBtn
 
 # Team status panel
+@onready var team_stats_panel = $UI/TeamStatsPanel
+@onready var team_toggle_btn  = $UI/TeamStatsPanel/VBox/TeamToggleBtn
 @onready var player_hp_bar    = $UI/TeamStatsPanel/VBox/PlayerHPBar
 @onready var player_hp_label  = $UI/TeamStatsPanel/VBox/PlayerHPLabel
 @onready var player_unit_list = $UI/TeamStatsPanel/VBox/PlayerUnitList
 @onready var enemy_hp_bar     = $UI/TeamStatsPanel/VBox/EnemyHPBar
 @onready var enemy_hp_label   = $UI/TeamStatsPanel/VBox/EnemyHPLabel
 @onready var enemy_unit_list  = $UI/TeamStatsPanel/VBox/EnemyUnitList
+
+const TEAM_PANEL_COLLAPSED_BOTTOM := 278.0
+const TEAM_PANEL_EXPANDED_BOTTOM  := 880.0
+var _team_panel_expanded := false
 
 # Unit details panel
 @onready var unit_details_panel = $UI/UnitDetailsPanel
@@ -144,6 +150,8 @@ func connect_signals() -> void:
 	ready_btn.pressed.connect(_on_ready_pressed)
 	details_close_btn.pressed.connect(_on_details_close_pressed)
 	unit_details_panel.gui_input.connect(_on_details_panel_input)
+	team_toggle_btn.pressed.connect(_on_team_toggle)
+	_set_team_panel_content_visible(false)
 
 	var cm_scene := load("res://scenes/character_menu.tscn") as PackedScene
 	_character_menu = cm_scene.instantiate() as CharacterMenu
@@ -468,6 +476,17 @@ func show_unit_details(unit: UnitBase) -> void:
 
 func _on_details_close_pressed() -> void:
 	unit_details_panel.visible = false
+
+func _on_team_toggle() -> void:
+	_team_panel_expanded = not _team_panel_expanded
+	_set_team_panel_content_visible(_team_panel_expanded)
+	team_toggle_btn.text = "TEAM STATUS  %s" % ("▼" if _team_panel_expanded else "▶")
+	team_stats_panel.offset_bottom = TEAM_PANEL_EXPANDED_BOTTOM if _team_panel_expanded else TEAM_PANEL_COLLAPSED_BOTTOM
+
+func _set_team_panel_content_visible(show: bool) -> void:
+	var vbox := team_stats_panel.get_node("VBox")
+	for i in range(1, vbox.get_child_count()):
+		vbox.get_child(i).visible = show
 
 func _on_details_panel_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
