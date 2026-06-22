@@ -356,7 +356,7 @@ func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 5)
 
-	# Fixed-width label
+	# Fixed-width stat label (HP / MP / XP)
 	var lbl := Label.new()
 	lbl.text = lbl_text
 	lbl.custom_minimum_size = Vector2(20, 12)
@@ -364,6 +364,16 @@ func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 	lbl.add_theme_color_override("font_color", color.lightened(0.25))
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(lbl)
+
+	# Current / max numbers
+	var nums := Label.new()
+	nums.text = "%d / %d" % [current, maximum]
+	nums.custom_minimum_size = Vector2(90, 12)
+	nums.add_theme_font_size_override("font_size", 10)
+	nums.add_theme_color_override("font_color", Color(0.72, 0.72, 0.85, 1))
+	nums.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	nums.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(nums)
 
 	# Bar
 	var bar := ProgressBar.new()
