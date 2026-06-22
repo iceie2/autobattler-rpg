@@ -103,6 +103,15 @@ func _run_side(units: Array, opponents: Array) -> void:
 			unit_action.emit(unit, "skill")
 			continue
 
+		# Normal turn: attack if in range, otherwise move
+		if unit.is_in_attack_range(target.grid_position):
+			unit.attack(target)
+			unit_action.emit(unit, "attack")
+			unit_paths.erase(unit)
+		elif not unit.is_moving:
+			move_unit_towards_with_pathfinding(unit, target.grid_position)
+			unit_action.emit(unit, "move")
+
 func find_nearest_enemy(unit: UnitBase, enemies: Array) -> UnitBase:
 	var nearest: UnitBase = null
 	var min_distance: float = INF
