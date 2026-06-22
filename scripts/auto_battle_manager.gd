@@ -78,46 +78,42 @@ func _process(delta: float) -> void:
 		execute_battle_turn()
 
 func execute_battle_turn() -> void:
-	print("[Battle] Turn — players: %d, enemies: %d" % [player_units.size(), enemy_units.size()])
 	# Player units move and attack
 	for unit in player_units:
 		if unit == null or not is_instance_valid(unit):
 			continue
-		
 		var target = find_nearest_enemy(unit, enemy_units)
-		if target:
-			assign_preferred_target(unit, target)
-			
-			# Check if in range to attack
-			if unit.is_in_attack_range(target.grid_position):
-				unit.attack(target)
-				unit_action.emit(unit, "attack")
-				# Clear path since we're attacking
-				unit_paths.erase(unit)
-			elif not unit.is_moving:  # Only start new movement if not currently moving
-				# Move towards target using pathfinding
-				move_unit_towards_with_pathfinding(unit, target.grid_position)
-				unit_action.emit(unit, "move")
-	
+		if not target:
+			print("[Battle] player unit has no target!")
+			continue
+		var dist = unit.grid_position.distance_to(target.grid_position)
+		print("[Battle] player %s gpos=%s → target %s gpos=%s dist=%.1f range=%d moving=%s" % [
+			unit.unit_name, unit.grid_position, target.unit_name, target.grid_position,
+			dist, unit.attack_range, unit.is_moving])
+		if unit.is_in_attack_range(target.grid_position):
+			print("[Battle] player ATTACKING")
+			unit.attack(target)
+			unit_action.emit(unit, "attack")
+			unit_paths.erase(unit)
+		elif not unit.is_moving:
+			print("[Battle] player MOVING")
+			move_unit_towards_with_pathfinding(unit, target.grid_position)
+			unit_action.emit(unit, "move")
+
 	# Enemy units move and attack
 	for unit in enemy_units:
 		if unit == null or not is_instance_valid(unit):
 			continue
-		
 		var target = find_nearest_enemy(unit, player_units)
-		if target:
-			assign_preferred_target(unit, target)
-			
-			# Check if in range to attack
-			if unit.is_in_attack_range(target.grid_position):
-				unit.attack(target)
-				unit_action.emit(unit, "attack")
-				# Clear path since we're attacking
-				unit_paths.erase(unit)
-			elif not unit.is_moving:  # Only start new movement if not currently moving
-				# Move towards target using pathfinding
-				move_unit_towards_with_pathfinding(unit, target.grid_position)
-				unit_action.emit(unit, "move")
+		if not target:
+			continue
+		if unit.is_in_attack_range(target.grid_position):
+			unit.attack(target)
+			unit_action.emit(unit, "attack")
+			unit_paths.erase(unit)
+		elif not unit.is_moving:
+			move_unit_towards_with_pathfinding(unit, target.grid_position)
+			unit_action.emit(unit, "move")
 	
 	# Check battle end conditions
 	check_battle_end()
