@@ -17,6 +17,12 @@ extends Node2D
 @onready var use_items_btn = $UI/ActionPanel/VBoxContainer/UseItemsBtn
 @onready var ready_btn = $UI/ActionPanel/VBoxContainer/ReadyBtn
 
+# Team status panel
+@onready var player_hp_bar   = $UI/TeamStatsPanel/VBox/PlayerHPBar
+@onready var player_hp_label = $UI/TeamStatsPanel/VBox/PlayerHPLabel
+@onready var enemy_hp_bar    = $UI/TeamStatsPanel/VBox/EnemyHPBar
+@onready var enemy_hp_label  = $UI/TeamStatsPanel/VBox/EnemyHPLabel
+
 # Unit details panel
 @onready var unit_details_panel = $UI/UnitDetailsPanel
 @onready var details_title = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/TitleBar/TitleLabel
@@ -232,6 +238,7 @@ func _on_battle_started() -> void:
 	enable_unit_dragging(false)
 	info_label.text = "Battle started! Units are fighting automatically."
 	close_shop()
+	update_team_health_bars()
 
 func _on_battle_ended(player_won: bool) -> void:
 	if player_won:
@@ -249,8 +256,44 @@ func _on_battle_ended(player_won: bool) -> void:
 	game_state.start_battle_round()
 
 func _on_unit_action(_unit, _action_type: String) -> void:
-	# Visual feedback for unit actions could go here
-	pass
+	update_team_health_bars()
+
+func update_team_health_bars() -> void:
+	var p_cur := 0
+	var p_max := 0
+	var p_alive := 0
+	for unit in player_units:
+		if unit and is_instance_valid(unit):
+			p_cur += unit.current_hp
+			p_max += unit.max_hp
+			p_alive += 1
+
+	var e_cur := 0
+	var e_max := 0
+	var e_alive := 0
+	for unit in enemy_units:
+		if unit and is_instance_valid(unit):
+			e_cur += unit.current_hp
+			e_max += unit.max_hp
+			e_alive += 1
+
+	if p_max > 0:
+		player_hp_bar.max_value = p_max
+		player_hp_bar.value = p_cur
+		var pct := int(float(p_cur) / p_max * 100)
+		player_hp_label.text = "%d / %d HP  |  %d units  |  %d%%" % [p_cur, p_max, p_alive, pct]
+	else:
+		player_hp_bar.value = 0
+		player_hp_label.text = "No units"
+
+	if e_max > 0:
+		enemy_hp_bar.max_value = e_max
+		enemy_hp_bar.value = e_cur
+		var pct := int(float(e_cur) / e_max * 100)
+		enemy_hp_label.text = "%d / %d HP  |  %d units  |  %d%%" % [e_cur, e_max, e_alive, pct]
+	else:
+		enemy_hp_bar.value = 0
+		enemy_hp_label.text = "No units"
 
 func _on_cell_clicked(grid_pos: Vector2i) -> void:
 	# Right-click to show unit details
@@ -470,3 +513,4 @@ func _on_unit_died(unit) -> void:
 	enemy_units.erase(unit)
 	if unit and is_instance_valid(unit):
 		battle_grid.remove_unit(unit.grid_position)
+	update_team_health_bars()

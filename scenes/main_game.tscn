@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://c2qx8ydlq8vny"]
+[gd_scene load_steps=15 format=3 uid="uid://c2qx8ydlq8vny"]
 
 [ext_resource type="Script" uid="uid://g0qrs80ptukf" path="res://scripts/main_game.gd" id="1_main"]
 [ext_resource type="PackedScene" uid="uid://lii54yv84srg" path="res://scenes/unit.tscn" id="2_72e8q"]
@@ -238,6 +238,113 @@ theme_override_styles/normal = SubResource("ButtonReadyNormal")
 theme_override_styles/hover = SubResource("ButtonReadyHover")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_colors/font_color = Color(1, 0.6, 0.6, 1)
+
+[sub_resource type="StyleBoxFlat" id="TeamPanelStyle"]
+bg_color = Color(0.1, 0.1, 0.16, 0.97)
+border_color = Color(0.35, 0.35, 0.5, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="PlayerBarFill"]
+bg_color = Color(0.2, 0.78, 0.3, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="PlayerBarBg"]
+bg_color = Color(0.08, 0.18, 0.09, 1)
+
+[sub_resource type="StyleBoxFlat" id="EnemyBarFill"]
+bg_color = Color(0.82, 0.18, 0.18, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="EnemyBarBg"]
+bg_color = Color(0.18, 0.07, 0.07, 1)
+
+[node name="TeamStatsPanel" type="Panel" parent="UI"]
+offset_left = 1300.0
+offset_top = 236.0
+offset_right = 1800.0
+offset_bottom = 460.0
+theme_override_styles/panel = SubResource("TeamPanelStyle")
+
+[node name="VBox" type="VBoxContainer" parent="UI/TeamStatsPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 10.0
+offset_right = -12.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 5
+
+[node name="TitleLabel" type="Label" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "TEAM STATUS"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.8, 0.8, 1.0, 1)
+
+[node name="HSep1" type="HSeparator" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+
+[node name="PlayerTeamLabel" type="Label" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Your Team"
+theme_override_colors/font_color = Color(0.35, 0.9, 0.45, 1)
+
+[node name="PlayerHPBar" type="ProgressBar" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 20)
+value = 100
+show_percentage = false
+theme_override_styles/fill = SubResource("PlayerBarFill")
+theme_override_styles/background = SubResource("PlayerBarBg")
+
+[node name="PlayerHPLabel" type="Label" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "— / — HP  (0 units)"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.65, 0.9, 0.65, 1)
+
+[node name="HSep2" type="HSeparator" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+
+[node name="EnemyTeamLabel" type="Label" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Enemy Team"
+theme_override_colors/font_color = Color(0.95, 0.38, 0.38, 1)
+
+[node name="EnemyHPBar" type="ProgressBar" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 20)
+value = 100
+show_percentage = false
+theme_override_styles/fill = SubResource("EnemyBarFill")
+theme_override_styles/background = SubResource("EnemyBarBg")
+
+[node name="EnemyHPLabel" type="Label" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "— / — HP  (0 units)"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.9, 0.65, 0.65, 1)
 
 [node name="BottomBar" type="Panel" parent="UI"]
 offset_left = 5.0
