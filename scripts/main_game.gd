@@ -321,51 +321,61 @@ func update_team_health_bars() -> void:
 func _rebuild_unit_list(container: VBoxContainer, units: Array, name_color: Color) -> void:
 	for child in container.get_children():
 		child.queue_free()
+
 	for unit in units:
 		if not (unit and is_instance_valid(unit)):
 			continue
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
 
-		# Name + element dot
-		var name_lbl := Label.new()
-		var elem_color: Color = unit.get_element_color()
-		name_lbl.text = "● %s" % unit.unit_name
-		name_lbl.add_theme_font_size_override("font_size", 11)
-		name_lbl.add_theme_color_override("font_color", name_color)
-		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(name_lbl)
+		# Unit header: name + level
+		var header := Label.new()
+		header.text = "● %s   Lv.%d" % [unit.unit_name, unit.level]
+		header.add_theme_font_size_override("font_size", 11)
+		header.add_theme_color_override("font_color", name_color)
+		container.add_child(header)
 
-		# HP bar (mini)
-		var hp_bar := ProgressBar.new()
-		hp_bar.custom_minimum_size = Vector2(60, 10)
-		hp_bar.max_value = unit.max_hp
-		hp_bar.value = unit.current_hp
-		hp_bar.show_percentage = false
-		hp_bar.size_flags_horizontal = 0
-		var fill_style := StyleBoxFlat.new()
-		fill_style.bg_color = name_color
-		fill_style.corner_radius_top_left = 2
-		fill_style.corner_radius_top_right = 2
-		fill_style.corner_radius_bottom_left = 2
-		fill_style.corner_radius_bottom_right = 2
-		var bg_style := StyleBoxFlat.new()
-		bg_style.bg_color = Color(name_color.r * 0.2, name_color.g * 0.2, name_color.b * 0.2)
-		hp_bar.add_theme_stylebox_override("fill", fill_style)
-		hp_bar.add_theme_stylebox_override("background", bg_style)
-		row.add_child(hp_bar)
+		# HP / MP / XP bars stacked
+		_add_stat_bar(container, "HP", unit.current_hp,   unit.max_hp,      Color(0.2,  0.78, 0.3,  1))
+		_add_stat_bar(container, "MP", unit.current_mana, unit.max_mana,    Color(0.25, 0.4,  0.9,  1))
+		_add_stat_bar(container, "XP", unit.current_xp,   unit.xp_to_level, Color(0.85, 0.65, 0.1,  1))
 
-		# Stats label
-		var stats_lbl := Label.new()
-		stats_lbl.text = "  Lv.%d  %d/%d HP  %d/%d MP" % [
-			unit.level, unit.current_hp, unit.max_hp,
-			unit.current_mana, unit.max_mana
-		]
-		stats_lbl.add_theme_font_size_override("font_size", 10)
-		stats_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8, 1))
-		row.add_child(stats_lbl)
+		# Small gap between units
+		var gap := Control.new()
+		gap.custom_minimum_size = Vector2(0, 5)
+		container.add_child(gap)
 
-		container.add_child(row)
+func _add_stat_bar(container: VBoxContainer, lbl_text: String,
+		current: int, maximum: int, color: Color) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 5)
+
+	# Fixed-width label
+	var lbl := Label.new()
+	lbl.text = lbl_text
+	lbl.custom_minimum_size = Vector2(20, 12)
+	lbl.add_theme_font_size_override("font_size", 10)
+	lbl.add_theme_color_override("font_color", color.lightened(0.25))
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(lbl)
+
+	# Bar
+	var bar := ProgressBar.new()
+	bar.custom_minimum_size = Vector2(0, 10)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_vertical   = Control.SIZE_SHRINK_CENTER
+	bar.max_value = max(maximum, 1)
+	bar.value     = current
+	bar.show_percentage = false
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = color
+	fill.corner_radius_top_left = 2; fill.corner_radius_top_right = 2
+	fill.corner_radius_bottom_left = 2; fill.corner_radius_bottom_right = 2
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(color.r * 0.18, color.g * 0.18, color.b * 0.18)
+	bar.add_theme_stylebox_override("fill", fill)
+	bar.add_theme_stylebox_override("background", bg)
+	row.add_child(bar)
+
+	container.add_child(row)
 
 func _on_cell_clicked(grid_pos: Vector2i) -> void:
 	# Right-click to show unit details

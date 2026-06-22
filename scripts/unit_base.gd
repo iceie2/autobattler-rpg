@@ -75,6 +75,10 @@ var equipped_weapon = null
 var equipped_armor = null
 var equipped_accessory = null
 
+# XP / levelling
+var current_xp: int = 0
+var xp_to_level: int = 200
+
 # Skill
 var skill_name: String = ""
 var skill_damage_multiplier: float = 1.5
@@ -229,18 +233,24 @@ func equip_accessory(accessory) -> void:
 
 func attack(target) -> void:
 	if target and target.has_method("take_damage"):
-		# Get target element for affinity calculation
 		var target_element = target.current_element if target is UnitBase else Element.NORMAL
-		var damage = int(attack_damage * get_attack_multiplier(target_element))
-		
-		# Ranged units use projectiles
+		var damage := int(attack_damage * get_attack_multiplier(target_element))
+
 		if attack_range > 1:
 			spawn_projectile(target, damage)
 		else:
-			# Melee units apply damage immediately
 			target.take_damage(damage, current_element)
-		
+
+		# Grant XP per hit; bonus if kill
+		_grant_xp(15)
 		attacked.emit(target)
+
+func _grant_xp(amount: int) -> void:
+	current_xp += amount
+	if current_xp >= xp_to_level:
+		current_xp -= xp_to_level
+		xp_to_level = int(xp_to_level * 1.5)
+		level_up()
 
 func spawn_projectile(target, damage: int) -> void:
 	if not battle_manager:
