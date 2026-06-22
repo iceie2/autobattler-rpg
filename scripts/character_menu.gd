@@ -17,7 +17,8 @@ var _unit_name_lbl: Label
 var _unit_class_lbl: Label
 var _unit_elem_lbl: Label
 var _unit_level_lbl: Label
-var _portrait_rect: ColorRect
+var _portrait_bg: ColorRect
+var _portrait: TextureRect
 var _hp_bar: ProgressBar
 var _mp_bar: ProgressBar
 var _hp_lbl: Label
@@ -73,10 +74,18 @@ func _build_ui() -> void:
 	_panel.add_child(sep1)
 
 	# ── Portrait area ──────────────────────────────────────────────────────────
-	_portrait_rect = ColorRect.new()
-	_portrait_rect.position = Vector2(24, 68)
-	_portrait_rect.size = Vector2(120, 120)
-	_panel.add_child(_portrait_rect)
+	_portrait_bg = ColorRect.new()
+	_portrait_bg.position = Vector2(24, 68)
+	_portrait_bg.size = Vector2(120, 120)
+	_portrait_bg.color = Color(0.08, 0.08, 0.14)
+	_panel.add_child(_portrait_bg)
+
+	_portrait = TextureRect.new()
+	_portrait.position = Vector2(24, 68)
+	_portrait.size = Vector2(120, 120)
+	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_panel.add_child(_portrait)
 
 	# Class letter overlay on portrait
 	_unit_level_lbl = _lbl(_panel, "", 13, Color(0, 0, 0, 0.8),
@@ -146,7 +155,8 @@ func _refresh() -> void:
 
 	if units.is_empty():
 		_unit_name_lbl.text  = "No units"
-		_portrait_rect.color = Color(0.2, 0.2, 0.3)
+		_portrait_bg.color = Color(0.08, 0.08, 0.14)
+	_portrait.texture = null
 		_unit_class_lbl.text = ""
 		_unit_elem_lbl.text  = ""
 		_unit_level_lbl.text = ""
@@ -160,8 +170,16 @@ func _refresh() -> void:
 	_idx = clamp(_idx, 0, units.size() - 1)
 	var u: UnitBase = units[_idx]
 
-	var elem_col := u.get_element_color()
-	_portrait_rect.color = elem_col.darkened(0.3)
+	_portrait_bg.color = Color(0.08, 0.08, 0.14)
+	var sprite_path := "res://assets/sprites/generated/%s/0/single.png" % _class_folder(u.unit_class)
+	var sheet := load(sprite_path) as Texture2D
+	if sheet:
+		var atlas := AtlasTexture.new()
+		atlas.atlas = sheet
+		atlas.region = Rect2(0, 640, 64, 64)
+		_portrait.texture = atlas
+	else:
+		_portrait.texture = null
 	_unit_name_lbl.text  = u.unit_name
 	_unit_class_lbl.text = "Class: " + u.get_class_name_string()
 	_unit_elem_lbl.text  = "Element: " + u.get_element_name_string()
@@ -219,6 +237,17 @@ func _input(event: InputEvent) -> void:
 		_close()
 
 # ── UI helpers ────────────────────────────────────────────────────────────────
+func _class_folder(unit_class: UnitBase.UnitClass) -> String:
+	match unit_class:
+		UnitBase.UnitClass.WARRIOR:    return "warrior"
+		UnitBase.UnitClass.RANGER:     return "archer"
+		UnitBase.UnitClass.MONK:       return "monk"
+		UnitBase.UnitClass.THIEF:      return "thief"
+		UnitBase.UnitClass.BLACK_MAGE: return "black_mage"
+		UnitBase.UnitClass.WHITE_MAGE: return "white_mage"
+		UnitBase.UnitClass.RED_MAGE:   return "red_mage"
+		_: return "warrior"
+
 func _lbl(parent: Node, text: String, sz: int, col: Color,
 		pos: Vector2, size: Vector2, center: bool = false) -> Label:
 	var l := Label.new()
