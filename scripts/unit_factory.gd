@@ -4,8 +4,8 @@ class_name UnitFactory
 # Base stats for each class at level 1
 const CLASS_BASE_STATS = {
 	UnitBase.UnitClass.WARRIOR: {
-		"hp": 120,
-		"mana": 30,
+		"hp": 1200,
+		"mana": 300,
 		"str": 15,
 		"dex": 8,
 		"int": 5,
@@ -16,8 +16,8 @@ const CLASS_BASE_STATS = {
 		"def_affinity": 20.0
 	},
 	UnitBase.UnitClass.RANGER: {
-		"hp": 90,
-		"mana": 40,
+		"hp": 900,
+		"mana": 400,
 		"str": 10,
 		"dex": 16,
 		"int": 8,
@@ -28,8 +28,8 @@ const CLASS_BASE_STATS = {
 		"def_affinity": 10.0
 	},
 	UnitBase.UnitClass.MONK: {
-		"hp": 100,
-		"mana": 50,
+		"hp": 1000,
+		"mana": 500,
 		"str": 12,
 		"dex": 12,
 		"int": 10,
@@ -40,8 +40,8 @@ const CLASS_BASE_STATS = {
 		"def_affinity": 25.0
 	},
 	UnitBase.UnitClass.THIEF: {
-		"hp": 80,
-		"mana": 35,
+		"hp": 800,
+		"mana": 350,
 		"str": 8,
 		"dex": 18,
 		"int": 10,
@@ -52,8 +52,8 @@ const CLASS_BASE_STATS = {
 		"def_affinity": 5.0
 	},
 	UnitBase.UnitClass.BLACK_MAGE: {
-		"hp": 70,
-		"mana": 80,
+		"hp": 700,
+		"mana": 800,
 		"str": 5,
 		"dex": 7,
 		"int": 18,
@@ -64,8 +64,8 @@ const CLASS_BASE_STATS = {
 		"def_affinity": 15.0
 	},
 	UnitBase.UnitClass.WHITE_MAGE: {
-		"hp": 75,
-		"mana": 75,
+		"hp": 750,
+		"mana": 750,
 		"str": 6,
 		"dex": 8,
 		"int": 16,
@@ -76,17 +76,29 @@ const CLASS_BASE_STATS = {
 		"def_affinity": 30.0
 	},
 	UnitBase.UnitClass.RED_MAGE: {
-		"hp": 85,
-		"mana": 65,
-		"str": 10,
-		"dex": 10,
-		"int": 14,
-		"res": 10,
-		"move": 2,
-		"range": 5,
-		"off_affinity": 45.0,
-		"def_affinity": 20.0
-	}
+		"hp": 850, "mana": 650,
+		"str": 10, "dex": 10, "int": 14, "res": 10,
+		"move": 2, "range": 5,
+		"off_affinity": 45.0, "def_affinity": 20.0
+	},
+	UnitBase.UnitClass.BLOODHOUND: {
+		"hp": 1100, "mana": 400,
+		"str": 14, "dex": 12, "int": 6, "res": 14,
+		"move": 3, "range": 1,
+		"off_affinity": 35.0, "def_affinity": 25.0
+	},
+	UnitBase.UnitClass.BOUNCER: {
+		"hp": 1300, "mana": 600,
+		"str": 8, "dex": 6, "int": 16, "res": 16,
+		"move": 2, "range": 2,
+		"off_affinity": 30.0, "def_affinity": 35.0
+	},
+	UnitBase.UnitClass.HEADHUNTER: {
+		"hp": 600, "mana": 350,
+		"str": 14, "dex": 20, "int": 12, "res": 5,
+		"move": 3, "range": 6,
+		"off_affinity": 55.0, "def_affinity": 8.0
+	},
 }
 
 static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Element = UnitBase.Element.NORMAL, is_player: bool = true) -> VisualUnit:
@@ -156,6 +168,40 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_damage_multiplier = 1.8
 			unit.skill_range = 4
 			unit.skill_cooldown_max = 3
+		# ── New classes ───────────────────────────────────────────────────────
+		UnitBase.UnitClass.BLOODHOUND:
+			unit.passive_name = "Blood Frenzy"
+			unit.skill_name = "Bite"
+			unit.skill_damage_multiplier = 1.3
+			unit.skill_range = 1
+			unit.skill_cooldown_max = 3
+			unit.skill_mana_cost = 50
+			unit.ultimate_name = "Pounce"
+			unit.ultimate_damage_mult = 2.5
+			unit.ultimate_range = 8
+			unit.ultimate_charge_max = 300
+		UnitBase.UnitClass.BOUNCER:
+			unit.passive_name = "Presence"
+			unit.skill_name = "Slam"
+			unit.skill_damage_multiplier = 1.0
+			unit.skill_range = 2
+			unit.skill_cooldown_max = 4
+			unit.skill_mana_cost = 80
+			unit.ultimate_name = "Gravity Drop"
+			unit.ultimate_damage_mult = 1.5
+			unit.ultimate_range = 4
+			unit.ultimate_charge_max = 350
+		UnitBase.UnitClass.HEADHUNTER:
+			unit.passive_name = "Seventh Shot"
+			unit.skill_name = "Rapid Fire"
+			unit.skill_damage_multiplier = 1.0
+			unit.skill_range = 8
+			unit.skill_cooldown_max = 5
+			unit.skill_mana_cost = 60
+			unit.ultimate_name = "Snipe"
+			unit.ultimate_damage_mult = 4.0
+			unit.ultimate_range = 99
+			unit.ultimate_charge_max = 400
 	unit.skill_cooldown = unit.skill_cooldown_max  # start on cooldown
 
 	return unit
@@ -178,7 +224,10 @@ static func get_all_classes() -> Array:
 		UnitBase.UnitClass.THIEF,
 		UnitBase.UnitClass.BLACK_MAGE,
 		UnitBase.UnitClass.WHITE_MAGE,
-		UnitBase.UnitClass.RED_MAGE
+		UnitBase.UnitClass.RED_MAGE,
+		UnitBase.UnitClass.BLOODHOUND,
+		UnitBase.UnitClass.BOUNCER,
+		UnitBase.UnitClass.HEADHUNTER,
 	]
 
 static func get_all_elements() -> Array:

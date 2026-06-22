@@ -33,6 +33,9 @@ func get_class_sprite_folder() -> String:
 		UnitBase.UnitClass.BLACK_MAGE: return "black_mage"
 		UnitBase.UnitClass.WHITE_MAGE: return "white_mage"
 		UnitBase.UnitClass.RED_MAGE:   return "red_mage"
+		UnitBase.UnitClass.BLOODHOUND: return "warrior"
+		UnitBase.UnitClass.BOUNCER:    return "monk"
+		UnitBase.UnitClass.HEADHUNTER: return "archer"
 		_: return ""
 
 
@@ -152,8 +155,11 @@ func _draw():
 		UnitBase.UnitClass.THIEF:      _draw_diamond(color, outline)
 		UnitBase.UnitClass.BLACK_MAGE: _draw_polygon(5, color, outline)
 		UnitBase.UnitClass.WHITE_MAGE: _draw_polygon(6, color, outline)
-		UnitBase.UnitClass.RED_MAGE:   _draw_star(color, outline)
-		_:                             _draw_square(color, outline)
+		UnitBase.UnitClass.RED_MAGE:      _draw_star(color, outline)
+		UnitBase.UnitClass.BLOODHOUND:    _draw_triangle(color, outline)
+		UnitBase.UnitClass.BOUNCER:       _draw_circle(color, outline)
+		UnitBase.UnitClass.HEADHUNTER:    _draw_diamond(color, outline)
+		_:                                _draw_square(color, outline)
 
 
 func _draw_square(color: Color, outline: Color) -> void:

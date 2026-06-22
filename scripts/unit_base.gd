@@ -19,7 +19,10 @@ enum UnitClass {
 	THIEF,
 	BLACK_MAGE,
 	WHITE_MAGE,
-	RED_MAGE
+	RED_MAGE,
+	BLOODHOUND,
+	BOUNCER,
+	HEADHUNTER
 }
 
 # Unit identity
@@ -79,12 +82,34 @@ var equipped_accessory = null
 var current_xp: int = 0
 var xp_to_level: int = 200
 
-# Skill
+# ── Skill system (passive / active / ultimate) ────────────────────────────────
+# Passive (always-on, evaluated each turn in AutoBattleManager)
+var passive_name: String = ""
+
+# Active (replaces old skill_ fields for new classes; old fields kept for legacy)
 var skill_name: String = ""
 var skill_damage_multiplier: float = 1.5
 var skill_range: int = 2
-var skill_cooldown_max: int = 4   # turns between uses
-var skill_cooldown: int = 0       # counts down each turn; fires at 0
+var skill_cooldown_max: int = 4
+var skill_cooldown: int = 0
+var skill_mana_cost: int = 0      # 0 = free (legacy classes); >0 = costs mana
+
+# Ultimate (charged by dealing and taking damage)
+var ultimate_name: String = ""
+var ultimate_damage_mult: float = 2.0
+var ultimate_range: int = 3
+var ultimate_charge: int = 0
+var ultimate_charge_max: int = 300
+var ultimate_ready: bool = false
+
+# ── Combat state (per-unit tracking) ─────────────────────────────────────────
+var damage_dealt: int = 0          # cumulative for damage meter
+var stun_turns: int = 0            # skip action when > 0
+var hit_counter: int = 0           # Headhunter: every-7th-crit
+var frenzy_active: bool = false    # Bloodhound passive
+var rapid_fire_turns: int = 0      # Headhunter active duration remaining
+var most_damage_dealer = null      # ref to unit that dealt most dmg to self
+var damage_taken_from: Dictionary = {}   # unit → total damage dealt to self
 
 # Battle state
 var grid_position: Vector2i = Vector2i.ZERO
@@ -128,7 +153,7 @@ signal mana_changed(current: int, maximum: int)
 func _ready():
 	update_visuals()
 
-func take_damage(amount: int, element: Element = Element.NORMAL) -> void:
+func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null) -> void:
 	var modified_damage = calculate_damage_with_element(amount, element)
 	# Apply defense reduction
 	modified_damage = max(1, modified_damage - defense)
@@ -141,7 +166,12 @@ func take_damage(amount: int, element: Element = Element.NORMAL) -> void:
 	
 	current_hp = max(0, current_hp - modified_damage)
 	health_changed.emit(current_hp, max_hp)
-	
+	_charge_ultimate(modified_damage)
+	# Track who dealt damage to us (for Bloodhound ultimate)
+	if attacker != null:
+		var prev: int = damage_taken_from.get(attacker, 0)
+		damage_taken_from[attacker] = prev + modified_damage
+
 	if current_hp <= 0:
 		die()
 
@@ -232,18 +262,37 @@ func equip_accessory(accessory) -> void:
 	equipped_accessory = accessory
 
 func attack(target) -> void:
-	if target and target.has_method("take_damage"):
-		var target_element = target.current_element if target is UnitBase else Element.NORMAL
-		var damage := int(attack_damage * get_attack_multiplier(target_element))
+	if not (target and target.has_method("take_damage")):
+		return
 
-		if attack_range > 1:
-			spawn_projectile(target, damage)
-		else:
-			target.take_damage(damage, current_element)
+	var target_element := target.current_element if target is UnitBase else Element.NORMAL
+	var damage := int(attack_damage * get_attack_multiplier(target_element))
 
-		# Grant XP per hit; bonus if kill
-		_grant_xp(15)
-		attacked.emit(target)
+	# Headhunter passive: every 7th hit is a crit (3× damage)
+	hit_counter += 1
+	if unit_class == UnitClass.HEADHUNTER and hit_counter % 7 == 0:
+		damage = int(damage * 3.0)
+
+	# Headhunter active bonus range already applied by battle manager
+
+	if attack_range > 1:
+		spawn_projectile(target, damage)
+	else:
+		var pre_hp: int = target.current_hp
+		target.take_damage(damage, current_element)
+		var actual: int = max(0, pre_hp - target.current_hp)
+		damage_dealt += actual
+		_charge_ultimate(actual / 2)
+
+	_grant_xp(15)
+	attacked.emit(target)
+
+func _charge_ultimate(amount: int) -> void:
+	if ultimate_charge_max <= 0 or ultimate_ready:
+		return
+	ultimate_charge = min(ultimate_charge + amount, ultimate_charge_max)
+	if ultimate_charge >= ultimate_charge_max:
+		ultimate_ready = true
 
 func _grant_xp(amount: int) -> void:
 	current_xp += amount
@@ -307,6 +356,12 @@ func get_class_name_string() -> String:
 			return "White Mage"
 		UnitClass.RED_MAGE:
 			return "Red Mage"
+		UnitClass.BLOODHOUND:
+			return "Bloodhound"
+		UnitClass.BOUNCER:
+			return "Bouncer"
+		UnitClass.HEADHUNTER:
+			return "Headhunter"
 		_:
 			return "Unknown"
 

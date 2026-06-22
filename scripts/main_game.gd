@@ -33,6 +33,18 @@ const TEAM_PANEL_COLLAPSED_BOTTOM := 278.0
 const TEAM_PANEL_EXPANDED_BOTTOM  := 880.0
 var _team_panel_expanded := false
 
+# Damage meter
+@onready var damage_meter_panel = $UI/DamageMeterPanel
+@onready var dm_toggle_btn      = $UI/DamageMeterPanel/DMVBox/DMToggleBtn
+@onready var dm_tab_row         = $UI/DamageMeterPanel/DMVBox/DMTabRow
+@onready var dm_list            = $UI/DamageMeterPanel/DMVBox/DMList
+@onready var dm_ally_btn        = $UI/DamageMeterPanel/DMVBox/DMTabRow/AllyTabBtn
+@onready var dm_enemy_btn       = $UI/DamageMeterPanel/DMVBox/DMTabRow/EnemyTabBtn
+const DM_COLLAPSED_BOTTOM := 942.0
+const DM_EXPANDED_BOTTOM  := 1200.0
+var _dm_expanded := false
+var _dm_show_allies := true
+
 # Unit details panel
 @onready var unit_details_panel = $UI/UnitDetailsPanel
 @onready var details_title = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/TitleBar/TitleLabel
@@ -152,6 +164,9 @@ func connect_signals() -> void:
 	unit_details_panel.gui_input.connect(_on_details_panel_input)
 	team_toggle_btn.pressed.connect(_on_team_toggle)
 	_set_team_panel_content_visible(false)
+	dm_toggle_btn.pressed.connect(_on_dm_toggle)
+	dm_ally_btn.pressed.connect(func(): _dm_show_allies = true;  _rebuild_damage_meter())
+	dm_enemy_btn.pressed.connect(func(): _dm_show_allies = false; _rebuild_damage_meter())
 
 	var cm_scene := load("res://scenes/character_menu.tscn") as PackedScene
 	_character_menu = cm_scene.instantiate() as CharacterMenu
@@ -285,6 +300,8 @@ func _on_battle_ended(player_won: bool) -> void:
 
 func _on_unit_action(_unit, _action_type: String) -> void:
 	update_team_health_bars()
+	if _dm_expanded:
+		_rebuild_damage_meter()
 
 func update_team_health_bars() -> void:
 	var p_cur := 0
@@ -486,6 +503,70 @@ func show_unit_details(unit: UnitBase) -> void:
 
 func _on_details_close_pressed() -> void:
 	unit_details_panel.visible = false
+
+func _on_dm_toggle() -> void:
+	_dm_expanded = not _dm_expanded
+	dm_tab_row.visible = _dm_expanded
+	dm_list.visible    = _dm_expanded
+	dm_toggle_btn.text = "DAMAGE METER  %s" % ("▼" if _dm_expanded else "▶")
+	damage_meter_panel.offset_bottom = DM_EXPANDED_BOTTOM if _dm_expanded else DM_COLLAPSED_BOTTOM
+	if _dm_expanded:
+		_rebuild_damage_meter()
+
+func _rebuild_damage_meter() -> void:
+	for child in dm_list.get_children():
+		child.queue_free()
+	var units := player_units if _dm_show_allies else enemy_units
+	var name_col := Color(0.35, 0.92, 0.45) if _dm_show_allies else Color(0.95, 0.38, 0.38)
+
+	# Sort by damage_dealt descending
+	var sorted := units.filter(func(u): return u and is_instance_valid(u))
+	sorted.sort_custom(func(a, b): return a.damage_dealt > b.damage_dealt)
+	var total_dmg := 0
+	for u in sorted:
+		total_dmg += u.damage_dealt
+
+	var rank := 1
+	for u in sorted:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+
+		# Rank + name
+		var name_lbl := Label.new()
+		name_lbl.text = "#%d  %s" % [rank, u.unit_name]
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_lbl.add_theme_font_size_override("font_size", 11)
+		name_lbl.add_theme_color_override("font_color", name_col)
+		row.add_child(name_lbl)
+
+		# Damage bar
+		var bar := ProgressBar.new()
+		bar.custom_minimum_size = Vector2(80, 10)
+		bar.size_flags_horizontal = 0
+		bar.max_value = max(total_dmg, 1)
+		bar.value = u.damage_dealt
+		bar.show_percentage = false
+		var fill := StyleBoxFlat.new()
+		fill.bg_color = Color(1.0, 0.65, 0.1)
+		fill.corner_radius_top_left = 2; fill.corner_radius_top_right = 2
+		fill.corner_radius_bottom_left = 2; fill.corner_radius_bottom_right = 2
+		var bg := StyleBoxFlat.new()
+		bg.bg_color = Color(0.18, 0.12, 0.04)
+		bar.add_theme_stylebox_override("fill", fill)
+		bar.add_theme_stylebox_override("background", bg)
+		row.add_child(bar)
+
+		# Damage number + share
+		var pct := int(float(u.damage_dealt) / max(total_dmg, 1) * 100)
+		var num_lbl := Label.new()
+		num_lbl.text = "  %d  (%d%%)" % [u.damage_dealt, pct]
+		num_lbl.custom_minimum_size = Vector2(100, 0)
+		num_lbl.add_theme_font_size_override("font_size", 10)
+		num_lbl.add_theme_color_override("font_color", Color(0.85, 0.75, 0.45))
+		row.add_child(num_lbl)
+
+		dm_list.add_child(row)
+		rank += 1
 
 func _on_team_toggle() -> void:
 	_team_panel_expanded = not _team_panel_expanded

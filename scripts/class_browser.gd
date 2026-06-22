@@ -5,7 +5,8 @@ class_name ClassBrowser
 # Sprite folder names matching assets/sprites/generated/{folder}/0/single.png
 # idle south standing frame = Rect2(0, 640, 64, 64) in every LPC sheet
 const CLASS_SPRITE_FOLDERS := [
-	"warrior", "archer", "monk", "thief", "black_mage", "white_mage", "red_mage"
+	"warrior", "archer", "monk", "thief", "black_mage", "white_mage", "red_mage",
+	"warrior", "monk", "archer"   # bloodhound, bouncer, headhunter (placeholder sprites)
 ]
 const IDLE_SOUTH_FRAME := Rect2(0, 640, 64, 64)
 
@@ -135,6 +136,68 @@ const CLASSES := [
 		),
 		"lore": "Jack of all trades with rapid skill cooldowns. Red Mages work well in any " +
 			"composition and are especially effective when element matchups are in their favor."
+	},
+	{
+		"name": "Bloodhound", "color": Color(0.75, 0.2, 0.15),
+		"role": "Tanky melee fighter that rages at low HP",
+		"hp": 1100, "mana": 400,
+		"str": 14, "dex": 12, "int": 6, "res": 14,
+		"atk": 20, "mag": 10, "def": 16,
+		"move": 3, "range": 1,
+		"skill": "Blood Frenzy  /  Bite  /  Pounce",
+		"skill_color": Color(0.9, 0.3, 0.2),
+		"skill_desc": (
+			"[PASSIVE] Blood Frenzy — below 45% HP: locked onto highest-threat enemy, " +
+			"+2 move speed and faster attacks.\n\n" +
+			"[ACTIVE – 50 MP] Bite — lunges at the nearest enemy dealing 130% ATK " +
+			"and healing Bloodhound for 30% of damage dealt.\n\n" +
+			"[ULTIMATE – 300 charge] Pounce — leaps to the enemy that has dealt the " +
+			"most damage to Bloodhound, stunning them for 1 turn and dealing 250% ATK."
+		),
+		"lore": "A relentless predator that grows more dangerous the more it bleeds. " +
+			"Place Bloodhound at the front where it absorbs punishment and builds rage."
+	},
+	{
+		"name": "Bouncer", "color": Color(0.3, 0.5, 0.9),
+		"role": "Magic-damage tank that pulls enemies in",
+		"hp": 1300, "mana": 600,
+		"str": 8, "dex": 6, "int": 16, "res": 16,
+		"atk": 12, "mag": 20, "def": 18,
+		"move": 2, "range": 2,
+		"skill": "Presence  /  Slam  /  Gravity Drop",
+		"skill_color": Color(0.4, 0.65, 1.0),
+		"skill_desc": (
+			"[PASSIVE] Presence — each unit within 2 tiles grants +5% magic damage " +
+			"(max +30%). The more crowded the battlefield, the harder Bouncer hits.\n\n" +
+			"[ACTIVE – 80 MP] Slam — leaps to the nearest enemy, stunning them for " +
+			"1 turn and dealing 100% MAG damage.\n\n" +
+			"[ULTIMATE – 350 charge] Gravity Drop — bounces and creates a shockwave " +
+			"that pulls all units in a 4×4 area to the nearest open cell beside Bouncer, " +
+			"dealing 150% MAG to every enemy caught."
+		),
+		"lore": "A wall of muscle and magic that drags the entire battlefield to itself. " +
+			"Use Bouncer to disrupt enemy formations and protect your back line."
+	},
+	{
+		"name": "Headhunter", "color": Color(0.4, 0.85, 0.6),
+		"role": "Long-range glass cannon sniper",
+		"hp": 600, "mana": 350,
+		"str": 14, "dex": 20, "int": 12, "res": 5,
+		"atk": 24, "mag": 16, "def": 6,
+		"move": 3, "range": 6,
+		"skill": "Seventh Shot  /  Rapid Fire  /  Snipe",
+		"skill_color": Color(0.5, 1.0, 0.65),
+		"skill_desc": (
+			"[PASSIVE] Seventh Shot — every 7th auto-attack is a guaranteed critical " +
+			"hit dealing 3× damage. Keep the Headhunter alive and the crits roll in.\n\n" +
+			"[ACTIVE – 60 MP] Rapid Fire — for the next 3 turns, attacks hit 1 extra " +
+			"target and gain +2 attack range. Perfect for hitting the back line.\n\n" +
+			"[ULTIMATE – 400 charge] Snipe — locks onto the farthest enemy and fires " +
+			"a high-velocity shot for 400% ATK. The bullet can be intercepted by any " +
+			"enemy standing in the line of fire."
+		),
+		"lore": "Devastating from afar but paper-thin up close. Keep the Headhunter " +
+			"in the back row and pair with tanks who can soak incoming fire."
 	},
 ]
 

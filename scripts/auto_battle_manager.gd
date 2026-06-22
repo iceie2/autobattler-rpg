@@ -88,29 +88,197 @@ func _run_side(units: Array, opponents: Array) -> void:
 		if unit == null or not is_instance_valid(unit):
 			continue
 
-		# Tick skill cooldown
+		# ── Passives evaluated each turn ──────────────────────────────────────
+		_tick_passive(unit, opponents, units)
+
+		# Skip turn if stunned
+		if unit.stun_turns > 0:
+			unit.stun_turns -= 1
+			continue
+
+		# Tick active skill cooldown
 		if unit.skill_cooldown > 0:
 			unit.skill_cooldown -= 1
 
-		var target = find_nearest_enemy(unit, opponents)
-		if not target:
+		# Tick Headhunter rapid-fire duration
+		if unit.rapid_fire_turns > 0:
+			unit.rapid_fire_turns -= 1
+
+		# ── Ultimate (fires when ready, before normal turn) ───────────────────
+		if unit.ultimate_ready:
+			_use_ultimate(unit, opponents, units)
+			unit.ultimate_ready = false
+			unit.ultimate_charge = 0
+			unit_action.emit(unit, "ultimate")
 			continue
 
-		# Try to use skill first if off cooldown
-		if unit.skill_cooldown == 0 and unit.skill_name != "":
+		# ── Active skill ──────────────────────────────────────────────────────
+		var can_afford_mana := unit.current_mana >= unit.skill_mana_cost
+		if unit.skill_cooldown == 0 and unit.skill_name != "" and can_afford_mana:
+			if unit.skill_mana_cost > 0:
+				unit.current_mana -= unit.skill_mana_cost
 			_use_skill(unit, opponents)
 			unit.skill_cooldown = unit.skill_cooldown_max
 			unit_action.emit(unit, "skill")
 			continue
 
-		# Normal turn: attack if in range, otherwise move
-		if unit.is_in_attack_range(target.grid_position):
+		# ── Normal attack / move ──────────────────────────────────────────────
+		var target := _choose_target(unit, opponents)
+		if not target:
+			continue
+
+		var effective_range := unit.attack_range + (2 if unit.rapid_fire_turns > 0 else 0)
+		if unit.grid_position.distance_to(target.grid_position) <= effective_range:
+			# Extra target for Headhunter Rapid Fire
+			if unit.rapid_fire_turns > 0 and opponents.size() > 1:
+				var second := _second_nearest(unit, target, opponents)
+				if second:
+					unit.attack(second)
 			unit.attack(target)
 			unit_action.emit(unit, "attack")
 			unit_paths.erase(unit)
 		elif not unit.is_moving:
 			move_unit_towards_with_pathfinding(unit, target.grid_position)
 			unit_action.emit(unit, "move")
+
+# Pick target: Bloodhound in frenzy locks on most-damage-dealer, else nearest
+func _choose_target(unit: UnitBase, opponents: Array) -> UnitBase:
+	if unit.frenzy_active and is_instance_valid(unit.most_damage_dealer):
+		return unit.most_damage_dealer as UnitBase
+	return find_nearest_enemy(unit, opponents)
+
+func _second_nearest(unit: UnitBase, first: UnitBase, opponents: Array) -> UnitBase:
+	var best: UnitBase = null
+	var best_d := INF
+	for opp in opponents:
+		if not (opp and is_instance_valid(opp)) or opp == first:
+			continue
+		var d := unit.grid_position.distance_to(opp.grid_position)
+		if d < best_d:
+			best_d = d; best = opp
+	return best
+
+# ── Passive evaluations ───────────────────────────────────────────────────────
+func _tick_passive(unit: UnitBase, opponents: Array, allies: Array) -> void:
+	match unit.unit_class:
+		UnitBase.UnitClass.BLOODHOUND:
+			# Blood Frenzy: below 45% HP
+			var threshold := unit.max_hp * 0.45
+			unit.frenzy_active = unit.current_hp < threshold
+			if unit.frenzy_active:
+				# Find which opponent dealt the most damage to this unit
+				var top_dealer: UnitBase = null
+				var top_dmg := 0
+				for opp in opponents:
+					if not (opp and is_instance_valid(opp)):
+						continue
+					var dmg: int = unit.damage_taken_from.get(opp, 0)
+					if dmg > top_dmg:
+						top_dmg = dmg; top_dealer = opp
+				unit.most_damage_dealer = top_dealer
+
+		UnitBase.UnitClass.BOUNCER:
+			# Presence: count units within 2 tiles (recalculated, stored in offensive affinity)
+			var nearby := 0
+			for opp in opponents:
+				if opp and is_instance_valid(opp):
+					if unit.grid_position.distance_to(opp.grid_position) <= 2:
+						nearby += 1
+			for ally in allies:
+				if ally and is_instance_valid(ally) and ally != unit:
+					if unit.grid_position.distance_to(ally.grid_position) <= 2:
+						nearby += 1
+			# Store presence bonus as a temp modifier (applied in damage calc)
+			unit.set_meta("presence_bonus", min(nearby * 0.05, 0.3))
+
+# ── Ultimate implementations ──────────────────────────────────────────────────
+func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
+	match caster.unit_class:
+		UnitBase.UnitClass.BLOODHOUND:
+			# Pounce — leap to most-damage-dealer, stun + 250% ATK
+			var target: UnitBase = caster.most_damage_dealer
+			if not (target and is_instance_valid(target)):
+				target = find_nearest_enemy(caster, opponents)
+			if not target:
+				return
+			var dmg := int(caster.attack_damage * caster.ultimate_damage_mult)
+			target.take_damage(dmg, caster.current_element)
+			target.stun_turns = 1
+			caster.damage_dealt += dmg
+			_spawn_skill_effect(SkillEffect.Type.SHADOW_STRIKE, caster.global_position)
+
+		UnitBase.UnitClass.BOUNCER:
+			# Gravity Drop — pull enemies in 4×4 to nearest open cell beside Bouncer
+			var dmg := int(caster.magic_power * caster.ultimate_damage_mult)
+			var bonus: float = caster.get_meta("presence_bonus") if caster.has_meta("presence_bonus") else 0.0
+			dmg = int(dmg * (1.0 + bonus))
+			for opp in opponents:
+				if not (opp and is_instance_valid(opp)):
+					continue
+				if caster.grid_position.distance_to(opp.grid_position) <= 4:
+					# Pull to nearest open cell next to Bouncer
+					var open_cell := _nearest_open_adjacent(caster.grid_position)
+					if open_cell != Vector2i(-1, -1) and open_cell != opp.grid_position:
+						battle_grid.remove_unit(opp.grid_position)
+						if battle_grid.place_unit(opp, open_cell):
+							opp.grid_position = open_cell
+							opp.position = battle_grid.grid_to_world(open_cell)
+					opp.take_damage(dmg, caster.current_element)
+					caster.damage_dealt += dmg
+			_spawn_skill_effect(SkillEffect.Type.CHI_BURST, caster.global_position)
+
+		UnitBase.UnitClass.HEADHUNTER:
+			# Snipe — shoot farthest enemy, blocked by any enemy in line
+			var target := _farthest_enemy(caster, opponents)
+			if not target:
+				return
+			# Check line of fire for blockers
+			var actual_target := _check_line_of_fire(caster, target, opponents)
+			var dmg := int(caster.attack_damage * caster.ultimate_damage_mult)
+			actual_target.take_damage(dmg, caster.current_element)
+			caster.damage_dealt += dmg
+			_spawn_skill_effect(SkillEffect.Type.ARROW_RAIN, actual_target.global_position)
+		_:
+			# Legacy classes fire their normal skill as "ultimate"
+			_use_skill(caster, opponents)
+
+func _nearest_open_adjacent(center: Vector2i) -> Vector2i:
+	var dirs := [Vector2i(1,0),Vector2i(-1,0),Vector2i(0,1),Vector2i(0,-1),
+				 Vector2i(1,1),Vector2i(-1,1),Vector2i(1,-1),Vector2i(-1,-1)]
+	for d in dirs:
+		var c := center + d
+		if battle_grid.is_valid_position(c) and not battle_grid.is_cell_occupied(c):
+			return c
+	return Vector2i(-1, -1)
+
+func _farthest_enemy(unit: UnitBase, opponents: Array) -> UnitBase:
+	var farthest: UnitBase = null
+	var max_d := -1.0
+	for opp in opponents:
+		if not (opp and is_instance_valid(opp)):
+			continue
+		var d := unit.grid_position.distance_to(opp.grid_position)
+		if d > max_d:
+			max_d = d; farthest = opp
+	return farthest
+
+func _check_line_of_fire(shooter: UnitBase, target: UnitBase, opponents: Array) -> UnitBase:
+	# Return first opponent on the path between shooter and target (or target itself)
+	var sx := shooter.grid_position.x; var sy := shooter.grid_position.y
+	var tx := target.grid_position.x;  var ty := target.grid_position.y
+	var best := target
+	var best_d := shooter.grid_position.distance_to(target.grid_position)
+	for opp in opponents:
+		if not (opp and is_instance_valid(opp)) or opp == target:
+			continue
+		# Simple: is this unit roughly on the line?
+		var ox := opp.grid_position.x; var oy := opp.grid_position.y
+		var cross := abs((tx - sx) * (sy - oy) - (sx - ox) * (ty - sy))
+		if cross <= 1:  # within 1 unit of the line
+			var d := shooter.grid_position.distance_to(opp.grid_position)
+			if d < best_d:
+				best_d = d; best = opp
+	return best
 
 func find_nearest_enemy(unit: UnitBase, enemies: Array) -> UnitBase:
 	var nearest: UnitBase = null
@@ -156,9 +324,44 @@ func _use_skill(caster: UnitBase, opponents: Array) -> void:
 		UnitBase.UnitClass.RED_MAGE:
 			effect_type = SkillEffect.Type.CHAOS_BOLT
 			_chaos_bolt(caster, opponents)
+		UnitBase.UnitClass.BLOODHOUND:
+			effect_type = SkillEffect.Type.SHADOW_STRIKE
+			_bloodhound_bite(caster, opponents)
+		UnitBase.UnitClass.BOUNCER:
+			effect_type = SkillEffect.Type.WHIRLWIND
+			_bouncer_slam(caster, opponents)
+		UnitBase.UnitClass.HEADHUNTER:
+			effect_type = SkillEffect.Type.ARROW_RAIN
+			_headhunter_rapid_fire(caster)
 		_:
 			return
 	_spawn_skill_effect(effect_type, caster.global_position)
+
+# ── New class active skills ───────────────────────────────────────────────────
+
+func _bloodhound_bite(caster: UnitBase, opponents: Array) -> void:
+	var target := find_nearest_enemy(caster, opponents)
+	if not target:
+		return
+	var dmg := int(caster.attack_damage * caster.skill_damage_multiplier)
+	target.take_damage(dmg, caster.current_element)
+	caster.damage_dealt += dmg
+	# Heal for 30% of damage dealt
+	caster.heal(int(dmg * 0.3))
+
+func _bouncer_slam(caster: UnitBase, opponents: Array) -> void:
+	var target := find_nearest_enemy(caster, opponents)
+	if not target:
+		return
+	var dmg := int(caster.magic_power * caster.skill_damage_multiplier)
+	var bonus: float = caster.get_meta("presence_bonus") if caster.has_meta("presence_bonus") else 0.0
+	dmg = int(dmg * (1.0 + bonus))
+	target.take_damage(dmg, caster.current_element)
+	target.stun_turns = 1
+	caster.damage_dealt += dmg
+
+func _headhunter_rapid_fire(caster: UnitBase) -> void:
+	caster.rapid_fire_turns = 3  # lasts 3 battle turns
 
 func _spawn_skill_effect(type: SkillEffect.Type, world_pos: Vector2) -> void:
 	if not skill_effect_container:

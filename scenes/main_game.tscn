@@ -372,6 +372,64 @@ theme_override_colors/font_color = Color(0.9, 0.65, 0.65, 1)
 layout_mode = 2
 theme_override_constants/separation = 2
 
+[node name="DamageMeterPanel" type="Panel" parent="UI"]
+offset_left = 1300.0
+offset_top = 900.0
+offset_right = 1800.0
+offset_bottom = 942.0
+theme_override_styles/panel = SubResource("TeamPanelStyle")
+
+[node name="DMVBox" type="VBoxContainer" parent="UI/DamageMeterPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 6.0
+offset_right = -12.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+
+[node name="DMToggleBtn" type="Button" parent="UI/DamageMeterPanel/DMVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "DAMAGE METER  ▶"
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_colors/font_color = Color(1.0, 0.75, 0.3, 1)
+
+[node name="DMTabRow" type="HBoxContainer" parent="UI/DamageMeterPanel/DMVBox"]
+layout_mode = 2
+visible = false
+
+[node name="AllyTabBtn" type="Button" parent="UI/DamageMeterPanel/DMVBox/DMTabRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Allies"
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_colors/font_color = Color(0.35, 0.92, 0.45, 1)
+
+[node name="EnemyTabBtn" type="Button" parent="UI/DamageMeterPanel/DMVBox/DMTabRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Enemies"
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_colors/font_color = Color(0.95, 0.38, 0.38, 1)
+
+[node name="DMList" type="VBoxContainer" parent="UI/DamageMeterPanel/DMVBox"]
+layout_mode = 2
+visible = false
+theme_override_constants/separation = 3
+
 [node name="BottomBar" type="Panel" parent="UI"]
 offset_left = 0.0
 offset_top = 956.0
