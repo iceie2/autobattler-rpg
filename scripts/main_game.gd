@@ -244,13 +244,13 @@ func _on_battle_ended(player_won: bool) -> void:
 		info_label.text = "Victory! You won the battle. +50 gold!"
 		game_state.add_gold(50)
 		clear_enemy_units()
+		reset_player_positions()
 	else:
 		info_label.text = "Defeat! Your units were destroyed."
 		game_state.change_state(GameState.State.GAME_OVER)
 		return
-	
+
 	update_ui()
-	# Wait a moment then start next round
 	await get_tree().create_timer(2.0).timeout
 	game_state.start_battle_round()
 
@@ -507,6 +507,31 @@ func clear_enemy_units() -> void:
 			battle_grid.remove_unit(unit.grid_position)
 			unit.queue_free()
 	enemy_units.clear()
+
+func reset_player_positions() -> void:
+	# Clear stale battle-manager path cache
+	auto_battle_manager.unit_paths.clear()
+
+	# Pull every player unit out of wherever it ended up in the grid
+	for unit in player_units:
+		if unit and is_instance_valid(unit):
+			battle_grid.remove_unit(unit.grid_position)
+
+	# Re-place each unit in a fresh player-zone slot and snap its visual position
+	for unit in player_units:
+		if not (unit and is_instance_valid(unit)):
+			continue
+		var slot := find_empty_player_slot()
+		if slot == Vector2i(-1, -1):
+			continue
+		unit.grid_position = slot
+		unit.position = battle_grid.grid_to_world(slot)
+		battle_grid.place_unit(unit, slot)
+		# Clear any leftover movement state from battle
+		unit.is_moving = false
+		unit.move_progress = 0.0
+		unit.move_start_pos = unit.position
+		unit.move_target_pos = unit.position
 
 func _on_unit_died(unit) -> void:
 	player_units.erase(unit)
