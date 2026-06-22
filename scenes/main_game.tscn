@@ -146,11 +146,11 @@ script = ExtResource("1_main")
 [node name="GameState" type="Node" parent="."]
 
 [node name="Background" type="Node2D" parent="."]
-position = Vector2(50, 50)
+position = Vector2(0, 60)
 script = ExtResource("3_bg")
 
 [node name="BattleGrid" type="Node2D" parent="."]
-position = Vector2(50, 50)
+position = Vector2(0, 60)
 
 [node name="Unit" parent="BattleGrid" instance=ExtResource("2_72e8q")]
 
@@ -159,7 +159,7 @@ position = Vector2(50, 50)
 [node name="UI" type="CanvasLayer" parent="."]
 
 [node name="TopBar" type="Panel" parent="UI"]
-offset_right = 1152.0
+offset_right = 1408.0
 offset_bottom = 60.0
 theme_override_styles/panel = SubResource("TopBarStyle")
 
@@ -347,10 +347,10 @@ horizontal_alignment = 1
 theme_override_colors/font_color = Color(0.9, 0.65, 0.65, 1)
 
 [node name="BottomBar" type="Panel" parent="UI"]
-offset_left = 5.0
-offset_top = 1127.655
-offset_right = 1157.0
-offset_bottom = 1195.655
+offset_left = 0.0
+offset_top = 956.0
+offset_right = 1408.0
+offset_bottom = 1020.0
 theme_override_styles/panel = SubResource("BottomBarStyle")
 
 [node name="InfoLabel" type="Label" parent="UI/BottomBar"]
