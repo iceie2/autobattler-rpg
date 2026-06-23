@@ -1,38 +1,42 @@
 """
 Generates actual monster pixel-art sprites for goblin, goblin_archer, and hill_giant.
-Each sprite is drawn from scratch using PIL primitives and placed into an LPC-compatible
-sheet so the game's existing LPCGeneratedAnimData system can load them without code changes.
 
-LPC layout used (matching LPCGeneratedAnimData):
-  idle  row group = 8  → south direction = row 10 → y = 10*64 = 640
-  walk  row group = 8  → south direction = row 10 → y = 640, frames x=0..8*64
+LPC walk/idle row group = 8  (animation_rows["walk"] = 8)
+  Row 8  = north  y = 8*64  = 512
+  Row 9  = west   y = 9*64  = 576
+  Row 10 = south  y = 10*64 = 640
+  Row 11 = east   y = 11*64 = 704
 
-Sheet size: 576 wide (9 walk frames * 64) x 704 tall (11 rows * 64, covers idle/walk)
+We fill ALL 4 direction rows with the same sprite so the unit stays
+visible regardless of which way it walks.  Sheet height = 12*64 = 768.
 """
 
-import os, math
-from PIL import Image, ImageDraw, ImageFilter
+import os
+from PIL import Image, ImageDraw
 
 BASE = os.path.join(os.path.dirname(__file__), "..")
 SPRITE_BASE = os.path.join(BASE, "assets", "sprites", "generated")
 
-SHEET_W, SHEET_H = 576, 704   # 9*64, 11*64
+SHEET_W, SHEET_H = 576, 768   # 9*64 wide, 12*64 tall (covers rows 0-11)
 FRAME = 64
-IDLE_ROW = 10   # south-facing idle/walk row  (y = 640)
+WALK_ROW_GROUP = 8  # matches LPCGeneratedAnimData.animation_rows["walk"]
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
 def new_sheet() -> Image.Image:
     return Image.new("RGBA", (SHEET_W, SHEET_H), (0, 0, 0, 0))
 
-def frame_at(frame_x: int) -> tuple:
-    """Returns (x, y) top-left pixel of a walk-south frame."""
-    return (frame_x * FRAME, IDLE_ROW * FRAME)
-
-def place_frame(sheet: Image.Image, sprite: Image.Image, frame_x: int) -> None:
-    """Paste a 64×64 sprite into the sheet at the given walk frame column."""
-    x, y = frame_at(frame_x)
-    sheet.paste(sprite, (x, y), sprite)
+def place_all_directions(sheet: Image.Image, sprite: Image.Image, frame_x: int) -> None:
+    """
+    Paste the sprite into ALL 4 direction rows (north/west/south/east) at frame_x.
+    This ensures the monster stays visible regardless of which way it faces.
+    Directions: north=0, west=1, south=2, east=3  →  rows 8,9,10,11
+    """
+    for direction in range(4):
+        row = WALK_ROW_GROUP + direction
+        x = frame_x * FRAME
+        y = row * FRAME
+        sheet.paste(sprite, (x, y), sprite)
 
 def circle(draw: ImageDraw.ImageDraw, cx: int, cy: int, r: int, fill, outline=None, lw: int = 2):
     draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=fill, outline=outline, width=lw)
@@ -119,10 +123,9 @@ def draw_goblin(col: dict, bob: int = 0) -> Image.Image:
 def make_goblin_sheet(col_idx: int) -> Image.Image:
     col = GOBLIN_COLORS[col_idx]
     sheet = new_sheet()
-    # Frame 0 = stand (bob 0), frames 1-8 = walk cycle (bob -1, 0, 1, 0 alternating)
     bobs = [0, -1, -2, -1, 0, 1, 2, 1, 0]
     for i, bob in enumerate(bobs):
-        place_frame(sheet, draw_goblin(col, bob), i)
+        place_all_directions(sheet, draw_goblin(col, bob), i)
     return sheet
 
 
@@ -209,7 +212,7 @@ def make_goblin_archer_sheet(col_idx: int) -> Image.Image:
     sheet = new_sheet()
     bobs = [0, -1, -2, -1, 0, 1, 2, 1, 0]
     for i, bob in enumerate(bobs):
-        place_frame(sheet, draw_goblin_archer(col, bob), i)
+        place_all_directions(sheet, draw_goblin_archer(col, bob), i)
     return sheet
 
 
@@ -295,9 +298,9 @@ def draw_hill_giant(bob: int = 0) -> Image.Image:
 
 def make_hill_giant_sheet() -> Image.Image:
     sheet = new_sheet()
-    bobs = [0, 0, -1, 0, 0, 0, -1, 0, 0]  # barely moves — it's a giant
+    bobs = [0, 0, -1, 0, 0, 0, -1, 0, 0]
     for i, bob in enumerate(bobs):
-        place_frame(sheet, draw_hill_giant(bob), i)
+        place_all_directions(sheet, draw_hill_giant(bob), i)
     return sheet
 
 
