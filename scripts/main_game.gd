@@ -704,59 +704,69 @@ func spawn_random_player_unit() -> void:
 
 func spawn_enemies() -> void:
 	var round := game_state.battle_round
-	match round:
-		1:
-			_place_enemy(EnemyFactory.create_goblin())
-			_place_enemy(EnemyFactory.create_goblin())
-		2:
-			_place_enemy(EnemyFactory.create_goblin())
-			_place_enemy(EnemyFactory.create_goblin())
-			_place_enemy(EnemyFactory.create_goblin_archer())
-		3:
-			# Hill Giant fills a 2×2 spot in the centre, rangers lurk behind
-			_place_hill_giant(EnemyFactory.create_hill_giant())
-			_place_enemy(EnemyFactory.create_goblin_archer())
-			_place_enemy(EnemyFactory.create_goblin_archer())
-		_:
-			# Later rounds: escalating random enemies with level scaling
-			var count: int = min(3 + (round - 1) * 2, 10)
-			for i in range(count):
-				var is_last := (i == count - 1)
-				var lvl := _enemy_level_for_round(round, is_last)
-				var unit := UnitFactory.create_random_class_unit(false)
-				if lvl > 1: unit.set_level(lvl)
-				_place_enemy(unit)
+	var formation := WaveData.get_wave(round)
 
+	if formation.is_empty():
+		# Round 4+: procedural scaling
+		var count: int = min(3 + (round - 1) * 2, 10)
+		for i in range(count):
+			var is_last := (i == count - 1)
+			var lvl := _enemy_level_for_round(round, is_last)
+			var unit := UnitFactory.create_random_class_unit(false)
+			if lvl > 1: unit.set_level(lvl)
+			_place_enemy(unit)
+		return
+
+	# ── Parse the formation grid ───────────────────────────────────────────
+	# Each row string is split by spaces; tokens map to grid columns.
+	# The token array is centred in the 22-wide battle grid automatically.
+	for row_idx in range(formation.size()):
+		var row_str: String = formation[row_idx]
+		if row_str.strip_edges() == "":
+			continue
+
+		var tokens := row_str.split(" ", false)
+		var width: int = tokens.size()
+		var start_x: int = int(battle_grid.grid_width / 2) - width / 2
+
+		for col_idx in range(width):
+			var code: String = tokens[col_idx]
+			var grid_pos := Vector2i(start_x + col_idx, row_idx)
+
+			match code:
+				".", "0":
+					pass   # empty cell
+				"M":
+					_place_at(EnemyFactory.create_goblin(), grid_pos)
+				"A":
+					_place_at(EnemyFactory.create_goblin_archer(), grid_pos)
+				"G":
+					_place_at(EnemyFactory.create_hill_giant(), grid_pos)
+
+# Place any unit at an explicit grid position (respects cell_size for 2×2 units)
+func _place_at(unit: VisualUnit, grid_pos: Vector2i) -> void:
+	unit.grid_position = grid_pos
+	var world := battle_grid.grid_to_world(grid_pos)
+	# 2×2 units: offset visual centre so sprite aligns to the middle of the 2×2 block
+	if unit.cell_size == 2:
+		world += Vector2(battle_grid.cell_size * 0.5, battle_grid.cell_size * 0.5)
+	unit.position = world
+	battle_grid_node.add_child(unit)
+	if battle_grid.place_unit(unit, grid_pos):
+		enemy_units.append(unit)
+		unit.died.connect(_on_unit_died.bind(unit))
+		unit.battle_manager = auto_battle_manager
+		unit.damage_text_container = damage_text_container
+	else:
+		unit.queue_free()
+
+# Slot-fill for procedural rounds (keeps existing behaviour)
 func _place_enemy(unit: VisualUnit) -> void:
 	var spawn_pos := find_empty_enemy_slot()
 	if spawn_pos == Vector2i(-1, -1):
 		unit.queue_free()
 		return
-	unit.grid_position = spawn_pos
-	unit.position = battle_grid.grid_to_world(spawn_pos)
-	battle_grid_node.add_child(unit)
-	if battle_grid.place_unit(unit, spawn_pos):
-		enemy_units.append(unit)
-		unit.died.connect(_on_unit_died.bind(unit))
-		unit.battle_manager = auto_battle_manager
-		unit.damage_text_container = damage_text_container
-	else:
-		unit.queue_free()
-
-func _place_hill_giant(unit: VisualUnit) -> void:
-	# Find a 2×2 area in the enemy zone (rows 0-3)
-	var center_x := int(battle_grid.grid_width / 2)
-	var origin := Vector2i(center_x - 1, 1)  # top-left of 2×2
-	unit.grid_position = origin
-	unit.position = battle_grid.grid_to_world(origin) + Vector2(32, 32)  # centre of 2×2
-	battle_grid_node.add_child(unit)
-	if battle_grid.place_unit(unit, origin):
-		enemy_units.append(unit)
-		unit.died.connect(_on_unit_died.bind(unit))
-		unit.battle_manager = auto_battle_manager
-		unit.damage_text_container = damage_text_container
-	else:
-		unit.queue_free()
+	_place_at(unit, spawn_pos)
 
 func _enemy_level_for_round(round: int, is_elite: bool) -> int:
 	if is_elite and round % 5 == 0:
