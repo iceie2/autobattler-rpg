@@ -97,9 +97,9 @@ func _setup_lpc_sprite() -> void:
 		animated_sprite = lpc
 		var idle := "idle_south" if is_player_unit else "idle_north"
 		lpc.play(idle)
-		# 2×2 units get scaled up to fill their extra footprint
+		# 2×2 units: scale 2× so the 64px frame fills the full 128px block
 		if cell_size == 2:
-			lpc.scale = Vector2(1.6, 1.6)
+			lpc.scale = Vector2(2.0, 2.0)
 	else:
 		lpc.queue_free()
 		if cell_size == 2:
