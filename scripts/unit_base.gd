@@ -316,8 +316,8 @@ func spawn_projectile(target, damage: int) -> void:
 		return
 
 	var projectile := Projectile.new()
-	var start_pos := global_position
-	var end_pos   := target.global_position if target else global_position
+	var start_pos: Vector2 = global_position
+	var end_pos:   Vector2 = target.global_position if target else global_position
 
 	projectile.setup(start_pos, end_pos, damage, current_element, target)
 	projectile.caster = self   # so on_reach_target can credit damage_dealt
