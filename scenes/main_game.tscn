@@ -223,11 +223,13 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 10
 
-[node name="Title" type="Label" parent="UI/ActionPanel/VBoxContainer"]
+[node name="ActionToggleBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "Player Actions"
-horizontal_alignment = 1
+theme_override_font_sizes/font_size = 14
+text = "PLAYER ACTIONS  ▼"
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
 
 [node name="ChangeElementBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]

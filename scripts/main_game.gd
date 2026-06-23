@@ -12,12 +12,18 @@ extends Node2D
 @onready var state_label = $UI/TopBar/StateLabel
 @onready var info_label = $UI/BottomBar/InfoLabel
 
+@onready var action_panel       = $UI/ActionPanel
+@onready var action_toggle_btn  = $UI/ActionPanel/VBoxContainer/ActionToggleBtn
 @onready var change_element_btn = $UI/ActionPanel/VBoxContainer/ChangeElementBtn
-@onready var spawn_hero_btn = $UI/ActionPanel/VBoxContainer/spawn_heroBtn
-@onready var use_items_btn = $UI/ActionPanel/VBoxContainer/UseItemsBtn
-@onready var classes_btn = $UI/ActionPanel/VBoxContainer/ClassesBtn
-@onready var roster_btn = $UI/ActionPanel/VBoxContainer/RosterBtn
-@onready var ready_btn = $UI/ActionPanel/VBoxContainer/ReadyBtn
+@onready var spawn_hero_btn     = $UI/ActionPanel/VBoxContainer/spawn_heroBtn
+@onready var use_items_btn      = $UI/ActionPanel/VBoxContainer/UseItemsBtn
+@onready var classes_btn        = $UI/ActionPanel/VBoxContainer/ClassesBtn
+@onready var roster_btn         = $UI/ActionPanel/VBoxContainer/RosterBtn
+@onready var ready_btn          = $UI/ActionPanel/VBoxContainer/ReadyBtn
+
+const ACTION_PANEL_EXPANDED_BOTTOM  := 226.415
+const ACTION_PANEL_COLLAPSED_BOTTOM := 52.0
+var _action_panel_expanded := true
 
 # Team status panel
 @onready var team_stats_panel = $UI/TeamStatsPanel
@@ -163,11 +169,17 @@ func connect_signals() -> void:
 	ready_btn.pressed.connect(_on_ready_pressed)
 	details_close_btn.pressed.connect(_on_details_close_pressed)
 	unit_details_panel.gui_input.connect(_on_details_panel_input)
+	action_toggle_btn.pressed.connect(_on_action_toggle)
 	team_toggle_btn.pressed.connect(_on_team_toggle)
 	_set_team_panel_content_visible(false)
 	dm_toggle_btn.pressed.connect(_on_dm_toggle)
 	dm_ally_btn.pressed.connect(func(): _dm_show_allies = true;  _rebuild_damage_meter())
 	dm_enemy_btn.pressed.connect(func(): _dm_show_allies = false; _rebuild_damage_meter())
+
+	# All three panels are draggable
+	action_panel.gui_input.connect(_make_panel_drag_handler(action_panel))
+	team_stats_panel.gui_input.connect(_make_panel_drag_handler(team_stats_panel))
+	damage_meter_panel.gui_input.connect(_make_panel_drag_handler(damage_meter_panel))
 
 	var cm_scene := load("res://scenes/character_menu.tscn") as PackedScene
 	_character_menu = cm_scene.instantiate() as CharacterMenu
@@ -530,6 +542,24 @@ func show_unit_details(unit: UnitBase) -> void:
 
 func _on_details_close_pressed() -> void:
 	unit_details_panel.visible = false
+
+func _on_action_toggle() -> void:
+	_action_panel_expanded = not _action_panel_expanded
+	var vbox := action_panel.get_node("VBoxContainer")
+	# Hide everything except the toggle button (child 0)
+	for i in range(1, vbox.get_child_count()):
+		vbox.get_child(i).visible = _action_panel_expanded
+	action_toggle_btn.text = "PLAYER ACTIONS  %s" % ("▼" if _action_panel_expanded else "▶")
+	action_panel.offset_bottom = ACTION_PANEL_EXPANDED_BOTTOM if _action_panel_expanded else ACTION_PANEL_COLLAPSED_BOTTOM
+
+# Shared draggable panel handler — returns a callable bound to the given panel
+func _make_panel_drag_handler(panel: Control) -> Callable:
+	var dragging := [false]
+	return func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+			dragging[0] = event.pressed
+		elif event is InputEventMouseMotion and dragging[0]:
+			panel.position += event.relative
 
 func _on_dm_toggle() -> void:
 	_dm_expanded = not _dm_expanded

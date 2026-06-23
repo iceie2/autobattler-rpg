@@ -38,6 +38,12 @@ func get_class_sprite_folder() -> String:
 		UnitBase.UnitClass.HEADHUNTER: return "archer"
 		_: return ""
 
+func get_enemy_sprite_override() -> String:
+	# Enemy units can override the class-based folder via metadata
+	if has_meta("sprite_folder"):
+		return str(get_meta("sprite_folder"))
+	return ""
+
 
 func _ready():
 	super._ready()
@@ -68,12 +74,16 @@ func _ready():
 	update_visuals()
 
 
+func _sprite_variant_count(folder: String) -> int:
+	if folder == "hill_giant": return 1
+	return 3
+
 func _setup_lpc_sprite() -> void:
-	var folder = get_class_sprite_folder()
+	var folder: String = get_meta("sprite_folder") if has_meta("sprite_folder") else get_class_sprite_folder()
 	if folder == "":
 		return
-
-	var sprite_path = "res://assets/sprites/generated/%s/%d" % [folder, sprite_variant]
+	var v: int = sprite_variant % _sprite_variant_count(folder)
+	var sprite_path: String = "res://assets/sprites/generated/%s/%d" % [folder, v]
 
 	var lpc = LPCAnimatedSprite2D.new()
 	lpc.sprite_frames = SpriteFrames.new()

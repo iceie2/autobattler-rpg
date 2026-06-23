@@ -21,6 +21,7 @@ static func create_goblin(lvl: int = 1) -> VisualUnit:
 	u.gold_reward     = 15
 	u.crystal_reward  = 0
 	u.sprite_variant  = randi() % 3
+	u.set_meta("sprite_folder", "goblin")
 	if lvl > 1: u.set_level(lvl)
 	return u
 
@@ -44,6 +45,7 @@ static func create_goblin_archer(lvl: int = 1) -> VisualUnit:
 	u.gold_reward     = 15
 	u.crystal_reward  = 0
 	u.sprite_variant  = randi() % 3
+	u.set_meta("sprite_folder", "goblin_archer")
 	if lvl > 1: u.set_level(lvl)
 	return u
 
@@ -68,6 +70,7 @@ static func create_hill_giant(lvl: int = 1) -> VisualUnit:
 	u.gold_reward     = 60
 	u.crystal_reward  = 2
 	u.sprite_variant  = 0
+	u.set_meta("sprite_folder", "hill_giant")
 	u.skill_name      = "Boulder Smash"
 	u.skill_damage_multiplier = 2.0
 	u.skill_range     = 2
