@@ -88,6 +88,13 @@ func _run_side(units: Array, opponents: Array) -> void:
 		if unit == null or not is_instance_valid(unit):
 			continue
 
+		# ── Spirit regen (HP + MP) ─────────────────────────────────────────────
+		var hp_regen: int = max(1, (unit.spirit + unit.strength) / 10)
+		if unit.current_hp < unit.max_hp:
+			unit.heal(hp_regen)
+		var mp_regen: int = max(1, (unit.spirit + unit.intelligence) / 5)
+		unit.restore_mana(mp_regen)   # emits mana_changed → keeps MP bar live
+
 		# ── Passives evaluated each turn ──────────────────────────────────────
 		_tick_passive(unit, opponents, units)
 
@@ -118,7 +125,7 @@ func _run_side(units: Array, opponents: Array) -> void:
 		var can_afford_mana: bool = unit.current_mana >= unit.skill_mana_cost
 		if unit.skill_cooldown == 0 and unit.skill_name != "" and can_afford_mana:
 			if unit.skill_mana_cost > 0:
-				unit.current_mana -= unit.skill_mana_cost
+				unit.spend_mana(unit.skill_mana_cost)  # emits mana_changed → updates MP bar
 			_use_skill(unit, opponents)
 			unit.skill_cooldown = unit.skill_cooldown_max
 			unit_action.emit(unit, "skill")
@@ -185,6 +192,24 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array) -> void:
 						top_dmg = dmg; top_dealer = opp
 				unit.most_damage_dealer = top_dealer
 
+		UnitBase.UnitClass.NEMI:
+			# Resonance: allies near Nemi get +1 move speed this turn; nearest enemy gets -1
+			for ally in allies:
+				if ally and is_instance_valid(ally) and ally != unit:
+					if unit.grid_position.distance_to(ally.grid_position) <= 3:
+						# Temporary buff via metadata reset each turn
+						if not ally.has_meta("resonance_buffed"):
+							ally.movement_speed = min(ally.movement_speed + 1, 8)
+							ally.set_meta("resonance_buffed", true)
+					else:
+						if ally.has_meta("resonance_buffed"):
+							ally.movement_speed = max(ally.movement_speed - 1, 1)
+							ally.remove_meta("resonance_buffed")
+			var debuff_target := find_nearest_enemy(unit, opponents)
+			if debuff_target and not debuff_target.has_meta("resonance_debuffed"):
+				debuff_target.movement_speed = max(debuff_target.movement_speed - 1, 0)
+				debuff_target.set_meta("resonance_debuffed", true)
+
 		UnitBase.UnitClass.BOUNCER:
 			# Presence: count units within 2 tiles (recalculated, stored in offensive affinity)
 			var nearby := 0
@@ -218,7 +243,7 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 		UnitBase.UnitClass.BOUNCER:
 			# Gravity Drop — warning ring + pull all enemies in range + impact
 			var dmg := int(caster.magic_power * caster.ultimate_damage_mult)
-			var bonus: float = caster.get_meta("presence_bonus") if caster.has_meta("presence_bypass") else 0.0
+			var bonus: float = caster.get_meta("presence_bonus") if caster.has_meta("presence_bonus") else 0.0
 			if caster.has_meta("presence_bonus"):
 				bonus = float(caster.get_meta("presence_bonus"))
 			dmg = int(dmg * (1.0 + bonus))
@@ -263,6 +288,26 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 		UnitBase.UnitClass.NEMI:
 			# Tidal Wave: 3-wide column sweep with pushback
 			_nemi_tidal_wave(caster, opponents)
+
+		UnitBase.UnitClass.WHITE_MAGE:
+			# Mass Rejuvenation — heal all allies for 30% of their max HP
+			for ally in allies:
+				if not (ally and is_instance_valid(ally)):
+					continue
+				var heal_amt := int(ally.max_hp * 0.30)
+				ally.heal(heal_amt)
+				_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, ally.global_position, 40.0)
+
+		UnitBase.UnitClass.RED_MAGE:
+			# Arcane Overload — 220% MAG to all enemies within range 4
+			var dmg_r := int(caster.magic_power * 2.2)
+			for opp in opponents:
+				if not (opp and is_instance_valid(opp)):
+					continue
+				if caster.grid_position.distance_to(opp.grid_position) <= 4:
+					opp.take_damage(dmg_r, caster.current_element)
+					caster.damage_dealt += dmg_r
+					_spawn_skill_effect_sized(SkillEffect.Type.CHAOS_BOLT, opp.global_position, 36.0)
 
 		_:
 			_use_skill(caster, opponents)
@@ -364,6 +409,9 @@ func _use_skill(caster: UnitBase, opponents: Array) -> void:
 		UnitBase.UnitClass.NEMI:
 			effect_type = SkillEffect.Type.TIDE_WAVE
 			_nemi_tide(caster, opponents, units)
+		# Enemy special skills re-use existing implementations
+		# Orc Brute "Cleave" → Whirlwind (AOE melee)
+		# Goblin Shaman "Hex Bolt" → handled via generic ranged attack (attack() call)
 		_:
 			return
 	_spawn_skill_effect(effect_type, caster.global_position)

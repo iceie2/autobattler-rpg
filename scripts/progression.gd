@@ -13,12 +13,24 @@ var upgrade_levels: Dictionary = {}
 # effect_per_level is used by the game to query the bonus value.
 const UPGRADES: Array = [
 	{
-		"key":              "starting_gold",
-		"name":             "Head Start",
-		"desc":             "+5 gold at the start of every run per level.",
-		"effect":           "Starting Gold +%d",
-		"max_level":        20,
-		"effect_per_level": 5,
+		"key": "starting_gold", "name": "Head Start",
+		"desc": "+5 gold at the start of every run per level.",
+		"effect": "Starting Gold +%d", "max_level": 20, "effect_per_level": 5,
+	},
+	{
+		"key": "team_hp", "name": "Fortified",
+		"desc": "+50 max HP to all heroes at the start of every run per level.",
+		"effect": "Team HP +%d", "max_level": 20, "effect_per_level": 50,
+	},
+	{
+		"key": "hero_slots", "name": "Roster Expansion",
+		"desc": "+1 hero you can field per level (max 10 total).",
+		"effect": "Hero Slots: %d", "max_level": 5, "effect_per_level": 1,
+	},
+	{
+		"key": "crystal_drop", "name": "Crystal Surge",
+		"desc": "+1 crystal dropped by every enemy per level.",
+		"effect": "Crystal Drop +%d", "max_level": 10, "effect_per_level": 1,
 	},
 ]
 

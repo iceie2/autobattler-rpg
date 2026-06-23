@@ -3,114 +3,18 @@ class_name UnitFactory
 
 # Base stats for each class at level 1
 const CLASS_BASE_STATS = {
-	UnitBase.UnitClass.WARRIOR: {
-		"hp": 1200,
-		"mana": 300,
-		"str": 15,
-		"dex": 8,
-		"int": 5,
-		"res": 12,
-		"move": 2,
-		"range": 1,
-		"off_affinity": 30.0,
-		"def_affinity": 20.0
-	},
-	UnitBase.UnitClass.RANGER: {
-		"hp": 900,
-		"mana": 400,
-		"str": 10,
-		"dex": 16,
-		"int": 8,
-		"res": 7,
-		"move": 3,
-		"range": 4,
-		"off_affinity": 40.0,
-		"def_affinity": 10.0
-	},
-	UnitBase.UnitClass.MONK: {
-		"hp": 1000,
-		"mana": 500,
-		"str": 12,
-		"dex": 12,
-		"int": 10,
-		"res": 10,
-		"move": 3,
-		"range": 1,
-		"off_affinity": 25.0,
-		"def_affinity": 25.0
-	},
-	UnitBase.UnitClass.THIEF: {
-		"hp": 800,
-		"mana": 350,
-		"str": 8,
-		"dex": 18,
-		"int": 10,
-		"res": 6,
-		"move": 5,
-		"range": 1,
-		"off_affinity": 50.0,
-		"def_affinity": 5.0
-	},
-	UnitBase.UnitClass.BLACK_MAGE: {
-		"hp": 700,
-		"mana": 800,
-		"str": 5,
-		"dex": 7,
-		"int": 18,
-		"res": 8,
-		"move": 2,
-		"range": 5,
-		"off_affinity": 60.0,
-		"def_affinity": 15.0
-	},
-	UnitBase.UnitClass.WHITE_MAGE: {
-		"hp": 750,
-		"mana": 750,
-		"str": 6,
-		"dex": 8,
-		"int": 16,
-		"res": 12,
-		"move": 2,
-		"range": 5,
-		"off_affinity": 35.0,
-		"def_affinity": 30.0
-	},
-	UnitBase.UnitClass.RED_MAGE: {
-		"hp": 850, "mana": 650,
-		"str": 10, "dex": 10, "int": 14, "res": 10,
-		"move": 2, "range": 5,
-		"off_affinity": 45.0, "def_affinity": 20.0
-	},
-	UnitBase.UnitClass.BLOODHOUND: {
-		"hp": 1100, "mana": 400,
-		"str": 14, "dex": 12, "int": 6, "res": 14,
-		"move": 3, "range": 1,
-		"off_affinity": 35.0, "def_affinity": 25.0
-	},
-	UnitBase.UnitClass.BOUNCER: {
-		"hp": 1300, "mana": 600,
-		"str": 8, "dex": 6, "int": 16, "res": 16,
-		"move": 2, "range": 2,
-		"off_affinity": 30.0, "def_affinity": 35.0
-	},
-	UnitBase.UnitClass.HEADHUNTER: {
-		"hp": 600, "mana": 350,
-		"str": 14, "dex": 20, "int": 12, "res": 5,
-		"move": 3, "range": 6,
-		"off_affinity": 55.0, "def_affinity": 8.0
-	},
-	UnitBase.UnitClass.SHAUNA: {
-		"hp": 700, "mana": 400,
-		"str": 12, "dex": 20, "int": 8, "res": 6,
-		"move": 3, "range": 5,
-		"off_affinity": 50.0, "def_affinity": 8.0
-	},
-	UnitBase.UnitClass.NEMI: {
-		"hp": 750, "mana": 600,
-		"str": 6, "dex": 10, "int": 18, "res": 10,
-		"move": 2, "range": 4,
-		"off_affinity": 35.0, "def_affinity": 20.0
-	},
+	UnitBase.UnitClass.WARRIOR:    { "hp":1200,"mana":300, "str":15,"dex":8, "int":5, "res":12,"spr":5,  "move":2,"range":1, "off_affinity":30.0,"def_affinity":20.0 },
+	UnitBase.UnitClass.RANGER:     { "hp":900, "mana":400, "str":10,"dex":16,"int":8, "res":7, "spr":7,  "move":3,"range":4, "off_affinity":40.0,"def_affinity":10.0 },
+	UnitBase.UnitClass.MONK:       { "hp":1000,"mana":500, "str":12,"dex":12,"int":10,"res":10,"spr":12, "move":3,"range":1, "off_affinity":25.0,"def_affinity":25.0 },
+	UnitBase.UnitClass.THIEF:      { "hp":800, "mana":350, "str":8, "dex":18,"int":10,"res":6, "spr":4,  "move":5,"range":1, "off_affinity":50.0,"def_affinity":5.0  },
+	UnitBase.UnitClass.BLACK_MAGE: { "hp":700, "mana":800, "str":5, "dex":7, "int":18,"res":8, "spr":14, "move":2,"range":5, "off_affinity":60.0,"def_affinity":15.0 },
+	UnitBase.UnitClass.WHITE_MAGE: { "hp":750, "mana":750, "str":6, "dex":8, "int":16,"res":12,"spr":16, "move":2,"range":5, "off_affinity":35.0,"def_affinity":30.0 },
+	UnitBase.UnitClass.RED_MAGE:   { "hp":850, "mana":650, "str":10,"dex":10,"int":14,"res":10,"spr":11, "move":2,"range":5, "off_affinity":45.0,"def_affinity":20.0 },
+	UnitBase.UnitClass.BLOODHOUND: { "hp":1100,"mana":400, "str":14,"dex":12,"int":6, "res":14,"spr":6,  "move":3,"range":1, "off_affinity":35.0,"def_affinity":25.0 },
+	UnitBase.UnitClass.BOUNCER:    { "hp":1300,"mana":600, "str":8, "dex":6, "int":16,"res":16,"spr":12, "move":2,"range":2, "off_affinity":30.0,"def_affinity":35.0 },
+	UnitBase.UnitClass.HEADHUNTER: { "hp":600, "mana":350, "str":14,"dex":20,"int":12,"res":5, "spr":5,  "move":3,"range":6, "off_affinity":55.0,"def_affinity":8.0  },
+	UnitBase.UnitClass.SHAUNA:     { "hp":700, "mana":400, "str":12,"dex":20,"int":8, "res":6, "spr":6,  "move":3,"range":5, "off_affinity":50.0,"def_affinity":8.0  },
+	UnitBase.UnitClass.NEMI:       { "hp":750, "mana":600, "str":6, "dex":10,"int":18,"res":10,"spr":18, "move":2,"range":4, "off_affinity":35.0,"def_affinity":20.0 },
 }
 
 static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Element = UnitBase.Element.NORMAL, is_player: bool = true) -> VisualUnit:
@@ -129,6 +33,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 	unit.dexterity = stats["dex"]
 	unit.intelligence = stats["int"]
 	unit.resistance = stats["res"]
+	unit.spirit = stats.get("spr", 5)
 	unit.movement_speed = stats["move"]
 	unit.attack_range = stats["range"]
 

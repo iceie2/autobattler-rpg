@@ -7,16 +7,39 @@ var _crystal_lbl: Label
 var _round_lbl:   Label
 var _dmg_lbl:     Label
 var _kills_lbl:   Label
+var _title_lbl:   Label
+var _subtitle_lbl: Label
+var _panel: Panel
 
 func _ready() -> void:
 	_build_ui()
 
 func show_defeat(crystals: int, rounds_survived: int,
 		total_damage: int, kills: int) -> void:
+	_title_lbl.text    = "☠  DEFEATED"
+	_title_lbl.add_theme_color_override("font_color", Color(0.95, 0.3, 0.3))
+	_subtitle_lbl.text = "Your heroes have fallen. Gold and heroes are lost."
+	_panel.add_theme_stylebox_override("panel",
+		_flat(Color(0.08, 0.08, 0.13, 0.98), Color(0.55, 0.2, 0.2), 3, 12))
 	_crystal_lbl.text = "%d" % crystals
-	_round_lbl.text   = "Rounds Survived:   %d" % rounds_survived
+	_crystal_lbl.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
+	_round_lbl.text   = "Rounds Survived:    %d" % rounds_survived
 	_dmg_lbl.text     = "Total Damage Dealt: %d" % total_damage
-	_kills_lbl.text   = "Enemies Defeated:  %d" % kills
+	_kills_lbl.text   = "Enemies Defeated:   %d" % kills
+	visible = true
+
+func show_victory(crystals: int, rounds_cleared: int,
+		total_damage: int, kills: int) -> void:
+	_title_lbl.text    = "✦  VICTORY"
+	_title_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.2))
+	_subtitle_lbl.text = "Your heroes have triumphed! Crystals saved for the next run."
+	_panel.add_theme_stylebox_override("panel",
+		_flat(Color(0.07, 0.12, 0.08, 0.98), Color(0.25, 0.65, 0.25), 3, 12))
+	_crystal_lbl.text = "%d" % crystals
+	_crystal_lbl.add_theme_color_override("font_color", Color(0.35, 1.0, 0.55))
+	_round_lbl.text   = "Rounds Cleared:     %d" % rounds_cleared
+	_dmg_lbl.text     = "Total Damage Dealt: %d" % total_damage
+	_kills_lbl.text   = "Enemies Defeated:   %d" % kills
 	visible = true
 
 func _build_ui() -> void:
@@ -28,7 +51,8 @@ func _build_ui() -> void:
 	add_child(overlay)
 
 	# ── Main panel ────────────────────────────────────────────────────────────
-	var panel := Panel.new()
+	_panel = Panel.new()
+	var panel := _panel
 	panel.size = Vector2(560, 460)
 	panel.add_theme_stylebox_override("panel",
 		_flat(Color(0.08, 0.08, 0.13, 0.98), Color(0.55, 0.2, 0.2), 3, 12))
@@ -45,10 +69,10 @@ func _build_ui() -> void:
 	skull_lbl.add_theme_color_override("font_color", Color(0.75, 0.12, 0.12))
 	panel.add_child(skull_lbl)
 
-	# ── Title ─────────────────────────────────────────────────────────────────
-	_lbl(panel, "DEFEATED", 34, Color(0.95, 0.3, 0.3),
+	# ── Title (set dynamically by show_defeat / show_victory) ────────────────
+	_title_lbl = _lbl(panel, "☠  DEFEATED", 34, Color(0.95, 0.3, 0.3),
 		Vector2(0, 78), Vector2(560, 46), true)
-	_lbl(panel, "Your heroes have fallen. The gold and heroes are lost.",
+	_subtitle_lbl = _lbl(panel, "Your heroes have fallen. The gold and heroes are lost.",
 		13, Color(0.65, 0.55, 0.55, 0.9), Vector2(40, 124), Vector2(480, 24), true)
 
 	# ── Divider ───────────────────────────────────────────────────────────────

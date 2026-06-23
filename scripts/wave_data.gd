@@ -5,6 +5,8 @@ class_name WaveData
 #  .  or  0  = empty cell
 #  M         = Goblin (melee)
 #  A         = Goblin Archer (ranged)
+#  S         = Goblin Shaman (ranged magic)
+#  B         = Orc Brute (heavy melee)
 #  G         = Hill Giant (2×2 unit, anchored at this cell's top-left)
 #
 # ── Layout rules ─────────────────────────────────────────────────────────────
@@ -26,30 +28,66 @@ static func get_wave(round_number: int) -> Array:
 		1:  return WAVE_1
 		2:  return WAVE_2
 		3:  return WAVE_3
-		_:  return []          # empty = use procedural spawning
+		4:  return WAVE_4
+		5:  return WAVE_5
+		6:  return WAVE_6
+		7:  return WAVE_7
+		_:  return []   # round 8+: procedural escalation
 
 # ── Round 1: two melee goblins ────────────────────────────────────────────────
 const WAVE_1: Array = [
 	". . . . . . . . .",
-	". . . . M M . . .",
 	". . . . . . . . .",
 	". . . . . . . . .",
+	". . M . . M . . .",
 ]
 
 # ── Round 2: two goblins + archer behind them ─────────────────────────────────
 const WAVE_2: Array = [
 	". . . . . . . . .",
-	". . . . M M . . .",
-	". . . . . A . . .",
+	". . . A A . . . .",
 	". . . . . . . . .",
+	". . M . . M . . .",
 ]
 
 # ── Round 3: Hill Giant centre + flanking archers ─────────────────────────────
 #  G occupies (col, row) as top-left of a 2×2 block.
 #  The archers sit in row 2, one cell either side of the giant.
 const WAVE_3: Array = [
-	". . . . . . . . . .",
-	". . . . . G . . . .",
-	". . . . . . . . . .",
 	". A . . . . . . A .",
+	". . . . . . . . . .",
+	". . . . G . . . . .",
+	". . . . . . . . . .",
+]
+
+# ── Round 4: Shamans back row, goblins front ──────────────────────────────────
+const WAVE_4: Array = [
+	". . . S S S . . .",
+	". . . . . . . . .",
+	". . . . . . . . .",
+	". . M . M . M . .",
+]
+
+# ── Round 5: Orc brutes + archers ────────────────────────────────────────────
+const WAVE_5: Array = [
+	". . . A . . A . .",
+	". . . . . . . . .",
+	". . . . . . . . .",
+	". . B . . . B . .",
+]
+
+# ── Round 6: Two Hill Giants + shaman support ─────────────────────────────────
+const WAVE_6: Array = [
+	". . . S . S . . .",
+	". G . . . . G . .",
+	". . . . . . . . .",
+	". . . . . . . . .",
+]
+
+# ── Round 7: Full assault — brutes, archers, shamans ─────────────────────────
+const WAVE_7: Array = [
+	". S . . . . . S .",
+	". . A . A . A . .",
+	". . . . . . . . .",
+	". B . . B . . B .",
 ]

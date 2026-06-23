@@ -44,6 +44,7 @@ enum UnitClass {
 @export var dexterity: int = 10
 @export var intelligence: int = 10
 @export var resistance: int = 10
+@export var spirit: int = 5    # drives HP regen (SPR+STR/10) and MP regen (SPR+INT/5)
 
 # Movement and Combat
 @export var movement_speed: int = 3
@@ -257,7 +258,33 @@ func level_up() -> void:
 			max_mana += 15
 			intelligence += 2
 			strength += 2
-	
+		UnitClass.BLOODHOUND:
+			max_hp += 22
+			strength += 2
+			resistance += 2
+			spirit += 1
+		UnitClass.BOUNCER:
+			max_hp += 28
+			intelligence += 2
+			resistance += 2
+			spirit += 1
+		UnitClass.HEADHUNTER:
+			max_hp += 10
+			dexterity += 3
+			strength += 1
+		UnitClass.SHAUNA:
+			max_hp += 12
+			dexterity += 3
+			strength += 1
+			spirit += 1
+		UnitClass.NEMI:
+			max_hp += 14
+			max_mana += 20
+			intelligence += 3
+			spirit += 2
+	# All classes gain a small spirit boost per level-up
+	spirit += 1
+
 	current_hp = max_hp
 	current_mana = max_mana
 	leveled_up.emit(level)

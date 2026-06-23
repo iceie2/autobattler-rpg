@@ -253,10 +253,13 @@ func _integrate_scene_units() -> void:
 				unit.update_visuals()
 
 
+var max_player_units: int = 6   # base cap; increased by Roster Expansion upgrade
+
 func start_new_game() -> void:
 	game_state.gold = 50 + Progression.starting_gold_bonus()
 	game_state.crystals = 0
 	_run_kills = 0
+	max_player_units = 6 + Progression.get_bonus("hero_slots")
 	game_state.start_battle_round()
 	open_shop()
 
@@ -328,8 +331,21 @@ func _on_battle_started() -> void:
 	if _dm_expanded:
 		_rebuild_damage_meter()
 
+const VICTORY_ROUND := 7   # completing this round triggers the victory screen
+
 func _on_battle_ended(player_won: bool) -> void:
 	if player_won:
+		# Check if the player just cleared the final scripted wave
+		if game_state.battle_round >= VICTORY_ROUND:
+			Progression.add_crystals(game_state.crystals)
+			var total_dmg := 0
+			for pu in player_units:
+				if pu and is_instance_valid(pu):
+					total_dmg += pu.damage_dealt
+			_game_over_screen.show_victory(
+				game_state.crystals, game_state.battle_round, total_dmg, _run_kills)
+			return
+
 		info_label.text = "Victory! You won the battle. +50 gold!"
 		game_state.add_gold(50)
 		clear_enemy_units()
@@ -495,11 +511,18 @@ func _on_spawn_hero_pressed() -> void:
 		return
 	_hero_shop.open(game_state.gold)
 
+func _apply_progression_bonuses(unit: VisualUnit) -> void:
+	var hp_bonus: int = Progression.get_bonus("team_hp")
+	if hp_bonus > 0:
+		unit.max_hp += hp_bonus
+		unit.current_hp += hp_bonus
+
 func _on_hero_chosen(unit_class: UnitBase.UnitClass, element: UnitBase.Element) -> void:
 	if not game_state.spend_gold(HeroShop.HERO_COST):
 		info_label.text = "Not enough gold!"
 		return
 	var unit := UnitFactory.create_unit(unit_class, element, true)
+	_apply_progression_bonuses(unit)
 	var spawn_pos := find_empty_player_slot()
 	if spawn_pos == Vector2i(-1, -1):
 		info_label.text = "No room for more units!"
@@ -783,6 +806,10 @@ func spawn_enemies() -> void:
 					_place_at(EnemyFactory.create_goblin(), grid_pos)
 				"A":
 					_place_at(EnemyFactory.create_goblin_archer(), grid_pos)
+				"S":
+					_place_at(EnemyFactory.create_goblin_shaman(), grid_pos)
+				"B":
+					_place_at(EnemyFactory.create_orc_brute(), grid_pos)
 				"G":
 					_place_at(EnemyFactory.create_hill_giant(), grid_pos)
 
@@ -820,7 +847,8 @@ func _enemy_level_for_round(round: int, is_elite: bool) -> int:
 	return 1 + randi() % min(round / 2, 3)
 
 func find_empty_player_slot() -> Vector2i:
-	# Bottom 4 rows of the grid (rows grid_height-4 .. grid_height-1)
+	if player_units.size() >= max_player_units:
+		return Vector2i(-1, -1)
 	for y in range(battle_grid.grid_height - 4, battle_grid.grid_height):
 		for x in range(battle_grid.grid_width):
 			var p := Vector2i(x, y)
@@ -882,8 +910,9 @@ func _on_unit_died(unit) -> void:
 		_run_kills += 1
 		if unit.gold_reward > 0:
 			game_state.add_gold(unit.gold_reward)
-		if unit.crystal_reward > 0:
-			game_state.add_crystals(unit.crystal_reward)
+		var crystal_bonus: int = Progression.get_bonus("crystal_drop")
+		if unit.crystal_reward + crystal_bonus > 0:
+			game_state.add_crystals(unit.crystal_reward + crystal_bonus)
 		update_ui()
 		var xp_reward: int = 60 + (dead_level - 1) * 40
 		for pu in player_units:
