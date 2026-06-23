@@ -19,8 +19,8 @@ const SPRITE_FOLDERS := {
 }
 const IDLE_FRAME := Rect2(0, 640, 64, 64)
 
-var _offers: Array = []   # [{class, element}, ...]
-var _cards: Array = []
+var _offers: Array = []
+var _card_btns: Array = []
 var _panel: Panel
 
 func _ready() -> void:
@@ -33,14 +33,13 @@ func open(gold: int) -> void:
 	visible = true
 
 func _generate_offers() -> void:
-	var classes := UnitFactory.get_all_classes()
+	var classes  := UnitFactory.get_all_classes()
 	var elements := UnitFactory.get_all_elements()
-	# Pick 3 unique class+element combos
 	var used: Array = []
 	while _offers.size() < 3:
-		var cls: UnitBase.UnitClass = classes[randi() % classes.size()]
-		var elem: UnitBase.Element  = elements[randi() % elements.size()]
-		var key := str(cls) + "_" + str(elem)
+		var cls: UnitBase.UnitClass  = classes[randi() % classes.size()]
+		var elem: UnitBase.Element   = elements[randi() % elements.size()]
+		var key := "%d_%d" % [cls, elem]
 		if key not in used:
 			used.append(key)
 			_offers.append({"class": cls, "element": elem})
@@ -48,133 +47,164 @@ func _generate_offers() -> void:
 func _build_ui() -> void:
 	var overlay := ColorRect.new()
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.color = Color(0, 0, 0, 0.65)
+	overlay.color = Color(0, 0, 0, 0.78)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(overlay)
 
+	# Large panel — takes up most of the viewport
 	_panel = Panel.new()
-	_panel.size = Vector2(740, 360)
+	_panel.size = Vector2(1360, 710)
 	_panel.add_theme_stylebox_override("panel",
-		_flat(Color(0.09, 0.09, 0.15, 0.98), Color(0.5, 0.45, 0.7), 2, 10))
+		_flat(Color(0.08, 0.09, 0.14, 0.99), Color(0.45, 0.4, 0.65), 2, 12))
 	overlay.add_child(_panel)
 
-	_lbl(_panel, "CHOOSE A HERO", 20, Color(0.85, 0.85, 1.0),
-		Vector2(0, 14), Vector2(740, 34), true)
-	_lbl(_panel, "Cost: %d gold  ·  Choose wisely — you can buy more next round." % HERO_COST,
-		12, Color(1.0, 0.82, 0.3, 0.85), Vector2(0, 48), Vector2(740, 24), true)
+	# ── Title ─────────────────────────────────────────────────────────────────
+	_lbl(_panel, "CHOOSE A HERO", 30, Color(0.85, 0.85, 1.0),
+		Vector2(0, 18), Vector2(1360, 44), true)
+	_lbl(_panel, "Click a hero to recruit them · %dg each · You can buy more next round." % HERO_COST,
+		14, Color(1.0, 0.82, 0.3, 0.85), Vector2(0, 62), Vector2(1360, 26), true)
 
-	# 3 card slots
-	var card_w := 210.0
+	# ── Three full-card buttons ────────────────────────────────────────────────
+	var card_w := 420.0
+	var card_h := 560.0
 	var gap    := 20.0
-	var start_x := (740 - 3 * card_w - 2 * gap) / 2.0
-	for i in range(3):
-		var card := _build_card(Vector2(start_x + i * (card_w + gap), 80), card_w, i)
-		_panel.add_child(card)
-		_cards.append(card)
+	var start_x := (1360.0 - 3 * card_w - 2 * gap) / 2.0
 
-	# Cancel button
-	var cancel := _btn("Cancel", Rect2(290, 314, 160, 36))
+	for i in range(3):
+		var x := start_x + i * (card_w + gap)
+		var card := _build_card(Vector2(x, 96), Vector2(card_w, card_h), i)
+		_panel.add_child(card)
+		_card_btns.append(card)
+
+	# ── Cancel ────────────────────────────────────────────────────────────────
+	var cancel := _btn("Cancel", Rect2(580, 666, 200, 40))
 	cancel.pressed.connect(_on_cancel)
 	_panel.add_child(cancel)
 
 	visible = false
 	_center_panel()
 
-func _build_card(pos: Vector2, width: float, idx: int) -> Panel:
-	var card := Panel.new()
-	card.position = pos
-	card.size = Vector2(width, 224)
-	card.add_theme_stylebox_override("panel",
-		_flat(Color(0.12, 0.12, 0.2, 1.0), Color(0.4, 0.4, 0.6), 1, 6))
-	card.set_meta("idx", idx)
+func _build_card(pos: Vector2, sz: Vector2, idx: int) -> Button:
+	var btn := Button.new()
+	btn.position = pos
+	btn.size     = sz
+	btn.text     = ""   # content provided by child nodes
+	btn.add_theme_stylebox_override("normal",
+		_flat(Color(0.1, 0.1, 0.18, 1.0),  Color(0.3, 0.3, 0.5), 1, 10))
+	btn.add_theme_stylebox_override("hover",
+		_flat(Color(0.16, 0.16, 0.28, 1.0), Color(0.65, 0.6, 1.0), 2, 10))
+	btn.add_theme_stylebox_override("pressed",
+		_flat(Color(0.08, 0.08, 0.15, 1.0), Color(0.45, 0.4, 0.75), 2, 10))
+	btn.pressed.connect(_on_choose.bind(idx))
 
-	# Sprite portrait
-	var portrait_bg := ColorRect.new()
-	portrait_bg.position = Vector2(55, 8)
-	portrait_bg.size = Vector2(100, 100)
-	portrait_bg.color = Color(0.07, 0.07, 0.12)
-	portrait_bg.name = "PortraitBg"
-	card.add_child(portrait_bg)
+	# Portrait background
+	var pbg := ColorRect.new()
+	pbg.position = Vector2((sz.x - 200) / 2, 20)
+	pbg.size     = Vector2(200, 200)
+	pbg.color    = Color(0.06, 0.06, 0.11)
+	pbg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(pbg)
 
+	# Portrait sprite
 	var portrait := TextureRect.new()
-	portrait.position = Vector2(55, 8)
-	portrait.size = Vector2(100, 100)
+	portrait.position    = pbg.position
+	portrait.size        = pbg.size
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait.name = "Portrait"
-	card.add_child(portrait)
+	btn.add_child(portrait)
 
-	var name_lbl := Label.new()
-	name_lbl.position = Vector2(0, 114)
-	name_lbl.size = Vector2(width, 22)
-	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_lbl.add_theme_font_size_override("font_size", 13)
+	# Class name
+	var name_lbl := _child_lbl(btn, "", 24, Color.WHITE,
+		Vector2(0, 232), Vector2(sz.x, 34), true)
 	name_lbl.name = "NameLbl"
-	card.add_child(name_lbl)
 
-	var elem_lbl := Label.new()
-	elem_lbl.position = Vector2(0, 134)
-	elem_lbl.size = Vector2(width, 20)
-	elem_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	elem_lbl.add_theme_font_size_override("font_size", 11)
-	elem_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.85))
+	# Element
+	var elem_lbl := _child_lbl(btn, "", 16, Color(0.7, 0.7, 0.85),
+		Vector2(0, 268), Vector2(sz.x, 26), true)
 	elem_lbl.name = "ElemLbl"
-	card.add_child(elem_lbl)
 
-	var stat_lbl := Label.new()
-	stat_lbl.position = Vector2(8, 156)
-	stat_lbl.size = Vector2(width - 16, 44)
-	stat_lbl.add_theme_font_size_override("font_size", 10)
-	stat_lbl.add_theme_color_override("font_color", Color(0.65, 0.65, 0.8))
+	# Divider
+	var div := ColorRect.new()
+	div.position = Vector2(20, 302)
+	div.size     = Vector2(sz.x - 40, 2)
+	div.color    = Color(0.3, 0.3, 0.45, 0.6)
+	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(div)
+
+	# Stats block
+	var stat_lbl := _child_lbl(btn, "", 15, Color(0.78, 0.78, 0.92),
+		Vector2(20, 316), Vector2(sz.x - 40, 60))
 	stat_lbl.name = "StatLbl"
-	card.add_child(stat_lbl)
 
-	var choose_btn := _btn("Choose", Rect2(20, 186, width - 40, 32))
-	choose_btn.pressed.connect(_on_choose.bind(idx))
-	choose_btn.name = "ChooseBtn"
-	card.add_child(choose_btn)
+	# Skill label
+	var skill_hdr := _child_lbl(btn, "SKILL", 12, Color(0.5, 0.55, 0.7),
+		Vector2(20, 392), Vector2(sz.x - 40, 20))
+	var skill_lbl := _child_lbl(btn, "", 16, Color(1.0, 0.85, 0.35),
+		Vector2(20, 414), Vector2(sz.x - 40, 26))
+	skill_lbl.name = "SkillLbl"
+	var skill_desc := _child_lbl(btn, "", 12, Color(0.65, 0.65, 0.78),
+		Vector2(20, 442), Vector2(sz.x - 40, 80))
+	skill_desc.name   = "SkillDesc"
+	skill_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
-	return card
+	return btn
 
 func _refresh_cards(gold: int) -> void:
-	for i in range(_cards.size()):
-		var card: Panel = _cards[i]
+	for i in range(_card_btns.size()):
+		var btn: Button = _card_btns[i]
 		var offer: Dictionary = _offers[i]
-		var cls: UnitBase.UnitClass  = offer["class"]
+		var cls:  UnitBase.UnitClass = offer["class"]
 		var elem: UnitBase.Element   = offer["element"]
+		var stats: Dictionary = UnitFactory.CLASS_BASE_STATS.get(cls, {})
+		var elem_col := _elem_color(elem)
 
-		# Load sprite
+		# Portrait
 		var folder: String = SPRITE_FOLDERS.get(cls, "warrior")
 		var sheet := load("res://assets/sprites/generated/%s/0/single.png" % folder) as Texture2D
-		var portrait := card.get_node("Portrait") as TextureRect
+		var portrait := btn.get_node("Portrait") as TextureRect
 		if sheet and portrait:
 			var atlas := AtlasTexture.new()
-			atlas.atlas = sheet
-			atlas.region = IDLE_FRAME
+			atlas.atlas = sheet; atlas.region = IDLE_FRAME
 			portrait.texture = atlas
 
-		# Stat preview (from factory base stats)
-		var stats: Dictionary = UnitFactory.CLASS_BASE_STATS.get(cls, {})
+		# Name & element
+		(btn.get_node("NameLbl") as Label).text = _class_name(cls)
+		(btn.get_node("NameLbl") as Label).add_theme_color_override("font_color", elem_col)
+		(btn.get_node("ElemLbl") as Label).text = _elem_name(elem)
+		(btn.get_node("ElemLbl") as Label).add_theme_color_override("font_color", elem_col.lightened(0.3))
 
-		var name_lbl := card.get_node("NameLbl") as Label
-		var elem_col := _elem_color(elem)
-		name_lbl.text = _class_name(cls)
-		name_lbl.add_theme_color_override("font_color", elem_col)
-
-		var elem_lbl := card.get_node("ElemLbl") as Label
-		elem_lbl.text = _elem_name(elem)
-
-		var stat_lbl := card.get_node("StatLbl") as Label
+		# Stats
 		if stats.size() > 0:
-			stat_lbl.text = "HP:%d  MP:%d\nATK:%d  SPD:%d  RNG:%d" % [
+			var atk: int = stats.get("str", 0) + int(stats.get("dex", 0) * 0.5)
+			(btn.get_node("StatLbl") as Label).text = (
+				"HP: %-6d  MP: %-6d\nATK: %-5d  SPD: %-3d  RNG: %d" % [
 				stats.get("hp", 0), stats.get("mana", 0),
-				stats.get("str", 0) + int(stats.get("dex", 0) * 0.5),
-				stats.get("move", 0), stats.get("range", 0)
-			]
+				atk, stats.get("move", 0), stats.get("range", 0)]
+			)
 
-		var btn := card.get_node("ChooseBtn") as Button
+		# Skill
+		var tmp := UnitFactory.create_unit(cls, elem, true)
+		(btn.get_node("SkillLbl") as Label).text = tmp.skill_name if tmp.skill_name != "" else "—"
+		(btn.get_node("SkillDesc") as Label).text = _skill_short_desc(tmp)
+		tmp.free()
+
 		btn.disabled = gold < HERO_COST
-		btn.text = "Choose  (%dg)" % HERO_COST
+
+func _skill_short_desc(unit: UnitBase) -> String:
+	if unit.skill_name == "":
+		return ""
+	var parts: Array[String] = []
+	if unit.skill_damage_multiplier > 0:
+		parts.append("%.0f%% DMG" % (unit.skill_damage_multiplier * 100))
+	if unit.skill_range > 0:
+		parts.append("RNG %d" % unit.skill_range)
+	if unit.skill_cooldown_max > 0:
+		parts.append("every %d turns" % unit.skill_cooldown_max)
+	if unit.skill_mana_cost > 0:
+		parts.append("%d MP" % unit.skill_mana_cost)
+	return " · ".join(parts)
 
 func _on_choose(idx: int) -> void:
 	var offer: Dictionary = _offers[idx]
@@ -186,9 +216,10 @@ func _on_cancel() -> void:
 	visible = false
 
 func _center_panel() -> void:
-	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1800, 1080)
+	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
 	_panel.position = (vp - _panel.size) / 2.0
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
 func _class_name(cls: UnitBase.UnitClass) -> String:
 	match cls:
 		UnitBase.UnitClass.WARRIOR:    return "Warrior"
@@ -214,12 +245,12 @@ func _elem_name(elem: UnitBase.Element) -> String:
 
 func _elem_color(elem: UnitBase.Element) -> Color:
 	match elem:
-		UnitBase.Element.FIRE:      return Color(1.0, 0.4, 0.1)
-		UnitBase.Element.WATER:     return Color(0.3, 0.7, 1.0)
-		UnitBase.Element.EARTH:     return Color(0.7, 0.55, 0.25)
-		UnitBase.Element.AIR:       return Color(0.75, 1.0, 1.0)
-		UnitBase.Element.LIGHTNING: return Color(1.0, 1.0, 0.2)
-		_:                          return Color(0.85, 0.85, 0.9)
+		UnitBase.Element.FIRE:      return Color(1.0, 0.45, 0.1)
+		UnitBase.Element.WATER:     return Color(0.3, 0.7,  1.0)
+		UnitBase.Element.EARTH:     return Color(0.75, 0.55, 0.25)
+		UnitBase.Element.AIR:       return Color(0.75, 1.0,  1.0)
+		UnitBase.Element.LIGHTNING: return Color(1.0,  1.0,  0.25)
+		_:                          return Color(0.85, 0.85, 0.92)
 
 func _lbl(parent: Node, text: String, sz: int, col: Color,
 		pos: Vector2, size: Vector2, center: bool = false) -> Label:
@@ -231,14 +262,20 @@ func _lbl(parent: Node, text: String, sz: int, col: Color,
 	parent.add_child(l)
 	return l
 
+func _child_lbl(parent: Node, text: String, sz: int, col: Color,
+		pos: Vector2, size: Vector2, center: bool = false) -> Label:
+	var l := _lbl(parent, text, sz, col, pos, size, center)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
 func _btn(text: String, rect: Rect2) -> Button:
 	var b := Button.new()
 	b.text = text; b.position = rect.position; b.size = rect.size
-	b.add_theme_font_size_override("font_size", 13)
-	b.add_theme_color_override("font_color", Color(0.9, 0.9, 1.0))
-	b.add_theme_stylebox_override("normal",  _flat(Color(0.18, 0.18, 0.28), Color(0.45, 0.45, 0.6), 1, 4))
-	b.add_theme_stylebox_override("hover",   _flat(Color(0.26, 0.26, 0.38), Color(0.6, 0.6, 0.8),  1, 4))
-	b.add_theme_stylebox_override("pressed", _flat(Color(0.12, 0.12, 0.22), Color(0.3, 0.3, 0.5),  1, 4))
+	b.add_theme_font_size_override("font_size", 15)
+	b.add_theme_color_override("font_color", Color(0.85, 0.85, 1.0))
+	b.add_theme_stylebox_override("normal",  _flat(Color(0.14, 0.14, 0.22), Color(0.4, 0.4, 0.55), 1, 6))
+	b.add_theme_stylebox_override("hover",   _flat(Color(0.22, 0.22, 0.33), Color(0.6, 0.6, 0.8),  1, 6))
+	b.add_theme_stylebox_override("pressed", _flat(Color(0.1,  0.1,  0.18), Color(0.3, 0.3, 0.5),  1, 6))
 	return b
 
 func _flat(bg: Color, border: Color = Color.TRANSPARENT,
