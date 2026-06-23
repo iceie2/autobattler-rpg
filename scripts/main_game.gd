@@ -121,8 +121,8 @@ func initialize_game_components() -> void:
 	
 	# Create and attach BattleGrid
 	battle_grid = BattleGrid.new()
-	battle_grid.grid_width = 14
-	battle_grid.grid_height = 20
+	battle_grid.grid_width = 20
+	battle_grid.grid_height = 14
 	battle_grid.cell_size = 64
 	battle_grid_node.add_child(battle_grid)
 	
