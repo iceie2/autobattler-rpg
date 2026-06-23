@@ -249,6 +249,8 @@ func _class_folder(unit_class: UnitBase.UnitClass) -> String:
 		UnitBase.UnitClass.BLOODHOUND: return "warrior"
 		UnitBase.UnitClass.BOUNCER:    return "monk"
 		UnitBase.UnitClass.HEADHUNTER: return "archer"
+		UnitBase.UnitClass.SHAUNA:    return "shauna"
+		UnitBase.UnitClass.NEMI:      return "nemi"
 		_: return "warrior"
 
 func _lbl(parent: Node, text: String, sz: int, col: Color,

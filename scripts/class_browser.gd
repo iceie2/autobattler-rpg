@@ -6,7 +6,8 @@ class_name ClassBrowser
 # idle south standing frame = Rect2(0, 640, 64, 64) in every LPC sheet
 const CLASS_SPRITE_FOLDERS := [
 	"warrior", "archer", "monk", "thief", "black_mage", "white_mage", "red_mage",
-	"warrior", "monk", "archer"   # bloodhound, bouncer, headhunter (placeholder sprites)
+	"warrior", "monk", "archer",   # bloodhound, bouncer, headhunter
+	"shauna", "nemi"               # new heroes
 ]
 const IDLE_SOUTH_FRAME := Rect2(0, 640, 64, 64)
 
@@ -198,6 +199,49 @@ const CLASSES := [
 		),
 		"lore": "Devastating from afar but paper-thin up close. Keep the Headhunter " +
 			"in the back row and pair with tanks who can soak incoming fire."
+	},
+	{
+		"name": "Shauna", "color": Color(0.1, 0.85, 0.85),
+		"role": "Ranged attack carry with burst damage",
+		"hp": 700, "mana": 400,
+		"str": 12, "dex": 20, "int": 8, "res": 6,
+		"atk": 22, "mag": 11, "def": 7,
+		"move": 3, "range": 5,
+		"skill": "Glass Cannon  /  Kite  /  Overdrive",
+		"skill_color": Color(0.1, 0.9, 0.85),
+		"skill_desc": (
+			"[PASSIVE] Glass Cannon — every 3rd auto-attack deals true damage, " +
+			"bypassing all defence and damage reduction.\n\n" +
+			"[ACTIVE – 60 MP] Kite — moves 1 cell away from the nearest enemy " +
+			"then marks her next auto for +50% bonus damage.\n\n" +
+			"[ULTIMATE – 400 charge] Overdrive — for 3 turns Shauna attacks twice " +
+			"every action, doubling her damage output."
+		),
+		"lore": "A nimble sharpshooter who builds momentum across every third shot " +
+			"and accelerates into a damage frenzy. Pair with a frontline tank so " +
+			"Shauna can kite freely without getting hit."
+	},
+	{
+		"name": "Nemi", "color": Color(0.95, 0.55, 0.05),
+		"role": "Ranged disruptor support with wave abilities",
+		"hp": 750, "mana": 600,
+		"str": 6, "dex": 10, "int": 18, "res": 10,
+		"atk": 9, "mag": 20, "def": 12,
+		"move": 2, "range": 4,
+		"skill": "Resonance  /  Tide  /  Tidal Wave",
+		"skill_color": Color(0.3, 0.75, 1.0),
+		"skill_desc": (
+			"[PASSIVE] Resonance — allies struck by Nemi's spells gain a brief " +
+			"attack-speed boost; enemies struck are slowed.\n\n" +
+			"[ACTIVE – 80 MP] Tide — sends a bouncing wave that deals 80% MAG " +
+			"to the nearest enemy and heals the nearest ally for the same amount.\n\n" +
+			"[ULTIMATE – 450 charge] Tidal Wave — launches a 3-column-wide " +
+			"surge forward from Nemi's position. Enemies caught in the wave take " +
+			"150% MAG damage and are pushed back 2 cells."
+		),
+		"lore": "A fluid mystic who controls the flow of battle through disruption " +
+			"and sustain. Tidal Wave can completely reset the enemy formation if " +
+			"timed at the right moment."
 	},
 ]
 

@@ -22,7 +22,9 @@ enum UnitClass {
 	RED_MAGE,
 	BLOODHOUND,
 	BOUNCER,
-	HEADHUNTER
+	HEADHUNTER,
+	SHAUNA,
+	NEMI
 }
 
 # Unit identity
@@ -112,7 +114,9 @@ var ultimate_ready: bool = false
 # ── Combat state (per-unit tracking) ─────────────────────────────────────────
 var damage_dealt: int = 0          # cumulative for damage meter
 var stun_turns: int = 0            # skip action when > 0
-var hit_counter: int = 0           # Headhunter: every-7th-crit
+var hit_counter: int = 0           # Headhunter: every-7th-crit / Shauna: every-3rd-true-dmg
+var overdrive_turns: int = 0       # Shauna ultimate: extra attack per turn
+var next_attack_boosted: bool = false  # Shauna active: next hit +50% DMG
 var frenzy_active: bool = false    # Bloodhound passive
 var rapid_fire_turns: int = 0      # Headhunter active duration remaining
 var most_damage_dealer = null      # ref to unit that dealt most dmg to self
@@ -160,13 +164,12 @@ signal mana_changed(current: int, maximum: int)
 func _ready():
 	update_visuals()
 
-func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null) -> void:
-	var modified_damage = calculate_damage_with_element(amount, element)
-	# Apply defense reduction
-	modified_damage = max(1, modified_damage - defense)
-	# Apply defensive affinity against this element
-	modified_damage = int(modified_damage * get_defense_multiplier(element))
-	modified_damage = max(1, modified_damage)  # Minimum 1 damage
+func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null, true_damage: bool = false) -> void:
+	var modified_damage := calculate_damage_with_element(amount, element)
+	if not true_damage:
+		modified_damage = max(1, modified_damage - defense)
+		modified_damage = int(modified_damage * get_defense_multiplier(element))
+	modified_damage = max(1, modified_damage)
 	
 	# Spawn damage text
 	spawn_damage_text(modified_damage, element)
@@ -275,10 +278,17 @@ func attack(target) -> void:
 	var target_element: Element = target.current_element if target is UnitBase else Element.NORMAL
 	var damage := int(attack_damage * get_attack_multiplier(target_element))
 
-	# Headhunter passive: every 7th hit is a crit (3× damage)
 	hit_counter += 1
+	# Headhunter: every 7th hit = 3× crit
 	if unit_class == UnitClass.HEADHUNTER and hit_counter % 7 == 0:
 		damage = int(damage * 3.0)
+	# Shauna: next attack boosted (+50%) from Kite active
+	var is_boosted := next_attack_boosted
+	if is_boosted:
+		damage = int(damage * 1.5)
+		next_attack_boosted = false
+	# Shauna: every 3rd hit = true damage (bypass defence)
+	var is_true_dmg := (unit_class == UnitClass.SHAUNA and hit_counter % 3 == 0)
 
 	# Headhunter active bonus range already applied by battle manager
 
@@ -286,7 +296,7 @@ func attack(target) -> void:
 		spawn_projectile(target, damage)
 	else:
 		var pre_hp: int = target.current_hp
-		target.take_damage(damage, current_element)
+		target.take_damage(damage, current_element, self, is_true_dmg)
 		var actual: int = max(0, pre_hp - target.current_hp)
 		damage_dealt += actual
 		_charge_ultimate(actual / 2)
@@ -372,6 +382,10 @@ func get_class_name_string() -> String:
 			return "Bouncer"
 		UnitClass.HEADHUNTER:
 			return "Headhunter"
+		UnitClass.SHAUNA:
+			return "Shauna"
+		UnitClass.NEMI:
+			return "Nemi"
 		_:
 			return "Unknown"
 

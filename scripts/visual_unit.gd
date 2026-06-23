@@ -36,6 +36,8 @@ func get_class_sprite_folder() -> String:
 		UnitBase.UnitClass.BLOODHOUND: return "warrior"
 		UnitBase.UnitClass.BOUNCER:    return "monk"
 		UnitBase.UnitClass.HEADHUNTER: return "archer"
+		UnitBase.UnitClass.SHAUNA:    return "shauna"
+		UnitBase.UnitClass.NEMI:      return "nemi"
 		_: return ""
 
 func get_enemy_sprite_override() -> String:
@@ -183,6 +185,8 @@ func _draw():
 		UnitBase.UnitClass.BLOODHOUND:    _draw_triangle(color, outline)
 		UnitBase.UnitClass.BOUNCER:       _draw_circle(color, outline)
 		UnitBase.UnitClass.HEADHUNTER:    _draw_diamond(color, outline)
+		UnitBase.UnitClass.SHAUNA:        _draw_triangle(color, outline)
+		UnitBase.UnitClass.NEMI:          _draw_hexagon(color, outline)
 		_:                                _draw_square(color, outline)
 
 

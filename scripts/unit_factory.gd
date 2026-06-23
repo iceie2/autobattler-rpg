@@ -99,6 +99,18 @@ const CLASS_BASE_STATS = {
 		"move": 3, "range": 6,
 		"off_affinity": 55.0, "def_affinity": 8.0
 	},
+	UnitBase.UnitClass.SHAUNA: {
+		"hp": 700, "mana": 400,
+		"str": 12, "dex": 20, "int": 8, "res": 6,
+		"move": 3, "range": 5,
+		"off_affinity": 50.0, "def_affinity": 8.0
+	},
+	UnitBase.UnitClass.NEMI: {
+		"hp": 750, "mana": 600,
+		"str": 6, "dex": 10, "int": 18, "res": 10,
+		"move": 2, "range": 4,
+		"off_affinity": 35.0, "def_affinity": 20.0
+	},
 }
 
 static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Element = UnitBase.Element.NORMAL, is_player: bool = true) -> VisualUnit:
@@ -202,6 +214,26 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.ultimate_damage_mult = 4.0
 			unit.ultimate_range = 99
 			unit.ultimate_charge_max = 400
+		UnitBase.UnitClass.SHAUNA:
+			unit.passive_name        = "Glass Cannon"
+			unit.skill_name          = "Kite"
+			unit.skill_damage_multiplier = 1.5
+			unit.skill_range         = 1
+			unit.skill_cooldown_max  = 4
+			unit.skill_mana_cost     = 60
+			unit.ultimate_name       = "Overdrive"
+			unit.ultimate_damage_mult = 0.0   # utility ult
+			unit.ultimate_charge_max = 400
+		UnitBase.UnitClass.NEMI:
+			unit.passive_name        = "Resonance"
+			unit.skill_name          = "Tide"
+			unit.skill_damage_multiplier = 0.8
+			unit.skill_range         = 4
+			unit.skill_cooldown_max  = 3
+			unit.skill_mana_cost     = 80
+			unit.ultimate_name       = "Tidal Wave"
+			unit.ultimate_damage_mult = 1.5
+			unit.ultimate_charge_max = 450
 	unit.skill_cooldown = unit.skill_cooldown_max  # start on cooldown
 
 	return unit
@@ -228,6 +260,8 @@ static func get_all_classes() -> Array:
 		UnitBase.UnitClass.BLOODHOUND,
 		UnitBase.UnitClass.BOUNCER,
 		UnitBase.UnitClass.HEADHUNTER,
+		UnitBase.UnitClass.SHAUNA,
+		UnitBase.UnitClass.NEMI,
 	]
 
 static func get_all_elements() -> Array:

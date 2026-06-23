@@ -103,6 +103,8 @@ func _run_side(units: Array, opponents: Array) -> void:
 		# Tick Headhunter rapid-fire duration
 		if unit.rapid_fire_turns > 0:
 			unit.rapid_fire_turns -= 1
+		if unit.overdrive_turns > 0:
+			unit.overdrive_turns -= 1
 
 		# ── Ultimate (fires when ready, before normal turn) ───────────────────
 		if unit.ultimate_ready:
@@ -129,12 +131,15 @@ func _run_side(units: Array, opponents: Array) -> void:
 
 		var effective_range: int = unit.attack_range + (2 if unit.rapid_fire_turns > 0 else 0)
 		if unit.grid_position.distance_to(target.grid_position) <= effective_range:
-			# Extra target for Headhunter Rapid Fire
 			if unit.rapid_fire_turns > 0 and opponents.size() > 1:
 				var second := _second_nearest(unit, target, opponents)
 				if second:
 					unit.attack(second)
 			unit.attack(target)
+			# Shauna Overdrive: attacks again this turn
+			if unit.overdrive_turns > 0:
+				unit.attack(target)
+				_spawn_skill_effect_sized(SkillEffect.Type.OVERDRIVE, unit.global_position, 32.0)
 			unit_action.emit(unit, "attack")
 			unit_paths.erase(unit)
 		elif not unit.is_moving and unit.movement_speed > 0:
@@ -250,8 +255,16 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 			actual_target.take_damage(dmg, caster.current_element)
 			caster.damage_dealt += dmg
 			_spawn_skill_effect(SkillEffect.Type.ARROW_RAIN, actual_target.global_position)
+		UnitBase.UnitClass.SHAUNA:
+			# Overdrive: 3 extra attack turns
+			caster.overdrive_turns = 3
+			_spawn_skill_effect(SkillEffect.Type.OVERDRIVE, caster.global_position)
+
+		UnitBase.UnitClass.NEMI:
+			# Tidal Wave: 3-wide column sweep with pushback
+			_nemi_tidal_wave(caster, opponents)
+
 		_:
-			# Legacy classes fire their normal skill as "ultimate"
 			_use_skill(caster, opponents)
 
 func _nearest_open_adjacent(center: Vector2i) -> Vector2i:
@@ -345,6 +358,12 @@ func _use_skill(caster: UnitBase, opponents: Array) -> void:
 		UnitBase.UnitClass.HEADHUNTER:
 			effect_type = SkillEffect.Type.ARROW_RAIN
 			_headhunter_rapid_fire(caster)
+		UnitBase.UnitClass.SHAUNA:
+			effect_type = SkillEffect.Type.OVERDRIVE
+			_shauna_kite(caster, opponents)
+		UnitBase.UnitClass.NEMI:
+			effect_type = SkillEffect.Type.TIDE_WAVE
+			_nemi_tide(caster, opponents, units)
 		_:
 			return
 	_spawn_skill_effect(effect_type, caster.global_position)
@@ -372,8 +391,67 @@ func _bouncer_slam(caster: UnitBase, opponents: Array) -> void:
 	target.stun_turns = 1
 	caster.damage_dealt += dmg
 
+func _nemi_tidal_wave(caster: UnitBase, opponents: Array) -> void:
+	var dmg := int(caster.magic_power * caster.ultimate_damage_mult)
+	var cx := caster.grid_position.x
+	_spawn_skill_effect_sized(SkillEffect.Type.TIDAL_WAVE, caster.global_position, 100.0)
+
+	# Hit all enemies in a 3-column strip (caster col ±1)
+	for opp in opponents:
+		if not (opp and is_instance_valid(opp)):
+			continue
+		if abs(opp.grid_position.x - cx) <= 1:
+			opp.take_damage(dmg, caster.current_element)
+			caster.damage_dealt += dmg
+			_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, opp.global_position, 24.0)
+			# Pushback: move 2 cells away from Nemi (in y direction)
+			var push_y: int = sign(opp.grid_position.y - caster.grid_position.y)
+			if push_y == 0: push_y = -1  # if same row, push north
+			for _step in range(2):
+				var next := opp.grid_position + Vector2i(0, push_y)
+				if battle_grid.is_valid_position(next) and not battle_grid.is_cell_occupied(next):
+					battle_grid.remove_unit(opp.grid_position)
+					if battle_grid.place_unit(opp, next):
+						opp.grid_position = next
+						opp.position = battle_grid.grid_to_world(next)
+
 func _headhunter_rapid_fire(caster: UnitBase) -> void:
-	caster.rapid_fire_turns = 3  # lasts 3 battle turns
+	caster.rapid_fire_turns = 3
+
+# ── Shauna active: kite away from nearest enemy, boost next attack ────────────
+func _shauna_kite(caster: UnitBase, opponents: Array) -> void:
+	var nearest := find_nearest_enemy(caster, opponents)
+	if nearest:
+		var dx: int = sign(caster.grid_position.x - nearest.grid_position.x)
+		var dy: int = sign(caster.grid_position.y - nearest.grid_position.y)
+		if dx == 0 and dy == 0:
+			dy = 1  # fallback: move south if same cell
+		var dest := caster.grid_position + Vector2i(dx, dy)
+		if battle_grid.is_valid_position(dest) and not battle_grid.is_cell_occupied(dest):
+			start_unit_movement(caster, caster.grid_position, dest)
+	caster.next_attack_boosted = true   # next auto hits for +50%
+
+# ── Nemi active: tide bounces — damages nearest enemy, heals nearest ally ─────
+func _nemi_tide(caster: UnitBase, opponents: Array, allies: Array) -> void:
+	var enemy := find_nearest_enemy(caster, opponents)
+	if not enemy:
+		return
+	var dmg := int(caster.magic_power * caster.skill_damage_multiplier)
+	enemy.take_damage(dmg, caster.current_element)
+	caster.damage_dealt += dmg
+	_spawn_skill_effect_sized(SkillEffect.Type.TIDE_WAVE, enemy.global_position, 36.0)
+
+	# Heal nearest ally for the same amount
+	var nearest_ally: UnitBase = null
+	var min_d := INF
+	for a in allies:
+		if not (a and is_instance_valid(a)) or a == caster:
+			continue
+		var d := caster.grid_position.distance_to(a.grid_position)
+		if d < min_d:
+			min_d = d; nearest_ally = a
+	if nearest_ally:
+		nearest_ally.heal(dmg)
 
 func _spawn_skill_effect(type: SkillEffect.Type, world_pos: Vector2) -> void:
 	_spawn_skill_effect_sized(type, world_pos, 56.0)

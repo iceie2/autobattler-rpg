@@ -9,8 +9,11 @@ enum Type {
 	INFERNO,      # BlackMage — fire explosion
 	HOLY_LIGHT,   # WhiteMage — rising light beams
 	CHAOS_BOLT,   # RedMage  — swirling sparks
-	GRAVITY_DROP, # Bouncer  — inward pull with warning ring
-	ABSORBED,     # Small absorption burst (hit by Gravity Drop)
+	GRAVITY_DROP,  # Bouncer  — inward pull with warning ring
+	ABSORBED,      # Small absorption burst (hit by Gravity Drop)
+	OVERDRIVE,     # Shauna ultimate — spinning energy burst
+	TIDE_WAVE,     # Nemi active — bouncing wave
+	TIDAL_WAVE,    # Nemi ultimate — wide ocean wave
 }
 
 var effect_type: Type = Type.WHIRLWIND
@@ -51,6 +54,9 @@ func _draw() -> void:
 		Type.CHAOS_BOLT:    _draw_chaos_bolt(t, inv)
 		Type.GRAVITY_DROP:  _draw_gravity_drop(t, inv)
 		Type.ABSORBED:      _draw_absorbed(t, inv)
+		Type.OVERDRIVE:     _draw_overdrive(t, inv)
+		Type.TIDE_WAVE:     _draw_tide_wave(t, inv)
+		Type.TIDAL_WAVE:    _draw_tidal_wave(t, inv)
 
 
 # ── Warrior: orange spinning sword arcs ──────────────────────────────────────
@@ -205,6 +211,81 @@ func _draw_chaos_bolt(t: float, inv: float) -> void:
 		draw_line(trail, pos, Color(col.r, col.g, col.b, inv * 0.4), 1.5)
 	# Central swirl
 	draw_circle(Vector2.ZERO, 14.0 * inv, Color(0.8, 0.3, 1.0, inv * 0.8))
+
+
+# ── Shauna Overdrive: spinning teal energy rings ──────────────────────────────
+func _draw_overdrive(t: float, inv: float) -> void:
+	var teal := Color(0.1, 0.9, 0.85)
+	var gold := Color(1.0, 0.85, 0.2)
+	# 3 spinning rings at different speeds
+	for i in range(3):
+		var rot: float = t * TAU * (2.0 + i * 0.7)
+		var r: float = radius * (0.4 + i * 0.25)
+		var a: float = inv * (0.7 - i * 0.15)
+		draw_arc(Vector2.ZERO, r, rot, rot + TAU * 0.65, 24,
+			Color(teal.r, teal.g, teal.b, a), 3.0 - i * 0.5)
+	# Gold speed-line spokes
+	for i in range(6):
+		var ang: float = i * (TAU / 6.0) + t * TAU * 3.0
+		var tip: Vector2 = Vector2(cos(ang), sin(ang)) * radius * 1.2
+		draw_line(Vector2.ZERO, tip, Color(gold.r, gold.g, gold.b, inv * 0.6), 2.0)
+	# Central bright core
+	draw_circle(Vector2.ZERO, 10.0 * sin(t * TAU * 4.0 + 1.0), Color(1.0, 1.0, 0.9, inv * 0.8))
+
+
+# ── Nemi Tide: bouncing blue-green wave ───────────────────────────────────────
+func _draw_tide_wave(t: float, inv: float) -> void:
+	var blue := Color(0.15, 0.6, 1.0)
+	var teal := Color(0.1, 0.9, 0.75)
+	# Expanding circles like a water drop
+	for i in range(3):
+		var phase: float = fmod(t * 2.0 + i * 0.33, 1.0)
+		var r: float = phase * radius * 1.5
+		draw_arc(Vector2.ZERO, r, 0, TAU, 28,
+			Color(blue.r, blue.g, blue.b, (1.0 - phase) * inv * 0.75), 2.5)
+	# Wavy horizontal lines
+	for i in range(4):
+		var y: float = -radius * 0.6 + i * (radius * 0.4)
+		var pts := PackedVector2Array()
+		for x_step in range(20):
+			var x: float = -radius + x_step * (radius / 9.0)
+			var wave_y: float = y + sin((x / radius) * PI * 3.0 + t * TAU * 2.0) * 6.0
+			pts.append(Vector2(x, wave_y))
+		for j in range(pts.size() - 1):
+			draw_line(pts[j], pts[j+1], Color(teal.r, teal.g, teal.b, inv * 0.5), 1.5)
+	draw_circle(Vector2.ZERO, 8.0 * inv, Color(0.5, 0.9, 1.0, inv * 0.7))
+
+
+# ── Nemi Tidal Wave: wide ocean surge ────────────────────────────────────────
+func _draw_tidal_wave(t: float, inv: float) -> void:
+	var deep  := Color(0.05, 0.35, 0.85)
+	var crest := Color(0.7,  0.92, 1.0)
+	var foam  := Color(1.0,  1.0,  1.0)
+
+	# Wave wall moving outward (3 stacked wave layers)
+	for layer in range(3):
+		var layer_t: float = fmod(t + layer * 0.2, 1.0)
+		var wave_x: float = (-radius * 1.5) + layer_t * radius * 3.0
+		var pts := PackedVector2Array()
+		for step in range(32):
+			var frac: float = step / 31.0
+			var y: float = -radius + frac * radius * 2.0
+			var curl: float = sin(frac * PI * 4.0 + t * TAU + layer) * (radius * 0.18)
+			pts.append(Vector2(wave_x + curl, y))
+		for j in range(pts.size() - 1):
+			var alpha: float = inv * (0.6 - layer * 0.15)
+			draw_line(pts[j], pts[j+1],
+				Color(deep.r, deep.g, deep.b, alpha), 4.0 - layer)
+
+	# Foam crest at leading edge
+	var crest_x: float = (-radius * 1.5) + t * radius * 3.0
+	for i in range(5):
+		var cy: float = -radius * 0.8 + i * (radius * 0.4)
+		draw_circle(Vector2(crest_x, cy), 5.0 * inv, Color(foam.r, foam.g, foam.b, inv * 0.85))
+
+	# Wide horizontal glow behind crest
+	draw_line(Vector2(crest_x - radius * 0.4, 0), Vector2(crest_x, 0),
+		Color(crest.r, crest.g, crest.b, inv * 0.5), radius * 0.4)
 
 
 # ── Bouncer Gravity Drop: three phases ───────────────────────────────────────
