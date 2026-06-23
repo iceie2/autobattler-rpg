@@ -7,6 +7,7 @@ var speed: float = 400.0
 var damage: int = 0
 var element: UnitBase.Element = UnitBase.Element.NORMAL
 var target_unit = null
+var caster = null          # tracks who fired this for damage_dealt attribution
 var traveled_distance: float = 0.0
 var total_distance: float = 0.0
 
@@ -52,8 +53,13 @@ func _process(delta: float):
 
 func on_reach_target():
 	if target_unit and is_instance_valid(target_unit) and target_unit.has_method("take_damage"):
+		var pre_hp: int = target_unit.current_hp
 		target_unit.take_damage(damage, element)
-	
+		var actual: int = max(0, pre_hp - target_unit.current_hp)
+		# Credit the damage back to whoever fired this projectile
+		if caster and is_instance_valid(caster) and "damage_dealt" in caster:
+			caster.damage_dealt += actual
+
 	hit_target.emit(target_unit)
 	queue_free()
 

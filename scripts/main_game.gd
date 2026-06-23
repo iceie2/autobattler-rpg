@@ -309,6 +309,8 @@ func _on_battle_started() -> void:
 	info_label.text = "Battle started! Units are fighting automatically."
 	close_shop()
 	update_team_health_bars()
+	if _dm_expanded:
+		_rebuild_damage_meter()
 
 func _on_battle_ended(player_won: bool) -> void:
 	if player_won:
@@ -341,6 +343,7 @@ func _on_unit_action(_unit, _action_type: String) -> void:
 	update_team_health_bars()
 	if _dm_expanded:
 		_rebuild_damage_meter()
+
 
 func update_team_health_bars() -> void:
 	var p_cur := 0
@@ -592,8 +595,10 @@ func _on_dm_toggle() -> void:
 		_rebuild_damage_meter()
 
 func _rebuild_damage_meter() -> void:
+	# Remove immediately (not deferred) so new labels aren't mixed with old ones
 	for child in dm_list.get_children():
-		child.queue_free()
+		dm_list.remove_child(child)
+		child.free()
 	var units := player_units if _dm_show_allies else enemy_units
 	var name_col := Color(0.35, 0.92, 0.45) if _dm_show_allies else Color(0.95, 0.38, 0.38)
 

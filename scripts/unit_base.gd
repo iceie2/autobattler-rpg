@@ -314,14 +314,14 @@ func set_level(target_level: int) -> void:
 func spawn_projectile(target, damage: int) -> void:
 	if not battle_manager:
 		return
-	
-	var projectile = Projectile.new()
-	var start_pos = global_position
-	var end_pos = target.global_position if target else global_position
-	
+
+	var projectile := Projectile.new()
+	var start_pos := global_position
+	var end_pos   := target.global_position if target else global_position
+
 	projectile.setup(start_pos, end_pos, damage, current_element, target)
-	
-	# Add to scene tree through battle manager
+	projectile.caster = self   # so on_reach_target can credit damage_dealt
+
 	if battle_manager.has_method("add_projectile"):
 		battle_manager.add_projectile(projectile)
 
