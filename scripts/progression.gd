@@ -36,9 +36,9 @@ func next_cost(key: String) -> int:
 	var upgrade := _find(key)
 	if upgrade.is_empty() or lvl >= upgrade["max_level"]:
 		return -1
-	# Exponential: cost = max(1, floor(1.4 ^ current_level))
-	# Lv0→1: 1c, Lv4→5: 3c, Lv9→10: 20c, Lv14→15: 110c, Lv19→20: 590c
-	return max(1, int(floor(pow(1.4, lvl))))
+	# Exponential curve: base 10, multiplier 1.255, caps near 750 at level 19
+	# Lv0→1: 10c  |  Lv4→5: 25c  |  Lv9→10: 77c  |  Lv14→15: 240c  |  Lv19→20: 749c
+	return roundi(10.0 * pow(1.255, lvl))
 
 func can_afford(key: String) -> bool:
 	var cost := next_cost(key)
