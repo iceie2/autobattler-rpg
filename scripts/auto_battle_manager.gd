@@ -408,7 +408,7 @@ func _use_skill(caster: UnitBase, opponents: Array) -> void:
 			_shauna_kite(caster, opponents)
 		UnitBase.UnitClass.NEMI:
 			effect_type = SkillEffect.Type.TIDE_WAVE
-			_nemi_tide(caster, opponents, units)
+			_nemi_tide(caster, opponents, allies)
 		# Enemy special skills re-use existing implementations
 		# Orc Brute "Cleave" → Whirlwind (AOE melee)
 		# Goblin Shaman "Hex Bolt" → handled via generic ranged attack (attack() call)
@@ -456,7 +456,7 @@ func _nemi_tidal_wave(caster: UnitBase, opponents: Array) -> void:
 			var push_y: int = sign(opp.grid_position.y - caster.grid_position.y)
 			if push_y == 0: push_y = -1  # if same row, push north
 			for _step in range(2):
-				var next := opp.grid_position + Vector2i(0, push_y)
+				var next: Vector2i = opp.grid_position + Vector2i(0, push_y)
 				if battle_grid.is_valid_position(next) and not battle_grid.is_cell_occupied(next):
 					battle_grid.remove_unit(opp.grid_position)
 					if battle_grid.place_unit(opp, next):

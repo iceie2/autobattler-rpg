@@ -174,7 +174,7 @@ func connect_signals() -> void:
 	unit_details_panel.gui_input.connect(_on_details_panel_input)
 	# Cache the action panel's StyleBoxFlat so we can re-apply it after
 	# every offset change (Godot 4 drops theme_override_styles on layout updates)
-	var raw := action_panel.get_theme_stylebox("panel")
+	var raw: StyleBox = action_panel.get_theme_stylebox("panel")
 	if raw is StyleBoxFlat:
 		_action_panel_style = (raw as StyleBoxFlat).duplicate()
 	else:

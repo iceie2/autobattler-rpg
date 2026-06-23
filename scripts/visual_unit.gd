@@ -186,7 +186,7 @@ func _draw():
 		UnitBase.UnitClass.BOUNCER:       _draw_circle(color, outline)
 		UnitBase.UnitClass.HEADHUNTER:    _draw_diamond(color, outline)
 		UnitBase.UnitClass.SHAUNA:        _draw_triangle(color, outline)
-		UnitBase.UnitClass.NEMI:          _draw_hexagon(color, outline)
+		UnitBase.UnitClass.NEMI:          _draw_polygon(6, color, outline)
 		_:                                _draw_square(color, outline)
 
 
