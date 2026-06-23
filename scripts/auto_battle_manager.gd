@@ -138,7 +138,10 @@ func _run_side(units: Array, opponents: Array) -> void:
 			unit_action.emit(unit, "attack")
 			unit_paths.erase(unit)
 		elif not unit.is_moving and unit.movement_speed > 0:
-			move_unit_towards_with_pathfinding(unit, target.grid_position)
+			if unit.cell_size > 1:
+				_move_2x2_unit(unit, target.grid_position)
+			else:
+				move_unit_towards_with_pathfinding(unit, target.grid_position)
 			unit_action.emit(unit, "move")
 
 # Pick target: Bloodhound in frenzy locks on most-damage-dealer, else nearest
@@ -526,6 +529,37 @@ func move_unit_towards_with_pathfinding(unit: UnitBase, target_pos: Vector2i) ->
 
 	if not unit.is_moving:
 		start_unit_movement(unit, current_pos, next_pos)
+
+func _move_2x2_unit(unit: UnitBase, target_pos: Vector2i) -> void:
+	# Simple cardinal + diagonal movement for large units.
+	# Picks the direction that gets closest to target and checks all 4 cells.
+	var pos := unit.grid_position
+	var dx := sign(target_pos.x - pos.x)
+	var dy := sign(target_pos.y - pos.y)
+
+	# Build candidate next positions in preference order
+	var candidates: Array[Vector2i] = []
+	if dx != 0 and dy != 0:
+		candidates = [pos + Vector2i(dx, dy), pos + Vector2i(dx, 0), pos + Vector2i(0, dy)]
+	elif dx != 0:
+		candidates = [pos + Vector2i(dx, 0), pos + Vector2i(0, 1), pos + Vector2i(0, -1)]
+	else:
+		candidates = [pos + Vector2i(0, dy), pos + Vector2i(1, 0), pos + Vector2i(-1, 0)]
+
+	for next_pos in candidates:
+		if _can_place_2x2(next_pos, unit):
+			start_unit_movement(unit, pos, next_pos)
+			return
+
+func _can_place_2x2(origin: Vector2i, exclude_unit: UnitBase) -> bool:
+	for dy in range(2):
+		for dx in range(2):
+			var p := origin + Vector2i(dx, dy)
+			if not battle_grid.is_valid_position(p):
+				return false
+			if battle_grid.is_cell_occupied(p) and battle_grid.get_unit_at(p) != exclude_unit:
+				return false
+	return true
 
 func add_projectile(projectile: Projectile) -> void:
 	if projectile_container:
