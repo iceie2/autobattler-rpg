@@ -20,9 +20,10 @@ extends Node2D
 @onready var roster_btn         = $UI/ActionPanel/VBoxContainer/RosterBtn
 @onready var ready_btn          = $UI/ActionPanel/VBoxContainer/ReadyBtn
 
-const ACTION_PANEL_EXPANDED_BOTTOM  := 226.415
-const ACTION_PANEL_COLLAPSED_BOTTOM := 52.0
+const ACTION_PANEL_EXPANDED_BOTTOM  := 218.0
+const ACTION_PANEL_COLLAPSED_BOTTOM := 42.0
 var _action_panel_expanded := true
+var _action_panel_style: StyleBoxFlat   # held in GDScript to survive layout changes
 
 # Team status panel
 @onready var team_stats_panel = $UI/TeamStatsPanel
@@ -171,6 +172,24 @@ func connect_signals() -> void:
 	ready_btn.pressed.connect(_on_ready_pressed)
 	details_close_btn.pressed.connect(_on_details_close_pressed)
 	unit_details_panel.gui_input.connect(_on_details_panel_input)
+	# Cache the action panel's StyleBoxFlat so we can re-apply it after
+	# every offset change (Godot 4 drops theme_override_styles on layout updates)
+	var raw := action_panel.get_theme_stylebox("panel")
+	if raw is StyleBoxFlat:
+		_action_panel_style = (raw as StyleBoxFlat).duplicate()
+	else:
+		_action_panel_style = StyleBoxFlat.new()
+		_action_panel_style.bg_color    = Color(0.12, 0.12, 0.18, 0.95)
+		_action_panel_style.border_color = Color(0.4, 0.4, 0.5, 1)
+		_action_panel_style.border_width_left   = 2
+		_action_panel_style.border_width_right  = 2
+		_action_panel_style.border_width_top    = 2
+		_action_panel_style.border_width_bottom = 2
+		_action_panel_style.corner_radius_top_left     = 4
+		_action_panel_style.corner_radius_top_right    = 4
+		_action_panel_style.corner_radius_bottom_left  = 4
+		_action_panel_style.corner_radius_bottom_right = 4
+
 	action_toggle_btn.pressed.connect(_on_action_toggle)
 	team_toggle_btn.pressed.connect(_on_team_toggle)
 	_set_team_panel_content_visible(false)
@@ -566,11 +585,13 @@ func _on_details_close_pressed() -> void:
 func _on_action_toggle() -> void:
 	_action_panel_expanded = not _action_panel_expanded
 	var vbox := action_panel.get_node("VBoxContainer")
-	# Hide everything except the toggle button (child 0)
 	for i in range(1, vbox.get_child_count()):
 		vbox.get_child(i).visible = _action_panel_expanded
 	action_toggle_btn.text = "PLAYER ACTIONS  %s" % ("▼" if _action_panel_expanded else "▶")
 	action_panel.offset_bottom = ACTION_PANEL_EXPANDED_BOTTOM if _action_panel_expanded else ACTION_PANEL_COLLAPSED_BOTTOM
+	# Re-apply panel style — Godot 4 drops theme_override_styles on offset changes
+	action_panel.add_theme_stylebox_override("panel", _action_panel_style)
+	action_toggle_btn.release_focus()
 
 # Shared draggable panel handler — returns a callable bound to the given panel
 func _make_panel_drag_handler(panel: Control) -> Callable:
