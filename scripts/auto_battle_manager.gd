@@ -534,8 +534,8 @@ func _move_2x2_unit(unit: UnitBase, target_pos: Vector2i) -> void:
 	# Simple cardinal + diagonal movement for large units.
 	# Picks the direction that gets closest to target and checks all 4 cells.
 	var pos := unit.grid_position
-	var dx := sign(target_pos.x - pos.x)
-	var dy := sign(target_pos.y - pos.y)
+	var dx: int = sign(target_pos.x - pos.x)
+	var dy: int = sign(target_pos.y - pos.y)
 
 	# Build candidate next positions in preference order
 	var candidates: Array[Vector2i] = []
