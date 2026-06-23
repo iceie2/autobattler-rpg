@@ -137,7 +137,7 @@ func _run_side(units: Array, opponents: Array) -> void:
 			unit.attack(target)
 			unit_action.emit(unit, "attack")
 			unit_paths.erase(unit)
-		elif not unit.is_moving:
+		elif not unit.is_moving and unit.movement_speed > 0:
 			move_unit_towards_with_pathfinding(unit, target.grid_position)
 			unit_action.emit(unit, "move")
 
