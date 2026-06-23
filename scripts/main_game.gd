@@ -104,6 +104,10 @@ var _panel_dragging: bool = false
 var _character_menu: CharacterMenu
 var _class_browser: ClassBrowser
 var _hero_shop: HeroShop
+var _game_over_screen: GameOverScreen
+
+# Run tracking (reset each new game)
+var _run_kills: int = 0
 
 func _ready():
 	initialize_game_components()
@@ -194,6 +198,10 @@ func connect_signals() -> void:
 	_hero_shop.hero_chosen.connect(_on_hero_chosen)
 	add_child(_hero_shop)
 
+	var go_scene := load("res://scenes/game_over_screen.tscn") as PackedScene
+	_game_over_screen = go_scene.instantiate() as GameOverScreen
+	add_child(_game_over_screen)
+
 
 func _integrate_scene_units() -> void:
 	# Move any UnitBase-derived nodes under the runtime battle_grid and normalize them
@@ -231,6 +239,7 @@ func _integrate_scene_units() -> void:
 func start_new_game() -> void:
 	game_state.gold = 50
 	game_state.crystals = 0
+	_run_kills = 0
 	game_state.start_battle_round()
 	open_shop()
 
@@ -308,8 +317,18 @@ func _on_battle_ended(player_won: bool) -> void:
 		clear_enemy_units()
 		reset_player_positions()
 	else:
-		info_label.text = "Defeat! Your units were destroyed."
-		game_state.change_state(GameState.State.GAME_OVER)
+		# Calculate total damage dealt by all player units this run
+		var total_dmg := 0
+		for pu in player_units:
+			if pu and is_instance_valid(pu):
+				total_dmg += pu.damage_dealt
+
+		_game_over_screen.show_defeat(
+			game_state.crystals,
+			game_state.battle_round,
+			total_dmg,
+			_run_kills
+		)
 		return
 
 	update_ui()
@@ -836,13 +855,12 @@ func _on_unit_died(unit) -> void:
 		battle_grid.remove_unit(unit.grid_position)
 
 	if was_enemy and unit and is_instance_valid(unit):
-		# Drop gold and crystals
+		_run_kills += 1
 		if unit.gold_reward > 0:
 			game_state.add_gold(unit.gold_reward)
 		if unit.crystal_reward > 0:
 			game_state.add_crystals(unit.crystal_reward)
 		update_ui()
-		# Award XP to every living player unit
 		var xp_reward: int = 60 + (dead_level - 1) * 40
 		for pu in player_units:
 			if pu and is_instance_valid(pu):
