@@ -237,7 +237,7 @@ func _integrate_scene_units() -> void:
 
 
 func start_new_game() -> void:
-	game_state.gold = 50
+	game_state.gold = 50 + Progression.starting_gold_bonus()
 	game_state.crystals = 0
 	_run_kills = 0
 	game_state.start_battle_round()
@@ -317,14 +317,16 @@ func _on_battle_ended(player_won: bool) -> void:
 		clear_enemy_units()
 		reset_player_positions()
 	else:
-		# Calculate total damage dealt by all player units this run
+		# Save crystals earned this run to the persistent wallet
+		Progression.add_crystals(game_state.crystals)
+
 		var total_dmg := 0
 		for pu in player_units:
 			if pu and is_instance_valid(pu):
 				total_dmg += pu.damage_dealt
 
 		_game_over_screen.show_defeat(
-			game_state.crystals,
+			game_state.crystals,       # earned this run
 			game_state.battle_round,
 			total_dmg,
 			_run_kills

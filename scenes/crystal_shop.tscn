@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://crystalshop_001"]
+
+[ext_resource type="Script" path="res://scripts/crystal_shop.gd" id="1_cs"]
+
+[node name="CrystalShop" type="CanvasLayer"]
+script = ExtResource("1_cs")

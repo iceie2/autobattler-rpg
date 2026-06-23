@@ -8,6 +8,7 @@ var _win_mode := WinMode.WINDOWED
 
 var _options_panel: Control
 var _class_browser: ClassBrowser
+var _crystal_shop: CrystalShop
 
 func _ready() -> void:
 	_apply_window_mode(WinMode.WINDOWED)
@@ -16,10 +17,13 @@ func _ready() -> void:
 	_build_main(canvas)
 	_build_options(canvas)
 
-	# Instantiate the shared ClassBrowser overlay
 	var cb_scene := load("res://scenes/class_browser.tscn") as PackedScene
 	_class_browser = cb_scene.instantiate() as ClassBrowser
 	add_child(_class_browser)
+
+	var cs_scene := load("res://scenes/crystal_shop.tscn") as PackedScene
+	_crystal_shop = cs_scene.instantiate() as CrystalShop
+	add_child(_crystal_shop)
 
 func _draw() -> void:
 	var sz := get_viewport_rect().size
@@ -46,9 +50,10 @@ func _build_main(canvas: CanvasLayer) -> void:
 		Vector2(cx - 200, 162), Vector2(400, 30), true)
 
 	var btns := [
-		["START GAME", _on_start],
-		["CLASSES",    _on_classes],
-		["OPTIONS",    _on_options],
+		["START GAME",    _on_start],
+		["CLASSES",       _on_classes],
+		["CRYSTAL SHOP",  _on_crystal_shop],
+		["OPTIONS",       _on_options],
 	]
 	var by := 240.0
 	for b in btns:
@@ -97,6 +102,10 @@ func _on_start() -> void:
 func _on_classes() -> void:
 	_options_panel.visible = false
 	_class_browser.open(0)
+
+func _on_crystal_shop() -> void:
+	_options_panel.visible = false
+	_crystal_shop.open()
 
 func _on_options() -> void:
 	_options_panel.visible = not _options_panel.visible
