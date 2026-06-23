@@ -126,7 +126,7 @@ func _run_side(units: Array, opponents: Array) -> void:
 		if unit.skill_cooldown == 0 and unit.skill_name != "" and can_afford_mana:
 			if unit.skill_mana_cost > 0:
 				unit.spend_mana(unit.skill_mana_cost)  # emits mana_changed → updates MP bar
-			_use_skill(unit, opponents)
+			_use_skill(unit, opponents, units)
 			unit.skill_cooldown = unit.skill_cooldown_max
 			unit_action.emit(unit, "skill")
 			continue
@@ -370,7 +370,7 @@ func assign_preferred_target(unit: UnitBase, target: UnitBase) -> void:
 
 # ── Skill execution ───────────────────────────────────────────────────────────
 
-func _use_skill(caster: UnitBase, opponents: Array) -> void:
+func _use_skill(caster: UnitBase, opponents: Array, allies: Array = []) -> void:
 	var effect_type: SkillEffect.Type
 	match caster.unit_class:
 		UnitBase.UnitClass.WARRIOR:
