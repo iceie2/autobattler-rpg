@@ -65,22 +65,35 @@ func is_cell_occupied(grid_pos: Vector2i) -> bool:
 	return occupied_cells.has(grid_pos)
 
 func place_unit(unit, grid_pos: Vector2i) -> bool:
-	if not is_valid_position(grid_pos):
-		return false
-	
-	if is_cell_occupied(grid_pos):
-		return false
-	
-	occupied_cells[grid_pos] = unit
-	grid_cells[grid_pos.y][grid_pos.x] = unit
+	var size: int = unit.cell_size if "cell_size" in unit else 1
+	# Validate all cells first
+	for dy in range(size):
+		for dx in range(size):
+			var p := grid_pos + Vector2i(dx, dy)
+			if not is_valid_position(p) or is_cell_occupied(p):
+				return false
+	# Register all cells
+	for dy in range(size):
+		for dx in range(size):
+			var p := grid_pos + Vector2i(dx, dy)
+			occupied_cells[p] = unit
+			grid_cells[p.y][p.x] = unit
 	unit_placed.emit(unit, grid_pos)
 	return true
 
 func remove_unit(grid_pos: Vector2i) -> void:
-	if is_cell_occupied(grid_pos):
-		occupied_cells.erase(grid_pos)
-		grid_cells[grid_pos.y][grid_pos.x] = null
-		unit_removed.emit(grid_pos)
+	if not is_cell_occupied(grid_pos):
+		return
+	var unit = occupied_cells[grid_pos]
+	# Remove all cells belonging to this unit
+	var to_erase: Array[Vector2i] = []
+	for pos in occupied_cells:
+		if occupied_cells[pos] == unit:
+			to_erase.append(pos)
+	for pos in to_erase:
+		occupied_cells.erase(pos)
+		grid_cells[pos.y][pos.x] = null
+	unit_removed.emit(grid_pos)
 
 func get_unit_at(grid_pos: Vector2i):
 	if is_cell_occupied(grid_pos):

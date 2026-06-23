@@ -85,10 +85,15 @@ func _setup_lpc_sprite() -> void:
 	# walk_south is always present in the generated 6-animation sheets
 	if lpc.sprite_frames and lpc.sprite_frames.has_animation("walk_south"):
 		animated_sprite = lpc
-		var idle = "idle_south" if is_player_unit else "idle_north"
+		var idle := "idle_south" if is_player_unit else "idle_north"
 		lpc.play(idle)
+		# 2×2 units get double-scaled sprite
+		if cell_size == 2:
+			lpc.scale = Vector2(2.0, 2.0)
 	else:
 		lpc.queue_free()
+		if cell_size == 2:
+			shape_size = 80.0
 
 
 func _on_health_changed(current: int, maximum: int) -> void:

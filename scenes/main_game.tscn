@@ -241,7 +241,7 @@ theme_override_font_sizes/font_size = 14
 
 [node name="spawn_heroBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
-text = "Buy Unit (30g)"
+text = "Buy Hero (20g)"
 theme_override_styles/normal = SubResource("ButtonNormal")
 theme_override_styles/hover = SubResource("ButtonHover")
 theme_override_styles/pressed = SubResource("ButtonPressed")

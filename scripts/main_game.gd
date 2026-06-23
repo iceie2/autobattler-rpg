@@ -97,6 +97,7 @@ var shop_open: bool = false
 var _panel_dragging: bool = false
 var _character_menu: CharacterMenu
 var _class_browser: ClassBrowser
+var _hero_shop: HeroShop
 
 func _ready():
 	initialize_game_components()
@@ -176,6 +177,11 @@ func connect_signals() -> void:
 	_class_browser = cb_scene.instantiate() as ClassBrowser
 	add_child(_class_browser)
 
+	var hs_scene := load("res://scenes/hero_shop.tscn") as PackedScene
+	_hero_shop = hs_scene.instantiate() as HeroShop
+	_hero_shop.hero_chosen.connect(_on_hero_chosen)
+	add_child(_hero_shop)
+
 
 func _integrate_scene_units() -> void:
 	# Move any UnitBase-derived nodes under the runtime battle_grid and normalize them
@@ -211,7 +217,7 @@ func _integrate_scene_units() -> void:
 
 
 func start_new_game() -> void:
-	game_state.gold = 10000
+	game_state.gold = 50
 	game_state.crystals = 0
 	game_state.start_battle_round()
 	open_shop()
@@ -433,14 +439,35 @@ func _on_spawn_hero_pressed() -> void:
 	if not shop_open:
 		info_label.text = "Shop is closed!"
 		return
-	
-	var cost = 30
-	if game_state.spend_gold(cost):
-		spawn_random_player_unit()
-		info_label.text = "Bought a random unit for %d gold!" % cost
-		update_ui()
+	if game_state.gold < HeroShop.HERO_COST:
+		info_label.text = "Not enough gold! Need %d gold." % HeroShop.HERO_COST
+		return
+	_hero_shop.open(game_state.gold)
+
+func _on_hero_chosen(unit_class: UnitBase.UnitClass, element: UnitBase.Element) -> void:
+	if not game_state.spend_gold(HeroShop.HERO_COST):
+		info_label.text = "Not enough gold!"
+		return
+	var unit := UnitFactory.create_unit(unit_class, element, true)
+	var spawn_pos := find_empty_player_slot()
+	if spawn_pos == Vector2i(-1, -1):
+		info_label.text = "No room for more units!"
+		# Refund
+		game_state.add_gold(HeroShop.HERO_COST)
+		return
+	unit.grid_position = spawn_pos
+	unit.position = battle_grid.grid_to_world(spawn_pos)
+	battle_grid_node.add_child(unit)
+	if battle_grid.place_unit(unit, spawn_pos):
+		player_units.append(unit)
+		unit.died.connect(_on_unit_died.bind(unit))
+		unit.battle_manager = auto_battle_manager
+		unit.damage_text_container = damage_text_container
+		info_label.text = "Added %s to your team!" % unit.unit_name
 	else:
-		info_label.text = "Not enough gold! Need %d gold." % cost
+		unit.queue_free()
+		game_state.add_gold(HeroShop.HERO_COST)
+	update_ui()
 
 
 func _on_use_items_pressed() -> void:
@@ -616,14 +643,8 @@ func get_element_color_hex(element: UnitBase.Element) -> String:
 # Shop and spawning functions
 func open_shop() -> void:
 	shop_open = true
-	info_label.text = "Shop is open! Click 'Change Element' to buy random units (30 gold each)"
+	info_label.text = "Shop open! Buy heroes then click READY FOR BATTLE."
 	update_ui()
-	
-	# If this is the first round, give player 3 free starting units
-	if game_state.battle_round == 1 and player_units.is_empty():
-		for i in range(3):
-			spawn_random_player_unit()
-		info_label.text = "You start with 3 random units! Buy more or click READY to fight."
 
 func close_shop() -> void:
 	shop_open = false
@@ -652,45 +673,68 @@ func spawn_random_player_unit() -> void:
 		unit.queue_free()
 
 func spawn_enemies() -> void:
-	var count: int = min(3 + (game_state.battle_round - 1) * 2, 10)
 	var round := game_state.battle_round
-	for i in range(count):
-		var spawn_pos := find_empty_enemy_slot()
-		if spawn_pos == Vector2i(-1, -1):
-			continue
+	match round:
+		1:
+			_place_enemy(EnemyFactory.create_goblin())
+			_place_enemy(EnemyFactory.create_goblin())
+		2:
+			_place_enemy(EnemyFactory.create_goblin())
+			_place_enemy(EnemyFactory.create_goblin())
+			_place_enemy(EnemyFactory.create_goblin_archer())
+		3:
+			# Hill Giant fills a 2×2 spot in the centre, rangers lurk behind
+			_place_hill_giant(EnemyFactory.create_hill_giant())
+			_place_enemy(EnemyFactory.create_goblin_archer())
+			_place_enemy(EnemyFactory.create_goblin_archer())
+		_:
+			# Later rounds: escalating random enemies with level scaling
+			var count: int = min(3 + (round - 1) * 2, 10)
+			for i in range(count):
+				var is_last := (i == count - 1)
+				var lvl := _enemy_level_for_round(round, is_last)
+				var unit := UnitFactory.create_random_class_unit(false)
+				if lvl > 1: unit.set_level(lvl)
+				_place_enemy(unit)
 
-		var unit := UnitFactory.create_random_class_unit(false)
-		unit.grid_position = spawn_pos
+func _place_enemy(unit: VisualUnit) -> void:
+	var spawn_pos := find_empty_enemy_slot()
+	if spawn_pos == Vector2i(-1, -1):
+		unit.queue_free()
+		return
+	unit.grid_position = spawn_pos
+	unit.position = battle_grid.grid_to_world(spawn_pos)
+	battle_grid_node.add_child(unit)
+	if battle_grid.place_unit(unit, spawn_pos):
+		enemy_units.append(unit)
+		unit.died.connect(_on_unit_died.bind(unit))
+		unit.battle_manager = auto_battle_manager
+		unit.damage_text_container = damage_text_container
+	else:
+		unit.queue_free()
 
-		# Scale enemy level by round — last enemy each round is an elite/boss
-		var is_last := (i == count - 1)
-		var enemy_level := _enemy_level_for_round(round, is_last)
-		if enemy_level > 1:
-			unit.set_level(enemy_level)
+func _place_hill_giant(unit: VisualUnit) -> void:
+	# Find a 2×2 area in the enemy zone (rows 0-3)
+	var center_x := int(battle_grid.grid_width / 2)
+	var origin := Vector2i(center_x - 1, 1)  # top-left of 2×2
+	unit.grid_position = origin
+	unit.position = battle_grid.grid_to_world(origin) + Vector2(32, 32)  # centre of 2×2
+	battle_grid_node.add_child(unit)
+	if battle_grid.place_unit(unit, origin):
+		enemy_units.append(unit)
+		unit.died.connect(_on_unit_died.bind(unit))
+		unit.battle_manager = auto_battle_manager
+		unit.damage_text_container = damage_text_container
+	else:
+		unit.queue_free()
 
-		var world_pos := battle_grid.grid_to_world(spawn_pos)
-		unit.position = world_pos
-
-		battle_grid_node.add_child(unit)
-		if battle_grid.place_unit(unit, spawn_pos):
-			enemy_units.append(unit)
-			unit.died.connect(_on_unit_died.bind(unit))
-			unit.battle_manager = auto_battle_manager
-			unit.damage_text_container = damage_text_container
-		else:
-			unit.queue_free()
-
-func _enemy_level_for_round(round: int, is_elite_slot: bool) -> int:
-	# Every 5 rounds the last enemy is a boss
-	if is_elite_slot and round % 5 == 0:
-		return min(round / 5 + 2, 8)   # round 5 = lv3 boss, round 10 = lv4, etc.
-	# Last enemy each round is an elite from round 3 onward
-	if is_elite_slot and round >= 3:
+func _enemy_level_for_round(round: int, is_elite: bool) -> int:
+	if is_elite and round % 5 == 0:
+		return min(round / 5 + 2, 8)
+	if is_elite and round >= 4:
 		return min(round / 2, 5)
-	# Regular enemies scale slowly
-	if round <= 2:
-		return 1
-	return 1 + randi() % min(round / 2, 3)  # mix of lv1-3 from round 2+
+	if round <= 2: return 1
+	return 1 + randi() % min(round / 2, 3)
 
 func find_empty_player_slot() -> Vector2i:
 	# Player units in center-bottom area (rows 10-13, middle columns)
@@ -765,9 +809,15 @@ func _on_unit_died(unit) -> void:
 	if unit and is_instance_valid(unit):
 		battle_grid.remove_unit(unit.grid_position)
 
-	# Award XP to every living player unit when an enemy dies
-	if was_enemy:
-		var xp_reward: int = 60 + (dead_level - 1) * 40  # 60 base, +40 per extra level
+	if was_enemy and unit and is_instance_valid(unit):
+		# Drop gold and crystals
+		if unit.gold_reward > 0:
+			game_state.add_gold(unit.gold_reward)
+		if unit.crystal_reward > 0:
+			game_state.add_crystals(unit.crystal_reward)
+		update_ui()
+		# Award XP to every living player unit
+		var xp_reward: int = 60 + (dead_level - 1) * 40
 		for pu in player_units:
 			if pu and is_instance_valid(pu):
 				pu.grant_xp(xp_reward)

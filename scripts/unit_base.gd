@@ -82,6 +82,13 @@ var equipped_accessory = null
 var current_xp: int = 0
 var xp_to_level: int = 200
 
+# Economy (set on enemy units; ignored for player units)
+var gold_reward: int = 0
+var crystal_reward: int = 0
+
+# Multi-cell size (1 = normal 1×1, 2 = 2×2 boss)
+var cell_size: int = 1
+
 # ── Skill system (passive / active / ultimate) ────────────────────────────────
 # Passive (always-on, evaluated each turn in AutoBattleManager)
 var passive_name: String = ""
