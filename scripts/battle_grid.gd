@@ -1,9 +1,9 @@
 extends Node2D
 class_name BattleGrid
 
-# Grid size - 22x14 grid
-@export var grid_width: int = 22
-@export var grid_height: int = 14
+# Grid size - 14x20 grid (14 wide, 20 tall)
+@export var grid_width: int = 14
+@export var grid_height: int = 20
 @export var cell_size: int = 64
 
 # Grid data structure

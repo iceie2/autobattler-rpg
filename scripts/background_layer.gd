@@ -1,11 +1,11 @@
 extends Node2D
 class_name BackgroundLayer
 
-const GRID_W  := 22
-const GRID_H  := 14
+const GRID_W  := 14
+const GRID_H  := 20
 const CELL    := 64
-const TOTAL_W := GRID_W * CELL   # 1408
-const TOTAL_H := GRID_H * CELL   # 896
+const TOTAL_W := GRID_W * CELL   # 896
+const TOTAL_H := GRID_H * CELL   # 1280
 
 const ZONE_ROWS := 4   # rows per team zone
 
@@ -56,7 +56,7 @@ func _draw_enemy_zone() -> void:
 	for cx in [24.0, TOTAL_W - 24.0]:
 		_draw_x_mark(Vector2(cx, 24), Color(0.85, 0.25, 0.25, 0.8), 8.0)
 
-# ── Player zone — rows 10..13, blue tint + solid border ──────────────────────
+# ── Player zone — rows 16..19, blue tint + solid border ─────────────────────
 func _draw_player_zone() -> void:
 	var zone_start := (GRID_H - ZONE_ROWS) * CELL
 	var zone_h     := ZONE_ROWS * CELL

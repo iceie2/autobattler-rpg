@@ -304,4 +304,6 @@ func _try_place_at_mouse() -> void:
 func _is_valid_placement(pos: Vector2i, bg) -> bool:
 	if not bg.is_valid_position(pos):
 		return false
-	return (pos.y >= 10 and pos.y < 14) if is_player_unit else (pos.y >= 0 and pos.y < 4)
+	# Player zone = bottom 4 rows; enemy zone = top 4 rows
+	var gh: int = bg.grid_height if bg else 20
+	return (pos.y >= gh - 4 and pos.y < gh) if is_player_unit else (pos.y >= 0 and pos.y < 4)

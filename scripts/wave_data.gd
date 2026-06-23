@@ -9,7 +9,7 @@ class_name WaveData
 #
 # ── Layout rules ─────────────────────────────────────────────────────────────
 #  • Each row string is split by spaces; each token = one grid cell.
-#  • Rows are automatically centred in the 22-wide battle grid.
+#  • Rows are automatically centred in the 14-wide battle grid.
 #  • Up to 4 rows (enemy zone occupies grid rows 0–3).
 #  • Shorter rows are fine — they just produce a narrower formation.
 #  • An empty string "" means the whole row is unoccupied.
@@ -50,6 +50,6 @@ const WAVE_2: Array = [
 const WAVE_3: Array = [
 	". . . . . . . . . .",
 	". . . . . G . . . .",
-	". . . . A . . A . .",
 	". . . . . . . . . .",
+	". A . . . . . . A .",
 ]

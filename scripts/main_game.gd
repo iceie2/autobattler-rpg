@@ -117,8 +117,8 @@ func initialize_game_components() -> void:
 	
 	# Create and attach BattleGrid
 	battle_grid = BattleGrid.new()
-	battle_grid.grid_width = 22
-	battle_grid.grid_height = 14
+	battle_grid.grid_width = 14
+	battle_grid.grid_height = 20
 	battle_grid.cell_size = 64
 	battle_grid_node.add_child(battle_grid)
 	
@@ -777,35 +777,21 @@ func _enemy_level_for_round(round: int, is_elite: bool) -> int:
 	return 1 + randi() % min(round / 2, 3)
 
 func find_empty_player_slot() -> Vector2i:
-	# Player units in center-bottom area (rows 10-13, middle columns)
-	var center_x = int(battle_grid.grid_width / 2)
-	var search_width = 10  # Search within 10 columns centered
-	var start_x = center_x - search_width / 2
-	
-	# Search bottom 4 rows (rows 10-13)
-	for y in range(10, 14):
-		for offset in range(search_width):
-			var x = start_x + offset
-			if x >= 0 and x < battle_grid.grid_width:
-				var pos = Vector2i(x, y)
-				if not battle_grid.is_cell_occupied(pos):
-					return pos
+	# Bottom 4 rows of the grid (rows grid_height-4 .. grid_height-1)
+	for y in range(battle_grid.grid_height - 4, battle_grid.grid_height):
+		for x in range(battle_grid.grid_width):
+			var p := Vector2i(x, y)
+			if not battle_grid.is_cell_occupied(p):
+				return p
 	return Vector2i(-1, -1)
 
 func find_empty_enemy_slot() -> Vector2i:
-	# Enemy units in center-top area (rows 0-3, middle columns)
-	var center_x = int(battle_grid.grid_width / 2)
-	var search_width = 10  # Search within 10 columns centered
-	var start_x = center_x - search_width / 2
-	
-	# Search top 4 rows (rows 0-3)
+	# Top 4 rows of the grid (rows 0-3)
 	for y in range(4):
-		for offset in range(search_width):
-			var x = start_x + offset
-			if x >= 0 and x < battle_grid.grid_width:
-				var pos = Vector2i(x, y)
-				if not battle_grid.is_cell_occupied(pos):
-					return pos
+		for x in range(battle_grid.grid_width):
+			var p := Vector2i(x, y)
+			if not battle_grid.is_cell_occupied(p):
+				return p
 	return Vector2i(-1, -1)
 
 func clear_enemy_units() -> void:
