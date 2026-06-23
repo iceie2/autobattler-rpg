@@ -14,7 +14,6 @@ extends Node2D
 
 @onready var action_panel       = $UI/ActionPanel
 @onready var action_toggle_btn  = $UI/ActionPanel/VBoxContainer/ActionToggleBtn
-@onready var change_element_btn = $UI/ActionPanel/VBoxContainer/ChangeElementBtn
 @onready var spawn_hero_btn     = $UI/ActionPanel/VBoxContainer/spawn_heroBtn
 @onready var use_items_btn      = $UI/ActionPanel/VBoxContainer/UseItemsBtn
 @onready var classes_btn        = $UI/ActionPanel/VBoxContainer/ClassesBtn
@@ -165,7 +164,6 @@ func connect_signals() -> void:
 	battle_grid.unit_placed.connect(_on_unit_placed)
 	
 	# UI button signals
-	change_element_btn.pressed.connect(_on_change_element_pressed)
 	spawn_hero_btn.pressed.connect(_on_spawn_hero_pressed)
 	use_items_btn.pressed.connect(_on_use_items_pressed)
 	classes_btn.pressed.connect(_on_classes_pressed)
@@ -267,7 +265,6 @@ func update_ui() -> void:
 			enable_action_buttons(false)
 
 func enable_action_buttons(enabled: bool) -> void:
-	change_element_btn.disabled = not enabled
 	spawn_hero_btn.disabled = not enabled
 	use_items_btn.disabled = not enabled
 	ready_btn.disabled = not enabled
@@ -468,8 +465,7 @@ func _on_unit_placed(_unit, grid_pos: Vector2i) -> void:
 	info_label.text = "Unit placed at: (%d, %d)" % [grid_pos.x, grid_pos.y]
 
 # Action button handlers
-func _on_change_element_pressed() -> void:
-		info_label.text = "Use Items - Not yet implemented"
+
 
 func _on_spawn_hero_pressed() -> void:
 	if not shop_open:
