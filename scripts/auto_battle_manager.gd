@@ -365,7 +365,7 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 						battle_grid.remove_unit(opp.grid_position)
 						if battle_grid.place_unit(opp, open_cell):
 							opp.grid_position = open_cell
-							opp.position = battle_grid.grid_to_world(open_cell)
+							opp.position = _world_pos_for(opp, open_cell)
 					opp.take_damage(dmg, caster.current_element)
 					caster.damage_dealt += dmg
 
@@ -561,7 +561,7 @@ func _nemi_tidal_wave(caster: UnitBase, opponents: Array) -> void:
 					battle_grid.remove_unit(opp.grid_position)
 					if battle_grid.place_unit(opp, next):
 						opp.grid_position = next
-						opp.position = battle_grid.grid_to_world(next)
+						opp.position = _world_pos_for(opp, next)
 
 func _headhunter_rapid_fire(caster: UnitBase) -> void:
 	caster.rapid_fire_turns = 3
@@ -792,18 +792,24 @@ func add_projectile(projectile: Projectile) -> void:
 	if projectile_container:
 		projectile_container.add_child(projectile)
 
+# World position for a unit anchored at grid_pos. 2×2 units are centred on the
+# middle of their 2×2 block (half-cell offset) so they don't snap to a single cell.
+func _world_pos_for(unit: UnitBase, grid_pos: Vector2i) -> Vector2:
+	var w: Vector2 = battle_grid.grid_to_world(grid_pos)
+	if unit.cell_size == 2:
+		w += Vector2(battle_grid.cell_size * 0.5, battle_grid.cell_size * 0.5)
+	return w
+
 func start_unit_movement(unit: UnitBase, from_pos: Vector2i, to_pos: Vector2i) -> void:
-	print("[Move] START %s → %s" % [from_pos, to_pos])
 	unit.is_moving = true
-	unit.move_start_pos = battle_grid.grid_to_world(from_pos)
-	unit.move_target_pos = battle_grid.grid_to_world(to_pos)
+	unit.move_start_pos = _world_pos_for(unit, from_pos)
+	unit.move_target_pos = _world_pos_for(unit, to_pos)
 	unit.move_progress = 0.0
 	unit.target_grid_pos = to_pos
 
 	battle_grid.remove_unit(from_pos)
-	var placed = battle_grid.place_unit(unit, to_pos)
+	battle_grid.place_unit(unit, to_pos)
 	unit.grid_position = to_pos
-	print("[Move] placed=%s gpos_after=%s is_moving=%s" % [placed, unit.grid_position, unit.is_moving])
 
 func update_unit_movements(delta: float) -> void:
 	# Update all player units
