@@ -220,79 +220,84 @@ def make_goblin_archer_sheet(col_idx: int) -> Image.Image:
 #  Massive stone-grey brute filling a 64×64 frame (displayed 2x in game)
 
 def draw_hill_giant(bob: int = 0) -> Image.Image:
+    # Cyclops brute — one huge eye, fleshy olive skin, tusks, big fists.
     img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
 
     b = bob
-    stone   = (148, 140, 128)
-    dk_stone= (95, 88, 78)
-    lgt     = (185, 178, 165)
-    rock    = (120, 112, 100)
-    eye_c   = (200, 60, 20)
+    skin    = (150, 138, 96)    # olive-tan brute skin
+    skin_dk = (104, 94, 62)     # shading / outline
+    skin_lt = (182, 168, 120)   # highlight
+    sclera  = (236, 232, 216)
+    iris    = (220, 150, 35)    # amber
+    pupil   = (18, 14, 10)
+    tooth   = (240, 236, 218)
+    hair    = (58, 44, 30)
+    loin    = (96, 70, 45)
 
     # Ground shadow
-    d.ellipse([6, 58, 58, 64], fill=(0,0,0,70))
+    d.ellipse([8, 58, 56, 64], fill=(0, 0, 0, 70))
 
-    # Legs — massive pillars
-    poly(d, [(12, 50+b), (26, 50+b), (24, 62+b), (10, 62+b)], fill=dk_stone, outline=rock, lw=1)
-    poly(d, [(38, 50+b), (52, 50+b), (54, 62+b), (36, 62+b)], fill=dk_stone, outline=rock, lw=1)
-    # Boulder feet
-    circle(d, 17, 61+b, 8, fill=rock, outline=dk_stone)
-    circle(d, 46, 61+b, 8, fill=rock, outline=dk_stone)
+    # Legs — stout
+    poly(d, [(16, 48+b), (27, 48+b), (26, 62+b), (15, 62+b)], fill=skin_dk)
+    poly(d, [(37, 48+b), (48, 48+b), (49, 62+b), (38, 62+b)], fill=skin_dk)
+    # Feet
+    d.ellipse([12, 58+b, 28, 64+b], fill=skin)
+    d.ellipse([36, 58+b, 52, 64+b], fill=skin)
+    # Loincloth
+    poly(d, [(20, 43+b), (44, 43+b), (46, 52+b), (18, 52+b)], fill=loin, outline=(60, 44, 28))
 
-    # Torso — wide rectangular barrel chest
-    poly(d, [(8, 24+b), (56, 24+b), (60, 52+b), (4, 52+b)],
-         fill=stone, outline=dk_stone, lw=1)
-    # Chest cracks / rock texture
-    d.line([(20, 30+b), (28, 40+b)], fill=dk_stone, width=1)
-    d.line([(40, 28+b), (45, 42+b)], fill=dk_stone, width=1)
-    d.line([(14, 44+b), (22, 48+b)], fill=dk_stone, width=1)
-    # Mossy patches
-    d.ellipse([30, 34+b, 42, 42+b], fill=(70, 110, 55, 140))
+    # Torso — broad, pot-bellied brute
+    poly(d, [(10, 28+b), (54, 28+b), (56, 44+b), (50, 50+b), (14, 50+b), (8, 44+b)],
+         fill=skin, outline=skin_dk, lw=1)
+    d.ellipse([22, 34+b, 42, 48+b], fill=skin_lt)   # belly highlight
+    d.line([(32, 30+b), (32, 38+b)], fill=skin_dk, width=1)
 
-    # Left arm — hanging boulder fist
-    poly(d, [(4, 26+b), (-4, 38+b), (-6, 52+b), (6, 52+b), (10, 40+b), (10, 28+b)],
-         fill=stone, outline=dk_stone, lw=1)
-    circle(d, 0, 54+b, 9, fill=rock, outline=dk_stone)  # fist
-    # Right arm — raised with rock
-    poly(d, [(54, 26+b), (62, 22+b), (68, 32+b), (64, 46+b), (56, 50+b), (54, 36+b)],
-         fill=stone, outline=dk_stone, lw=1)
-    circle(d, 65, 48+b, 8, fill=rock, outline=dk_stone)  # held rock
-    # Rock cracks
-    d.line([(62, 44+b), (68, 50+b)], fill=dk_stone, width=1)
+    # Left arm — big, hanging, fist
+    poly(d, [(10, 28+b), (2, 36+b), (1, 48+b), (9, 50+b), (12, 40+b), (14, 30+b)],
+         fill=skin, outline=skin_dk, lw=1)
+    circle(d, 5, 50+b, 6, fill=skin_lt, outline=skin_dk)
+    # Right arm — big, hanging, fist
+    poly(d, [(54, 28+b), (62, 36+b), (63, 48+b), (55, 50+b), (52, 40+b), (50, 30+b)],
+         fill=skin, outline=skin_dk, lw=1)
+    circle(d, 59, 50+b, 6, fill=skin_lt, outline=skin_dk)
 
-    # Neck
-    d.rectangle([26, 16+b, 38, 26+b], fill=stone, outline=dk_stone)
+    # Short thick neck
+    d.rectangle([26, 24+b, 38, 30+b], fill=skin_dk)
 
-    # Head — large boulder-like
-    poly(d, [(12, 10+b), (16, 2+b), (32, -2+b), (48, 2+b), (52, 10+b),
-             (54, 18+b), (50, 24+b), (14, 24+b), (10, 18+b)],
-         fill=lgt, outline=dk_stone, lw=1)
-    # Mossy forehead
-    d.ellipse([22, 2+b, 42, 12+b], fill=(65, 105, 50, 160))
+    # Head — large, low-set
+    poly(d, [(14, 12+b), (18, 4+b), (32, 1+b), (46, 4+b), (50, 12+b),
+             (50, 22+b), (44, 28+b), (20, 28+b), (14, 22+b)],
+         fill=skin, outline=skin_dk, lw=1)
+    # Ear nubs
+    d.ellipse([11, 15+b, 17, 22+b], fill=skin, outline=skin_dk)
+    d.ellipse([47, 15+b, 53, 22+b], fill=skin, outline=skin_dk)
+    # Hair tuft
+    poly(d, [(27, 3+b), (32, -2+b), (37, 3+b), (34, 4+b), (32, 1+b), (30, 4+b)], fill=hair)
+    d.line([(24, 5+b), (22, 2+b)], fill=hair, width=2)
+    d.line([(40, 5+b), (42, 2+b)], fill=hair, width=2)
 
-    # Brow ridge
-    d.line([(12, 14+b), (52, 14+b)], fill=dk_stone, width=3)
+    # Heavy brow ridge
+    poly(d, [(18, 10+b), (46, 10+b), (44, 15+b), (20, 15+b)], fill=skin_dk)
+    # Angry furrow
+    d.line([(20, 9+b), (28, 13+b)], fill=skin_dk, width=2)
+    d.line([(44, 9+b), (36, 13+b)], fill=skin_dk, width=2)
 
-    # Eyes — small beady red
-    circle(d, 22, 17+b, 4, fill=(40,30,25), outline=dk_stone)
-    circle(d, 42, 17+b, 4, fill=(40,30,25), outline=dk_stone)
-    circle(d, 22, 17+b, 2, fill=eye_c)
-    circle(d, 42, 17+b, 2, fill=eye_c)
-    # Glint
-    d.point([(21, 16+b), (41, 16+b)], fill=(255,200,180))
+    # ── THE SINGLE BIG EYE ──
+    circle(d, 32, 18+b, 9, fill=sclera, outline=skin_dk, lw=1)
+    d.line([(24, 18+b), (28, 18+b)], fill=(200, 120, 110), width=1)   # bloodshot
+    d.line([(36, 18+b), (40, 18+b)], fill=(200, 120, 110), width=1)
+    circle(d, 32, 19+b, 5, fill=iris)
+    circle(d, 32, 19+b, 2, fill=pupil)
+    d.ellipse([29, 15+b, 32, 18+b], fill=(255, 255, 255, 210))        # glint
 
-    # Nose — big rocky lump
-    poly(d, [(28, 20+b), (36, 20+b), (34, 25+b), (30, 25+b)], fill=rock, outline=dk_stone, lw=1)
+    # Nose bump under the eye
+    poly(d, [(30, 24+b), (34, 24+b), (33, 27+b), (31, 27+b)], fill=skin_dk)
 
-    # Mouth — wide grim line with two tusks
-    d.line([(18, 22+b), (46, 22+b)], fill=dk_stone, width=2)
-    poly(d, [(24, 22+b), (22, 28+b), (26, 27+b)], fill=(230, 225, 210))
-    poly(d, [(40, 22+b), (42, 28+b), (38, 27+b)], fill=(230, 225, 210))
-
-    # Rock texture on head
-    d.line([(16, 8+b), (20, 14+b)], fill=dk_stone, width=1)
-    d.line([(46, 7+b), (48, 13+b)], fill=dk_stone, width=1)
+    # Wide grimace + upward tusks
+    d.line([(22, 27+b), (42, 27+b)], fill=(50, 30, 25), width=2)
+    poly(d, [(25, 28+b), (23, 22+b), (28, 27+b)], fill=tooth)
+    poly(d, [(39, 28+b), (41, 22+b), (36, 27+b)], fill=tooth)
 
     return img
 
