@@ -103,6 +103,11 @@ func _run_side(units: Array, opponents: Array) -> void:
 			unit.stun_turns -= 1
 			continue
 
+		# ── Focus tracking ────────────────────────────────────────────────────
+		# Record who this unit is targeting this turn so other units can query
+		# focus (e.g. "is an enemy focusing me?"). Always kept current.
+		unit.target_unit = _choose_target(unit, opponents)
+
 		# Tick active skill cooldown
 		if unit.skill_cooldown > 0:
 			unit.skill_cooldown -= 1
@@ -123,7 +128,8 @@ func _run_side(units: Array, opponents: Array) -> void:
 
 		# ── Active skill ──────────────────────────────────────────────────────
 		var can_afford_mana: bool = unit.current_mana >= unit.skill_mana_cost
-		if unit.skill_cooldown == 0 and unit.skill_name != "" and can_afford_mana:
+		if unit.skill_cooldown == 0 and unit.skill_name != "" and can_afford_mana \
+				and _skill_trigger_ready(unit, opponents):
 			if unit.skill_mana_cost > 0:
 				unit.spend_mana(unit.skill_mana_cost)  # emits mana_changed → updates MP bar
 			_use_skill(unit, opponents, units)
@@ -132,8 +138,8 @@ func _run_side(units: Array, opponents: Array) -> void:
 			continue
 
 		# ── Normal attack / move ──────────────────────────────────────────────
-		var target := _choose_target(unit, opponents)
-		if not target:
+		var target: UnitBase = unit.target_unit
+		if not (target and is_instance_valid(target)):
 			continue
 
 		var effective_range: int = unit.attack_range + (2 if unit.rapid_fire_turns > 0 else 0)
@@ -161,6 +167,28 @@ func _choose_target(unit: UnitBase, opponents: Array) -> UnitBase:
 	if unit.frenzy_active and is_instance_valid(unit.most_damage_dealer):
 		return unit.most_damage_dealer as UnitBase
 	return find_nearest_enemy(unit, opponents)
+
+# ── Focus system ──────────────────────────────────────────────────────────────
+# How many of `potential_focusers` are currently targeting `unit`.
+# Relies on each unit's target_unit being recorded every turn in _run_side().
+func _count_focusers(unit: UnitBase, potential_focusers: Array) -> int:
+	var count := 0
+	for f in potential_focusers:
+		if f and is_instance_valid(f) and f.target_unit == unit:
+			count += 1
+	return count
+
+func _is_focused(unit: UnitBase, potential_focusers: Array) -> bool:
+	return _count_focusers(unit, potential_focusers) > 0
+
+# Per-class condition gating whether an active skill may fire this turn.
+# Default: always ready. Shauna's Kite only fires while an enemy focuses her.
+func _skill_trigger_ready(unit: UnitBase, opponents: Array) -> bool:
+	match unit.unit_class:
+		UnitBase.UnitClass.SHAUNA:
+			return _is_focused(unit, opponents)
+		_:
+			return true
 
 func _second_nearest(unit: UnitBase, first: UnitBase, opponents: Array) -> UnitBase:
 	var best: UnitBase = null

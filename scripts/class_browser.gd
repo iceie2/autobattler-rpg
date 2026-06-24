@@ -212,8 +212,9 @@ const CLASSES := [
 		"skill_desc": (
 			"[PASSIVE] Glass Cannon — every 3rd auto-attack deals true damage, " +
 			"bypassing all defence and damage reduction.\n\n" +
-			"[ACTIVE – 60 MP] Kite — moves 1 cell away from the nearest enemy " +
-			"then marks her next auto for +50% bonus damage.\n\n" +
+			"[ACTIVE – 60 MP] Kite — when an enemy is focusing Shauna, she steps " +
+			"1 cell away from the nearest enemy and marks her next auto for +50% " +
+			"bonus damage.\n\n" +
 			"[ULTIMATE – 400 charge] Overdrive — for 3 turns Shauna attacks twice " +
 			"every action, doubling her damage output."
 		),
