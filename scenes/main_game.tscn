@@ -419,9 +419,24 @@ theme_override_styles/hover = SubResource("ButtonHover")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_colors/font_color = Color(0.95, 0.38, 0.38, 1)
 
-[node name="DMList" type="VBoxContainer" parent="UI/DamageMeterPanel/DMVBox"]
+[node name="EventsTabBtn" type="Button" parent="UI/DamageMeterPanel/DMVBox/DMTabRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Event History"
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_colors/font_color = Color(0.8, 0.8, 1.0, 1)
+
+[node name="DMScroll" type="ScrollContainer" parent="UI/DamageMeterPanel/DMVBox"]
 layout_mode = 2
 visible = false
+size_flags_vertical = 3
+
+[node name="DMList" type="VBoxContainer" parent="UI/DamageMeterPanel/DMVBox/DMScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 3
 
 [node name="BottomBar" type="Panel" parent="UI"]

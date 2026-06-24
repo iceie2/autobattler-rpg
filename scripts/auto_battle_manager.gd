@@ -12,7 +12,7 @@ var player_units: Array = []
 var enemy_units: Array = []
 var battle_active: bool = false
 var battle_timer: float = 0.0
-var action_delay: float = 0.5  # Time between actions (faster updates)
+var action_delay: float = 0.15  # Time between actions in PLAY mode (per single action)
 
 # Movement speed multiplier (higher = faster base movement)
 var base_movement_speed: float = 0.5
@@ -20,9 +20,17 @@ var base_movement_speed: float = 0.5
 # Unit movement paths
 var unit_paths: Dictionary = {}  # unit -> Array[Vector2i]
 
+# ── Playback speed control ────────────────────────────────────────────────────
+enum SpeedMode { PLAY, PAUSED }
+var speed_mode: SpeedMode = SpeedMode.PLAY
+var _turn_queue: Array = []   # units left to act this round (players then enemies)
+var round_counter: int = 0
+
 signal battle_started()
 signal battle_ended(player_won: bool)
 signal unit_action(unit, action_type: String)
+signal action_logged(text: String, is_player: bool)   # event-history feed
+signal speed_mode_changed(mode: SpeedMode)
 
 func _ready():
 	pass
@@ -41,9 +49,13 @@ func start_battle() -> void:
 	battle_active = true
 	battle_timer = 0.0
 	unit_paths.clear()
+	_turn_queue.clear()
+	round_counter = 0
+	speed_mode = SpeedMode.PLAY
 	collect_units()
 	print("[Battle] Started — players: %d, enemies: %d" % [player_units.size(), enemy_units.size()])
 	battle_started.emit()
+	speed_mode_changed.emit(speed_mode)
 
 func collect_units() -> void:
 	player_units.clear()
@@ -68,99 +80,147 @@ func collect_units() -> void:
 func _process(delta: float) -> void:
 	if not battle_active:
 		return
-	
-	# Update all moving units
+
+	# Movement interpolation always runs so motion looks smooth even while paused
 	update_unit_movements(delta)
-	
+
+	# Only PLAY mode auto-advances the action queue
+	if speed_mode != SpeedMode.PLAY:
+		return
+
 	battle_timer += delta
-	
 	if battle_timer >= action_delay:
 		battle_timer = 0.0
-		execute_battle_turn()
+		advance_one_action()
 
-func execute_battle_turn() -> void:
-	_run_side(player_units, enemy_units)
-	_run_side(enemy_units, player_units)
+# ── Playback control ──────────────────────────────────────────────────────────
+func set_speed_mode(mode: SpeedMode) -> void:
+	speed_mode = mode
+	battle_timer = 0.0
+	speed_mode_changed.emit(mode)
+
+# Process exactly one unit's action. Called by the PLAY timer or the
+# "Next Action" button while PAUSED. Each call advances the battle by one action
+# and emits exactly one action_logged event.
+func advance_one_action() -> void:
+	if not battle_active:
+		return
+
+	# Refill the queue at the start of each round (players first, then enemies)
+	if _turn_queue.is_empty():
+		_build_turn_queue()
+		if _turn_queue.is_empty():
+			return
+
+	# Pop the next living unit
+	var unit: UnitBase = null
+	while not _turn_queue.is_empty():
+		var candidate = _turn_queue.pop_front()
+		if candidate and is_instance_valid(candidate):
+			unit = candidate
+			break
+	if unit == null:
+		check_battle_end()
+		return
+
+	var opponents: Array = enemy_units if unit.is_player_unit else player_units
+	var allies: Array    = player_units if unit.is_player_unit else enemy_units
+
+	var event: String = _process_unit_turn(unit, opponents, allies)
+	if event != "":
+		action_logged.emit(event, unit.is_player_unit)
+
 	check_battle_end()
 
-func _run_side(units: Array, opponents: Array) -> void:
-	for unit in units:
-		if unit == null or not is_instance_valid(unit):
-			continue
+func _build_turn_queue() -> void:
+	round_counter += 1
+	_turn_queue.clear()
+	for u in player_units:
+		if u and is_instance_valid(u):
+			_turn_queue.append(u)
+	for u in enemy_units:
+		if u and is_instance_valid(u):
+			_turn_queue.append(u)
+	if not _turn_queue.is_empty():
+		action_logged.emit("— Round %d —" % round_counter, true)
 
-		# ── Spirit regen (HP + MP) ─────────────────────────────────────────────
-		var hp_regen: int = max(1, (unit.spirit + unit.strength) / 10)
-		if unit.current_hp < unit.max_hp:
-			unit.heal(hp_regen)
-		var mp_regen: int = max(1, (unit.spirit + unit.intelligence) / 5)
-		unit.restore_mana(mp_regen)   # emits mana_changed → keeps MP bar live
+# Processes one unit's full turn. Returns a human-readable event string for the
+# event log ("" = nothing loggable). Preserves the original per-unit logic.
+func _process_unit_turn(unit: UnitBase, opponents: Array, allies: Array) -> String:
+	# ── Spirit regen (HP + MP) ─────────────────────────────────────────────────
+	var hp_regen: int = max(1, (unit.spirit + unit.strength) / 10)
+	if unit.current_hp < unit.max_hp:
+		unit.heal(hp_regen)
+	var mp_regen: int = max(1, (unit.spirit + unit.intelligence) / 5)
+	unit.restore_mana(mp_regen)   # emits mana_changed → keeps MP bar live
 
-		# ── Passives evaluated each turn ──────────────────────────────────────
-		_tick_passive(unit, opponents, units)
+	# ── Passives evaluated each turn ───────────────────────────────────────────
+	_tick_passive(unit, opponents, allies)
 
-		# Skip turn if stunned
-		if unit.stun_turns > 0:
-			unit.stun_turns -= 1
-			continue
+	# Stunned — skip the rest of the turn
+	if unit.stun_turns > 0:
+		unit.stun_turns -= 1
+		return "%s is stunned" % unit.unit_name
 
-		# ── Focus tracking ────────────────────────────────────────────────────
-		# Record who this unit is targeting this turn so other units can query
-		# focus (e.g. "is an enemy focusing me?"). Always kept current.
-		unit.target_unit = _choose_target(unit, opponents)
+	# ── Focus tracking ─────────────────────────────────────────────────────────
+	unit.target_unit = _choose_target(unit, opponents)
 
-		# Tick active skill cooldown
-		if unit.skill_cooldown > 0:
-			unit.skill_cooldown -= 1
+	# Cooldown / duration ticks
+	if unit.skill_cooldown > 0:
+		unit.skill_cooldown -= 1
+	if unit.rapid_fire_turns > 0:
+		unit.rapid_fire_turns -= 1
+	if unit.overdrive_turns > 0:
+		unit.overdrive_turns -= 1
 
-		# Tick Headhunter rapid-fire duration
-		if unit.rapid_fire_turns > 0:
-			unit.rapid_fire_turns -= 1
+	# ── Ultimate (fires when ready, before normal turn) ────────────────────────
+	if unit.ultimate_ready:
+		_use_ultimate(unit, opponents, allies)
+		unit.ultimate_ready = false
+		unit.ultimate_charge = 0
+		unit_action.emit(unit, "ultimate")
+		var ult_name: String = unit.ultimate_name if unit.ultimate_name != "" else "their ultimate"
+		return "%s unleashes %s!" % [unit.unit_name, ult_name]
+
+	# ── Active skill ───────────────────────────────────────────────────────────
+	var can_afford_mana: bool = unit.current_mana >= unit.skill_mana_cost
+	if unit.skill_cooldown == 0 and unit.skill_name != "" and can_afford_mana \
+			and _skill_trigger_ready(unit, opponents):
+		if unit.skill_mana_cost > 0:
+			unit.spend_mana(unit.skill_mana_cost)  # emits mana_changed → updates MP bar
+		_use_skill(unit, opponents, allies)
+		unit.skill_cooldown = unit.skill_cooldown_max
+		unit_action.emit(unit, "skill")
+		return "%s casts %s" % [unit.unit_name, unit.skill_name]
+
+	# ── Normal attack / move ───────────────────────────────────────────────────
+	var target: UnitBase = unit.target_unit
+	if not (target and is_instance_valid(target)):
+		return "%s waits" % unit.unit_name
+
+	var effective_range: int = unit.attack_range + (2 if unit.rapid_fire_turns > 0 else 0)
+	if unit.grid_position.distance_to(target.grid_position) <= effective_range:
+		if unit.rapid_fire_turns > 0 and opponents.size() > 1:
+			var second := _second_nearest(unit, target, opponents)
+			if second:
+				unit.attack(second)
+		unit.attack(target)
+		# Shauna Overdrive: attacks again this turn
 		if unit.overdrive_turns > 0:
-			unit.overdrive_turns -= 1
-
-		# ── Ultimate (fires when ready, before normal turn) ───────────────────
-		if unit.ultimate_ready:
-			_use_ultimate(unit, opponents, units)
-			unit.ultimate_ready = false
-			unit.ultimate_charge = 0
-			unit_action.emit(unit, "ultimate")
-			continue
-
-		# ── Active skill ──────────────────────────────────────────────────────
-		var can_afford_mana: bool = unit.current_mana >= unit.skill_mana_cost
-		if unit.skill_cooldown == 0 and unit.skill_name != "" and can_afford_mana \
-				and _skill_trigger_ready(unit, opponents):
-			if unit.skill_mana_cost > 0:
-				unit.spend_mana(unit.skill_mana_cost)  # emits mana_changed → updates MP bar
-			_use_skill(unit, opponents, units)
-			unit.skill_cooldown = unit.skill_cooldown_max
-			unit_action.emit(unit, "skill")
-			continue
-
-		# ── Normal attack / move ──────────────────────────────────────────────
-		var target: UnitBase = unit.target_unit
-		if not (target and is_instance_valid(target)):
-			continue
-
-		var effective_range: int = unit.attack_range + (2 if unit.rapid_fire_turns > 0 else 0)
-		if unit.grid_position.distance_to(target.grid_position) <= effective_range:
-			if unit.rapid_fire_turns > 0 and opponents.size() > 1:
-				var second := _second_nearest(unit, target, opponents)
-				if second:
-					unit.attack(second)
 			unit.attack(target)
-			# Shauna Overdrive: attacks again this turn
-			if unit.overdrive_turns > 0:
-				unit.attack(target)
-				_spawn_skill_effect_sized(SkillEffect.Type.OVERDRIVE, unit.global_position, 32.0)
-			unit_action.emit(unit, "attack")
-			unit_paths.erase(unit)
-		elif not unit.is_moving and unit.movement_speed > 0:
-			if unit.cell_size > 1:
-				_move_2x2_unit(unit, target.grid_position)
-			else:
-				move_unit_towards_with_pathfinding(unit, target.grid_position)
-			unit_action.emit(unit, "move")
+			_spawn_skill_effect_sized(SkillEffect.Type.OVERDRIVE, unit.global_position, 32.0)
+		unit_action.emit(unit, "attack")
+		unit_paths.erase(unit)
+		return "%s attacks %s" % [unit.unit_name, target.unit_name]
+	elif not unit.is_moving and unit.movement_speed > 0:
+		if unit.cell_size > 1:
+			_move_2x2_unit(unit, target.grid_position)
+		else:
+			move_unit_towards_with_pathfinding(unit, target.grid_position)
+		unit_action.emit(unit, "move")
+		return "%s moves toward %s" % [unit.unit_name, target.unit_name]
+
+	return "%s holds position" % unit.unit_name
 
 # Pick target: Bloodhound in frenzy locks on most-damage-dealer, else nearest
 func _choose_target(unit: UnitBase, opponents: Array) -> UnitBase:
@@ -170,7 +230,7 @@ func _choose_target(unit: UnitBase, opponents: Array) -> UnitBase:
 
 # ── Focus system ──────────────────────────────────────────────────────────────
 # How many of `potential_focusers` are currently targeting `unit`.
-# Relies on each unit's target_unit being recorded every turn in _run_side().
+# Relies on each unit's target_unit being recorded every turn in _process_unit_turn().
 func _count_focusers(unit: UnitBase, potential_focusers: Array) -> int:
 	var count := 0
 	for f in potential_focusers:
@@ -635,6 +695,7 @@ func check_battle_end() -> void:
 
 func end_battle(player_won: bool) -> void:
 	battle_active = false
+	_turn_queue.clear()
 	battle_ended.emit(player_won)
 	# State transition is handled by _on_battle_ended in main_game.gd
 

@@ -43,13 +43,23 @@ var _team_panel_expanded := false
 @onready var damage_meter_panel = $UI/DamageMeterPanel
 @onready var dm_toggle_btn      = $UI/DamageMeterPanel/DMVBox/DMToggleBtn
 @onready var dm_tab_row         = $UI/DamageMeterPanel/DMVBox/DMTabRow
-@onready var dm_list            = $UI/DamageMeterPanel/DMVBox/DMList
+@onready var dm_scroll          = $UI/DamageMeterPanel/DMVBox/DMScroll
+@onready var dm_list            = $UI/DamageMeterPanel/DMVBox/DMScroll/DMList
 @onready var dm_ally_btn        = $UI/DamageMeterPanel/DMVBox/DMTabRow/AllyTabBtn
 @onready var dm_enemy_btn       = $UI/DamageMeterPanel/DMVBox/DMTabRow/EnemyTabBtn
+@onready var dm_events_btn      = $UI/DamageMeterPanel/DMVBox/DMTabRow/EventsTabBtn
 const DM_COLLAPSED_BOTTOM := 942.0
 const DM_EXPANDED_BOTTOM  := 1200.0
 var _dm_expanded := false
-var _dm_show_allies := true
+# Damage-meter tab: 0 = Allies, 1 = Enemies, 2 = Event History
+var _dm_tab := 0
+var _event_log: Array = []   # [{text, is_player}, ...]
+
+# Battle playback controls (built in code, shown only during AUTO_BATTLE)
+var _battle_controls: Panel
+var _btn_play: Button
+var _btn_pause: Button
+var _btn_next: Button
 
 # Unit details panel
 @onready var unit_details_panel = $UI/UnitDetailsPanel
@@ -159,6 +169,8 @@ func connect_signals() -> void:
 	auto_battle_manager.battle_started.connect(_on_battle_started)
 	auto_battle_manager.battle_ended.connect(_on_battle_ended)
 	auto_battle_manager.unit_action.connect(_on_unit_action)
+	auto_battle_manager.action_logged.connect(_on_action_logged)
+	auto_battle_manager.speed_mode_changed.connect(_on_speed_mode_changed)
 	
 	# Grid signals
 	battle_grid.cell_clicked.connect(_on_cell_clicked)
@@ -194,13 +206,16 @@ func connect_signals() -> void:
 	team_toggle_btn.pressed.connect(_on_team_toggle)
 	_set_team_panel_content_visible(false)
 	dm_toggle_btn.pressed.connect(_on_dm_toggle)
-	dm_ally_btn.pressed.connect(func(): _dm_show_allies = true;  _rebuild_damage_meter())
-	dm_enemy_btn.pressed.connect(func(): _dm_show_allies = false; _rebuild_damage_meter())
+	dm_ally_btn.pressed.connect(func(): _dm_tab = 0; _rebuild_damage_meter())
+	dm_enemy_btn.pressed.connect(func(): _dm_tab = 1; _rebuild_damage_meter())
+	dm_events_btn.pressed.connect(func(): _dm_tab = 2; _rebuild_damage_meter())
 
 	# All three panels are draggable
 	action_panel.gui_input.connect(_make_panel_drag_handler(action_panel))
 	team_stats_panel.gui_input.connect(_make_panel_drag_handler(team_stats_panel))
 	damage_meter_panel.gui_input.connect(_make_panel_drag_handler(damage_meter_panel))
+
+	_build_battle_controls()
 
 	var cm_scene := load("res://scenes/character_menu.tscn") as PackedScene
 	_character_menu = cm_scene.instantiate() as CharacterMenu
@@ -315,9 +330,15 @@ func _on_state_changed(new_state: GameState.State) -> void:
 		GameState.State.AUTO_BATTLE:
 			enable_unit_dragging(false)
 			info_label.text = "Auto battle in progress... No player actions allowed."
+			if _battle_controls:
+				_battle_controls.visible = true
 		GameState.State.ENEMY_TURN:
 			enable_unit_dragging(false)
 			info_label.text = "Enemy turn in progress..."
+
+	# Hide battle controls outside of auto-battle
+	if new_state != GameState.State.AUTO_BATTLE and _battle_controls:
+		_battle_controls.visible = false
 
 func _on_battle_round_started(round_number: int) -> void:
 	update_ui()
@@ -328,8 +349,67 @@ func _on_battle_started() -> void:
 	info_label.text = "Battle started! Units are fighting automatically."
 	close_shop()
 	update_team_health_bars()
+	_event_log.clear()   # fresh log per battle
+	if _battle_controls:
+		_battle_controls.visible = true
 	if _dm_expanded:
 		_rebuild_damage_meter()
+
+# ── Battle playback controls (Play / Pause / Next Action) ─────────────────────
+func _build_battle_controls() -> void:
+	_battle_controls = Panel.new()
+	_battle_controls.name = "BattleControls"
+	_battle_controls.size = Vector2(300, 48)
+	_battle_controls.position = Vector2((1280 - 300) / 2.0, 66)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.1, 0.16, 0.95)
+	style.border_color = Color(0.4, 0.4, 0.55, 1)
+	style.border_width_left = 2; style.border_width_right = 2
+	style.border_width_top = 2; style.border_width_bottom = 2
+	style.corner_radius_top_left = 6; style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6; style.corner_radius_bottom_right = 6
+	_battle_controls.add_theme_stylebox_override("panel", style)
+	_battle_controls.visible = false
+	$UI.add_child(_battle_controls)
+
+	var hbox := HBoxContainer.new()
+	hbox.position = Vector2(8, 6)
+	hbox.size = Vector2(284, 36)
+	hbox.add_theme_constant_override("separation", 6)
+	_battle_controls.add_child(hbox)
+
+	_btn_pause = _make_ctrl_btn("⏸ Pause")
+	_btn_pause.pressed.connect(func(): auto_battle_manager.set_speed_mode(AutoBattleManager.SpeedMode.PAUSED))
+	hbox.add_child(_btn_pause)
+
+	_btn_next = _make_ctrl_btn("⏭ Next")
+	_btn_next.pressed.connect(_on_next_action)
+	hbox.add_child(_btn_next)
+
+	_btn_play = _make_ctrl_btn("▶ Play")
+	_btn_play.pressed.connect(func(): auto_battle_manager.set_speed_mode(AutoBattleManager.SpeedMode.PLAY))
+	hbox.add_child(_btn_play)
+
+func _make_ctrl_btn(text: String) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(90, 36)
+	b.add_theme_font_size_override("font_size", 13)
+	b.add_theme_color_override("font_color", Color(0.9, 0.9, 1.0))
+	return b
+
+func _on_next_action() -> void:
+	# Pause auto-advance, then step exactly one action
+	auto_battle_manager.set_speed_mode(AutoBattleManager.SpeedMode.PAUSED)
+	auto_battle_manager.advance_one_action()
+
+func _on_speed_mode_changed(mode) -> void:
+	# Highlight the active mode button
+	var playing := mode == AutoBattleManager.SpeedMode.PLAY
+	if _btn_play:
+		_btn_play.modulate  = Color(0.5, 1.0, 0.6) if playing else Color(1, 1, 1)
+	if _btn_pause:
+		_btn_pause.modulate = Color(1, 1, 1) if playing else Color(1.0, 0.85, 0.4)
 
 const VICTORY_ROUND := 7   # completing this round triggers the victory screen
 
@@ -628,10 +708,17 @@ func _make_panel_drag_handler(panel: Control) -> Callable:
 func _on_dm_toggle() -> void:
 	_dm_expanded = not _dm_expanded
 	dm_tab_row.visible = _dm_expanded
-	dm_list.visible    = _dm_expanded
+	dm_scroll.visible  = _dm_expanded
 	dm_toggle_btn.text = "DAMAGE METER  %s" % ("▼" if _dm_expanded else "▶")
 	damage_meter_panel.offset_bottom = DM_EXPANDED_BOTTOM if _dm_expanded else DM_COLLAPSED_BOTTOM
 	if _dm_expanded:
+		_rebuild_damage_meter()
+
+func _on_action_logged(text: String, is_player: bool) -> void:
+	_event_log.append({"text": text, "is_player": is_player})
+	if _event_log.size() > 200:
+		_event_log = _event_log.slice(_event_log.size() - 200)
+	if _dm_expanded and _dm_tab == 2:
 		_rebuild_damage_meter()
 
 func _rebuild_damage_meter() -> void:
@@ -639,8 +726,14 @@ func _rebuild_damage_meter() -> void:
 	for child in dm_list.get_children():
 		dm_list.remove_child(child)
 		child.free()
-	var units := player_units if _dm_show_allies else enemy_units
-	var name_col := Color(0.35, 0.92, 0.45) if _dm_show_allies else Color(0.95, 0.38, 0.38)
+
+	# Event History tab renders the log instead of damage rankings
+	if _dm_tab == 2:
+		_render_event_log()
+		return
+
+	var units := player_units if _dm_tab == 0 else enemy_units
+	var name_col := Color(0.35, 0.92, 0.45) if _dm_tab == 0 else Color(0.95, 0.38, 0.38)
 
 	# Sort by damage_dealt descending
 	var sorted := units.filter(func(u): return u and is_instance_valid(u))
@@ -690,6 +783,33 @@ func _rebuild_damage_meter() -> void:
 
 		dm_list.add_child(row)
 		rank += 1
+
+func _render_event_log() -> void:
+	# Most recent events at the top
+	var shown := 0
+	for i in range(_event_log.size() - 1, -1, -1):
+		if shown >= 60:
+			break
+		var e: Dictionary = _event_log[i]
+		var lbl := Label.new()
+		lbl.text = str(e["text"])
+		lbl.add_theme_font_size_override("font_size", 11)
+		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var is_round := str(e["text"]).begins_with("—")
+		if is_round:
+			lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.85))
+		elif bool(e["is_player"]):
+			lbl.add_theme_color_override("font_color", Color(0.45, 0.9, 0.55))
+		else:
+			lbl.add_theme_color_override("font_color", Color(0.95, 0.5, 0.5))
+		dm_list.add_child(lbl)
+		shown += 1
+	if _event_log.is_empty():
+		var empty := Label.new()
+		empty.text = "No actions yet. Start a battle to see the log."
+		empty.add_theme_font_size_override("font_size", 11)
+		empty.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+		dm_list.add_child(empty)
 
 func _on_team_toggle() -> void:
 	_team_panel_expanded = not _team_panel_expanded
