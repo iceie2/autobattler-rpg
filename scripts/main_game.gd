@@ -405,7 +405,7 @@ func _on_next_action() -> void:
 
 func _on_speed_mode_changed(mode) -> void:
 	# Highlight the active mode button
-	var playing := mode == AutoBattleManager.SpeedMode.PLAY
+	var playing: bool = mode == AutoBattleManager.SpeedMode.PLAY
 	if _btn_play:
 		_btn_play.modulate  = Color(0.5, 1.0, 0.6) if playing else Color(1, 1, 1)
 	if _btn_pause:
