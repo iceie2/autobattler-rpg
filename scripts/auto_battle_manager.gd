@@ -175,11 +175,15 @@ func _process_unit_turn(unit: UnitBase, opponents: Array, allies: Array) -> Stri
 
 	# ── Ultimate (fires when ready, before normal turn) ────────────────────────
 	if unit.ultimate_ready:
+		var ult_before: int = unit.damage_dealt
 		_use_ultimate(unit, opponents, allies)
 		unit.ultimate_ready = false
 		unit.ultimate_charge = 0
 		unit_action.emit(unit, "ultimate")
 		var ult_name: String = unit.ultimate_name if unit.ultimate_name != "" else "their ultimate"
+		var ult_dmg: int = unit.damage_dealt - ult_before
+		if ult_dmg > 0:
+			return "%s unleashes %s! (%d dmg)" % [unit.unit_name, ult_name, ult_dmg]
 		return "%s unleashes %s!" % [unit.unit_name, ult_name]
 
 	# ── Active skill ───────────────────────────────────────────────────────────
@@ -188,9 +192,13 @@ func _process_unit_turn(unit: UnitBase, opponents: Array, allies: Array) -> Stri
 			and _skill_trigger_ready(unit, opponents):
 		if unit.skill_mana_cost > 0:
 			unit.spend_mana(unit.skill_mana_cost)  # emits mana_changed → updates MP bar
+		var skill_before: int = unit.damage_dealt
 		_use_skill(unit, opponents, allies)
 		unit.skill_cooldown = unit.skill_cooldown_max
 		unit_action.emit(unit, "skill")
+		var skill_dmg: int = unit.damage_dealt - skill_before
+		if skill_dmg > 0:
+			return "%s casts %s (%d dmg)" % [unit.unit_name, unit.skill_name, skill_dmg]
 		return "%s casts %s" % [unit.unit_name, unit.skill_name]
 
 	# ── Normal attack / move ───────────────────────────────────────────────────
@@ -200,6 +208,7 @@ func _process_unit_turn(unit: UnitBase, opponents: Array, allies: Array) -> Stri
 
 	var effective_range: int = unit.attack_range + (2 if unit.rapid_fire_turns > 0 else 0)
 	if unit.grid_position.distance_to(target.grid_position) <= effective_range:
+		unit.pending_attack_log_damage = 0
 		if unit.rapid_fire_turns > 0 and opponents.size() > 1:
 			var second := _second_nearest(unit, target, opponents)
 			if second:
@@ -211,7 +220,10 @@ func _process_unit_turn(unit: UnitBase, opponents: Array, allies: Array) -> Stri
 			_spawn_skill_effect_sized(SkillEffect.Type.OVERDRIVE, unit.global_position, 32.0)
 		unit_action.emit(unit, "attack")
 		unit_paths.erase(unit)
-		return "%s attacks %s" % [unit.unit_name, target.unit_name]
+		var atk_dmg: int = unit.pending_attack_log_damage
+		if unit.attack_range > 1:
+			return "%s shoots %s for %d damage" % [unit.unit_name, target.unit_name, atk_dmg]
+		return "%s attacks %s for %d damage" % [unit.unit_name, target.unit_name, atk_dmg]
 	elif not unit.is_moving and unit.movement_speed > 0:
 		if unit.cell_size > 1:
 			_move_2x2_unit(unit, target.grid_position)

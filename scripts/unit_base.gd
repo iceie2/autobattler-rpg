@@ -114,6 +114,7 @@ var ultimate_ready: bool = false
 
 # ── Combat state (per-unit tracking) ─────────────────────────────────────────
 var damage_dealt: int = 0          # cumulative for damage meter
+var pending_attack_log_damage: int = 0   # reset each action; sum of this turn's attack damage
 var stun_turns: int = 0            # skip action when > 0
 var hit_counter: int = 0           # Headhunter: every-7th-crit / Shauna: every-3rd-true-dmg
 var overdrive_turns: int = 0       # Shauna ultimate: extra attack per turn
@@ -321,11 +322,13 @@ func attack(target) -> void:
 
 	if attack_range > 1:
 		spawn_projectile(target, damage)
+		pending_attack_log_damage += damage   # intended damage (mitigated on hit)
 	else:
 		var pre_hp: int = target.current_hp
 		target.take_damage(damage, current_element, self, is_true_dmg)
 		var actual: int = max(0, pre_hp - target.current_hp)
 		damage_dealt += actual
+		pending_attack_log_damage += actual
 		_charge_ultimate(actual / 2)
 
 	attacked.emit(target)

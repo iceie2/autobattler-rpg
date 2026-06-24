@@ -23,6 +23,11 @@ var element_glow: Sprite2D
 var last_move_direction: Vector2 = Vector2.ZERO
 var fill_color: Color = Color(1, 1, 1, 1)
 
+# Attack lunge — transient visual offset applied to the sprite/shape only
+# (the unit root stays grid-accurate). Tweened out toward target and back.
+var _lunge_offset: Vector2 = Vector2.ZERO
+var _lunge_tween: Tween = null
+
 
 func get_class_sprite_folder() -> String:
 	match unit_class:
@@ -73,6 +78,7 @@ func _ready():
 
 	health_changed.connect(_on_health_changed)
 	mana_changed.connect(_on_mana_changed)
+	attacked.connect(_on_attacked)
 	update_visuals()
 
 
@@ -115,6 +121,35 @@ func _on_health_changed(current: int, maximum: int) -> void:
 func _on_mana_changed(current: int, maximum: int) -> void:
 	if health_bar:
 		health_bar.update_mp(current, maximum)
+
+# ── Attack animation ──────────────────────────────────────────────────────────
+func _on_attacked(target) -> void:
+	# Melee units lunge toward the target; ranged units use projectiles instead.
+	if attack_range > 1:
+		return
+	if not (target and is_instance_valid(target)):
+		return
+	_play_melee_lunge(target.global_position)
+
+func _play_melee_lunge(target_world_pos: Vector2) -> void:
+	var dir: Vector2 = target_world_pos - global_position
+	if dir.length() < 0.01:
+		return
+	dir = dir.normalized()
+	var peak: Vector2 = dir * 16.0   # how far the body lunges, in pixels
+
+	if _lunge_tween and _lunge_tween.is_valid():
+		_lunge_tween.kill()
+	_lunge_tween = create_tween()
+	_lunge_tween.tween_method(_set_lunge_offset, Vector2.ZERO, peak, 0.07)
+	_lunge_tween.tween_method(_set_lunge_offset, peak, Vector2.ZERO, 0.13)
+
+func _set_lunge_offset(v: Vector2) -> void:
+	_lunge_offset = v
+	if animated_sprite:
+		animated_sprite.position = v
+	else:
+		queue_redraw()
 
 
 func _create_glow_texture() -> Texture2D:
@@ -173,6 +208,9 @@ func _update_animation() -> void:
 func _draw():
 	if animated_sprite:
 		return
+	# Apply the transient attack-lunge offset to shape-drawn units
+	if _lunge_offset != Vector2.ZERO:
+		draw_set_transform(_lunge_offset, 0.0, Vector2.ONE)
 	var color = fill_color if fill_color else get_element_color()
 	var outline = Color.WHITE
 	match unit_class:
