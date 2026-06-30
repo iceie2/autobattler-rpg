@@ -67,7 +67,7 @@ func end_enemy_turn() -> void:
 	start_battle_round()
 
 func add_gold(amount: int) -> void:
-	gold += amount
+	gold = max(0, gold + amount)
 
 func spend_gold(amount: int) -> bool:
 	if gold >= amount:

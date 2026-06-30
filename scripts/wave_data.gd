@@ -2,92 +2,35 @@ extends Node
 class_name WaveData
 
 # ── Enemy codes ───────────────────────────────────────────────────────────────
-#  .  or  0  = empty cell
-#  M         = Goblin (melee)
-#  A         = Goblin Archer (ranged)
-#  S         = Goblin Shaman (ranged magic)
-#  B         = Orc Brute (heavy melee)
-#  G         = Hill Giant (2×2 unit, anchored at this cell's top-left)
+#  M  = Goblin (melee)
+#  A  = Goblin Archer (ranged)
+#  S  = Goblin Shaman (ranged magic)
+#  B  = Orc Brute (heavy melee)
+#  G  = Hill Giant (2×2 boss)
 #
-# ── Layout rules ─────────────────────────────────────────────────────────────
-#  • Each row string is split by spaces; each token = one grid cell.
-#  • Rows are automatically centred in the 20-wide battle grid.
-#  • Up to 4 rows (enemy zone occupies grid rows 0–3).
-#  • Shorter rows are fine — they just produce a narrower formation.
-#  • An empty string "" means the whole row is unoccupied.
+# To add a new enemy type:
+#   1. Add its factory in enemy_factory.gd
+#   2. Register its code + role in wave_scaler.gd CODE_ROLE dict
+#   3. Add a spawn case in main_game.gd spawn_enemies()
+#   4. Use the code in waves below
 #
-# ── Example (wave 1) ─────────────────────────────────────────────────────────
-#   col:  0 1 2 3 4 5 6 7 8   (9 cols → starts at grid col 6, centred)
-#   row0: . . . . . . . . .
-#   row1: . . . . M M . . .   ← 2 goblins in centre
-#   row2: . . . . . . . . .
-#   row3: . . . . . . . . .
+# ── Wave format ───────────────────────────────────────────────────────────────
+# Each wave is just {code: count}. WaveScaler auto-places units by role:
+#   FRONT role  → rows 3 → 2 (frontline, closest to player)
+#   BACK role   → rows 0 → 1 (backline, farthest from player)
+#   BOSS role   → rows 1–2 (centered)
+# Units are spread evenly across the row. No manual positioning needed.
 
-static func get_wave(round_number: int) -> Array:
+static func get_wave(round_number: int) -> Dictionary:
 	match round_number:
-		1:  return WAVE_1
-		2:  return WAVE_2
-		3:  return WAVE_3
-		4:  return WAVE_4
-		5:  return WAVE_5
-		6:  return WAVE_6
-		7:  return WAVE_7
-		_:  return []   # round 8+: procedural escalation
-
-# ── Round 1: two melee goblins ────────────────────────────────────────────────
-const WAVE_1: Array = [
-	". . . . . . . . .",
-	". . . . . . . . .",
-	". . . . . . . . .",
-	". . M . . M . . .",
-]
-
-# ── Round 2: two goblins + archer behind them ─────────────────────────────────
-const WAVE_2: Array = [
-	". . . . . . . . .",
-	". . . A A . . . .",
-	". . . . . . . . .",
-	". . M . . M . . .",
-]
-
-# ── Round 3: Hill Giant centre + flanking archers ─────────────────────────────
-#  G occupies (col, row) as top-left of a 2×2 block.
-#  The archers sit in row 2, one cell either side of the giant.
-const WAVE_3: Array = [
-	". A . . . . . . A .",
-	". . . . . . . . . .",
-	". . . . G . . . . .",
-	". . . . . . . . . .",
-]
-
-# ── Round 4: Shamans back row, goblins front ──────────────────────────────────
-const WAVE_4: Array = [
-	". . . S S S . . .",
-	". . . . . . . . .",
-	". . . . . . . . .",
-	". . M . M . M . .",
-]
-
-# ── Round 5: Orc brutes + archers ────────────────────────────────────────────
-const WAVE_5: Array = [
-	". . . A . . A . .",
-	". . . . . . . . .",
-	". . . . . . . . .",
-	". . B . . . B . .",
-]
-
-# ── Round 6: Two Hill Giants + shaman support ─────────────────────────────────
-const WAVE_6: Array = [
-	". . . S . S . . .",
-	". G . . . . G . .",
-	". . . . . . . . .",
-	". . . . . . . . .",
-]
-
-# ── Round 7: Full assault — brutes, archers, shamans ─────────────────────────
-const WAVE_7: Array = [
-	". S . . . . . S .",
-	". . A . A . A . .",
-	". . . . . . . . .",
-	". B . . B . . B .",
-]
+		1:  return {"M": 2}
+		2:  return {"M": 2, "A": 2}
+		3:  return {"M": 4, "A": 2}
+		4:  return {"M": 2, "A": 2, "S": 2}
+		5:  return {"G": 1, "A": 2}
+		6:  return {"M": 3, "S": 3}
+		7:  return {"A": 2, "B": 2}
+		8:  return {"G": 2, "S": 2}
+		9:  return {"A": 3, "B": 3, "S": 2}
+		10: return {"G": 2, "A": 2, "B": 2, "S": 2}
+		_:  return {}   # round 11+: procedural escalation

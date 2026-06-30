@@ -1,0 +1,80 @@
+class_name SynergyTracker
+
+class ActiveSynergy:
+	var type: String
+	var key: int
+	var count: int
+	var bonus_level: String
+	var bonus_data: Dictionary
+
+	func _init(p_type: String, p_key: int, p_count: int, p_bonus_data: Dictionary):
+		type = p_type
+		key = p_key
+		count = p_count
+		bonus_level = "3x" if count >= 3 else "2x"
+		bonus_data = p_bonus_data
+
+var active_synergies = []
+var element_counts = {}
+var trait_counts = {}
+
+func _init():
+	_init_counts()
+
+func _init_counts():
+	for i in range(6):
+		element_counts[i] = 0
+	for i in range(5):
+		trait_counts[i] = 0
+
+func update_from_team(player_units):
+	for i in range(6):
+		element_counts[i] = 0
+	for i in range(5):
+		trait_counts[i] = 0
+
+	for unit in player_units:
+		if unit and is_instance_valid(unit):
+			element_counts[unit.current_element] += 1
+			trait_counts[unit.trait_class] += 1
+
+	active_synergies.clear()
+
+	for elem in range(6):
+		var count = element_counts.get(elem, 0)
+		if count >= 2:
+			var bonus_level = "3x" if count >= 3 else "2x"
+			var bonus_data = SynergyData.ELEMENT_SYNERGIES[elem][bonus_level]
+			active_synergies.append(ActiveSynergy.new("element", elem, count, bonus_data))
+
+	for trait in range(5):
+		var count = trait_counts.get(trait, 0)
+		if count >= 2:
+			var bonus_level = "3x" if count >= 3 else "2x"
+			var bonus_data = SynergyData.TRAIT_SYNERGIES[trait][bonus_level]
+			active_synergies.append(ActiveSynergy.new("trait", trait, count, bonus_data))
+
+func get_active_synergies_text():
+	var lines = PackedStringArray()
+	for syn in active_synergies:
+		var key_name = SynergyData.get_element_name(syn.key) if syn.type == "element" else SynergyData.get_trait_name(syn.key)
+		var bonus_desc = syn.bonus_data.get("desc", "")
+		lines.append("%s x%d: %s (%s)" % [key_name, syn.count, bonus_desc, syn.bonus_level])
+	return lines
+
+func apply_synergy_bonuses(unit):
+	for syn in active_synergies:
+		var bonus = syn.bonus_data
+		if bonus.has("dmg_mult"):
+			unit.strength = int(unit.strength * bonus["dmg_mult"])
+		if bonus.has("def_mult"):
+			unit.resistance = int(unit.resistance * bonus["def_mult"])
+		if bonus.has("hp_mult"):
+			unit.max_hp = int(unit.max_hp * bonus["hp_mult"])
+			unit.current_hp = unit.max_hp
+		if bonus.has("spd_mult"):
+			unit.movement_speed = int(unit.movement_speed * bonus["spd_mult"])
+		if bonus.has("int_mult"):
+			unit.intelligence = int(unit.intelligence * bonus["int_mult"])
+		if bonus.has("rng_mult"):
+			unit.attack_range = int(unit.attack_range * bonus["rng_mult"])

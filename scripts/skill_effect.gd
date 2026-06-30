@@ -14,6 +14,10 @@ enum Type {
 	OVERDRIVE,     # Shauna ultimate — spinning energy burst
 	TIDE_WAVE,     # Nemi active — bouncing wave
 	TIDAL_WAVE,    # Nemi ultimate — wide ocean wave
+	# ── Roster expansion VFX ──
+	LIGHTNING,     # Zolt / Static — jagged bolt burst
+	BURN,          # Coal / Sear / Ember — flame licks
+	NATURE,        # June / Spore — green spore/thorn burst
 }
 
 var effect_type: Type = Type.WHIRLWIND
@@ -57,6 +61,9 @@ func _draw() -> void:
 		Type.OVERDRIVE:     _draw_overdrive(t, inv)
 		Type.TIDE_WAVE:     _draw_tide_wave(t, inv)
 		Type.TIDAL_WAVE:    _draw_tidal_wave(t, inv)
+		Type.LIGHTNING:     _draw_lightning(t, inv)
+		Type.BURN:          _draw_burn(t, inv)
+		Type.NATURE:        _draw_nature(t, inv)
 
 
 # ── Warrior: orange spinning sword arcs ──────────────────────────────────────
@@ -355,6 +362,58 @@ func _draw_gravity_drop(t: float, inv: float) -> void:
 			var spike: Vector2 = Vector2(cos(ang), sin(ang)) * (p * radius)
 			draw_line(Vector2.ZERO, spike,
 				Color(gold.r, gold.g, gold.b, (1.0 - p) * inv * 0.9), 3.0)
+
+
+# ── Lightning: jagged yellow-white bolts radiating out + flash ───────────────
+func _draw_lightning(t: float, inv: float) -> void:
+	var num_bolts := 6
+	for i in range(num_bolts):
+		var ang: float = _seeds[i] * TAU + i * (TAU / num_bolts)
+		var segs := 5
+		var prev := Vector2.ZERO
+		var col := Color(1.0, 1.0, 0.4, inv * 0.9)
+		for s in range(1, segs + 1):
+			var frac: float = float(s) / segs
+			var jitter: float = (_seeds[(i + s) % _seeds.size()] - 0.5) * radius * 0.35
+			var perp := Vector2(-sin(ang), cos(ang)) * jitter
+			var nxt := Vector2(cos(ang), sin(ang)) * (radius * frac) + perp
+			draw_line(prev, nxt, col, 3.0 * inv)
+			prev = nxt
+	# Bright core flash early
+	if t < 0.3:
+		draw_circle(Vector2.ZERO, radius * 0.4 * (1.0 - t / 0.3), Color(1.0, 1.0, 0.85, inv))
+	draw_circle(Vector2.ZERO, 9.0 * inv, Color(0.9, 0.95, 1.0, inv * 0.8))
+
+
+# ── Burn: orange/red flame licks flickering upward ───────────────────────────
+func _draw_burn(t: float, inv: float) -> void:
+	var count := 9
+	for i in range(count):
+		var sx: float = (_seeds[i] - 0.5) * radius * 1.2
+		var phase: float = fmod(t * 1.8 + _seeds[i], 1.0)
+		var base := Vector2(sx, radius * 0.4)
+		var height: float = radius * (0.6 + _seeds[i] * 0.6) * (1.0 - phase * 0.4)
+		var flick: float = sin(t * 18.0 + i) * 4.0
+		var tip := base + Vector2(flick, -height)
+		var col := Color(1.0, 0.35 + _seeds[i] * 0.4, 0.0, inv * (1.0 - phase) * 0.85)
+		draw_line(base, tip, col, 3.0 * inv)
+		draw_circle(tip, 3.0 * inv, Color(1.0, 0.8, 0.2, inv * (1.0 - phase) * 0.7))
+	draw_circle(Vector2(0, radius * 0.35), 10.0 * inv, Color(1.0, 0.5, 0.1, inv * 0.5))
+
+
+# ── Nature: green spore/thorn burst with drifting motes ──────────────────────
+func _draw_nature(t: float, inv: float) -> void:
+	# Expanding green ring
+	draw_arc(Vector2.ZERO, radius * t, 0, TAU, 28, Color(0.4, 0.9, 0.3, inv * 0.6), 2.5)
+	var count := 12
+	for i in range(count):
+		var ang: float = _seeds[i] * TAU
+		var dist: float = (0.3 + _seeds[i] * 0.7) * radius * t
+		var pos := Vector2(cos(ang), sin(ang)) * dist
+		var drift := Vector2(sin(t * 3.0 + i) * 3.0, cos(t * 2.0 + i) * 3.0)
+		var col := Color(0.45, 0.85 - _seeds[i] * 0.3, 0.3, inv * 0.8)
+		draw_circle(pos + drift, (2.0 + _seeds[i] * 2.5) * inv, col)
+	draw_circle(Vector2.ZERO, 8.0 * inv, Color(0.6, 1.0, 0.5, inv * 0.7))
 
 
 # ── Absorbed: small blue implosion on each pulled enemy ──────────────────────

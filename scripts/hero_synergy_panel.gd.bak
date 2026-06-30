@@ -1,0 +1,189 @@
+extends CanvasLayer
+class_name HeroSynergyPanel
+
+var synergy_tracker: SynergyTracker
+var player_units: Array = []
+var _panel: Panel
+var _synergy_list: VBoxContainer
+var _close_btn: Button
+var _swap_instructions: Label
+
+func _ready() -> void:
+	synergy_tracker = SynergyTracker.new()
+	_build_ui()
+
+func _build_ui() -> void:
+	var overlay := ColorRect.new()
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.7)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	_panel = Panel.new()
+	_panel.size = Vector2(800, 600)
+	_panel.add_theme_stylebox_override("panel",
+		_flat(Color(0.08, 0.09, 0.14, 0.99), Color(0.45, 0.4, 0.65), 2, 12))
+	overlay.add_child(_panel)
+
+	# Title
+	var title = _lbl(_panel, "HERO SYNERGIES", 28, Color(0.85, 0.85, 1.0),
+		Vector2(20, 18), Vector2(760, 40), true)
+
+	# Close button
+	_close_btn = _btn("Close", Rect2(350, 560, 100, 32))
+	_close_btn.pressed.connect(func(): visible = false)
+	_panel.add_child(_close_btn)
+
+	# Synergy list
+	var scroll = ScrollContainer.new()
+	scroll.position = Vector2(20, 68)
+	scroll.size = Vector2(760, 480)
+	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	_panel.add_child(scroll)
+
+	_synergy_list = VBoxContainer.new()
+	_synergy_list.add_theme_constant_override("separation", 12)
+	scroll.add_child(_synergy_list)
+
+	visible = false
+	_center_panel()
+
+func open(units: Array) -> void:
+	player_units = units
+	synergy_tracker.update_from_team(player_units)
+	_refresh_display()
+	visible = true
+
+func _refresh_display() -> void:
+	# Clear previous
+	for child in _synergy_list.get_children():
+		child.queue_free()
+
+	# Add synergy cards
+	if synergy_tracker.active_synergies.size() == 0:
+		var empty = _lbl(_synergy_list, "No synergies active (need 2+ heroes of same element/trait)", 14,
+			Color(0.7, 0.7, 0.7), Vector2.ZERO, Vector2(760, 30))
+		_synergy_list.add_child(empty)
+		return
+
+	# Element synergies
+	var elem_synergies = synergy_tracker.active_synergies.filter(func(s): return s.type == "element")
+	if elem_synergies.size() > 0:
+		_lbl(_synergy_list, "ELEMENT SYNERGIES", 16, Color(1, 1, 0.5),
+			Vector2.ZERO, Vector2(760, 28)).add_theme_constant_override("font_size", 16)
+		_synergy_list.add_child(_lbl(_synergy_list, "", 12, Color.TRANSPARENT,
+			Vector2.ZERO, Vector2(760, 4)))
+
+		for syn in elem_synergies:
+			_add_synergy_card(_synergy_list, syn)
+
+	# Trait synergies
+	var trait_synergies = synergy_tracker.active_synergies.filter(func(s): return s.type == "trait")
+	if trait_synergies.size() > 0:
+		_synergy_list.add_child(_lbl(_synergy_list, "", 12, Color.TRANSPARENT,
+			Vector2.ZERO, Vector2(760, 12)))
+		_lbl(_synergy_list, "TRAIT SYNERGIES", 16, Color(1, 0.5, 1),
+			Vector2.ZERO, Vector2(760, 28)).add_theme_constant_override("font_size", 16)
+		_synergy_list.add_child(_lbl(_synergy_list, "", 12, Color.TRANSPARENT,
+			Vector2.ZERO, Vector2(760, 4)))
+
+		for syn in trait_synergies:
+			_add_synergy_card(_synergy_list, syn)
+
+func _add_synergy_card(parent: VBoxContainer, syn: SynergyTracker.ActiveSynergy) -> void:
+	var card = Panel.new()
+	card.custom_minimum_size = Vector2(760, 80)
+	card.add_theme_stylebox_override("panel",
+		_flat(Color(0.12, 0.12, 0.2, 0.8), Color(0.4, 0.4, 0.55), 1, 6))
+	parent.add_child(card)
+
+	var hbox = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 12)
+	card.add_child(hbox)
+
+	# Icon/count
+	var key_name = SynergyData.get_element_name(syn.key) if syn.type == "element" else SynergyData.get_trait_name(syn.key)
+	var color = SynergyData.get_element_color(syn.key) if syn.type == "element" else SynergyData.get_trait_color(syn.key)
+
+	var count_label = Label.new()
+	count_label.text = "%s ×%d" % [key_name, syn.count]
+	count_label.add_theme_font_size_override("font_size", 18)
+	count_label.add_theme_color_override("font_color", color)
+	count_label.custom_minimum_size = Vector2(140, 80)
+	hbox.add_child(count_label)
+
+	# Bonus description
+	var bonus_label = Label.new()
+	bonus_label.text = "[%s] %s" % [syn.bonus_level, syn.bonus_data.get("desc", "")]
+	bonus_label.add_theme_font_size_override("font_size", 14)
+	bonus_label.add_theme_color_override("font_color", Color(0.8, 1.0, 0.8))
+	bonus_label.custom_minimum_size = Vector2(200, 80)
+	hbox.add_child(bonus_label)
+
+	# Unit list (heroes that contribute)
+	var units_text = ""
+	var matched_count = 0
+	for unit in player_units:
+		if unit and is_instance_valid(unit):
+			var matches = false
+			if syn.type == "element":
+				matches = unit.current_element == syn.key
+			else:
+				matches = unit.trait_class == syn.key
+			if matches:
+				if matched_count > 0:
+					units_text += ", "
+				units_text += unit.unit_name
+				matched_count += 1
+
+	var units_label = Label.new()
+	units_label.text = units_text
+	units_label.add_theme_font_size_override("font_size", 12)
+	units_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.85))
+	units_label.custom_minimum_size = Vector2(400, 80)
+	units_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hbox.add_child(units_label)
+
+func _center_panel() -> void:
+	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
+	_panel.position = (vp - _panel.size) / 2.0
+
+func _lbl(parent: Node, text: String, sz: int, col: Color,
+		pos: Vector2, size: Vector2, center: bool = false) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.position = pos
+	l.size = size
+	l.add_theme_font_size_override("font_size", sz)
+	l.add_theme_color_override("font_color", col)
+	if center:
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if parent:
+		parent.add_child(l)
+	return l
+
+func _btn(text: String, rect: Rect2) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.position = rect.position
+	b.size = rect.size
+	b.add_theme_font_size_override("font_size", 14)
+	b.add_theme_color_override("font_color", Color(0.85, 0.85, 1.0))
+	b.add_theme_stylebox_override("normal",  _flat(Color(0.14, 0.14, 0.22), Color(0.4, 0.4, 0.55), 1, 6))
+	b.add_theme_stylebox_override("hover",   _flat(Color(0.22, 0.22, 0.33), Color(0.6, 0.6, 0.8), 1, 6))
+	b.add_theme_stylebox_override("pressed", _flat(Color(0.1, 0.1, 0.18), Color(0.3, 0.3, 0.5), 1, 6))
+	return b
+
+func _flat(bg: Color, border: Color = Color.TRANSPARENT, bw: int = 0, radius: int = 0) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.border_color = border
+	s.border_width_left = bw
+	s.border_width_right = bw
+	s.border_width_top = bw
+	s.border_width_bottom = bw
+	s.corner_radius_top_left = radius
+	s.corner_radius_top_right = radius
+	s.corner_radius_bottom_left = radius
+	s.corner_radius_bottom_right = radius
+	return s

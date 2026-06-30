@@ -202,7 +202,7 @@ func _refresh() -> void:
 	_skill_lbl.text = u.skill_name if u.skill_name != "" else "—"
 	var cd_str := ""
 	if u.skill_cooldown_max > 0:
-		cd_str = "  (every %d turns)" % u.skill_cooldown_max
+		cd_str = "  (every %ds)" % u.skill_cooldown_max
 	_skill_desc_lbl.text = "Deals %d%% dmg · Range %d%s" % [
 		int(u.skill_damage_multiplier * 100), u.skill_range, cd_str]
 

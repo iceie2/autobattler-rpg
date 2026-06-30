@@ -1,10 +1,10 @@
 extends Node2D
 class_name BattleGrid
 
-# Grid size - 20x14 grid (20 wide, 14 tall)
-@export var grid_width: int = 20
-@export var grid_height: int = 14
-@export var cell_size: int = 64
+# Grid size - 9x9 grid (square cells)
+@export var grid_width: int = 9
+@export var grid_height: int = 9
+@export var cell_size: int = 110
 
 # Grid data structure
 var grid_cells: Array = []
@@ -39,7 +39,7 @@ func _draw():
 		var start = Vector2(x * cell_size, 0)
 		var end = Vector2(x * cell_size, grid_height * cell_size)
 		draw_line(start, end, grid_color, 2.0)
-	
+
 	for y in range(grid_height + 1):
 		var start = Vector2(0, y * cell_size)
 		var end = Vector2(grid_width * cell_size, y * cell_size)
@@ -53,8 +53,8 @@ func world_to_grid(world_pos: Vector2) -> Vector2i:
 
 func grid_to_world(grid_pos: Vector2i) -> Vector2:
 	return Vector2(
-		grid_pos.x * cell_size + cell_size / 2,
-		grid_pos.y * cell_size + cell_size / 2
+		grid_pos.x * cell_size + cell_size / 2.0,
+		grid_pos.y * cell_size + cell_size / 2.0
 	)
 
 func is_valid_position(grid_pos: Vector2i) -> bool:
