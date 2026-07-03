@@ -287,6 +287,7 @@ func connect_signals() -> void:
 	game_state.state_changed.connect(_on_state_changed)
 	game_state.battle_round_started.connect(_on_battle_round_started)
 	game_state.battle_round_started.connect(func(round_num): background_layer.set_biome_from_round(round_num))
+	game_state.player_leveled_up.connect(_on_player_leveled_up)
 	
 	# Battle manager signals
 	auto_battle_manager.battle_started.connect(_on_battle_started)
@@ -417,6 +418,32 @@ func _integrate_scene_units() -> void:
 
 var max_player_units: int = 27   # base cap; increased by Roster Expansion upgrade
 
+# ── Player level / team-size curve (2026-07-04) ───────────────────────────────
+# Base team size at player_level 1, +1 per level, capped once the ceiling
+# matches the old flat 27 (so a long enough run always converges back to the
+# same "full roster" feeling — this just gates how much of it you start with).
+const TEAM_SIZE_BASE := 4
+const TEAM_SIZE_LEVEL_CAP := 24   # levels beyond this stop granting more slots
+
+func _team_size_for_level(lvl: int) -> int:
+	return TEAM_SIZE_BASE + mini(lvl - 1, TEAM_SIZE_LEVEL_CAP - 1)
+
+var _event_team_size_bonus: int = 0   # persistent per-run "Reinforcements" event bonus
+
+func _recompute_max_player_units() -> void:
+	max_player_units = _team_size_for_level(game_state.player_level) \
+			+ Progression.get_bonus("hero_slots") + _event_team_size_bonus
+
+# Share of a kill's hero-XP that also feeds the player-level pool (EV-modeled
+# 2026-07-04 to roughly match the existing economy pace: ~level 5 by wave 5,
+# ~level 8 by wave 10, ~level 13 by wave 30 — see balance journal for the model).
+const PLAYER_XP_SHARE := 0.5
+
+func _on_player_leveled_up(new_level: int) -> void:
+	_recompute_max_player_units()
+	info_label.text = "Level up! Team size is now %d." % max_player_units
+	update_ui()
+
 # Wave locking system
 var _current_wave_spec: Array = []  # locked enemy roster for this wave (before instantiation)
 var _locked_difficulty: int = -1    # locked difficulty for this wave (-1 = not locked yet)
@@ -427,7 +454,9 @@ func start_new_game() -> void:
 	game_state.gold = 10 + Progression.starting_gold_bonus()
 	game_state.crystals = 0
 	_run_kills = 0
-	max_player_units = 27 + Progression.get_bonus("hero_slots")
+	game_state.reset_player_level()
+	_event_team_size_bonus = 0
+	_recompute_max_player_units()
 	_relic_inventory = RelicInventory.new()
 	_relic_waves_done.clear()
 	_rebuild_relic_bar()
@@ -440,7 +469,9 @@ func update_ui() -> void:
 	# Coin/gem art is part of the currency plates (see UITheme) — number only.
 	gold_label.text = "%d" % game_state.gold
 	crystals_label.text = "%d" % game_state.crystals
-	round_label.text = "Round: %d" % game_state.battle_round
+	round_label.text = "Round: %d   ·   Lv %d   ·   Team %d/%d" % [
+		game_state.battle_round, game_state.player_level,
+		player_units.size(), max_player_units]
 	
 	match game_state.current_state:
 		GameState.State.PLAYER_TURN:
@@ -1148,7 +1179,11 @@ func _on_event_choice_made(choice_index: int) -> void:
 				unit.current_hp = min(unit.current_hp, unit.max_hp)
 
 	if effects.has("max_units"):
-		max_player_units += int(effects["max_units"])
+		# Persistent per-run bonus — max_player_units gets RECOMPUTED from level
+		# on every level-up (see _recompute_max_player_units), which would
+		# otherwise silently erase this the next time the player leveled up.
+		_event_team_size_bonus += int(effects["max_units"])
+		_recompute_max_player_units()
 
 	# "Invest in training" — no level cap exists to raise, so level the team up now.
 	if effects.has("max_level"):
@@ -2059,6 +2094,10 @@ func _on_unit_died(unit) -> void:
 			for hero in player_units:
 				if hero and is_instance_valid(hero):
 					hero.kill_xp += xp_per_hero
+
+		# Player/account level (2026-07-04): a SHARE of every kill's total XP also
+		# feeds the account-wide pool that grows team size — see game_state.gd.
+		game_state.add_player_xp(float(unit.xp_reward) * PLAYER_XP_SHARE)
 
 		# Loot ONLY drops from enemies that were actually wielding an item — the
 		# exact item you saw on it mid-fight, no re-roll. Enemies that spawned
