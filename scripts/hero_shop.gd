@@ -4,7 +4,9 @@ class_name HeroShop
 signal hero_chosen(unit_class: UnitBase.UnitClass, element: UnitBase.Element, rolls: Dictionary)
 signal cancelled()
 
-const HERO_COST := 30
+# Economy v3 (2026-07-03): 30 → 10 — whole economy rescaled to coin-drop size
+# (10 starting gold, ~1g coin drops per kill). See balance journal.
+const HERO_COST := 10
 
 const SPRITE_FOLDERS := {
 	UnitBase.UnitClass.WARRIOR:    "warrior",

@@ -63,11 +63,12 @@ static func roll(difficulty: int, round: int) -> Dictionary:
 	var result := {"type": chosen_type}
 	match chosen_type:
 		Type.GOLD:
-			# Economy pass (2026-07-02): base was 20+8*round — cut to slow the
-			# roster-fill-up runaway alongside the round-win and per-kill cuts.
-			var base: float = 10.0 + round * 4.0
+			# Economy v3 (2026-07-03): rescaled to the coin-drop economy (10g
+			# heroes, ~1g kills). These now rain onto the field as physical
+			# coins at victory and get vacuumed with the rest.
+			var base: float = 2.0 + round * 0.4
 			var mult: float = 1.0 + difficulty * 0.5   # EASY 1.0x, NORMAL 1.5x, HARD 2.0x
-			result["gold"] = int(base * mult)
+			result["gold"] = maxi(1, int(base * mult))
 		Type.ITEM:
 			var max_rarity: int = EquipmentItem.Rarity.EPIC if difficulty == WaveScaler.Difficulty.HARD else EquipmentItem.Rarity.RARE
 			result["item"] = EquipmentManager.generate_item(round, max_rarity)

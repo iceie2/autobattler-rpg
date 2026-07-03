@@ -59,6 +59,13 @@ static func create_goblin(lvl: int = 1) -> VisualUnit:
 	u.xp_reward       = 50
 	u.sprite_variant  = randi() % 3
 	u.set_meta("sprite_folder", "goblin")
+	u.skill_name = "Shank"
+	u.skill_damage_multiplier = 1.4
+	u.skill_range = 1
+	u.skill_cooldown_max = 5
+	u.skill_mana_cost = 0
+	u.skill_description = "Quick lunge dealing 140% ATK. · 5s CD"
+	u.set_meta("mob_skill", "goblin_shank")
 	if lvl > 1: u.set_level(lvl)
 	return u
 
@@ -87,6 +94,13 @@ static func create_goblin_archer(lvl: int = 1) -> VisualUnit:
 	u.xp_reward       = 60
 	u.sprite_variant  = randi() % 3
 	u.set_meta("sprite_folder", "goblin_archer")
+	u.skill_name = "Crippling Arrow"
+	u.skill_damage_multiplier = 1.2
+	u.skill_range = 4
+	u.skill_cooldown_max = 6
+	u.skill_mana_cost = 0
+	u.skill_description = "Deal 120% ATK and slow the target 30% for 2s. · 6s CD"
+	u.set_meta("mob_skill", "archer_cripple")
 	if lvl > 1: u.set_level(lvl)
 	return u
 
@@ -115,6 +129,13 @@ static func create_goblin_shaman(lvl: int = 1) -> VisualUnit:
 	u.xp_reward       = 70
 	u.sprite_variant  = randi() % 3
 	u.set_meta("sprite_folder", "goblin_shaman")
+	u.skill_name = "Mend"
+	u.skill_damage_multiplier = 0.0
+	u.skill_range = 6
+	u.skill_cooldown_max = 6
+	u.skill_mana_cost = 0
+	u.skill_description = "Heal the most-wounded ally for 150% MAG. · 6s CD"
+	u.set_meta("mob_skill", "shaman_mend")
 	if lvl > 1: u.set_level(lvl)
 	return u
 
@@ -143,7 +164,16 @@ static func create_orc_brute(lvl: int = 1) -> VisualUnit:
 	u.xp_reward       = 100
 	u.sprite_variant  = randi() % 3
 	u.set_meta("sprite_folder", "orc_brute")
-	u.is_boss         = true
+	# is_boss removed 2026-07-03: leftover from when the orc WAS a wave boss.
+	# It made "vs boss" relic damage apply to every orc, and would have given
+	# each fodder orc a boss-tier coin drop in the new gold economy.
+	u.skill_name = "Crushing Blow"
+	u.skill_damage_multiplier = 1.6
+	u.skill_range = 1
+	u.skill_cooldown_max = 7
+	u.skill_mana_cost = 0
+	u.skill_description = "Deal 160% ATK and stun for 1s. · 7s CD"
+	u.set_meta("mob_skill", "brute_crush")
 	if lvl > 1: u.set_level(lvl)
 	return u
 
@@ -172,6 +202,13 @@ static func create_slime(lvl: int = 1) -> VisualUnit:
 	u.xp_reward       = 50
 	u.sprite_variant  = randi() % 3
 	u.set_meta("sprite_folder", "slime")
+	u.skill_name = "Corrosive Goo"
+	u.skill_damage_multiplier = 0.0
+	u.skill_range = 1
+	u.skill_cooldown_max = 6
+	u.skill_mana_cost = 0
+	u.skill_description = "Weaken the target: -25% outgoing damage for 3s. · 6s CD"
+	u.set_meta("mob_skill", "slime_goo")
 	if lvl > 1: u.set_level(lvl)
 	return u
 
@@ -200,6 +237,13 @@ static func create_skeleton(lvl: int = 1) -> VisualUnit:
 	u.xp_reward       = 32
 	u.sprite_variant  = randi() % 3
 	u.set_meta("sprite_folder", "skeleton")
+	u.skill_name = "Bone Shield"
+	u.skill_damage_multiplier = 0.0
+	u.skill_range = 1
+	u.skill_cooldown_max = 8
+	u.skill_mana_cost = 0
+	u.skill_description = "Shield self for 25% max HP. · 8s CD"
+	u.set_meta("mob_skill", "skeleton_boneshield")
 	if lvl > 1: u.set_level(lvl)
 	return u
 
@@ -228,6 +272,13 @@ static func create_rat(lvl: int = 1) -> VisualUnit:
 	u.xp_reward       = 22
 	u.sprite_variant  = randi() % 3
 	u.set_meta("sprite_folder", "rat")
+	u.skill_name = "Infected Bite"
+	u.skill_damage_multiplier = 1.1
+	u.skill_range = 1
+	u.skill_cooldown_max = 5
+	u.skill_mana_cost = 0
+	u.skill_description = "Deal 110% ATK and infect: 35% ATK/s disease for 3s. · 5s CD"
+	u.set_meta("mob_skill", "rat_bite")
 	if lvl > 1: u.set_level(lvl)
 	return u
 

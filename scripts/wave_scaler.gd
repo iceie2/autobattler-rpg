@@ -75,11 +75,24 @@ static func score_unit(unit: UnitBase) -> float:
 		s *= 2.5
 	return s
 
-# Economy pass (2026-07-02): multiplier was 0.04 / floor 5 — kills alone funded
-# a hero every ~2-3 goblins, compounding with the per-round bonus to fill the
-# roster far too fast. Cut ~55% (see balance_journal.md); re-tune after playtest.
+# LEGACY (pre coin-drop economy) — kept only for anything still displaying a
+# "gold value" for a unit. Kill gold now flows through gold_drops_for_unit.
 static func gold_for_unit(unit: UnitBase) -> int:
 	return maxi(2, int(score_unit(unit) * 0.018))
+
+# Economy v3 (2026-07-03, per user): kills drop PHYSICAL coins on the field
+# (collected by the round-end vacuum), max 1 gold per basic kill, and not
+# guaranteed — the chance rises with the wave. Elites/bosses drop a fixed
+# handful. Summons never drop (Ant Hill would be a gold printer otherwise).
+static func gold_drops_for_unit(unit: UnitBase, round: int) -> int:
+	if unit.is_summoned:
+		return 0
+	if unit.is_boss:
+		return 4
+	if unit.is_elite:
+		return 2 + (1 if round >= 15 else 0)
+	var chance: float = clampf(0.25 + float(round) * 0.03, 0.25, 0.90)
+	return 1 if randf() < chance else 0
 
 static func crystals_for_unit(unit: UnitBase) -> int:
 	var s := score_unit(unit)

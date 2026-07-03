@@ -807,6 +807,13 @@ func assign_preferred_target(unit: UnitBase, target: UnitBase) -> void:
 # ── Skill execution ───────────────────────────────────────────────────────────
 
 func _use_skill(caster: UnitBase, opponents: Array, allies: Array = []) -> void:
+	# Basic-mob signature moves dispatch on `mob_skill` meta BEFORE the class
+	# match — mobs piggyback hero classes for stats/sprites, so class arms
+	# can't tell a Goblin from the Triarch's warrior phase. See _use_mob_skill.
+	var mob_skill: String = str(caster.get_meta("mob_skill", ""))
+	if mob_skill != "":
+		_use_mob_skill(caster, mob_skill, opponents, allies)
+		return
 	var effect_type: SkillEffect.Type
 	match caster.unit_class:
 		UnitBase.UnitClass.STAT_STEALER:
@@ -1001,6 +1008,68 @@ func _shauna_kite(caster: UnitBase, opponents: Array) -> void:
 #   • A unit is never hit twice (guarantees the chain terminates).
 const TIDE_RANGE := 2.0
 const TIDE_MAX_BOUNCES := 8
+
+# ── Basic-monster signature moves (2026-07-03) ────────────────────────────────
+# Basic mobs piggyback hero UnitClass values for stats/sprites, so their skills
+# can't dispatch on unit_class without polluting hero arms. Instead the enemy
+# factory sets `mob_skill` meta + the normal skill_name/cd fields, and _use_skill
+# routes here FIRST. One readable signature move per mob; each has a name so it
+# can get an ability icon later (planned asset pass — always leave an icon slot).
+func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Array) -> void:
+	var tar := find_nearest_enemy(caster, opponents)
+	match key:
+		"goblin_shank":
+			# Quick lunge for bonus damage — goblins get scarier in numbers.
+			if not tar: return
+			var dmg: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+			tar.take_damage(dmg, caster.current_element, caster)
+			caster.damage_dealt += dmg
+			_spawn_skill_effect_sized(SkillEffect.Type.SHADOW_STRIKE, tar.global_position, 22.0)
+		"archer_cripple":
+			# Crippling Arrow: modest damage + slow.
+			if not tar: return
+			var adm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+			tar.take_damage(adm, caster.current_element, caster)
+			caster.damage_dealt += adm
+			apply_slow(tar, 0.30, 2.0)
+			_spawn_skill_effect_sized(SkillEffect.Type.ARROW_RAIN, tar.global_position, 24.0)
+		"shaman_mend":
+			# Mend: heal the most-wounded ally (the reason to focus shamans first).
+			var heal_tar := _lowest_hp_ally(caster, _allies, 6.0, true)
+			if not heal_tar: return
+			var amt: int = int(float(caster.magic_power) * 1.5)
+			heal_tar.heal(amt)
+			caster.combat_healing_done += amt
+			_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, heal_tar.global_position, 26.0)
+		"brute_crush":
+			# Crushing Blow: big hit + short stun. Long cooldown — telegraphed bully.
+			if not tar: return
+			var bdm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+			tar.take_damage(bdm, caster.current_element, caster)
+			caster.damage_dealt += bdm
+			tar.stun_time = maxf(tar.stun_time, 1.0)
+			_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, tar.global_position, 30.0)
+		"slime_goo":
+			# Corrosive Goo: weaken the target's outgoing damage.
+			if not tar: return
+			tar.weakened_pct = maxf(tar.weakened_pct, 0.25)
+			tar.weakened_time = maxf(tar.weakened_time, 3.0)
+			_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, tar.global_position, 24.0)
+		"skeleton_boneshield":
+			# Bone Shield: rattle up a shield — skeletons hold the line.
+			var sh: int = int(float(caster.max_hp) * 0.25)
+			caster.current_shield += sh
+			if caster.health_bar:
+				caster.health_bar.update_shield(caster.current_shield, caster.max_hp)
+			_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, caster.global_position, 24.0)
+		"rat_bite":
+			# Infected Bite: small hit + disease DoT (burn plumbing, flavored).
+			if not tar: return
+			var rdm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+			tar.take_damage(rdm, caster.current_element, caster)
+			caster.damage_dealt += rdm
+			apply_burn(tar, float(caster.attack_damage) * 0.35, 3.0, caster)
+			_spawn_skill_effect_sized(SkillEffect.Type.BURN, tar.global_position, 20.0)
 
 func _nemi_tide(caster: UnitBase, opponents: Array, allies: Array) -> void:
 	var first := find_nearest_enemy(caster, opponents)

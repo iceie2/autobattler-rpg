@@ -36,7 +36,7 @@ static func _get_event_pool(round: int) -> Array:
 
 static func _create_gold_blessing(round: int) -> EventBlessing:
 	var event = EventBlessing.new("Gold Rush", "Merchants are selling cheap", EventBlessing.EventType.BLESSING)
-	var gold_amount = 25 + (round * 10)
+	var gold_amount = 3 + int(round * 1.5)
 	event.add_choice(
 		"Take the gold",
 		{"gold": gold_amount},
@@ -58,8 +58,8 @@ static func _create_extra_hero_blessing(round: int) -> EventBlessing:
 	)
 	event.add_choice(
 		"Turn them down",
-		{"gold": 30},
-		"Gain 30g instead"
+		{"gold": 4},
+		"Gain 4g instead"
 	)
 	return event
 
@@ -101,13 +101,13 @@ static func _create_gold_curse(round: int) -> EventBlessing:
 	var event = EventBlessing.new("Bandits Attack", "Bandits demand tribute", EventBlessing.EventType.CURSE)
 	event.add_choice(
 		"Pay the toll",
-		{"gold": -30},
-		"Lose 30g but continue"
+		{"gold": -4},
+		"Lose 4g but continue"
 	)
 	event.add_choice(
 		"Fight back",
-		{"gold": 50, "hero_damage": -0.2},  # Lose 20% HP across team
-		"Gain 50g but lose 20% team HP"
+		{"gold": 7, "hero_damage": -0.2},  # Lose 20% HP across team
+		"Gain 7g but lose 20% team HP"
 	)
 	return event
 
@@ -120,8 +120,8 @@ static func _create_damage_curse() -> EventBlessing:
 	)
 	event.add_choice(
 		"Dodge and flee",
-		{"gold": -20},
-		"Lose 20g but avoid damage"
+		{"gold": -3},
+		"Lose 3g but avoid damage"
 	)
 	return event
 
@@ -141,16 +141,16 @@ static func _create_sacrifice_event() -> EventBlessing:
 
 static func _create_gamble_event(round: int) -> EventBlessing:
 	var event = EventBlessing.new("Gambler's Table", "A merchant offers a risky trade", EventBlessing.EventType.NEUTRAL)
-	var high_gold = 60 + round * 15
+	var high_gold = 8 + round * 2
 	event.add_choice(
 		"Take the big bet (50/50)",
-		{"gold_if_win": high_gold, "gold_if_lose": -40},
-		"50%% chance for %dg, 50%% chance to lose 40g" % high_gold
+		{"gold_if_win": high_gold, "gold_if_lose": -5},
+		"50%% chance for %dg, 50%% chance to lose 5g" % high_gold
 	)
 	event.add_choice(
 		"Skip",
-		{"gold": 10},
-		"Take 10g and move on"
+		{"gold": 2},
+		"Take 2g and move on"
 	)
 	return event
 
@@ -161,7 +161,7 @@ static func _create_duel_event(round: int) -> EventBlessing:
 		{"team_dmg_mult": 1.1, "team_spd_mult": 1.1},
 		"All heroes deal 10% more damage and act 10% faster"
 	)
-	var decline_gold = 15 + round * 4
+	var decline_gold = 2 + int(round * 0.5)
 	event.add_choice(
 		"Decline politely",
 		{"gold": decline_gold},
@@ -173,8 +173,8 @@ static func _create_echo_curse() -> EventBlessing:
 	var event = EventBlessing.new("Cave of Echoes", "Strange echoes sap your team's nerve", EventBlessing.EventType.CURSE)
 	event.add_choice(
 		"Push forward and loot the cave",
-		{"team_def_mult": 0.9, "gold": 25},
-		"All heroes take 10% more damage, but gain 25g"
+		{"team_def_mult": 0.9, "gold": 4},
+		"All heroes take 10% more damage, but gain 4g"
 	)
 	event.add_choice(
 		"Retreat and regroup",
@@ -190,7 +190,7 @@ static func _create_blacksmith_blessing(round: int) -> EventBlessing:
 		{"max_hp_mult": 1.15},
 		"All heroes gain 15% max HP"
 	)
-	var save_gold = 20 + round * 5
+	var save_gold = 3 + int(round * 0.7)
 	event.add_choice(
 		"Save your coin",
 		{"gold": save_gold},
@@ -200,15 +200,15 @@ static func _create_blacksmith_blessing(round: int) -> EventBlessing:
 
 static func _create_desperate_wager(round: int) -> EventBlessing:
 	var event = EventBlessing.new("Desperate Wager", "A stranger offers one final, bigger bet", EventBlessing.EventType.NEUTRAL)
-	var high_gold = 100 + round * 20
+	var high_gold = 12 + round * 3
 	event.add_choice(
 		"All in (50/50)",
-		{"gold_if_win": high_gold, "gold_if_lose": -60},
-		"50%% chance for %dg, 50%% chance to lose 60g" % high_gold
+		{"gold_if_win": high_gold, "gold_if_lose": -8},
+		"50%% chance for %dg, 50%% chance to lose 8g" % high_gold
 	)
 	event.add_choice(
 		"Play it safe",
-		{"gold": 15},
-		"Take 15g and move on"
+		{"gold": 2},
+		"Take 2g and move on"
 	)
 	return event

@@ -69,14 +69,14 @@ const POOL: Array[Dictionary] = [
 	{"id": "d_hp",    "name": "Worn Talisman",  "grade": "D", "desc": "+12% team max HP",       "effects": [{"type": "stat_mult", "stat": "max_hp", "value": 1.12}]},
 	{"id": "d_atk",   "name": "Chipped Fang",   "grade": "D", "desc": "+10% team attack damage","effects": [{"type": "stat_mult", "stat": "attack_damage", "value": 1.10}]},
 	{"id": "d_mag",   "name": "Cracked Orb",    "grade": "D", "desc": "+12% team magic power",  "effects": [{"type": "stat_mult", "stat": "magic_power", "value": 1.12}]},
-	{"id": "d_gold",  "name": "Cracked Coin",   "grade": "D", "desc": "+4 gold each round",     "effects": [{"type": "gold_round", "value": 4}]},
+	{"id": "d_gold",  "name": "Cracked Coin",   "grade": "D", "desc": "+1 gold each round",     "effects": [{"type": "gold_round", "value": 1}]},
 	{"id": "d_aspd",  "name": "Quickstep Charm","grade": "D", "desc": "+10% team attack speed", "effects": [{"type": "stat_mult", "stat": "attack_speed", "value": 1.10}]},
 
 	# ── C — solid ──
 	{"id": "c_hp",    "name": "Iron Charm",     "grade": "C", "desc": "+20% team max HP",        "effects": [{"type": "stat_mult", "stat": "max_hp", "value": 1.20}]},
 	{"id": "c_atk",   "name": "Warblade",       "grade": "C", "desc": "+18% team attack damage", "effects": [{"type": "stat_mult", "stat": "attack_damage", "value": 1.18}]},
 	{"id": "c_std",   "name": "Battle Standard","grade": "C", "desc": "+12% attack damage and +12% max HP", "effects": [{"type": "stat_mult", "stat": "attack_damage", "value": 1.12}, {"type": "stat_mult", "stat": "max_hp", "value": 1.12}]},
-	{"id": "c_ledger","name": "Merchant's Ledger","grade": "C", "desc": "+8 gold each round, and the shop shows 4 heroes", "effects": [{"type": "gold_round", "value": 8}, {"type": "shop_slots", "value": 1}]},
+	{"id": "c_ledger","name": "Merchant's Ledger","grade": "C", "desc": "+2 gold each round, and the shop shows 4 heroes", "effects": [{"type": "gold_round", "value": 2}, {"type": "shop_slots", "value": 1}]},
 	{"id": "c_tide",  "name": "Tidal Charm",    "grade": "C", "desc": "+6% max HP for all; Water units get +20% instead", "effects": [{"type": "element_mult", "stat": "max_hp", "element": UnitBase.Element.WATER, "base": 1.06, "matched": 1.20}]},
 
 	# ── B — build-shaping ──

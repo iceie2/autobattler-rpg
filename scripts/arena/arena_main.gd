@@ -73,10 +73,15 @@ const EXPECTED_SILENT := {
 	# SHEILDOR "Guardian Aura" + VAIL "Far Winds" were design gaps (UI names
 	# with no implementation) until 2026-07-03 — both implemented; the probe
 	# now REQUIRES them to fire, so no entries here.
-	"goblin": {"passive": "no kit yet"}, "goblin_archer": {"passive": "no kit yet"},
-	"goblin_shaman": {"passive": "no kit yet"}, "orc_brute": {"passive": "no kit yet"},
-	"slime": {"passive": "no kit yet"}, "skeleton": {"passive": "no kit yet"},
-	"rat": {"passive": "no kit yet"}, "hill_giant": {"passive": "no passive by design"},
+	# Basic mobs: kit = one signature skill (2026-07-03), no passive by design.
+	"goblin": {"passive": "kit is Shank; no passive by design"},
+	"goblin_archer": {"passive": "kit is Crippling Arrow; no passive by design"},
+	"goblin_shaman": {"passive": "kit is Mend; no passive by design"},
+	"orc_brute": {"passive": "kit is Crushing Blow; no passive by design"},
+	"slime": {"passive": "kit is Corrosive Goo; no passive by design"},
+	"skeleton": {"passive": "kit is Bone Shield; no passive by design"},
+	"rat": {"passive": "kit is Infected Bite; no passive by design"},
+	"hill_giant": {"passive": "no passive by design"},
 	"triarch": {"passive": "phase mechanics live in die(), not passives"},
 	"khagan": {"passive": "phase mechanics live in die(), not passives"},
 	"stat_stealer": {"passive": "kit is skill+ult only"},

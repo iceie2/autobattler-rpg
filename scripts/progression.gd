@@ -13,9 +13,11 @@ var upgrade_levels: Dictionary = {}
 # effect_per_level is used by the game to query the bonus value.
 const UPGRADES: Array = [
 	{
+		# Economy v3 (2026-07-03): 5/level → 1/level — starting gold dropped
+		# 50 → 10 and heroes 30 → 10, so the old +100 max would buy 10 heroes.
 		"key": "starting_gold", "name": "Head Start",
-		"desc": "+5 gold at the start of every run per level.",
-		"effect": "Starting Gold +%d", "max_level": 20, "effect_per_level": 5,
+		"desc": "+1 gold at the start of every run per level.",
+		"effect": "Starting Gold +%d", "max_level": 20, "effect_per_level": 1,
 	},
 	{
 		"key": "team_hp", "name": "Fortified",

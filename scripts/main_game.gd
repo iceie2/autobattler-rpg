@@ -144,6 +144,7 @@ var _round_reward_screen: RoundRewardScreen
 var _pending_round_reward: Dictionary = {}
 var _rolled_rewards: Dictionary = {}   # {difficulty: reward} — rolled once per round, shown in full
 var _locked_elite_code_by_round: Dictionary = {}   # {round: "SS"/"AH"/"G"} — locked once per round (see _generate_wave_spec)
+var _coin_container: Node2D            # gold drops on the field (GoldCoin nodes)
 var _equipment_inventory: EquipmentInventory
 var _equipment_panel: EquipmentPanel
 var _event_panel: EventPanel
@@ -265,6 +266,11 @@ func initialize_game_components() -> void:
 	var skill_effect_container := Node2D.new()
 	skill_effect_container.name = "SkillEffectContainer"
 	battle_grid_node.add_child(skill_effect_container)
+
+	# Gold coins dropped by kills/rewards (2026-07-03 economy — see GoldCoin)
+	_coin_container = Node2D.new()
+	_coin_container.name = "GoldCoinContainer"
+	battle_grid_node.add_child(_coin_container)
 
 	# Create and attach AutoBattleManager
 	auto_battle_manager = AutoBattleManager.new()
@@ -429,7 +435,9 @@ var _current_wave_spec: Array = []  # locked enemy roster for this wave (before 
 var _locked_difficulty: int = -1    # locked difficulty for this wave (-1 = not locked yet)
 
 func start_new_game() -> void:
-	game_state.gold = 50 + Progression.starting_gold_bonus()
+	# Economy v3 (2026-07-03): 50 → 10 starting gold, heroes cost 10 — the whole
+	# economy moved to coin-drop scale (see GoldCoin / gold_drops_for_unit).
+	game_state.gold = 10 + Progression.starting_gold_bonus()
 	game_state.crystals = 0
 	_run_kills = 0
 	max_player_units = 27 + Progression.get_bonus("hero_slots")
@@ -703,6 +711,39 @@ func _all_difficulty_power() -> Dictionary:
 		WaveScaler.Difficulty.HARD:   _estimate_wave_power(WaveScaler.Difficulty.HARD),
 	}
 
+# ── Gold coin drops (economy v3, 2026-07-03) ──────────────────────────────────
+# Kills drop coins where the enemy died; round-win/relic/reward gold rains onto
+# the enemy half at victory. Gold is only credited when a coin ARRIVES at the
+# counter via the round-end spiral vacuum — collection is a visible event now.
+func _spawn_gold_coins(world_pos: Vector2, count: int) -> void:
+	if count <= 0 or not _coin_container:
+		return
+	for i in range(count):
+		var c := GoldCoin.new()
+		c.position = world_pos + Vector2(randf_range(-16.0, 16.0), randf_range(-10.0, 8.0))
+		c.collected.connect(_on_coin_collected)
+		_coin_container.add_child(c)
+
+func _on_coin_collected(v: int) -> void:
+	game_state.add_gold(v)
+	update_ui()
+
+# Reward gold rains across the enemy half of the board (visibly "comes down").
+func _spawn_coin_burst(count: int) -> void:
+	for i in range(count):
+		var cell := Vector2i(randi() % battle_grid.grid_width, randi() % 4)
+		_spawn_gold_coins(battle_grid.grid_to_world(cell), 1)
+
+func _vacuum_all_coins() -> void:
+	if not _coin_container:
+		return
+	var target: Vector2 = gold_label.get_global_rect().get_center()
+	var i := 0
+	for c in _coin_container.get_children():
+		if c is GoldCoin:
+			c.start_vacuum(target, float(i) * 0.05)   # staggered — reads as a wave
+			i += 1
+
 func _on_battle_ended(player_won: bool) -> void:
 	# Strip the battle-only synergy bonuses first so between-round stats/displays
 	# show base values (they recompute fresh next fight).
@@ -719,23 +760,30 @@ func _on_battle_ended(player_won: bool) -> void:
 				game_state.crystals, game_state.battle_round, total_dmg, _run_kills)
 			return
 
-		# Economy pass (2026-07-02): this flat bonus used to be 50g — combined with
-		# per-kill gold and the RoundReward gacha (also cut, see WaveScaler/RoundReward),
-		# that let the roster fill up (and trivialize difficulty) far faster than
-		# intended: ~4 heroes by round 2, ~8 by round 3. Target curve from actual
-		# play: 2nd hero ~wave 3, 3rd ~wave 5, 4th-5th by wave 10 (Easy, no other
-		# spending). Needs a real playtest to confirm/re-tune — this is a first cut.
-		const ROUND_WIN_GOLD := 12
+		# Economy v3 (2026-07-03, per user): gold is now PHYSICAL — kills dropped
+		# coins during the fight, and the round-win bonus + relic income + any
+		# rolled GOLD reward rain onto the field here. Nothing is credited until
+		# the vacuum (below) actually pulls each coin into the counter.
+		const ROUND_WIN_GOLD := 2
 		var relic_gold: int = _relic_inventory.gold_per_round() if _relic_inventory else 0
-		game_state.add_gold(ROUND_WIN_GOLD + relic_gold)
-		if relic_gold > 0:
-			info_label.text = "Victory! +%d gold (+%d from relics)." % [ROUND_WIN_GOLD + relic_gold, relic_gold]
+		_spawn_coin_burst(ROUND_WIN_GOLD + relic_gold)
+		var reward_gold := 0
+		if _pending_round_reward.get("type", RoundReward.Type.NOTHING) == RoundReward.Type.GOLD:
+			reward_gold = int(_pending_round_reward.get("gold", 0))
+			_spawn_coin_burst(reward_gold)
+			_pending_round_reward = {}   # consumed as coins — _grant_round_reward skips it
+		if relic_gold > 0 or reward_gold > 0:
+			info_label.text = "Victory! %dg scattered on the field (+%d relic, +%d reward)." \
+					% [ROUND_WIN_GOLD + relic_gold + reward_gold, relic_gold, reward_gold]
 		else:
-			info_label.text = "Victory! You won the battle. +%dg!" % ROUND_WIN_GOLD
+			info_label.text = "Victory! Collecting the spoils..."
 		clear_enemy_units()
 		_despawn_summons()
 		reset_player_positions()
 		_grant_between_round_bonuses()
+		# THE vacuum: every coin on the field spirals into the gold counter.
+		await get_tree().create_timer(0.7).timeout   # a beat to see the field of gold
+		_vacuum_all_coins()
 	else:
 		# Save crystals earned this run to the persistent wallet
 		Progression.add_crystals(game_state.crystals)
@@ -2003,7 +2051,10 @@ func _on_unit_died(unit) -> void:
 
 	if was_enemy and unit and is_instance_valid(unit):
 		_run_kills += 1
-		game_state.add_gold(WaveScaler.gold_for_unit(unit))
+		# Economy v3: kills drop physical coins on the field (collected by the
+		# round-end vacuum) instead of crediting gold instantly.
+		_spawn_gold_coins(unit.global_position,
+				WaveScaler.gold_drops_for_unit(unit, game_state.battle_round))
 		var crystal_bonus: int = Progression.get_bonus("crystal_drop")
 		var crystals: int = WaveScaler.crystals_for_unit(unit) + crystal_bonus
 		if crystals > 0:
