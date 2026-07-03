@@ -91,7 +91,11 @@ static func gold_drops_for_unit(unit: UnitBase, round: int) -> int:
 		return 4
 	if unit.is_elite:
 		return 2 + (1 if round >= 15 else 0)
-	var chance: float = clampf(0.25 + float(round) * 0.03, 0.25, 0.90)
+	# EV-modeled 2026-07-03: hits the user's early curve (2nd hero ~wave 3,
+	# 3rd ~wave 5, ~5 by wave 8-10 on Easy). Capped at 0.75 to soften the
+	# late-game re-acceleration; the planned TFT-style player-level/team-size
+	# system is the intended structural gate past wave ~12 (user's idea).
+	var chance: float = clampf(0.20 + float(round) * 0.025, 0.20, 0.75)
 	return 1 if randf() < chance else 0
 
 static func crystals_for_unit(unit: UnitBase) -> int:
