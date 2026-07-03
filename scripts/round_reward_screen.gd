@@ -85,7 +85,8 @@ func _build_ui() -> void:
 
 	_panel = Panel.new()
 	_panel.size = Vector2(PANEL_W, PANEL_H)
-	_panel.add_theme_stylebox_override("panel", _flat(Color(0.06, 0.06, 0.11, 0.99), Color(0.83, 0.69, 0.22, 0.6), 2, 16))
+	# UI theme pass 2026-07-04: dobo card panel, gold-tinted for the reward vibe.
+	_panel.add_theme_stylebox_override("panel", UITheme.panel_box_tinted(Color(1.15, 1.05, 0.85)))
 	overlay.add_child(_panel)
 
 	_title_lbl = Label.new()

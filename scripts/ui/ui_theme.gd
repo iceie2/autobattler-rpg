@@ -32,6 +32,13 @@ static func _tex_box(file: String, m: int, cm: int) -> StyleBoxTexture:
 static func panel_box() -> StyleBoxTexture:
 	return _tex_box("panel_dark.png", 26, 10)
 
+# Same panel, tinted (e.g. victory=green / defeat=red game-over screens) —
+# keeps the pack's border art consistent while still signaling game state.
+static func panel_box_tinted(tint: Color) -> StyleBoxTexture:
+	var sb := panel_box()
+	sb.modulate_color = tint
+	return sb
+
 # Section header plate (SET BONUSES / RELICS / BAG ...). Slim: tight content.
 static func header_box() -> StyleBoxTexture:
 	var sb := _tex_box("header_black.png", 20, 12)

@@ -507,8 +507,8 @@ func _build_ui() -> void:
 
 	_panel = Panel.new()
 	_panel.size = Vector2(PANEL_W, PANEL_H)
-	_panel.add_theme_stylebox_override("panel",
-		_flat(Color(0.06, 0.06, 0.11, 0.99), Color(0.50, 0.42, 0.72), 2, 16))
+	# UI theme pass 2026-07-04: dobo card panel instead of flat navy box.
+	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
 	overlay.add_child(_panel)
 
 	# Header

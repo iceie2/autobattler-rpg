@@ -19,8 +19,8 @@ func show_defeat(crystals: int, rounds_survived: int,
 	_title_lbl.text    = "☠  DEFEATED"
 	_title_lbl.add_theme_color_override("font_color", Color(0.95, 0.3, 0.3))
 	_subtitle_lbl.text = "Your heroes have fallen. Gold and heroes are lost."
-	_panel.add_theme_stylebox_override("panel",
-		_flat(Color(0.08, 0.08, 0.13, 0.98), Color(0.55, 0.2, 0.2), 3, 12))
+	# UI theme pass 2026-07-04: dobo card panel, red-tinted for defeat.
+	_panel.add_theme_stylebox_override("panel", UITheme.panel_box_tinted(Color(1.35, 0.75, 0.75)))
 	_crystal_lbl.text = "%d" % crystals
 	_crystal_lbl.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0))
 	_round_lbl.text   = "Rounds Survived:    %d" % rounds_survived
@@ -33,8 +33,8 @@ func show_victory(crystals: int, rounds_cleared: int,
 	_title_lbl.text    = "✦  VICTORY"
 	_title_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.2))
 	_subtitle_lbl.text = "Your heroes have triumphed! Crystals saved for the next run."
-	_panel.add_theme_stylebox_override("panel",
-		_flat(Color(0.07, 0.12, 0.08, 0.98), Color(0.25, 0.65, 0.25), 3, 12))
+	# UI theme pass 2026-07-04: dobo card panel, green-tinted for victory.
+	_panel.add_theme_stylebox_override("panel", UITheme.panel_box_tinted(Color(0.8, 1.25, 0.8)))
 	_crystal_lbl.text = "%d" % crystals
 	_crystal_lbl.add_theme_color_override("font_color", Color(0.35, 1.0, 0.55))
 	_round_lbl.text   = "Rounds Cleared:     %d" % rounds_cleared
@@ -54,8 +54,8 @@ func _build_ui() -> void:
 	_panel = Panel.new()
 	var panel := _panel
 	panel.size = Vector2(560, 460)
-	panel.add_theme_stylebox_override("panel",
-		_flat(Color(0.08, 0.08, 0.13, 0.98), Color(0.55, 0.2, 0.2), 3, 12))
+	# UI theme pass 2026-07-04: dobo card panel (retinted by show_defeat/show_victory).
+	panel.add_theme_stylebox_override("panel", UITheme.panel_box_tinted(Color(1.35, 0.75, 0.75)))
 	overlay.add_child(panel)
 	_center(panel)
 
