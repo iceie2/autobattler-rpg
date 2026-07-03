@@ -26,7 +26,7 @@ extends Node2D
 const ACTION_PANEL_EXPANDED_HEIGHT  := 212.0
 const ACTION_PANEL_COLLAPSED_HEIGHT := 36.0
 var _action_panel_expanded := true
-var _action_panel_style: StyleBoxFlat   # held in GDScript to survive layout changes
+var _action_panel_style: StyleBox   # held in GDScript to survive layout changes (dobo texture panel)
 
 # Team status panel
 @onready var team_stats_panel = $UI/TeamStatsPanel
@@ -309,23 +309,10 @@ func connect_signals() -> void:
 	ready_btn.pressed.connect(_on_ready_pressed)
 	details_close_btn.pressed.connect(_on_details_close_pressed)
 	unit_details_panel.gui_input.connect(_on_details_panel_input)
-	# Cache the action panel's StyleBoxFlat so we can re-apply it after
-	# every offset change (Godot 4 drops theme_override_styles on layout updates)
-	var raw: StyleBox = action_panel.get_theme_stylebox("panel")
-	if raw is StyleBoxFlat:
-		_action_panel_style = (raw as StyleBoxFlat).duplicate()
-	else:
-		_action_panel_style = StyleBoxFlat.new()
-		_action_panel_style.bg_color    = Color(0.12, 0.12, 0.18, 0.95)
-		_action_panel_style.border_color = Color(0.4, 0.4, 0.5, 1)
-		_action_panel_style.border_width_left   = 2
-		_action_panel_style.border_width_right  = 2
-		_action_panel_style.border_width_top    = 2
-		_action_panel_style.border_width_bottom = 2
-		_action_panel_style.corner_radius_top_left     = 4
-		_action_panel_style.corner_radius_top_right    = 4
-		_action_panel_style.corner_radius_bottom_left  = 4
-		_action_panel_style.corner_radius_bottom_right = 4
+	# Cache the action panel's stylebox so we can re-apply it after every offset
+	# change (Godot 4 drops theme_override_styles on layout updates).
+	# UI theme pass 2026-07-03: dobo card panel instead of the old flat navy box.
+	_action_panel_style = UITheme.panel_box()
 
 	action_toggle_btn.pressed.connect(_on_action_toggle)
 	team_toggle_btn.pressed.connect(_on_team_toggle)
@@ -450,8 +437,9 @@ func start_new_game() -> void:
 
 # ── STATE MACHINE & UI UPDATE ──────────────────────────────────────────────
 func update_ui() -> void:
-	gold_label.text = "💰 %d" % game_state.gold
-	crystals_label.text = "💎 %d" % game_state.crystals
+	# Coin/gem art is part of the currency plates (see UITheme) — number only.
+	gold_label.text = "%d" % game_state.gold
+	crystals_label.text = "%d" % game_state.crystals
 	round_label.text = "Round: %d" % game_state.battle_round
 	
 	match game_state.current_state:
@@ -636,14 +624,8 @@ func _build_battle_controls() -> void:
 	_battle_controls.name = "BattleControls"
 	_battle_controls.size = Vector2(360, 48)
 	_battle_controls.position = Vector2((1280 - 360) / 2.0, 66)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.1, 0.16, 0.95)
-	style.border_color = Color(0.4, 0.4, 0.55, 1)
-	style.border_width_left = 2; style.border_width_right = 2
-	style.border_width_top = 2; style.border_width_bottom = 2
-	style.corner_radius_top_left = 6; style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6; style.corner_radius_bottom_right = 6
-	_battle_controls.add_theme_stylebox_override("panel", style)
+	# UI theme pass 2026-07-03: dobo card panel for the floating battle controls.
+	_battle_controls.add_theme_stylebox_override("panel", UITheme.panel_box())
 	_battle_controls.visible = false
 	$UI.add_child(_battle_controls)
 
@@ -676,7 +658,8 @@ func _make_ctrl_btn(text: String, width: float = 90.0) -> Button:
 	b.text = text
 	b.custom_minimum_size = Vector2(width, 36)
 	b.add_theme_font_size_override("font_size", 13)
-	b.add_theme_color_override("font_color", Color(0.9, 0.9, 1.0))
+	# UI theme pass 2026-07-03: dobo-pack button plates (hover=blue, press=purple).
+	UITheme.style_button(b)
 	return b
 
 func _on_pace_changed(is_paused: bool, scale: float) -> void:
@@ -2379,11 +2362,17 @@ func _build_right_panel() -> void:
 	var econ := HBoxContainer.new()
 	econ.add_theme_constant_override("separation", 6)
 	vb.add_child(econ)
+	# UI theme pass 2026-07-03: currency plates from the dobo pack — the coin/gem
+	# art is baked into the plate's left side, so update_ui shows just the number.
 	gold_label.add_theme_font_size_override("font_size", 17)
 	gold_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gold_label.add_theme_stylebox_override("normal", UITheme.coin_label_box())
+	gold_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	gold_label.reparent(econ)
 	crystals_label.add_theme_font_size_override("font_size", 17)
 	crystals_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	crystals_label.add_theme_stylebox_override("normal", UITheme.gem_label_box())
+	crystals_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	crystals_label.reparent(econ)
 
 	var meta_row := HBoxContainer.new()
@@ -2688,12 +2677,9 @@ func _rebuild_inventory_grid() -> void:
 
 # ── SIDEBAR WIDGET HELPERS ─────────────────────────────────────────────────
 func _sb_panel() -> PanelContainer:
+	# UI theme pass 2026-07-03: dobo-pack card panel instead of flat navy box.
 	var p := PanelContainer.new()
-	var s := StyleBoxFlat.new()
-	s.bg_color     = _PANEL_DARK
-	s.border_color = _GOLD_DIM
-	s.set_border_width_all(1)
-	p.add_theme_stylebox_override("panel", s)
+	p.add_theme_stylebox_override("panel", UITheme.panel_box())
 	return p
 
 
@@ -2713,6 +2699,8 @@ func _sb_heading(text: String) -> Label:
 	lbl.add_theme_font_size_override("font_size", 11)
 	lbl.add_theme_color_override("font_color", _GOLD_COL)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# UI theme pass 2026-07-03: header plate from the dobo pack behind the text.
+	lbl.add_theme_stylebox_override("normal", UITheme.header_box())
 	return lbl
 
 
@@ -2907,14 +2895,8 @@ func _sb_accordion(title: String, body: Control, open: bool = false) -> Button:
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.add_theme_font_size_override("font_size", 12)
 	btn.add_theme_color_override("font_color", _GOLD_COL)
-	var s := StyleBoxFlat.new()
-	s.bg_color     = _PANEL_MID
-	s.border_color = _GOLD_DIM
-	s.set_border_width_all(1)
-	s.corner_radius_top_left     = 3
-	s.corner_radius_top_right    = 3
-	s.corner_radius_bottom_left  = 3
-	s.corner_radius_bottom_right = 3
+	# UI theme pass 2026-07-03: dobo header plate for section accordions.
+	var s := UITheme.header_box()
 	for state in ["normal", "hover", "pressed", "focus"]:
 		btn.add_theme_stylebox_override(state, s)
 	btn.pressed.connect(func():
