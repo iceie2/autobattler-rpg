@@ -304,6 +304,23 @@ const ELITE_POOL: Array[String] = ["G", "SS", "AH"]   # Hill Giant, Stat Stealer
 static func is_elite_round(round: int) -> bool:
 	return round in ELITE_ROUNDS
 
+# Level for a non-boss/non-elite enemy in a given round. Extracted from
+# main_game.gd (which now delegates here) so the arena harness shares the exact
+# live-game curve. is_elite_slot = the legacy "last unit of a procedural wave
+# gets elite-ish level" flag, NOT the round-5/15/25 elite tier.
+static func enemy_level_for_round(round: int, is_elite_slot: bool) -> int:
+	if is_elite_slot and round % 5 == 0:
+		return mini(round / 5 + 2, 8)
+	if is_elite_slot and round >= 4:
+		return mini(round / 2, 5)
+	if round <= 2: return 1
+	if round <= 10:
+		return 1 + randi() % mini(round / 2, 3)
+	# Round 11+ (procedural enemy heroes): level keeps climbing instead of
+	# plateauing — ~3-5 at round 11 up to ~13-15 by round 30 (2026-07-03 pass).
+	var floor_lvl: int = 3 + (round - 10) / 2
+	return floor_lvl + randi() % 3
+
 # How much to bias a procedural enemy hero's stat rolls (see
 # UnitFactory.generate_recruit_rolls) toward higher grades as the run goes on.
 # 0 through round 10 (matches the old flat behaviour); climbs to 0.5 by round

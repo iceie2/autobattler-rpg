@@ -1698,21 +1698,10 @@ func spawn_random_player_unit() -> void:
 		unit.queue_free()
 
 # Enemy code (WaveData/formation) → EnemyFactory type string. Empty = unknown.
+# Single source of truth lives in EnemyFactory.CODE_TO_TYPE (shared with the
+# arena harness) — register new enemies THERE, not here.
 func _code_to_type(code: String) -> String:
-	match code:
-		"M":  return "goblin"
-		"A":  return "goblin_archer"
-		"S":  return "goblin_shaman"
-		"B":  return "orc_brute"
-		"G":  return "hill_giant"
-		"SL": return "slime"
-		"SK": return "skeleton"
-		"R":  return "rat"
-		"TRI": return "triarch"
-		"SS": return "stat_stealer"
-		"AH": return "ant_hill"
-		"KHA": return "khagan"
-		_:    return ""
+	return EnemyFactory.CODE_TO_TYPE.get(code, "")
 
 func _generate_wave_spec(difficulty: int) -> Array:
 	# Generate a wave specification (not instantiated units) for the given difficulty.
@@ -1800,19 +1789,9 @@ func _create_enemy_for_entry(entry: Dictionary) -> VisualUnit:
 		var bias: float = WaveScaler.enemy_roll_bias(game_state.battle_round)
 		UnitFactory.apply_recruit_rolls(unit, UnitFactory.generate_recruit_rolls(bias))
 	else:
-		match type:
-			"goblin": unit = EnemyFactory.create_goblin()
-			"goblin_archer": unit = EnemyFactory.create_goblin_archer()
-			"goblin_shaman": unit = EnemyFactory.create_goblin_shaman()
-			"orc_brute": unit = EnemyFactory.create_orc_brute()
-			"hill_giant": unit = EnemyFactory.create_hill_giant()
-			"slime": unit = EnemyFactory.create_slime()
-			"skeleton": unit = EnemyFactory.create_skeleton()
-			"rat": unit = EnemyFactory.create_rat()
-			"triarch": unit = EnemyFactory.create_triarch()
-			"stat_stealer": unit = EnemyFactory.create_stat_stealer()
-			"ant_hill": unit = EnemyFactory.create_ant_hill()
-			"khagan": unit = EnemyFactory.create_khagan()
+		# Factory dispatch lives in EnemyFactory.create_by_type (shared with the
+		# arena harness) — register new enemies there.
+		unit = EnemyFactory.create_by_type(type)
 	if unit and lvl > 1:
 		unit.set_level(lvl)
 	return unit
@@ -1889,20 +1868,10 @@ func _place_enemy(unit: VisualUnit, roll_item: bool = true) -> void:
 	unit.can_be_dragged = false
 	_place_at(unit, spawn_pos, roll_item)
 
+# Curve lives in WaveScaler.enemy_level_for_round (shared with the arena
+# harness) — tune it THERE, not here.
 func _enemy_level_for_round(round: int, is_elite: bool) -> int:
-	if is_elite and round % 5 == 0:
-		return min(round / 5 + 2, 8)
-	if is_elite and round >= 4:
-		return min(round / 2, 5)
-	if round <= 2: return 1
-	if round <= 10:
-		return 1 + randi() % min(round / 2, 3)
-	# Round 11+ (procedural enemy heroes): the old formula capped at level 4
-	# forever past round 6, so a round-30 enemy was no stronger via level than a
-	# round-11 one — only stat-roll grade (see enemy_roll_bias) would differ.
-	# Now the level floor keeps climbing too: ~3 at round 11 up to ~13-15 by round 30.
-	var floor_lvl: int = 3 + (round - 10) / 2
-	return floor_lvl + randi() % 3
+	return WaveScaler.enemy_level_for_round(round, is_elite)
 
 func find_empty_player_slot() -> Vector2i:
 	if player_units.size() >= max_player_units:

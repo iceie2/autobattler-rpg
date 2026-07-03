@@ -1,6 +1,39 @@
 extends Node
 class_name EnemyFactory
 
+# ── Code → factory dispatch (single source of truth) ─────────────────────────
+# Wave codes (WaveScaler formations) and type strings (wave specs) both resolve
+# here. main_game.gd and the arena harness (scripts/arena/) share this — when
+# adding a new enemy: add its factory below, then register it in BOTH dicts
+# here, plus WaveScaler's CODE_ROLE/CODE_IS_LARGE/UNIT_POWER.
+const CODE_TO_TYPE := {
+	"M": "goblin", "A": "goblin_archer", "S": "goblin_shaman", "B": "orc_brute",
+	"G": "hill_giant", "SL": "slime", "SK": "skeleton", "R": "rat",
+	"TRI": "triarch", "SS": "stat_stealer", "AH": "ant_hill", "KHA": "khagan",
+}
+
+# Returns a NEW level-1 unit for a wave-code or type string; caller applies
+# set_level() afterwards (matches main_game's flow — never level inside the
+# factory, phase-boss snapshots depend on external leveling; see Triarch notes).
+static func create_by_type(type: String) -> VisualUnit:
+	match type:
+		"goblin":        return create_goblin()
+		"goblin_archer": return create_goblin_archer()
+		"goblin_shaman": return create_goblin_shaman()
+		"orc_brute":     return create_orc_brute()
+		"hill_giant":    return create_hill_giant()
+		"slime":         return create_slime()
+		"skeleton":      return create_skeleton()
+		"rat":           return create_rat()
+		"triarch":       return create_triarch()
+		"stat_stealer":  return create_stat_stealer()
+		"ant_hill":      return create_ant_hill()
+		"khagan":        return create_khagan()
+	return null
+
+static func create_by_code(code: String) -> VisualUnit:
+	return create_by_type(CODE_TO_TYPE.get(code, ""))
+
 # ── Goblin (weak melee) ───────────────────────────────────────────────────────
 static func create_goblin(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
