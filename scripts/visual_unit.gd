@@ -6,8 +6,11 @@ class_name VisualUnit
 
 # Sprite scale-up — LPC character art sits inside a 64px frame with wide
 # transparent margins, so we enlarge it to fill the 80px grid cell properly.
-const SPRITE_SCALE_1X := 1.7
-const SPRITE_SCALE_2X := 3.4
+const SPRITE_SCALE_1X := 1.5
+const SPRITE_SCALE_2X := 3.0
+# AI/plain sprites for 2×2 units (Hill Giant etc.) render this much taller than a
+# 1-cell unit so they actually fill their 2×2 block.
+const SPRITE_RENDER_H_2X_MULT := 1.9
 
 # AI-generated hero sprites (static Sprite2D, bypasses LPC system)
 const HERO_SPRITE_PATHS: Dictionary = {
@@ -33,6 +36,10 @@ const HERO_SPRITE_PATHS: Dictionary = {
 	UnitBase.UnitClass.SHEILDOR:   "res://assets/using/sheildor.png",
 	UnitBase.UnitClass.LORDEE:     "res://assets/using/lordee.png",
 	UnitBase.UnitClass.VAIL:       "res://assets/using/vail.png",
+	UnitBase.UnitClass.COAL:       "res://assets/using/coal.png",
+	UnitBase.UnitClass.JUNE:       "res://assets/using/june.png",
+	UnitBase.UnitClass.REED:       "res://assets/using/reed.png",
+	UnitBase.UnitClass.NECRO:      "res://assets/using/necro.png",
 }
 
 # AI-generated monster sprites keyed by sprite_folder string
@@ -45,11 +52,25 @@ const MONSTER_SPRITE_PATHS: Dictionary = {
 	"rat":           "res://assets/using/rat.png",
 	"orc_brute":     "res://assets/using/orc_brute.png",
 	"hill_giant":    "res://assets/using/hill_giant.png",
+	"zombie_minion": "res://assets/using/zombie_minion.png",
+	"bat_minion":    "res://assets/using/bat_minion.png",
+	"ant":           "res://assets/using/ant.png",
+	"ant_hill":      "res://assets/using/ant_hill.png",
 }
 # All hero sprites are normalised to this rendered height (px) regardless of source resolution.
 # 166 = what 128px art looked like at the old 1.3× scale — keeps Nemi/Bloodhound unchanged.
-const HERO_SPRITE_RENDER_H := 130.0
+const HERO_SPRITE_RENDER_H := 100.0
 var sprite_variant: int = -1  # set by factory; -1 = pick randomly in _ready
+
+# Looping status-effect icons (small sprite sheets shown above the unit's head
+# while a status timer is active). "size" is the on-screen display size in
+# pixels — set it per-status so a big dramatic effect and a subtle one don't
+# have to share the same scale. Add new entries here as sheets arrive, no other
+# code changes needed.
+const STATUS_ICON_SHEETS := {
+	"stun": {"path": "res://assets/using/status_icons/stunned.png", "frame_w": 32, "frame_h": 32, "frames": 3, "size": Vector2(60, 60)},
+}
+var _status_icons: Dictionary = {}   # status_key -> StatusIcon node (lazily created)
 
 # Drag and drop
 var is_dragging: bool = false
@@ -65,6 +86,7 @@ var health_bar: HealthBar
 var animated_sprite: LPCAnimatedSprite2D
 var plain_sprite: Sprite2D   # used for AI-generated hero sprites instead of LPC
 var element_glow: Sprite2D
+var held_item_badge: Sprite2D   # small weapon icon shown while an enemy wields loot
 
 # Animation state
 var last_move_direction: Vector2 = Vector2.ZERO
@@ -76,6 +98,7 @@ var fill_color: Color = Color(1, 1, 1, 1)
 # applied to the sprite child (or the _draw transform) — never the unit root, which
 # the battle manager owns for grid movement.
 var _anim_time: float = 0.0
+var _last_ult_charge_drawn: int = -1
 var _anim_phase: float = 0.0                 # per-unit desync so idles don't sync up
 var _base_sprite_scale: Vector2 = Vector2.ONE  # the SPRITE_SCALE set at setup
 var _sprite_base_offset: Vector2 = Vector2.ZERO  # bottom-anchors plain sprites
@@ -155,6 +178,11 @@ func _ready():
 
 	health_bar = HealthBar.new()
 	health_bar.placement = HealthBar.BarPlacement.BOTTOM if is_player_unit else HealthBar.BarPlacement.TOP
+	# Scale the bar with the unit's footprint so a 2×2 boss gets a bar wide enough
+	# to span its block, floated higher to clear the taller sprite. (1×1 keeps the
+	# defaults, so normal units are unchanged.)
+	health_bar.bar_width = 70.0 + (cell_size - 1) * 120.0   # 70 / 190 / …
+	health_bar.offset_y  = 60.0 + (cell_size - 1) * 35.0    # 60 / 95 / …
 	add_child(health_bar)
 	health_bar.update_hp(current_hp, max_hp)
 	health_bar.update_mp(current_mana, max_mana)
@@ -181,16 +209,37 @@ func _setup_plain_sprite(path: String) -> void:
 	s.centered = true
 	s.z_index = 1
 	s.flip_h = not is_player_unit
-	# Scale so every hero renders at the same height regardless of source resolution.
-	var scale_val: float = HERO_SPRITE_RENDER_H / float(s.texture.get_height())
+	# Scale so every unit renders at a consistent height regardless of source
+	# resolution; larger footprints (2×2 bosses) render proportionally bigger.
+	var render_h: float = HERO_SPRITE_RENDER_H * (SPRITE_RENDER_H_2X_MULT if cell_size >= 2 else 1.0)
+	var scale_val: float = render_h / float(s.texture.get_height())
 	s.scale = Vector2(scale_val, scale_val)
-	var cell_half: float = 55.0
-	var tex_half: float  = HERO_SPRITE_RENDER_H * 0.5
-	_sprite_base_offset = Vector2(0.0, cell_half - tex_half)
+	# Bottom-anchor within the unit's footprint (the node sits at the footprint
+	# centre — a 2×2 unit is centred on its block, so its half-height is 2 cells).
+	var anchor_half: float = 55.0 * cell_size
+	var tex_half: float  = render_h * 0.5
+	_sprite_base_offset = Vector2(0.0, anchor_half - tex_half)
 	s.position = _sprite_base_offset
 	add_child(s)
 	plain_sprite = s
 	_base_sprite_scale = s.scale
+	if cell_size >= 2:
+		shape_size = 100.0   # bigger click/hover + held-item-badge radius for big units
+
+# Tear down and rebuild whichever sprite node is active, re-reading unit_class /
+# the "sprite_folder" meta. Used by the Triple-Threat boss so its silhouette
+# actually changes when it transforms phase (unit_class drives the class→folder
+# lookup in _setup_lpc_sprite/get_class_sprite_folder).
+func rebuild_sprite() -> void:
+	if animated_sprite and is_instance_valid(animated_sprite):
+		remove_child(animated_sprite)
+		animated_sprite.free()
+		animated_sprite = null
+	if plain_sprite and is_instance_valid(plain_sprite):
+		remove_child(plain_sprite)
+		plain_sprite.free()
+		plain_sprite = null
+	_setup_lpc_sprite()
 
 func _setup_lpc_sprite() -> void:
 	if unit_class in HERO_SPRITE_PATHS:
@@ -234,6 +283,26 @@ func _setup_lpc_sprite() -> void:
 		if cell_size == 2:
 			shape_size = 80.0
 
+
+# Small weapon icon shown above an enemy that spawned wielding a dropped item —
+# a visible tell of what you'll loot if you kill it.
+func show_held_item_icon(tex: Texture2D, rarity_color: Color) -> void:
+	if not held_item_badge:
+		held_item_badge = Sprite2D.new()
+		held_item_badge.z_index = 6
+		held_item_badge.position = Vector2(shape_size * 0.55, -shape_size * 0.75)
+		held_item_badge.scale = Vector2(0.4, 0.4)
+		add_child(held_item_badge)
+
+		var ring := Sprite2D.new()
+		ring.texture = _create_glow_texture()
+		ring.modulate = rarity_color
+		ring.modulate.a = 0.8
+		ring.scale = Vector2(0.55, 0.55)
+		ring.z_index = 5
+		held_item_badge.add_child(ring)
+	held_item_badge.texture = tex
+	held_item_badge.visible = true
 
 func _on_health_changed(current: int, maximum: int) -> void:
 	if health_bar:
@@ -320,8 +389,46 @@ func play_hit(dir: Vector2) -> void:
 func die() -> void:
 	if _is_dying:
 		return
+	# Khagan's mind-controlled puppet (a player's own hero, temporarily fighting
+	# for the enemy side): a lethal hit clamps to 1 HP and breaks the possession
+	# instead of really dying — "fight your own unit till its 1 hp." Checked
+	# FIRST since a single big hit can overshoot straight past 1 to a negative
+	# number, so this can't be a polling threshold check — it must intercept
+	# every death path the same way Phoenix Pact/Triarch do below.
+	if has_meta("khagan_puppet") and current_hp <= 0:
+		current_hp = 1
+		current_shield = 0
+		health_changed.emit(current_hp, max_hp)
+		if battle_manager and battle_manager.has_method("end_khagan_possession"):
+			battle_manager.end_khagan_possession(self)
+		return
+	# Triple-Threat boss: transform into its next attack-type phase instead of
+	# dying, until the final phase is actually defeated (see EnemyFactory).
+	if has_meta("triarch_phase") and current_hp <= 0 \
+			and EnemyFactory.advance_triarch_phase(self):
+		return
+	# Khagan (mount-swap boss): phase 1→2 transforms in place (same mechanism as
+	# Triarch above); phase 2's "death" instead channels into a captured hero
+	# (see EnemyFactory.advance_khagan_phase) and then Khagan's own body really
+	# does die — the puppet now carries the fight.
+	if has_meta("khagan_phase") and current_hp <= 0 \
+			and EnemyFactory.advance_khagan_phase(self):
+		return
+	# Phoenix Pact relic: cheat death once per battle instead of dying. Mirrors
+	# UnitBase.die() (that base version is shadowed by this override, so the
+	# revive check must live here too).
+	if relic_revive_pct > 0.0 and not relic_revive_used and current_hp <= 0:
+		relic_revive_used = true
+		current_hp = maxi(1, int(round(max_hp * relic_revive_pct)))
+		current_shield = 0
+		health_changed.emit(current_hp, max_hp)
+		return
 	_is_dying = true
 	can_be_dragged = false
+	# Stat Stealer: return any stats it's currently holding stolen — only on a
+	# REAL death (this point), not the phase-transform / relic-revive returns above.
+	if battle_manager and battle_manager.has_method("restore_stat_theft"):
+		battle_manager.restore_stat_theft(self)
 	died.emit()                       # main_game removes us from arrays + grid now
 	if health_bar:
 		health_bar.visible = false
@@ -390,8 +497,36 @@ func _process(delta: float) -> void:
 		_breathe_scale = Vector2(1.0, 1.0 + sin(t + 1.0) * 0.015)
 	_apply_animation()
 	_update_animation()
-	if health_bar and ultimate_charge_max > 0:
+	_update_status_icons()
+	if health_bar and ultimate_charge_max > 0 and ultimate_charge != _last_ult_charge_drawn:
+		_last_ult_charge_drawn = ultimate_charge
 		health_bar.update_ult(ultimate_charge, ultimate_charge_max)
+
+
+# Shows/hides each registered status icon based on its matching UnitBase timer.
+# Add a new "key": timer_field pair here whenever a new status sheet is wired up.
+func _update_status_icons() -> void:
+	_set_status_icon_active("stun", stun_time > 0.0)
+
+func _set_status_icon_active(key: String, active: bool) -> void:
+	if not active:
+		if _status_icons.has(key):
+			_status_icons[key].visible = false
+		return
+
+	var icon: StatusIcon = _status_icons.get(key)
+	if not icon:
+		var meta: Dictionary = STATUS_ICON_SHEETS.get(key, {})
+		var tex: Texture2D = load(meta.get("path", "")) as Texture2D
+		if not tex:
+			return
+		icon = StatusIcon.new()
+		add_child(icon)
+		icon.setup(tex, meta.get("frame_w", 32), meta.get("frame_h", 32),
+			meta.get("frames", 1), meta.get("size", Vector2(28, 28)))
+		icon.position = Vector2(0, -shape_size * 0.9)
+		_status_icons[key] = icon
+	icon.visible = true
 
 
 func _update_animation() -> void:
@@ -475,6 +610,8 @@ func _draw():
 		UnitBase.UnitClass.REED:          _draw_polygon(6, color, outline)
 		UnitBase.UnitClass.VAIL:          _draw_polygon(6, color, outline)
 		UnitBase.UnitClass.SPORE:         _draw_circle(color, outline)
+		# ── Elites (enemy-only, placeholder shape until dedicated art lands) ──
+		UnitBase.UnitClass.STAT_STEALER:  _draw_star(color, outline)
 		_:                                _draw_square(color, outline)
 
 

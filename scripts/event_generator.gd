@@ -25,6 +25,13 @@ static func _get_event_pool(round: int) -> Array:
 	pool.append(_create_sacrifice_event())
 	pool.append(_create_gamble_event(round))
 
+	# 2026-07-03 content pass: pool was only 8 entries, so the same handful of
+	# events repeated constantly — added to add variety/flavor (see balance_journal.md).
+	pool.append(_create_duel_event(round))
+	pool.append(_create_echo_curse())
+	pool.append(_create_blacksmith_blessing(round))
+	pool.append(_create_desperate_wager(round))
+
 	return pool
 
 static func _create_gold_blessing(round: int) -> EventBlessing:
@@ -144,5 +151,64 @@ static func _create_gamble_event(round: int) -> EventBlessing:
 		"Skip",
 		{"gold": 10},
 		"Take 10g and move on"
+	)
+	return event
+
+static func _create_duel_event(round: int) -> EventBlessing:
+	var event = EventBlessing.new("Old Rival's Duel", "A former ally challenges your team to a friendly duel", EventBlessing.EventType.NEUTRAL)
+	event.add_choice(
+		"Accept (test your mettle)",
+		{"team_dmg_mult": 1.1, "team_spd_mult": 1.1},
+		"All heroes deal 10% more damage and act 10% faster"
+	)
+	var decline_gold = 15 + round * 4
+	event.add_choice(
+		"Decline politely",
+		{"gold": decline_gold},
+		"Gain %dg instead" % decline_gold
+	)
+	return event
+
+static func _create_echo_curse() -> EventBlessing:
+	var event = EventBlessing.new("Cave of Echoes", "Strange echoes sap your team's nerve", EventBlessing.EventType.CURSE)
+	event.add_choice(
+		"Push forward and loot the cave",
+		{"team_def_mult": 0.9, "gold": 25},
+		"All heroes take 10% more damage, but gain 25g"
+	)
+	event.add_choice(
+		"Retreat and regroup",
+		{"gold": 0},
+		"Nothing happens"
+	)
+	return event
+
+static func _create_blacksmith_blessing(round: int) -> EventBlessing:
+	var event = EventBlessing.new("Blacksmith's Offer", "A traveling blacksmith offers to reinforce your gear", EventBlessing.EventType.BLESSING)
+	event.add_choice(
+		"Reinforce armor",
+		{"max_hp_mult": 1.15},
+		"All heroes gain 15% max HP"
+	)
+	var save_gold = 20 + round * 5
+	event.add_choice(
+		"Save your coin",
+		{"gold": save_gold},
+		"Gain %dg instead" % save_gold
+	)
+	return event
+
+static func _create_desperate_wager(round: int) -> EventBlessing:
+	var event = EventBlessing.new("Desperate Wager", "A stranger offers one final, bigger bet", EventBlessing.EventType.NEUTRAL)
+	var high_gold = 100 + round * 20
+	event.add_choice(
+		"All in (50/50)",
+		{"gold_if_win": high_gold, "gold_if_lose": -60},
+		"50%% chance for %dg, 50%% chance to lose 60g" % high_gold
+	)
+	event.add_choice(
+		"Play it safe",
+		{"gold": 15},
+		"Take 15g and move on"
 	)
 	return event

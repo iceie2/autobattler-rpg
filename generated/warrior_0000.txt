@@ -1,0 +1,9 @@
+Class: warrior
+Body: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/body/male/dark2.png
+Hair: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/hair/female/shoulderr/white-blonde.png
+Head: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/head/caps/lizardMale_shortfin_blue.png
+Facial: None
+Armor: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/torso/shirts/pirate_shirt/pirate_shirt_black.png
+Weapon_R: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/weapons/oversize/right hand/female/glowsword_blue_female.png
+Weapon_L: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/weapons/left hand/either/arrow.png
+Offhand: None

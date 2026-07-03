@@ -1,0 +1,9 @@
+Class: monk
+Body: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/body/female/ears/bigears_light.png
+Hair: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/hair/male/male_single/Male_Hair_single_darkblond.png
+Head: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/head/helms/female/Female_legion2helmet_steel.png
+Facial: None
+Armor: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/torso/shirts/pregnant/clothes-pregnant_tanktop_yellow.png
+Weapon_R: None
+Weapon_L: None
+Offhand: None

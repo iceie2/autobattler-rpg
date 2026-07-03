@@ -63,29 +63,55 @@ func remove_from_hero(item: EquipmentItem, unit: UnitBase) -> bool:
 func get_hero_equipment(unit: UnitBase) -> Array[EquipmentItem]:
 	var unit_id = unit.unit_name + "_" + str(unit.get_instance_id())
 	if hero_equipment.has(unit_id):
-		return hero_equipment[unit_id]
+		var result: Array[EquipmentItem] = []
+		result.assign(hero_equipment[unit_id])
+		return result
 	return []
 
 func _apply_equipment_bonuses(unit: UnitBase, item: EquipmentItem) -> void:
-	# Apply stat bonuses
-	unit.max_hp += item.stat_bonus.get("hp", 0)
-	unit.current_hp = unit.max_hp
-	unit.max_mana += item.stat_bonus.get("mana", 0)
-	unit.current_mana = unit.max_mana
-	unit.strength += item.stat_bonus.get("str", 0)
-	unit.dexterity += item.stat_bonus.get("dex", 0)
-	unit.intelligence += item.stat_bonus.get("int", 0)
+	var hp_bonus: int = item.stat_bonus.get("hp", 0)
+	unit.max_hp += hp_bonus
+	unit.current_hp = mini(unit.current_hp + hp_bonus, unit.max_hp)
+
+	var mana_bonus: int = item.stat_bonus.get("mana", 0)
+	unit.max_mana += mana_bonus
+	unit.current_mana = mini(unit.current_mana + mana_bonus, unit.max_mana)
+
+	unit.attack_damage += item.stat_bonus.get("atk", 0)
+	unit.magic_power += item.stat_bonus.get("magic", 0)
 	unit.resistance += item.stat_bonus.get("res", 0)
-	unit.spirit += item.stat_bonus.get("spr", 0)
+	unit.attack_speed += item.stat_bonus.get("aspd", 0.0)
+	unit.hp_regen += item.stat_bonus.get("hpregen", 0.0)
+	unit.mana_regen += item.stat_bonus.get("manaregen", 0.0)
+
+	if item.passive_effect != "":
+		var existing: float = unit.equipment_passives.get(item.passive_effect, 0.0)
+		unit.equipment_passives[item.passive_effect] = maxf(existing, item.effect_value)
 
 func _remove_equipment_bonuses(unit: UnitBase, item: EquipmentItem) -> void:
-	# Remove stat bonuses
-	unit.max_hp -= item.stat_bonus.get("hp", 0)
+	var hp_bonus: int = item.stat_bonus.get("hp", 0)
+	unit.max_hp -= hp_bonus
 	unit.current_hp = mini(unit.current_hp, unit.max_hp)
-	unit.max_mana -= item.stat_bonus.get("mana", 0)
+
+	var mana_bonus: int = item.stat_bonus.get("mana", 0)
+	unit.max_mana -= mana_bonus
 	unit.current_mana = mini(unit.current_mana, unit.max_mana)
-	unit.strength -= item.stat_bonus.get("str", 0)
-	unit.dexterity -= item.stat_bonus.get("dex", 0)
-	unit.intelligence -= item.stat_bonus.get("int", 0)
+
+	unit.attack_damage -= item.stat_bonus.get("atk", 0)
+	unit.magic_power -= item.stat_bonus.get("magic", 0)
 	unit.resistance -= item.stat_bonus.get("res", 0)
-	unit.spirit -= item.stat_bonus.get("spr", 0)
+	unit.attack_speed -= item.stat_bonus.get("aspd", 0.0)
+	unit.hp_regen -= item.stat_bonus.get("hpregen", 0.0)
+	unit.mana_regen -= item.stat_bonus.get("manaregen", 0.0)
+
+	_rebuild_passives(unit)
+
+func _rebuild_passives(unit: UnitBase) -> void:
+	unit.equipment_passives.clear()
+	var unit_id: String = unit.unit_name + "_" + str(unit.get_instance_id())
+	if not hero_equipment.has(unit_id):
+		return
+	for equipped_item in hero_equipment[unit_id]:
+		if equipped_item.passive_effect != "":
+			var existing: float = unit.equipment_passives.get(equipped_item.passive_effect, 0.0)
+			unit.equipment_passives[equipped_item.passive_effect] = maxf(existing, equipped_item.effect_value)

@@ -50,7 +50,11 @@ enum UnitClass {
 	SPORE,
 	# ── Summons (not recruitable) ──
 	ZOMBIE,
-	BAT
+	BAT,
+	ANT,
+	# ── Elites (enemy-only, not recruitable) ──
+	STAT_STEALER,
+	ANT_HILL
 }
 
 # Trait classes for synergies (Tank, Mage, Fighter, Ranged, Healer, Summoner)
@@ -76,12 +80,20 @@ enum TraitClass {
 @export var max_mana: int = 50
 @export var current_mana: int = 50
 
-# Attributes
-@export var strength: int = 10
-@export var dexterity: int = 10
-@export var intelligence: int = 10
-@export var resistance: int = 10
-@export var spirit: int = 5    # drives HP regen (SPR+STR/10) and MP regen (SPR+INT/5)
+# Combat stats — each fully independent (TFT-style), set by class base + one-time
+# recruit roll + flat level-up perk picks. Nothing here is derived from anything else.
+@export var attack_damage: int = 15
+@export var magic_power: int = 10
+@export var resistance: int = 10     # flat armor — mitigates all incoming damage
+@export var attack_speed: float = 0.7   # base attacks per second (before speed_modifier())
+@export var hp_regen: float = 0.5    # HP restored per second
+@export var mana_regen: float = 1.0  # mana restored per second
+# Crit is a real combat stat (not the Headhunter/Shauna hit-counter tricks below,
+# which are separate flavor mechanics) but baseline is 0% chance for everyone —
+# nothing grants crit_chance yet (future gear/relics will). crit_damage still
+# carries a real default so the multiplier is correct the moment something does.
+@export var crit_chance: float = 0.0     # 0.0–1.0 chance to crit on a basic attack
+@export var crit_damage: float = 2.0     # damage multiplier on a crit (2.0 = double)
 
 # Movement and Combat
 @export var movement_speed: int = 3
@@ -118,14 +130,22 @@ var equipped_weapon = null
 var equipped_armor = null
 var equipped_accessory = null
 
+# Items an enemy spawned wielding (stat bonuses already baked directly into this
+# unit's stats at spawn time — see main_game.gd's _roll_held_item). Dropped as-is
+# on death so what you see mid-fight is exactly what you loot. Player heroes use
+# EquipmentInventory as the source of truth instead of this array.
+var held_items: Array = []
+
 # XP / levelling
-var current_xp: int = 0
-var xp_to_level: int = 200
+var current_xp: float = 0.0
+var xp_to_level: float = 100.0
 var perk_points: int = 0   # queued bonus stat choices shown in level-up screen between rounds
 
 # Economy (set on enemy units; ignored for player units)
 var gold_reward: int = 0
 var crystal_reward: int = 0
+var xp_reward: int = 0
+var equipment_passives: Dictionary = {}  # {"PassiveName": effect_value} — built by EquipmentInventory
 
 # Multi-cell size (1 = normal 1×1, 2 = 2×2 boss)
 var cell_size: int = 1
@@ -133,6 +153,20 @@ var cell_size: int = 1
 # Gacha rolls applied at recruit time
 var recruit_rolls: Dictionary = {}   # {stat_key: {flat, growth}}
 var recruit_grade: String     = ""   # "S" "A" "B" "C" "D"
+
+# ── Per-level stat growth (additive, not %) ───────────────────────────────────
+# Every level, each stat gains growth_base[stat] + growth_bonus[stat]:
+#   growth_base  — fixed per class (see UnitFactory.CLASS_GROWTH_PER_LEVEL), same
+#                  for every unit of that class, set once in UnitFactory.create_unit.
+#   growth_bonus — personalized, rolled once at recruit time (see
+#                  UnitFactory.apply_recruit_rolls). Enemies/summons never roll
+#                  one, so it's just an empty dict (0 bonus) for them.
+# Example: base attack 18, growth_base 3, growth_bonus 4 → level up: 18 → 25.
+var growth_base: Dictionary  = {}    # {stat_key: flat amount per level}
+var growth_bonus: Dictionary = {}    # {stat_key: flat amount per level}
+
+func stat_growth(stat_key: String) -> float:
+	return growth_base.get(stat_key, 0.0) + growth_bonus.get(stat_key, 0.0)
 
 # ── Shield system ─────────────────────────────────────────────────────────────
 var current_shield: int = 0   # absorbs damage before HP; resets at round end
@@ -156,6 +190,7 @@ var skill_damage_multiplier: float = 1.5
 var skill_range: int = 2
 var skill_cooldown_max: int = 4   # seconds between casts (see skill_cd_time)
 var skill_mana_cost: int = 0      # 0 = free (legacy classes); >0 = costs mana
+var skill_description: String = ""
 
 # Ultimate (charged by dealing and taking damage)
 var ultimate_name: String = ""
@@ -226,37 +261,70 @@ var meltdown_time: float = 0.0     # Coal Meltdown: punches explode
 var combat_healing_done: int = 0   # Cross Judgment: tracks total healing this battle
 var revive_used: bool = false      # Doc Field Surgery: once per battle
 
+# ── Relic modifiers (set by RelicInventory when relics are applied; read by the
+# combat code below and by AutoBattleManager). Defaults are all neutral so a unit
+# with no relics behaves exactly as before. Persist across the run except the
+# per-battle flags, which AutoBattleManager._init_unit_timers resets. ──
+var relic_lifesteal: float = 0.0         # heal this fraction of damage dealt
+var relic_outgoing_mult: float = 1.0     # multiply all outgoing damage
+var relic_dmg_taken_mult: float = 1.0    # multiply all incoming damage
+var relic_vs_boss_mult: float = 1.0      # extra outgoing multiplier vs bosses
+var relic_ult_charge_mult: float = 1.0   # multiply ultimate charge gained
+var relic_double_atk_chance: float = 0.0 # chance (0–1) to strike twice per attack
+var relic_start_shield_pct: float = 0.0  # battle-start shield = frac of max HP
+var relic_regen_pct: float = 0.0         # regen frac of max HP per second
+var relic_free_first_ult: bool = false   # start each battle with ult charged
+var relic_revive_pct: float = 0.0        # cheat death once/battle, revive at this frac
+var relic_revive_used: bool = false      # per-battle guard for relic_revive_pct
+var relic_on_kill_atk: float = 0.0       # each kill permanently grants +frac attack dmg
+
+# True on boss enemies (Orc Brute / The Triarch / future bosses) — read by the
+# Executioner relic's vs-boss damage bonus.
+var is_boss: bool = false
+# True on elite enemies (Hill Giant, Stat Stealer, …) — a lesser tier than a
+# full boss; spawns periodically in rounds 5/15/25 (see WaveScaler). Does NOT
+# grant the Executioner relic's vs-boss bonus — that's boss-only.
+var is_elite: bool = false
+
+# ── Stat-drain DOT (Stat Stealer's ultimate) ──────────────────────────────────
+# While drain_time > 0, _tick_statuses (AutoBattleManager) drains drain_per_sec
+# from `drain_stat` every second, transferring it live onto drain_source's
+# matching stat. The theft is NOT reverted when the timer runs out — per design
+# it stays stolen for the rest of the fight unless drain_source dies, at which
+# point AutoBattleManager.restore_stat_theft() returns exactly drain_stolen.
+var drain_time: float = 0.0
+var drain_stat: String = ""        # which stat key is being stolen (e.g. "attack_damage")
+var drain_per_sec: float = 0.0     # absolute amount drained per second (10% of the cast-time snapshot)
+var drain_stolen: float = 0.0      # running total taken from this unit so far (for restoration)
+var drain_source = null            # the Stat Stealer who cast this drain
+var drain_accum: float = 0.0       # fractional carry-over for int-typed stats (mirrors burn_accum)
+
+# ── Ant Hill elite ─────────────────────────────────────────────────────────────
+# Each Ant bite stacks +1 permanent vulnerability on its victim (no decay this
+# battle) — the Nth bite from any Ant deals +[stacks BEFORE that hit] bonus
+# damage, so ignoring the swarm makes every subsequent bite hurt more. Reset at
+# battle start.
+var ant_bite_stacks: int = 0
+# Ant Hill's periodic-spawn clock (generic name so any future "summons over
+# time" unit could reuse it). Counts down in _tick_passive; reset at battle start.
+var summon_spawn_timer: float = 0.0
+
 # Battle state
 var grid_position: Vector2i = Vector2i.ZERO
 var home_position: Vector2i = Vector2i.ZERO   # row at battle start — drives heal/XP bonuses
-var kill_count:    int       = 0              # kills this battle — counts toward XP
+var kill_count:    int       = 0              # kills this battle (display / stat tracking)
+var kill_xp:       int       = 0              # XP earned from kills this battle (summed from enemy xp_reward)
 var target_unit = null
 var is_player_unit: bool = true
 var battle_manager = null
 var damage_text_container: Node2D = null
 var skill_effect_container: Node2D = null
 
-# Derived stats
-var attack_damage: int:
-	get:
-		return strength + int(dexterity * 0.5)
-
-var magic_power: int:
-	get:
-		return intelligence + int(strength * 0.3)
-
-var defense: int:
-	get:
-		return resistance + int(strength * 0.2)
-
-# Basic attacks per second, derived from dexterity. Clamped so no unit is absurdly
-# fast or slow. The battle manager resets attack_cooldown to 1.0 / attacks_per_second
-# after each swing.
+# Effective attacks per second — attack_speed with slow/haste modifiers applied.
+# The battle manager resets attack_cooldown to 1.0 / attacks_per_second after each swing.
 var attacks_per_second: float:
 	get:
-		var base: float = clampf(0.5 + dexterity * 0.02, 0.3, 3.0)
-		base *= speed_modifier()
-		return clampf(base, 0.1, 6.0)
+		return clampf(attack_speed * speed_modifier(), 0.1, 6.0)
 
 # Combined slow / haste / weakness multiplier shared by attack speed and movement.
 func speed_modifier() -> float:
@@ -300,10 +368,19 @@ func _ready():
 	update_visuals()
 
 func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null, true_damage: bool = false) -> void:
+	# Evasion: chance to dodge the hit entirely (only applies to direct hits, not DoT/true damage)
+	if not true_damage and amount > 0:
+		var ev: float = equipment_passives.get("Evasion", 0.0)
+		if ev > 0.0 and randf() < ev:
+			return
+
 	var modified_damage := calculate_damage_with_element(amount, element)
 	if not true_damage:
-		modified_damage = max(1, modified_damage - defense)
+		modified_damage = max(1, modified_damage - resistance)
 		modified_damage = int(modified_damage * get_defense_multiplier(element))
+	# Relic: fragile-but-deadly picks (e.g. Glass Cannon) raise incoming damage.
+	if relic_dmg_taken_mult != 1.0:
+		modified_damage = int(round(modified_damage * relic_dmg_taken_mult))
 	modified_damage = max(1, modified_damage)
 
 	# Shield absorbs damage before HP
@@ -370,174 +447,28 @@ func change_element(new_element: Element) -> void:
 	element_changed.emit(new_element)
 	update_visuals()
 
+# Applies one tick of this unit's personalized per-level growth to every stat.
+# Shared by level_up() (level 2+, in combat) AND the recruit flow (level 1
+# already "counts" as having received its level's growth the moment you buy the
+# hero — see UnitFactory.apply_recruit_rolls). Two recruits of the same class
+# will diverge over time since their growth rolls differ.
+func apply_stat_growth() -> void:
+	max_hp         = maxi(1, max_hp         + int(stat_growth("hp")))
+	max_mana       = maxi(0, max_mana       + int(stat_growth("mana")))
+	attack_damage  = maxi(1, attack_damage  + int(stat_growth("atk")))
+	magic_power    = maxi(0, magic_power    + int(stat_growth("magic")))
+	resistance     = maxi(0, resistance     + int(stat_growth("res")))
+	attack_speed   = maxf(0.05, attack_speed + stat_growth("aspd"))
+	hp_regen       = maxf(0.0,  hp_regen     + stat_growth("hpregen"))
+	mana_regen     = maxf(0.0,  mana_regen   + stat_growth("manaregen"))
+
 func level_up() -> void:
 	level += 1
-	
-	# Stat increases vary by class
-	match unit_class:
-		UnitClass.WARRIOR:
-			max_hp += 25
-			strength += 3
-			resistance += 2
-		UnitClass.RANGER:
-			max_hp += 15
-			dexterity += 3
-			strength += 2
-		UnitClass.MONK:
-			max_hp += 20
-			strength += 2
-			dexterity += 2
-			resistance += 1
-		UnitClass.THIEF:
-			max_hp += 12
-			dexterity += 4
-			strength += 1
-		UnitClass.BLACK_MAGE:
-			max_hp += 10
-			max_mana += 20
-			intelligence += 4
-		UnitClass.WHITE_MAGE:
-			max_hp += 12
-			max_mana += 18
-			intelligence += 3
-			resistance += 2
-		UnitClass.RED_MAGE:
-			max_hp += 15
-			max_mana += 15
-			intelligence += 2
-			strength += 2
-		UnitClass.BLOODHOUND:
-			max_hp += 22
-			strength += 2
-			resistance += 2
-			spirit += 1
-		UnitClass.BOUNCER:
-			max_hp += 28
-			intelligence += 2
-			resistance += 2
-			spirit += 1
-		UnitClass.HEADHUNTER:
-			max_hp += 10
-			dexterity += 3
-			strength += 1
-		UnitClass.SHAUNA:
-			max_hp += 12
-			dexterity += 3
-			strength += 1
-			spirit += 1
-		UnitClass.NEMI:
-			max_hp += 14
-			max_mana += 20
-			intelligence += 3
-			spirit += 2
-		UnitClass.SHEILDOR:
-			max_hp += 18
-			max_mana += 15
-			intelligence += 2
-			resistance += 2
-			spirit += 2
-		UnitClass.LORDEE:
-			max_hp += 22
-			max_mana += 12
-			intelligence += 3
-			resistance += 2
-		UnitClass.NECRO:
-			max_hp += 10
-			max_mana += 25
-			intelligence += 4
-			spirit += 2
-		# ── Roster expansion ──────────────────────────────────────────────────
-		UnitClass.DOC:
-			max_hp += 14
-			max_mana += 20
-			intelligence += 3
-			spirit += 3
-		UnitClass.RIOT:
-			max_hp += 30
-			strength += 2
-			resistance += 3
-		UnitClass.PASTOR:
-			max_hp += 14
-			max_mana += 18
-			intelligence += 3
-			spirit += 2
-		UnitClass.SABLE:
-			max_hp += 11
-			dexterity += 3
-			strength += 2
-		UnitClass.RUSH:
-			max_hp += 14
-			dexterity += 3
-			strength += 2
-		UnitClass.STITCH:
-			max_hp += 13
-			max_mana += 18
-			intelligence += 3
-			dexterity += 1
-		UnitClass.COAL:
-			max_hp += 22
-			strength += 3
-			resistance += 1
-		UnitClass.JUNE:
-			max_hp += 16
-			max_mana += 18
-			intelligence += 2
-			spirit += 3
-		UnitClass.CROSS:
-			max_hp += 30
-			strength += 2
-			resistance += 3
-			spirit += 1
-		UnitClass.SEAR:
-			max_hp += 16
-			max_mana += 16
-			intelligence += 3
-			strength += 2
-		UnitClass.EMBER:
-			max_hp += 11
-			dexterity += 3
-			intelligence += 2
-		UnitClass.RIFT:
-			max_hp += 17
-			max_mana += 16
-			intelligence += 3
-			resistance += 1
-		UnitClass.ZOLT:
-			max_hp += 10
-			max_mana += 24
-			intelligence += 4
-			spirit += 2
-		UnitClass.LUMEN:
-			max_hp += 10
-			max_mana += 22
-			intelligence += 4
-			dexterity += 1
-		UnitClass.STATIC:
-			max_hp += 13
-			max_mana += 18
-			intelligence += 3
-			dexterity += 1
-		UnitClass.REED:
-			max_hp += 15
-			max_mana += 20
-			intelligence += 2
-			spirit += 3
-		UnitClass.VAIL:
-			max_hp += 14
-			max_mana += 20
-			intelligence += 2
-			spirit += 3
-		UnitClass.SPORE:
-			max_hp += 12
-			max_mana += 22
-			intelligence += 4
-			spirit += 1
-	# All classes gain a small spirit boost per level-up
-	spirit += 1
-
+	apply_stat_growth()
 	current_hp = max_hp
 	current_mana = max_mana
 	leveled_up.emit(level)
+
 
 func equip_weapon(weapon) -> void:
 	equipped_weapon = weapon
@@ -555,8 +486,23 @@ func attack(target) -> void:
 	var target_element: Element = target.current_element if target is UnitBase else Element.NORMAL
 	var damage := int(attack_damage * get_attack_multiplier(target_element))
 	damage = int(damage * outgoing_damage_multiplier())
+	# Relic outgoing multipliers (Glass Cannon, element relics, Executioner vs bosses).
+	if relic_outgoing_mult != 1.0:
+		damage = int(damage * relic_outgoing_mult)
+	if relic_vs_boss_mult != 1.0 and target is UnitBase and target.is_boss:
+		damage = int(damage * relic_vs_boss_mult)
+	# Ant Hill swarm: every bite adds the victim's CURRENT stack count as bonus
+	# damage (read before this hit's stack increment in _apply_on_hit_passives),
+	# so the 1st bite is normal, the 2nd is +1, the 3rd is +2, etc.
+	if unit_class == UnitClass.ANT and target is UnitBase:
+		damage += target.ant_bite_stacks
 
 	hit_counter += 1
+	# Generic crit roll (separate from the Headhunter/Shauna hit-counter flavor
+	# mechanics below — those are class-specific tricks, this is the real crit
+	# stat that gear/relics/the Stat Stealer's drain read and write).
+	if crit_chance > 0.0 and randf() < crit_chance:
+		damage = int(damage * crit_damage)
 	# Headhunter: every 7th hit = 3× crit
 	if unit_class == UnitClass.HEADHUNTER and hit_counter % 7 == 0:
 		damage = int(damage * 3.0)
@@ -570,31 +516,46 @@ func attack(target) -> void:
 
 	# Headhunter active bonus range already applied by battle manager
 
-	if attack_range > 1:
+	# Bouncer is a melee brawler despite having range 2 (grab/pull reach) — no projectile.
+	if attack_range > 1 and unit_class != UnitClass.BOUNCER:
 		spawn_projectile(target, damage)
 		pending_attack_log_damage += damage   # intended damage (mitigated on hit)
 	else:
 		var pre_hp: int = target.current_hp
+		var was_alive: bool = pre_hp > 0
 		target.take_damage(damage, current_element, self, is_true_dmg)
 		var actual: int = max(0, pre_hp - target.current_hp)
 		damage_dealt += actual
 		pending_attack_log_damage += actual
 		_charge_ultimate(actual / 2)
+		apply_relic_on_hit(target, actual, was_alive)
 
 	attacked.emit(target)
+
+# Lifesteal + Soul-Harvest on-kill, shared by melee (here) and ranged (projectile
+# on-reach). `was_alive` guards the kill bonus so it only fires on the killing blow.
+func apply_relic_on_hit(target, actual: int, was_alive: bool) -> void:
+	if actual <= 0:
+		return
+	if relic_lifesteal > 0.0:
+		heal(int(round(actual * relic_lifesteal)))
+	if relic_on_kill_atk > 0.0 and was_alive and target is UnitBase and target.current_hp <= 0:
+		attack_damage = maxi(1, int(round(attack_damage * (1.0 + relic_on_kill_atk))))
 
 func _charge_ultimate(amount: int) -> void:
 	if ultimate_charge_max <= 0 or ultimate_ready:
 		return
+	if relic_ult_charge_mult != 1.0:
+		amount = int(round(amount * relic_ult_charge_mult))
 	ultimate_charge = min(ultimate_charge + amount, ultimate_charge_max)
 	if ultimate_charge >= ultimate_charge_max:
 		ultimate_ready = true
 
-func grant_xp(amount: int) -> void:
+func grant_xp(amount: float) -> void:
 	current_xp += amount
 	while current_xp >= xp_to_level:
 		current_xp -= xp_to_level
-		xp_to_level = int(xp_to_level * 1.5)
+		xp_to_level *= 1.5
 		level_up()
 		perk_points += 1
 
@@ -617,6 +578,28 @@ func spawn_projectile(target, damage: int) -> void:
 		battle_manager.add_projectile(projectile)
 
 func die() -> void:
+	# Khagan's mind-controlled puppet: a lethal hit clamps to 1 HP and breaks the
+	# possession instead of really dying (mirrors the VisualUnit.die() override).
+	if has_meta("khagan_puppet") and current_hp <= 0:
+		current_hp = 1
+		current_shield = 0
+		health_changed.emit(current_hp, max_hp)
+		if battle_manager and battle_manager.has_method("end_khagan_possession"):
+			battle_manager.end_khagan_possession(self)
+		return
+	# Phoenix Pact: cheat death once per battle, reviving at a fraction of max HP.
+	# Guards on current_hp <= 0 so it only intercepts an actual death (all death
+	# paths funnel through here, including DoT ticks).
+	if relic_revive_pct > 0.0 and not relic_revive_used and current_hp <= 0:
+		relic_revive_used = true
+		current_hp = maxi(1, int(round(max_hp * relic_revive_pct)))
+		current_shield = 0
+		health_changed.emit(current_hp, max_hp)
+		return
+	# Stat Stealer: return any stats it's currently holding stolen (mirrors the
+	# VisualUnit.die() override, which is what real game units actually use).
+	if battle_manager and battle_manager.has_method("restore_stat_theft"):
+		battle_manager.restore_stat_theft(self)
 	died.emit()
 	queue_free()
 

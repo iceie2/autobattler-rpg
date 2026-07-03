@@ -1,3 +1,17 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Auto-generated Godot UID files (derived from source, no need to track)
+*.uid
+
+# Editor backup files
+*.bak
+
+# Python cache (sprite pipeline tools)
+__pycache__/
+*.pyc
+
+# OS junk
+.DS_Store
+Thumbs.db

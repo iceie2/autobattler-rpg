@@ -54,11 +54,16 @@ func _process(delta: float):
 func on_reach_target():
 	if target_unit and is_instance_valid(target_unit) and target_unit.has_method("take_damage"):
 		var pre_hp: int = target_unit.current_hp
-		target_unit.take_damage(damage, element)
+		var was_alive: bool = pre_hp > 0
+		target_unit.take_damage(damage, element, caster)
 		var actual: int = max(0, pre_hp - target_unit.current_hp)
 		# Credit the damage back to whoever fired this projectile
 		if caster and is_instance_valid(caster) and "damage_dealt" in caster:
 			caster.damage_dealt += actual
+			# Relic lifesteal / on-kill for ranged attackers (mirrors melee in
+			# UnitBase.attack).
+			if caster.has_method("apply_relic_on_hit"):
+				caster.apply_relic_on_hit(target_unit, actual, was_alive)
 
 	hit_target.emit(target_unit)
 	queue_free()

@@ -18,15 +18,21 @@ const CODE_ROLE: Dictionary = {
 	"A":  Role.BACK,   # Goblin Archer
 	"S":  Role.BACK,   # Goblin Shaman
 	"B":  Role.FRONT,  # Orc Brute
-	"G":  Role.BOSS,   # Hill Giant (2×2)
+	"G":  Role.BOSS,   # Hill Giant (2×2) — elite-tier now, still centered like a boss when placed
 	"SL": Role.FRONT,  # Slime
 	"SK": Role.FRONT,  # Skeleton
 	"R":  Role.FRONT,  # Rat
+	"TRI": Role.FRONT, # The Triarch (1×1 — opens in its melee phase)
+	"SS": Role.FRONT,  # Stat Stealer (1×1 elite)
+	"AH": Role.BOSS,   # Ant Hill (2×2 — stationary spawner)
+	"KHA": Role.BOSS,  # Khagan (2×2 while mounted — phase 1)
 }
 
 # Codes that occupy a 2×2 cell block
 const CODE_IS_LARGE: Dictionary = {
 	"G": true,
+	"AH": true,
+	"KHA": true,
 }
 
 # ── Power costs (rough unit strength used for budget system) ──────────────────
@@ -40,7 +46,11 @@ const UNIT_POWER: Dictionary = {
 	"A":  30,   # Goblin Archer
 	"S":  55,   # Goblin Shaman
 	"B":  95,   # Orc Brute
-	"G":  300,  # Hill Giant  — boss-tier
+	"G":  300,  # Hill Giant  — elite-tier
+	"TRI": 350, # The Triarch — 3-phase final boss
+	"SS": 150,  # Stat Stealer — elite-tier
+	"AH": 250,  # Ant Hill — elite-tier (tanky spawner; the ants are the real threat, uncounted here)
+	"KHA": 300, # Khagan — wave-10 boss (mount-swap fight)
 }
 
 # Ordered strong → weak. _fill_budget() prefers the top of this list.
@@ -54,19 +64,22 @@ const ROLE_ROWS: Dictionary = {
 
 # ── Live unit scoring (for reward calculation and power display) ───────────────
 static func score_unit(unit: UnitBase) -> float:
-	var s: float = (float(unit.max_hp)       * 0.15
-				  + float(unit.strength)     * 10.0
-				  + float(unit.dexterity)    * 6.0
-				  + float(unit.intelligence) * 8.0
-				  + float(unit.resistance)   * 5.0)
+	var s: float = (float(unit.max_hp)         * 0.15
+				  + float(unit.attack_damage)  * 10.0
+				  + float(unit.attack_speed)   * 60.0
+				  + float(unit.magic_power)    * 8.0
+				  + float(unit.resistance)     * 5.0)
 	if unit.attack_range > 1:
 		s *= 1.25
 	if unit.cell_size == 2:
 		s *= 2.5
 	return s
 
+# Economy pass (2026-07-02): multiplier was 0.04 / floor 5 — kills alone funded
+# a hero every ~2-3 goblins, compounding with the per-round bonus to fill the
+# roster far too fast. Cut ~55% (see balance_journal.md); re-tune after playtest.
 static func gold_for_unit(unit: UnitBase) -> int:
-	return maxi(5, int(score_unit(unit) * 0.04))
+	return maxi(2, int(score_unit(unit) * 0.018))
 
 static func crystals_for_unit(unit: UnitBase) -> int:
 	var s := score_unit(unit)
@@ -252,3 +265,68 @@ static func _even_pick(items: Array, n: int) -> Array:
 static func procedural_count(base_count: int, difficulty: int) -> int:
 	var mult: float = DIFFICULTY_MULT[difficulty]
 	return mini(int(float(base_count) * mult), 32)
+
+# ── Boss waves (rounds 10 / 20 / 30) ──────────────────────────────────────────
+# A centered 2×2 Hill Giant boss plus escalating adds. Difficulty adds more
+# muscle. Returns the same [{code, pos}] format as build_formation.
+static func is_boss_round(round: int) -> bool:
+	return round > 0 and round % 10 == 0 and round <= 30
+
+# Boss tier: 1 at round 10, 2 at 20, 3 at 30.
+static func boss_tier(round: int) -> int:
+	return int(round / 10)
+
+# Level the boss unit is set to — scales hard between the three encounters.
+static func boss_level(round: int) -> int:
+	return 3 + (boss_tier(round) - 1) * 3   # 3 / 6 / 9
+
+# Which boss code fights at a given round. Hill Giant was reclassified to an
+# elite (2026-07-02, now spawns in rounds 5/15/25 instead — see is_elite_round).
+# Wave 10 now has its own dedicated boss (Khagan, a mount-swap fight); The
+# Triarch still covers waves 20/30 until a wave-20 boss is designed too.
+static func boss_code_for(round: int) -> String:
+	return "KHA" if boss_tier(round) == 1 else "TRI"
+
+static func build_boss_formation(round: int, difficulty: int, grid_width: int = 9) -> Array:
+	var tier: int = boss_tier(round)
+	var counts: Dictionary = {boss_code_for(round): 1}      # the boss
+	counts["M"] = 2 + tier + difficulty                     # goblin fodder
+	if tier >= 2:
+		counts["B"] = (tier - 1) + difficulty               # orc bruisers on later bosses
+	return _auto_place(counts, grid_width)
+
+# ── Elite waves (rounds 5 / 15 / 25 — the gaps between boss rounds) ──────────
+# A mini-boss (Hill Giant or Stat Stealer) plus light fodder support. Weaker
+# than a full boss encounter, but a real step up from normal fodder.
+const ELITE_ROUNDS: Array[int] = [5, 15, 25]
+const ELITE_POOL: Array[String] = ["G", "SS", "AH"]   # Hill Giant, Stat Stealer, Ant Hill
+
+static func is_elite_round(round: int) -> bool:
+	return round in ELITE_ROUNDS
+
+# How much to bias a procedural enemy hero's stat rolls (see
+# UnitFactory.generate_recruit_rolls) toward higher grades as the run goes on.
+# 0 through round 10 (matches the old flat behaviour); climbs to 0.5 by round
+# 30 — pushes the average roll from a "B" up toward "A"/"S" by the late game,
+# instead of every round-11+ enemy hero landing in the same grade band forever.
+# Capped at 0.5 (not higher) so round 30 still has real variance — a bias that
+# guarantees S every time removes the "did I get a scary roll" tension entirely.
+static func enemy_roll_bias(round: int) -> float:
+	return clampf(float(round - 10) / 20.0, 0.0, 1.0) * 0.5
+
+# Elite level scales gentler than boss_level (2 / 4 / 6 across 5/15/25) since
+# elites are a lesser threat than a full boss.
+static func elite_level(round: int) -> int:
+	var idx: int = ELITE_ROUNDS.find(round)
+	return 2 + maxi(idx, 0) * 2
+
+# forced_code lets the caller lock in one elite pick for the whole round (the
+# wave spec gets regenerated more than once per round — formation preview at
+# round start, then again when Ready is pressed — and without a forced code
+# each call re-rolled independently, so the elite shown before battle could
+# differ from the one that actually spawns; see main_game.gd's per-round cache).
+static func build_elite_formation(round: int, difficulty: int, grid_width: int = 9, forced_code: String = "") -> Array:
+	var code: String = forced_code if forced_code != "" else ELITE_POOL[randi() % ELITE_POOL.size()]
+	var counts: Dictionary = {code: 1}
+	counts["M"] = 1 + difficulty   # light fodder support
+	return _auto_place(counts, grid_width)

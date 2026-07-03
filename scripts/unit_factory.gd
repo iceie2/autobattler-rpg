@@ -1,6 +1,54 @@
 extends Node
 class_name UnitFactory
 
+# Icon per stat key — shared so any UI (recruit card, level-up perks, unit
+# details) can show a consistent icon next to a stat without duplicating paths.
+# Only the 10 stats we currently use have icons; more get added as they arrive
+# in assets/icons/stat_icons/ (see MEMORY.md / conversation for the full list).
+const STAT_ICONS: Dictionary = {
+	"hp":        "res://assets/icons/stat_icons/health.png",
+	"mana":      "res://assets/icons/stat_icons/mana.png",
+	"atk":       "res://assets/icons/stat_icons/attack_power.png",
+	"magic":     "res://assets/icons/stat_icons/magic_dmg.png",
+	"res":       "res://assets/icons/stat_icons/defense.png",
+	"aspd":      "res://assets/icons/stat_icons/attack_speed.png",
+	"hpregen":   "res://assets/icons/stat_icons/hp_regen.png",
+	"manaregen": "res://assets/icons/stat_icons/mp_regen.png",
+	"move":      "res://assets/icons/stat_icons/movement_speed.png",
+	"range":     "res://assets/icons/stat_icons/range.png",
+	"crit_chance": "res://assets/icons/stat_icons/critical_rate.png",
+	"crit_damage": "res://assets/icons/stat_icons/critical_dmg.png",
+}
+
+# Display name per stat key — shown as a tooltip on the stat's icon in the
+# Unit Details panel (see main_game.gd _ensure_details_icons).
+const STAT_NAMES: Dictionary = {
+	"hp":        "Max HP",
+	"mana":      "Max Mana",
+	"atk":       "Attack Damage",
+	"magic":     "Magic Power",
+	"res":       "Defense",
+	"aspd":      "Attack Speed",
+	"hpregen":   "HP Regen",
+	"manaregen": "MP Regen",
+	"move":      "Movement Speed",
+	"range":     "Attack Range",
+	"crit_chance": "Crit Chance",
+	"crit_damage": "Crit Damage",
+}
+
+# Element glyph per Element enum — hand-made set, backgrounds removed via the
+# sprite pipeline (assets/icons/glyphts/clean/). Used by the Unit Details
+# affinity matrix + element chip.
+const ELEMENT_ICONS: Dictionary = {
+	UnitBase.Element.NORMAL:    "res://assets/icons/glyphts/clean/element_normal.png",
+	UnitBase.Element.FIRE:      "res://assets/icons/glyphts/clean/element_fire.png",
+	UnitBase.Element.WATER:     "res://assets/icons/glyphts/clean/element_water.png",
+	UnitBase.Element.EARTH:     "res://assets/icons/glyphts/clean/element_earth.png",
+	UnitBase.Element.AIR:       "res://assets/icons/glyphts/clean/element_air.png",
+	UnitBase.Element.LIGHTNING: "res://assets/icons/glyphts/clean/element_lightning.png",
+}
+
 # Trait class mapping (for synergies)
 const TRAIT_CLASS_MAP = {
 	UnitBase.UnitClass.WARRIOR:    UnitBase.TraitClass.FIGHTER,
@@ -39,6 +87,7 @@ const TRAIT_CLASS_MAP = {
 	UnitBase.UnitClass.SPORE:      UnitBase.TraitClass.MAGE,     # Magic Carry
 	UnitBase.UnitClass.ZOMBIE:     UnitBase.TraitClass.FIGHTER,
 	UnitBase.UnitClass.BAT:        UnitBase.TraitClass.FIGHTER,
+	UnitBase.UnitClass.ANT:        UnitBase.TraitClass.FIGHTER,
 }
 
 # Natural aspect: the element that best scales each hero's kit. Aspect is rolled
@@ -80,44 +129,86 @@ static func natural_aspect(unit: UnitBase) -> float:
 		return 1.15
 	return 1.0
 
-# Base stats for each class at level 1
+# Base stats for each class at level 1 (TFT-style independent stats)
 const CLASS_BASE_STATS = {
-	UnitBase.UnitClass.WARRIOR:    { "hp":1200,"mana":300, "str":15,"dex":8, "int":5, "res":12,"spr":5,  "move":2,"range":1, "off_affinity":30.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.RANGER:     { "hp":900, "mana":400, "str":10,"dex":16,"int":8, "res":7, "spr":7,  "move":3,"range":4, "off_affinity":40.0,"def_affinity":10.0 },
-	UnitBase.UnitClass.MONK:       { "hp":1000,"mana":500, "str":12,"dex":12,"int":10,"res":10,"spr":12, "move":3,"range":1, "off_affinity":25.0,"def_affinity":25.0 },
-	UnitBase.UnitClass.THIEF:      { "hp":800, "mana":350, "str":8, "dex":18,"int":10,"res":6, "spr":4,  "move":5,"range":1, "off_affinity":50.0,"def_affinity":5.0  },
-	UnitBase.UnitClass.BLACK_MAGE: { "hp":700, "mana":800, "str":5, "dex":7, "int":18,"res":8, "spr":14, "move":2,"range":5, "off_affinity":60.0,"def_affinity":15.0 },
-	UnitBase.UnitClass.WHITE_MAGE: { "hp":750, "mana":750, "str":6, "dex":8, "int":16,"res":12,"spr":16, "move":2,"range":5, "off_affinity":35.0,"def_affinity":30.0 },
-	UnitBase.UnitClass.RED_MAGE:   { "hp":850, "mana":650, "str":10,"dex":10,"int":14,"res":10,"spr":11, "move":2,"range":5, "off_affinity":45.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.BLOODHOUND: { "hp":1100,"mana":400, "str":14,"dex":12,"int":6, "res":14,"spr":6,  "move":3,"range":1, "off_affinity":35.0,"def_affinity":25.0 },
-	UnitBase.UnitClass.BOUNCER:    { "hp":1300,"mana":600, "str":8, "dex":6, "int":16,"res":16,"spr":12, "move":2,"range":2, "off_affinity":30.0,"def_affinity":35.0 },
-	UnitBase.UnitClass.HEADHUNTER: { "hp":600, "mana":350, "str":14,"dex":20,"int":12,"res":5, "spr":5,  "move":3,"range":6, "off_affinity":55.0,"def_affinity":8.0  },
-	UnitBase.UnitClass.SHAUNA:     { "hp":700, "mana":400, "str":12,"dex":20,"int":8, "res":6, "spr":6,  "move":3,"range":5, "off_affinity":50.0,"def_affinity":8.0  },
-	UnitBase.UnitClass.NEMI:       { "hp":750,  "mana":600, "str":6, "dex":10,"int":18,"res":10,"spr":18, "move":2,"range":4, "off_affinity":35.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.SHEILDOR:   { "hp":1400, "mana":700, "str":10,"dex":8, "int":14,"res":18,"spr":14, "move":2,"range":1, "off_affinity":20.0,"def_affinity":40.0 },
-	UnitBase.UnitClass.LORDEE:     { "hp":950,  "mana":500, "str":16,"dex":14,"int":10,"res":10,"spr":8,  "move":3,"range":1, "off_affinity":45.0,"def_affinity":15.0 },
-	UnitBase.UnitClass.NECRO:      { "hp":800,  "mana":900, "str":5, "dex":7, "int":20,"res":8, "spr":16, "move":2,"range":4, "off_affinity":30.0,"def_affinity":15.0 },
-	# ── Roster expansion ──────────────────────────────────────────────────────
-	UnitBase.UnitClass.DOC:        { "hp":850,  "mana":750, "str":6, "dex":9, "int":16,"res":9, "spr":18, "move":3,"range":3, "off_affinity":30.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.RIOT:       { "hp":1500, "mana":500, "str":11,"dex":7, "int":8, "res":20,"spr":8,  "move":2,"range":1, "off_affinity":20.0,"def_affinity":40.0 },
-	UnitBase.UnitClass.PASTOR:     { "hp":900,  "mana":650, "str":8, "dex":9, "int":15,"res":11,"spr":13, "move":2,"range":3, "off_affinity":40.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.SABLE:      { "hp":650,  "mana":350, "str":12,"dex":19,"int":9, "res":6, "spr":6,  "move":3,"range":6, "off_affinity":55.0,"def_affinity":8.0  },
-	UnitBase.UnitClass.RUSH:       { "hp":820,  "mana":300, "str":15,"dex":18,"int":7, "res":8, "spr":6,  "move":6,"range":1, "off_affinity":45.0,"def_affinity":10.0 },
-	UnitBase.UnitClass.STITCH:     { "hp":780,  "mana":700, "str":7, "dex":12,"int":16,"res":9, "spr":12, "move":2,"range":2, "off_affinity":40.0,"def_affinity":15.0 },
-	UnitBase.UnitClass.COAL:       { "hp":1150, "mana":350, "str":17,"dex":11,"int":8, "res":13,"spr":6,  "move":3,"range":1, "off_affinity":45.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.JUNE:       { "hp":880,  "mana":700, "str":6, "dex":9, "int":14,"res":10,"spr":17, "move":2,"range":3, "off_affinity":30.0,"def_affinity":22.0 },
-	UnitBase.UnitClass.CROSS:      { "hp":1450, "mana":550, "str":12,"dex":7, "int":10,"res":18,"spr":12, "move":2,"range":1, "off_affinity":25.0,"def_affinity":38.0 },
-	UnitBase.UnitClass.SEAR:      { "hp":900,  "mana":600, "str":13,"dex":10,"int":16,"res":10,"spr":9,  "move":3,"range":2, "off_affinity":50.0,"def_affinity":15.0 },
-	UnitBase.UnitClass.EMBER:      { "hp":640,  "mana":400, "str":10,"dex":18,"int":13,"res":6, "spr":7,  "move":3,"range":5, "off_affinity":55.0,"def_affinity":8.0  },
-	UnitBase.UnitClass.RIFT:       { "hp":950,  "mana":650, "str":12,"dex":10,"int":16,"res":12,"spr":9,  "move":3,"range":2, "off_affinity":45.0,"def_affinity":22.0 },
-	UnitBase.UnitClass.ZOLT:       { "hp":720,  "mana":850, "str":5, "dex":9, "int":20,"res":8, "spr":15, "move":2,"range":5, "off_affinity":60.0,"def_affinity":12.0 },
-	UnitBase.UnitClass.LUMEN:      { "hp":700,  "mana":800, "str":5, "dex":11,"int":19,"res":7, "spr":13, "move":2,"range":5, "off_affinity":58.0,"def_affinity":10.0 },
-	UnitBase.UnitClass.STATIC:     { "hp":820,  "mana":700, "str":7, "dex":11,"int":16,"res":10,"spr":12, "move":2,"range":3, "off_affinity":45.0,"def_affinity":18.0 },
-	UnitBase.UnitClass.REED:       { "hp":860,  "mana":780, "str":6, "dex":8, "int":15,"res":11,"spr":18, "move":2,"range":4, "off_affinity":30.0,"def_affinity":25.0 },
-	UnitBase.UnitClass.VAIL:       { "hp":820,  "mana":780, "str":6, "dex":10,"int":15,"res":9, "spr":18, "move":3,"range":4, "off_affinity":30.0,"def_affinity":18.0 },
-	UnitBase.UnitClass.SPORE:      { "hp":780,  "mana":820, "str":5, "dex":9, "int":19,"res":9, "spr":14, "move":2,"range":4, "off_affinity":50.0,"def_affinity":18.0 },
-	UnitBase.UnitClass.ZOMBIE:     { "hp":85,   "mana":0,   "str":6, "dex":4, "int":1, "res":5, "spr":1,  "move":2,"range":1, "off_affinity":20.0,"def_affinity":10.0 },
-	UnitBase.UnitClass.BAT:        { "hp":55,   "mana":0,   "str":4, "dex":10,"int":1, "res":3, "spr":1,  "move":4,"range":1, "off_affinity":20.0,"def_affinity":5.0  },
+	UnitBase.UnitClass.WARRIOR: { "hp":1200,"mana":300, "atk":19,"magic":9,"res":12,"aspd":0.66,"hpregen":0.5,"manaregen":1.67, "move":2,"range":1, "off_affinity":30.0,"def_affinity":20.0 },
+	UnitBase.UnitClass.RANGER: { "hp":900,"mana":400, "atk":18,"magic":11,"res":7,"aspd":0.82,"hpregen":0.42,"manaregen":2.5, "move":3,"range":4, "off_affinity":40.0,"def_affinity":10.0 },
+	UnitBase.UnitClass.MONK: { "hp":1000,"mana":500, "atk":18,"magic":13,"res":10,"aspd":0.74,"hpregen":0.6,"manaregen":3.67, "move":3,"range":1, "off_affinity":25.0,"def_affinity":25.0 },
+	UnitBase.UnitClass.THIEF: { "hp":800,"mana":350, "atk":17,"magic":12,"res":6,"aspd":0.86,"hpregen":0.3,"manaregen":2.33, "move":5,"range":1, "off_affinity":50.0,"def_affinity":5.0 },
+	UnitBase.UnitClass.BLACK_MAGE: { "hp":700,"mana":800, "atk":8,"magic":19,"res":8,"aspd":0.64,"hpregen":0.47,"manaregen":5.33, "move":2,"range":5, "off_affinity":60.0,"def_affinity":15.0 },
+	UnitBase.UnitClass.WHITE_MAGE: { "hp":750,"mana":750, "atk":10,"magic":17,"res":12,"aspd":0.66,"hpregen":0.55,"manaregen":5.33, "move":2,"range":5, "off_affinity":35.0,"def_affinity":30.0 },
+	UnitBase.UnitClass.RED_MAGE: { "hp":850,"mana":650, "atk":15,"magic":17,"res":10,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":2,"range":5, "off_affinity":45.0,"def_affinity":20.0 },
+	UnitBase.UnitClass.BLOODHOUND: { "hp":1100,"mana":400, "atk":20,"magic":10,"res":14,"aspd":0.74,"hpregen":0.5,"manaregen":2.0, "move":3,"range":1, "off_affinity":35.0,"def_affinity":25.0 },
+	UnitBase.UnitClass.BOUNCER: { "hp":1300,"mana":600, "atk":11,"magic":18,"res":16,"aspd":0.62,"hpregen":0.5,"manaregen":4.67, "move":2,"range":1, "off_affinity":30.0,"def_affinity":35.0 },
+	UnitBase.UnitClass.HEADHUNTER: { "hp":600,"mana":350, "atk":24,"magic":16,"res":5,"aspd":0.9,"hpregen":0.47,"manaregen":2.83, "move":3,"range":6, "off_affinity":55.0,"def_affinity":8.0 },
+	UnitBase.UnitClass.SHAUNA: { "hp":700,"mana":400, "atk":22,"magic":11,"res":6,"aspd":0.9,"hpregen":0.45,"manaregen":2.33, "move":3,"range":5, "off_affinity":50.0,"def_affinity":8.0 },
+	UnitBase.UnitClass.NEMI: { "hp":750,"mana":600, "atk":11,"magic":19,"res":10,"aspd":0.7,"hpregen":0.6,"manaregen":6.0, "move":2,"range":4, "off_affinity":35.0,"def_affinity":20.0 },
+	UnitBase.UnitClass.SHEILDOR: { "hp":1400,"mana":700, "atk":14,"magic":17,"res":18,"aspd":0.66,"hpregen":0.6,"manaregen":4.67, "move":2,"range":1, "off_affinity":20.0,"def_affinity":40.0 },
+	UnitBase.UnitClass.LORDEE: { "hp":950,"mana":500, "atk":23,"magic":14,"res":10,"aspd":0.78,"hpregen":0.6,"manaregen":3.0, "move":3,"range":1, "off_affinity":45.0,"def_affinity":15.0 },
+	UnitBase.UnitClass.NECRO: { "hp":800,"mana":900, "atk":8,"magic":21,"res":8,"aspd":0.64,"hpregen":0.53,"manaregen":6.0, "move":2,"range":4, "off_affinity":30.0,"def_affinity":15.0 },
+	UnitBase.UnitClass.DOC: { "hp":850,"mana":750, "atk":10,"magic":17,"res":9,"aspd":0.68,"hpregen":0.6,"manaregen":5.67, "move":3,"range":3, "off_affinity":30.0,"def_affinity":20.0 },
+	UnitBase.UnitClass.RIOT: { "hp":1500,"mana":500, "atk":14,"magic":11,"res":20,"aspd":0.64,"hpregen":0.47,"manaregen":2.67, "move":2,"range":1, "off_affinity":20.0,"def_affinity":40.0 },
+	UnitBase.UnitClass.PASTOR: { "hp":900,"mana":650, "atk":12,"magic":17,"res":11,"aspd":0.68,"hpregen":0.53,"manaregen":4.67, "move":2,"range":3, "off_affinity":40.0,"def_affinity":20.0 },
+	UnitBase.UnitClass.SABLE: { "hp":650,"mana":350, "atk":21,"magic":12,"res":6,"aspd":0.88,"hpregen":0.45,"manaregen":2.5, "move":3,"range":6, "off_affinity":55.0,"def_affinity":8.0 },
+	UnitBase.UnitClass.RUSH: { "hp":820,"mana":300, "atk":24,"magic":11,"res":8,"aspd":0.86,"hpregen":0.53,"manaregen":2.17, "move":15,"range":1, "off_affinity":45.0,"def_affinity":10.0 },
+	UnitBase.UnitClass.STITCH: { "hp":780,"mana":700, "atk":13,"magic":18,"res":9,"aspd":0.74,"hpregen":0.47,"manaregen":4.67, "move":2,"range":2, "off_affinity":40.0,"def_affinity":15.0 },
+	UnitBase.UnitClass.COAL: { "hp":1150,"mana":350, "atk":22,"magic":13,"res":13,"aspd":0.72,"hpregen":0.57,"manaregen":2.33, "move":3,"range":1, "off_affinity":45.0,"def_affinity":20.0 },
+	UnitBase.UnitClass.JUNE: { "hp":880,"mana":700, "atk":10,"magic":15,"res":10,"aspd":0.68,"hpregen":0.57,"manaregen":5.17, "move":2,"range":3, "off_affinity":30.0,"def_affinity":22.0 },
+	UnitBase.UnitClass.CROSS: { "hp":1450,"mana":550, "atk":15,"magic":13,"res":18,"aspd":0.64,"hpregen":0.6,"manaregen":3.67, "move":2,"range":1, "off_affinity":25.0,"def_affinity":38.0 },
+	UnitBase.UnitClass.SEAR: { "hp":900,"mana":600, "atk":18,"magic":19,"res":10,"aspd":0.7,"hpregen":0.55,"manaregen":4.17, "move":3,"range":2, "off_affinity":50.0,"def_affinity":15.0 },
+	UnitBase.UnitClass.EMBER: { "hp":640,"mana":400, "atk":19,"magic":16,"res":6,"aspd":0.86,"hpregen":0.42,"manaregen":3.33, "move":3,"range":5, "off_affinity":55.0,"def_affinity":8.0 },
+	UnitBase.UnitClass.RIFT: { "hp":950,"mana":650, "atk":17,"magic":19,"res":12,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":3,"range":2, "off_affinity":45.0,"def_affinity":22.0 },
+	UnitBase.UnitClass.ZOLT: { "hp":720,"mana":850, "atk":9,"magic":21,"res":8,"aspd":0.68,"hpregen":0.5,"manaregen":5.83, "move":2,"range":5, "off_affinity":60.0,"def_affinity":12.0 },
+	UnitBase.UnitClass.LUMEN: { "hp":700,"mana":800, "atk":10,"magic":20,"res":7,"aspd":0.72,"hpregen":0.45,"manaregen":5.33, "move":2,"range":5, "off_affinity":58.0,"def_affinity":10.0 },
+	UnitBase.UnitClass.STATIC: { "hp":820,"mana":700, "atk":12,"magic":18,"res":10,"aspd":0.72,"hpregen":0.47,"manaregen":4.67, "move":2,"range":3, "off_affinity":45.0,"def_affinity":18.0 },
+	UnitBase.UnitClass.REED: { "hp":860,"mana":780, "atk":10,"magic":16,"res":11,"aspd":0.66,"hpregen":0.6,"manaregen":5.5, "move":2,"range":4, "off_affinity":30.0,"def_affinity":25.0 },
+	UnitBase.UnitClass.VAIL: { "hp":820,"mana":780, "atk":11,"magic":16,"res":9,"aspd":0.7,"hpregen":0.6,"manaregen":5.5, "move":3,"range":4, "off_affinity":30.0,"def_affinity":18.0 },
+	UnitBase.UnitClass.SPORE: { "hp":780,"mana":820, "atk":9,"magic":20,"res":9,"aspd":0.68,"hpregen":0.47,"manaregen":5.5, "move":2,"range":4, "off_affinity":50.0,"def_affinity":18.0 },
+	UnitBase.UnitClass.ZOMBIE: { "hp":85,"mana":0, "atk":8,"magic":2,"res":5,"aspd":0.58,"hpregen":0.17,"manaregen":0.33, "move":2,"range":1, "off_affinity":20.0,"def_affinity":10.0 },
+	UnitBase.UnitClass.BAT: { "hp":55,"mana":0, "atk":9,"magic":2,"res":3,"aspd":0.7,"hpregen":0.12,"manaregen":0.33, "move":4,"range":1, "off_affinity":20.0,"def_affinity":5.0 },
+	UnitBase.UnitClass.ANT: { "hp":25,"mana":0, "atk":4,"magic":0,"res":1,"aspd":0.9,"hpregen":0.0,"manaregen":0.0, "move":4,"range":1, "off_affinity":15.0,"def_affinity":5.0 },
+}
+
+# Deterministic per-level growth, same for every unit of a class (the "base
+# growth" every hero/enemy of that class always gets on level-up, on top of
+# their personalized growth_bonus rolled at recruit — see apply_recruit_rolls).
+const CLASS_GROWTH_PER_LEVEL = {
+	UnitBase.UnitClass.WARRIOR: {"hp":25,"mana":0,"atk":3,"magic":0,"res":2,"aspd":0.02,"hpregen":0.1,"manaregen":0.167},
+	UnitBase.UnitClass.RANGER: {"hp":15,"mana":0,"atk":3,"magic":0,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
+	UnitBase.UnitClass.MONK: {"hp":20,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
+	UnitBase.UnitClass.THIEF: {"hp":12,"mana":0,"atk":3,"magic":0,"res":0,"aspd":0.02,"hpregen":0.05,"manaregen":0.167},
+	UnitBase.UnitClass.BLACK_MAGE: {"hp":10,"mana":20,"atk":0,"magic":4,"res":0,"aspd":0.02,"hpregen":0.025,"manaregen":0.833},
+	UnitBase.UnitClass.WHITE_MAGE: {"hp":12,"mana":18,"atk":0,"magic":3,"res":2,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
+	UnitBase.UnitClass.RED_MAGE: {"hp":15,"mana":15,"atk":2,"magic":2,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":0.5},
+	UnitBase.UnitClass.BLOODHOUND: {"hp":22,"mana":0,"atk":2,"magic":0,"res":2,"aspd":0.02,"hpregen":0.1,"manaregen":0.333},
+	UnitBase.UnitClass.BOUNCER: {"hp":28,"mana":0,"atk":0,"magic":2,"res":2,"aspd":0.02,"hpregen":0.05,"manaregen":0.667},
+	UnitBase.UnitClass.HEADHUNTER: {"hp":10,"mana":0,"atk":2,"magic":0,"res":0,"aspd":0.02,"hpregen":0.05,"manaregen":0.167},
+	UnitBase.UnitClass.SHAUNA: {"hp":12,"mana":0,"atk":2,"magic":0,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":0.333},
+	UnitBase.UnitClass.NEMI: {"hp":14,"mana":20,"atk":0,"magic":3,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":1.0},
+	UnitBase.UnitClass.SHEILDOR: {"hp":18,"mana":15,"atk":0,"magic":2,"res":2,"aspd":0.02,"hpregen":0.075,"manaregen":0.833},
+	UnitBase.UnitClass.LORDEE: {"hp":22,"mana":12,"atk":0,"magic":3,"res":2,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
+	UnitBase.UnitClass.NECRO: {"hp":10,"mana":25,"atk":0,"magic":4,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":1.167},
+	UnitBase.UnitClass.DOC: {"hp":14,"mana":20,"atk":0,"magic":3,"res":0,"aspd":0.02,"hpregen":0.1,"manaregen":1.167},
+	UnitBase.UnitClass.RIOT: {"hp":30,"mana":0,"atk":2,"magic":0,"res":3,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
+	UnitBase.UnitClass.PASTOR: {"hp":14,"mana":18,"atk":0,"magic":3,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":1.0},
+	UnitBase.UnitClass.SABLE: {"hp":11,"mana":0,"atk":3,"magic":0,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
+	UnitBase.UnitClass.RUSH: {"hp":14,"mana":0,"atk":3,"magic":0,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
+	UnitBase.UnitClass.STITCH: {"hp":13,"mana":18,"atk":0,"magic":3,"res":0,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
+	UnitBase.UnitClass.COAL: {"hp":22,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.1,"manaregen":0.167},
+	UnitBase.UnitClass.JUNE: {"hp":16,"mana":18,"atk":0,"magic":2,"res":0,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
+	UnitBase.UnitClass.CROSS: {"hp":30,"mana":0,"atk":2,"magic":0,"res":3,"aspd":0.02,"hpregen":0.1,"manaregen":0.333},
+	UnitBase.UnitClass.SEAR: {"hp":16,"mana":16,"atk":2,"magic":3,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":0.667},
+	UnitBase.UnitClass.EMBER: {"hp":11,"mana":0,"atk":1,"magic":2,"res":0,"aspd":0.02,"hpregen":0.025,"manaregen":0.5},
+	UnitBase.UnitClass.RIFT: {"hp":17,"mana":16,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
+	UnitBase.UnitClass.ZOLT: {"hp":10,"mana":24,"atk":0,"magic":4,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":1.167},
+	UnitBase.UnitClass.LUMEN: {"hp":10,"mana":22,"atk":0,"magic":4,"res":0,"aspd":0.02,"hpregen":0.025,"manaregen":0.833},
+	UnitBase.UnitClass.STATIC: {"hp":13,"mana":18,"atk":0,"magic":3,"res":0,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
+	UnitBase.UnitClass.REED: {"hp":15,"mana":20,"atk":0,"magic":2,"res":0,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
+	UnitBase.UnitClass.VAIL: {"hp":14,"mana":20,"atk":0,"magic":2,"res":0,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
+	UnitBase.UnitClass.SPORE: {"hp":12,"mana":22,"atk":0,"magic":4,"res":0,"aspd":0.02,"hpregen":0.05,"manaregen":1.0},	# Summons don'''t level, but give them a small fallback so set_level() never crashes.
+	UnitBase.UnitClass.ZOMBIE: {"hp":5,"mana":0,"atk":1,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.BAT:    {"hp":3,"mana":0,"atk":1,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.ANT:    {"hp":2,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
 }
 
 static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Element = UnitBase.Element.NORMAL, is_player: bool = true) -> VisualUnit:
@@ -133,13 +224,29 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 	unit.current_hp = stats["hp"]
 	unit.max_mana = stats["mana"]
 	unit.current_mana = stats["mana"]
-	unit.strength = stats["str"]
-	unit.dexterity = stats["dex"]
-	unit.intelligence = stats["int"]
+	unit.attack_damage = stats["atk"]
+	unit.magic_power = stats["magic"]
 	unit.resistance = stats["res"]
-	unit.spirit = stats.get("spr", 5)
+	unit.attack_speed = stats["aspd"]
+	unit.hp_regen = stats["hpregen"]
+	unit.mana_regen = stats["manaregen"]
 	unit.movement_speed = stats["move"]
 	unit.attack_range = stats["range"]
+
+	# 2026-07-03: allied heroes' move speed flattened to 1 across the board —
+	# minions (summon fodder: Zombie/Bat/Ant) keep their own swarm-appropriate
+	# speed, and Rush keeps its 15 (its whole kit identity is being the fast one).
+	# Enemy-side units are untouched — this only applies to the player's own roster.
+	const FLATTENED_MOVE_EXCEPTIONS := [
+		UnitBase.UnitClass.ZOMBIE, UnitBase.UnitClass.BAT, UnitBase.UnitClass.ANT,
+		UnitBase.UnitClass.RUSH,
+	]
+	if is_player and unit_class not in FLATTENED_MOVE_EXCEPTIONS:
+		unit.movement_speed = 1
+
+	# Deterministic per-class growth — every unit of this class gets at least
+	# this much per level, regardless of recruit rolls (enemies included).
+	unit.growth_base = CLASS_GROWTH_PER_LEVEL.get(unit_class, {}).duplicate()
 
 	var base_off = stats["off_affinity"]
 	var base_def = stats["def_affinity"]
@@ -197,6 +304,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range = 1
 			unit.skill_cooldown_max = 3
 			unit.skill_mana_cost = 50
+			unit.skill_description = "Deal 130% ATK to nearest enemy and heal self for 30% of damage dealt. · 50 MP · 3s CD"
 			unit.ultimate_name = "Pounce"
 			unit.ultimate_damage_mult = 2.5
 			unit.ultimate_range = 8
@@ -208,6 +316,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range = 2
 			unit.skill_cooldown_max = 4
 			unit.skill_mana_cost = 80
+			unit.skill_description = "Deal 100% MAG to nearest enemy and stun them for 1.5s. Damage scales with nearby enemies. · 80 MP · 4s CD"
 			unit.ultimate_name = "Gravity Drop"
 			unit.ultimate_damage_mult = 1.5
 			unit.ultimate_range = 4
@@ -219,6 +328,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range = 8
 			unit.skill_cooldown_max = 5
 			unit.skill_mana_cost = 60
+			unit.skill_description = "Fire an extra shot at a second target and gain +2 attack range for 4s. · 60 MP · 5s CD"
 			unit.ultimate_name = "Snipe"
 			unit.ultimate_damage_mult = 4.0
 			unit.ultimate_range = 99
@@ -230,6 +340,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 1
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 60
+			unit.skill_description   = "Step away from nearest attacker and empower next auto-attack (+50%). Only fires when being targeted. · 60 MP · 4s CD"
 			unit.ultimate_name       = "Overdrive"
 			unit.ultimate_damage_mult = 0.0   # utility ult
 			unit.ultimate_charge_max = 400
@@ -240,6 +351,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 4
 			unit.skill_cooldown_max  = 3
 			unit.skill_mana_cost     = 80
+			unit.skill_description   = "Chain bolt bouncing up to 8 times, dealing 80% MAG to enemies and healing allies each hit. · 80 MP · 3s CD"
 			unit.ultimate_name       = "Tidal Wave"
 			unit.ultimate_damage_mult = 1.5
 			unit.ultimate_charge_max = 450
@@ -250,6 +362,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 2
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 80
+			unit.skill_description   = "Grant a shield to the most-wounded ally in range and heal them for 5% max HP. · 80 MP · 4s CD"
 			unit.ultimate_name       = "Guardian Leap"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 8
@@ -261,6 +374,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 2
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 70
+			unit.skill_description   = "AoE slam hitting all enemies within 2 tiles of nearest foe for 120% ATK. · 70 MP · 4s CD"
 			unit.ultimate_name       = "Parasite Lunge"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 6
@@ -272,6 +386,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 3
 			unit.skill_cooldown_max  = 5
 			unit.skill_mana_cost     = 120
+			unit.skill_description   = "Summon a zombie minion in front to fight by your side. · 120 MP · 5s CD"
 			unit.ultimate_name       = "Bat Swarm"
 			unit.ultimate_damage_mult = 0.6
 			unit.ultimate_range      = 5
@@ -284,6 +399,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 4
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 70
+			unit.skill_description   = "Heal the most-wounded ally in range. Healing greatly scales with their missing HP. · 70 MP · 4s CD"
 			unit.ultimate_name       = "Field Surgery"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
@@ -295,6 +411,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 1
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 60
+			unit.skill_description   = "Bash nearest enemy for 110% ATK, stun them for 1.2s, and force them to attack Riot for 3s. · 60 MP · 4s CD"
 			unit.ultimate_name       = "Kettle"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
@@ -306,6 +423,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 4
 			unit.skill_cooldown_max  = 5
 			unit.skill_mana_cost     = 70
+			unit.skill_description   = "Grant the strongest nearby ally +40% attack speed for 5s. · 70 MP · 5s CD"
 			unit.ultimate_name       = "Damnation"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
@@ -317,6 +435,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 7
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 50
+			unit.skill_description   = "Piercing shot hits every enemy in your column for 160% ATK. Falls back to nearest if column is clear. · 50 MP · 4s CD"
 			unit.ultimate_name       = "Headshot"
 			unit.ultimate_damage_mult = 4.0
 			unit.ultimate_range      = 99
@@ -328,6 +447,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 6
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 60
+			unit.skill_description   = "Dash to nearest enemy, deal 110% ATK to the entire row, then reposition adjacent to the target. · 60 MP · 4s CD"
 			unit.ultimate_name       = "Afterimage"
 			unit.ultimate_damage_mult = 1.2
 			unit.ultimate_range      = 99
@@ -339,6 +459,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 6
 			unit.skill_cooldown_max  = 5
 			unit.skill_mana_cost     = 70
+			unit.skill_description   = "Link two nearby enemies — any damage dealt to one is mirrored onto the other. · 70 MP · 5s CD"
 			unit.ultimate_name       = "Puppet"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 6
@@ -350,6 +471,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 1
 			unit.skill_cooldown_max  = 5
 			unit.skill_mana_cost     = 50
+			unit.skill_description   = "Load 3 charges — the next 3 auto-attacks each trigger a bonus fire burst. · 50 MP · 5s CD"
 			unit.ultimate_name       = "Meltdown"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 1
@@ -361,6 +483,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 3
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 60
+			unit.skill_description   = "Root the nearest enemy in place for 3s and deal 40% MAG. · 60 MP · 4s CD"
 			unit.ultimate_name       = "Bloom"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
@@ -372,6 +495,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 4
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 60
+			unit.skill_description   = "Cleanse all debuffs from the most-wounded ally in range and restore their HP. · 60 MP · 4s CD"
 			unit.ultimate_name       = "Judgment"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
@@ -383,6 +507,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 3
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 60
+			unit.skill_description   = "Deal 120% MAG to target and set them ablaze (25% MAG burn per tick for 5s). · 60 MP · 4s CD"
 			unit.ultimate_name       = "Conflagration"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
@@ -394,6 +519,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 5
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 50
+			unit.skill_description   = "Deal 120% ATK to all enemies within 2 tiles of nearest foe; each hit applies a brief burn. · 50 MP · 4s CD"
 			unit.ultimate_name       = "Wildfire"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
@@ -405,6 +531,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 5
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 60
+			unit.skill_description   = "Deal 140% MAG and banish the target to the far edge of the battlefield. · 60 MP · 4s CD"
 			unit.ultimate_name       = "Collapse"
 			unit.ultimate_damage_mult = 2.2
 			unit.ultimate_range      = 99
@@ -416,6 +543,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 6
 			unit.skill_cooldown_max  = 6
 			unit.skill_mana_cost     = 90
+			unit.skill_description   = "Summon a storm hazard that pulses 50% MAG lightning damage to nearby enemies every second. · 90 MP · 6s CD"
 			unit.ultimate_name       = "Thunderhammer"
 			unit.ultimate_damage_mult = 4.5
 			unit.ultimate_range      = 99
@@ -427,6 +555,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 5
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 60
+			unit.skill_description   = "Chain beam hitting up to 5 enemies for 90% MAG, decaying 15% per bounce. · 60 MP · 4s CD"
 			unit.ultimate_name       = "Prism"
 			unit.ultimate_damage_mult = 1.4
 			unit.ultimate_range      = 99
@@ -438,6 +567,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 4
 			unit.skill_cooldown_max  = 5
 			unit.skill_mana_cost     = 60
+			unit.skill_description   = "Stun the nearest enemy for 3s and deal 60% MAG as lightning damage. · 60 MP · 5s CD"
 			unit.ultimate_name       = "Grid"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
@@ -449,6 +579,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 4
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 60
+			unit.skill_description   = "Remove all debuffs from the most-wounded ally in range and heal them for 140% MAG. · 60 MP · 4s CD"
 			unit.ultimate_name       = "Confluence"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
@@ -460,6 +591,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 99
 			unit.skill_cooldown_max  = 5
 			unit.skill_mana_cost     = 60
+			unit.skill_description   = "Make the most-wounded ally untargetable for 2s. They cannot be attacked or targeted during this time. · 60 MP · 5s CD"
 			unit.ultimate_name       = "Tailwind"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
@@ -471,6 +603,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 4
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 50
+			unit.skill_description   = "Instantly max spore stacks on the nearest enemy, triggering a toxic burst next tick. · 50 MP · 4s CD"
 			unit.ultimate_name       = "Release"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
@@ -493,28 +626,65 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 
 # ── Gacha roll system ────────────────────────────────────────────────────────
 
+# Shared F–S tier colors used everywhere a roll's quality is shown (recruit stat
+# rows, level-up perk cards, etc.) so the color language stays consistent — same
+# grey/dark-green/blue/purple/gold progression as item rarity. F and D share the
+# grey "common" tier at two shades so the bottom of the scale still reads as a
+# clear step down from C.
+const GRADE_COLORS := {
+	"F": Color(0.45, 0.45, 0.48),
+	"D": Color(0.65, 0.65, 0.68),
+	"C": Color(0.20, 0.62, 0.28),
+	"B": Color(0.30, 0.55, 0.95),
+	"A": Color(0.68, 0.35, 0.95),
+	"S": Color(1.0,  0.85, 0.0),
+}
+
+# Per-stat growth ROLL MULTIPLIER ranges 0.3 to 1.7 (see generate_recruit_rolls
+# below) — it scales this unit's growth_base into its personalized growth_bonus,
+# NOT a percentage of the stat itself. 1.0 = average roll. Grades this the same
+# way the card's overall grade is graded, so a bad roll reads as a clear "C or D".
+static func grade_letter_for_growth(growth: float) -> String:
+	if   growth >= 1.5: return "S"
+	elif growth >= 1.2: return "A"
+	elif growth >= 0.9: return "B"
+	elif growth >= 0.6: return "C"
+	elif growth >= 0.4: return "D"
+	else:               return "F"
+
+static func grade_color_for_growth(growth: float) -> Color:
+	return GRADE_COLORS.get(grade_letter_for_growth(growth), Color(0.86, 0.86, 1.0))
+
 # Roll per-stat bonuses for a recruit offer.
-# Returns {"stats": {key: {flat, growth}}, "grade": "A", "avg_pct": 0.08}
-static func generate_recruit_rolls() -> Dictionary:
-	const PCT_STATS := ["hp", "mana", "str", "dex", "int", "res", "spr"]
+# "flat" scales the STARTING stat (class base → this recruit's current stat).
+# "growth" is a MULTIPLIER (0.3–1.7, 1.0 = average) applied to the class's fixed
+# growth_base to produce this recruit's personalized growth_bonus — additive,
+# not a percentage of the stat. See UnitBase.stat_growth()/apply_stat_growth().
+# `bias` shifts both roll windows upward (used by enemy spawns in late rounds —
+# see WaveScaler.enemy_roll_bias — so a round-30 enemy hero rolls meaningfully
+# better than a round-11 one instead of both landing in the same flat range).
+# Returns {"stats": {key: {flat, growth}}, "grade": "A", "avg_pct": 1.1}
+static func generate_recruit_rolls(bias: float = 0.0) -> Dictionary:
+	const PCT_STATS := ["hp", "mana", "atk", "magic", "res", "aspd", "hpregen", "manaregen"]
 	var stat_rolls: Dictionary = {}
 	var total_flat := 0.0
+	var total_growth := 0.0
 	for key in PCT_STATS:
-		var flat   := randf_range(-0.25, 0.30)
-		var growth := randf_range(-0.08, 0.18)
+		var flat   := randf_range(-0.25, 0.30) + bias * 0.4
+		var growth := clampf(randf_range(0.3, 1.7) + bias, 0.1, 2.2)
 		stat_rolls[key] = {"flat": flat, "growth": growth}
 		total_flat += flat
+		total_growth += growth
 	# SPD and RNG are integer rolls (small deltas feel big)
 	stat_rolls["move"]  = {"flat": float(randi_range(-1, 1)),  "growth": 0.0, "is_int": true}
 	stat_rolls["range"] = {"flat": float(randi_range(-1, 2)),  "growth": 0.0, "is_int": true}
 
-	var avg := total_flat / float(PCT_STATS.size())
-	var grade := "B"
-	if   avg >= 0.15: grade = "S"
-	elif avg >= 0.06: grade = "A"
-	elif avg >= -0.03: grade = "B"
-	elif avg >= -0.11: grade = "C"
-	else:              grade = "D"
+	# Grade reflects the average growth-roll multiplier — the same number that
+	# scales every stat row's "bonus" — so the badge matches what's on the card.
+	var avg := total_growth / float(PCT_STATS.size())
+	var grade := grade_letter_for_growth(avg)
+	if grade == "F":
+		grade = "D"   # the card's overall badge only ever shows S/A/B/C/D
 	return {"stats": stat_rolls, "grade": grade, "avg_pct": avg}
 
 
@@ -522,20 +692,38 @@ static func generate_recruit_rolls() -> Dictionary:
 static func apply_recruit_rolls(unit: UnitBase, rolls: Dictionary) -> void:
 	var stats: Dictionary = rolls.get("stats", {})
 
-	unit.max_hp         = maxi(1, int(unit.max_hp         * (1.0 + stats.get("hp",   {}).get("flat", 0.0))))
+	unit.max_hp         = maxi(1, int(unit.max_hp         * (1.0 + stats.get("hp",        {}).get("flat", 0.0))))
 	unit.current_hp     = unit.max_hp
-	unit.max_mana       = maxi(1, int(unit.max_mana       * (1.0 + stats.get("mana", {}).get("flat", 0.0))))
+	unit.max_mana       = maxi(1, int(unit.max_mana       * (1.0 + stats.get("mana",      {}).get("flat", 0.0))))
 	unit.current_mana   = unit.max_mana
-	unit.strength       = maxi(1, int(unit.strength       * (1.0 + stats.get("str",  {}).get("flat", 0.0))))
-	unit.dexterity      = maxi(1, int(unit.dexterity      * (1.0 + stats.get("dex",  {}).get("flat", 0.0))))
-	unit.intelligence   = maxi(1, int(unit.intelligence   * (1.0 + stats.get("int",  {}).get("flat", 0.0))))
-	unit.resistance     = maxi(1, int(unit.resistance     * (1.0 + stats.get("res",  {}).get("flat", 0.0))))
-	unit.spirit         = maxi(1, int(unit.spirit         * (1.0 + stats.get("spr",  {}).get("flat", 0.0))))
-	unit.movement_speed = maxi(1, unit.movement_speed + int(stats.get("move",  {}).get("flat", 0.0)))
-	unit.attack_range   = maxi(1, unit.attack_range   + int(stats.get("range", {}).get("flat", 0.0)))
+	unit.attack_damage  = maxi(1, int(unit.attack_damage  * (1.0 + stats.get("atk",       {}).get("flat", 0.0))))
+	unit.magic_power    = maxi(1, int(unit.magic_power    * (1.0 + stats.get("magic",     {}).get("flat", 0.0))))
+	unit.resistance     = maxi(1, int(unit.resistance     * (1.0 + stats.get("res",       {}).get("flat", 0.0))))
+	unit.attack_speed   = maxf(0.05, unit.attack_speed    * (1.0 + stats.get("aspd",      {}).get("flat", 0.0)))
+	unit.hp_regen       = maxf(0.0,  unit.hp_regen        * (1.0 + stats.get("hpregen",   {}).get("flat", 0.0)))
+	unit.mana_regen     = maxf(0.0,  unit.mana_regen      * (1.0 + stats.get("manaregen", {}).get("flat", 0.0)))
+
+	# Personalize this unit's per-level growth bonus — two recruits of the same
+	# class never level up identically. bonus = class's fixed growth_base * this
+	# stat's personal roll multiplier (rounded to each stat's natural precision).
+	unit.growth_bonus = {}
+	for key in ["hp", "mana", "atk", "magic", "res", "aspd", "hpregen", "manaregen"]:
+		var base_growth: float = unit.growth_base.get(key, 0.0)
+		var mult: float = stats.get(key, {}).get("growth", 1.0)
+		if key in ["aspd", "hpregen", "manaregen"]:
+			unit.growth_bonus[key] = snappedf(base_growth * mult, 0.01)
+		else:
+			unit.growth_bonus[key] = float(round(base_growth * mult))
 
 	unit.recruit_rolls = rolls
 	unit.recruit_grade = rolls.get("grade", "B")
+
+	# Level 1 already counts as "having" its level — apply one growth tick now,
+	# same as every subsequent level-up, so the recruit's live stats match the
+	# card's "→ next (+delta)" column immediately, not one level behind.
+	unit.apply_stat_growth()
+	unit.current_hp = unit.max_hp
+	unit.current_mana = unit.max_mana
 
 
 static func create_random_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Element = UnitBase.Element.NORMAL, is_player: bool = true) -> VisualUnit:

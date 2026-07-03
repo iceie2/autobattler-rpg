@@ -72,47 +72,55 @@ var _btn_pause: Button
 var _speed_buttons: Dictionary = {}   # scale (float) -> Button
 const SPEED_OPTIONS: Array[float] = [0.25, 1.0, 2.0, 4.0]
 
-# Wave difficulty panel (shown during prep phase each round)
-var _difficulty_panel: Panel
-var _diff_btns: Array = []
-var _diff_power_lbl: Label
+# Wave difficulty panel
+var difficulty_panel: DifficultyPanel
 var current_difficulty: int = WaveScaler.Difficulty.EASY
 
 # Unit details panel
 @onready var unit_details_panel = $UI/UnitDetailsPanel
-@onready var details_title = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/TitleBar/TitleLabel
-@onready var details_close_btn = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/TitleBar/CloseBtn
-@onready var details_unit_name = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/UnitName
-@onready var details_class = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/ClassLabel
-@onready var details_element = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/ElementLabel
-@onready var details_level = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/LevelLabel
-@onready var details_hp = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/HPLabel
-@onready var details_mana = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/ManaLabel
-@onready var details_str = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/StrLabel
-@onready var details_dex = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/DexLabel
-@onready var details_int = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/IntLabel
-@onready var details_res = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/ResLabel
-@onready var details_attack = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/AttackLabel
-@onready var details_magic = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/MagicLabel
-@onready var details_defense = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/DefenseLabel
-@onready var details_move_speed = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/MoveSpeedLabel
-@onready var details_attack_range = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/AttackRangeLabel
+@onready var _dpanel_root: VBoxContainer = $UI/UnitDetailsPanel/Margin/ScrollContainer/Root
+@onready var details_title = _dpanel_root.get_node("TitleBar/TitleLabel")
+@onready var details_close_btn = _dpanel_root.get_node("TitleBar/CloseBtn")
+@onready var details_portrait_frame: PanelContainer = _dpanel_root.get_node("Header/PortraitFrame")
+@onready var details_portrait: TextureRect = _dpanel_root.get_node("Header/PortraitFrame/Portrait")
+@onready var details_unit_name: Label = _dpanel_root.get_node("Header/HeaderInfo/UnitName")
+@onready var details_class: Label = _dpanel_root.get_node("Header/HeaderInfo/ChipRow/ClassChip/ClassLabel")
+@onready var details_element_icon: TextureRect = _dpanel_root.get_node("Header/HeaderInfo/ChipRow/ElementChip/EChipRow/ElementIcon")
+@onready var details_element: Label = _dpanel_root.get_node("Header/HeaderInfo/ChipRow/ElementChip/EChipRow/ElementLabel")
+@onready var details_level: Label = _dpanel_root.get_node("Header/HeaderInfo/ChipRow/LevelChip/LevelLabel")
+@onready var details_hp_bar: ProgressBar = _dpanel_root.get_node("Vitals/HPBar")
+@onready var details_hp_val: Label = _dpanel_root.get_node("Vitals/HPBar/Value")
+@onready var details_mp_bar: ProgressBar = _dpanel_root.get_node("Vitals/MPBar")
+@onready var details_mp_val: Label = _dpanel_root.get_node("Vitals/MPBar/Value")
+@onready var details_xp_bar: ProgressBar = _dpanel_root.get_node("Vitals/XPBar")
+@onready var details_xp_val: Label = _dpanel_root.get_node("Vitals/XPBar/Value")
+@onready var details_combat_grid: GridContainer = _dpanel_root.get_node("CombatGrid")
+@onready var details_affinity_grid: GridContainer = _dpanel_root.get_node("AffinityRow/AffinityCol/AffinityGrid")
+@onready var details_growth_grid: GridContainer = _dpanel_root.get_node("AffinityRow/GrowthCol/GrowthGrid")
+@onready var details_item_bag: GridContainer = _dpanel_root.get_node("Header/HeaderInfo/ChipRow/ItemBag")
 
-# Offensive affinity labels
-@onready var off_normal = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/OffNormalLabel
-@onready var off_fire = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/OffFireLabel
-@onready var off_water = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/OffWaterLabel
-@onready var off_earth = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/OffEarthLabel
-@onready var off_air = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/OffAirLabel
-@onready var off_lightning = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/OffLightningLabel
+# Combat-stat grid cells (node name -> STAT_ICONS key) and affinity element order
+const _COMBAT_CELLS := [
+	["CellAtk", "atk"], ["CellDef", "res"], ["CellMag", "magic"], ["CellAspd", "aspd"],
+	["CellHpRegen", "hpregen"], ["CellMpRegen", "manaregen"], ["CellMove", "move"], ["CellRange", "range"],
+	["CellCritChance", "crit_chance"], ["CellCritDamage", "crit_damage"],
+]
+const _AFF_ELEMENTS := [
+	[UnitBase.Element.NORMAL, "Normal"], [UnitBase.Element.FIRE, "Fire"],
+	[UnitBase.Element.WATER, "Water"], [UnitBase.Element.EARTH, "Earth"],
+	[UnitBase.Element.AIR, "Air"], [UnitBase.Element.LIGHTNING, "Lightning"],
+]
+# Growth-grid cells (node name -> stat key). Stats without a per-level growth
+# roll (move/range) are excluded — see UnitBase.apply_stat_growth.
+const _GROWTH_CELLS := [
+	["CellGHp", "hp"], ["CellGAtk", "atk"], ["CellGMana", "mana"], ["CellGMag", "magic"],
+	["CellGDef", "res"], ["CellGAspd", "aspd"], ["CellGHpRegen", "hpregen"], ["CellGMpRegen", "manaregen"],
+]
+# Stats whose growth is a fractional roll (rounded to 0.01/level) rather than
+# a whole-number roll — see UnitFactory.apply_recruit_rolls.
+const _GROWTH_FLOAT_STATS := ["aspd", "hpregen", "manaregen"]
 
-# Defensive affinity labels
-@onready var def_normal = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/DefNormalLabel
-@onready var def_fire = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/DefFireLabel
-@onready var def_water = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/DefWaterLabel
-@onready var def_earth = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/DefEarthLabel
-@onready var def_air = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/DefAirLabel
-@onready var def_lightning = $UI/UnitDetailsPanel/ScrollContainer/VBoxContainer/DefLightningLabel
+# Held-items bag lives in the scene (ItemBag GridContainer); slots filled at runtime.
 
 # Game components
 var game_state: GameState
@@ -132,13 +140,23 @@ var _character_menu: CharacterMenu
 var _class_browser: ClassBrowser
 var _hero_shop: HeroShop
 var _level_up_screen: LevelUpScreen
+var _round_reward_screen: RoundRewardScreen
+var _pending_round_reward: Dictionary = {}
+var _rolled_rewards: Dictionary = {}   # {difficulty: reward} — rolled once per round, shown in full
+var _locked_elite_code_by_round: Dictionary = {}   # {round: "SS"/"AH"/"G"} — locked once per round (see _generate_wave_spec)
 var _equipment_inventory: EquipmentInventory
 var _equipment_panel: EquipmentPanel
 var _event_panel: EventPanel
 var _game_over_screen: GameOverScreen
+var _relic_screen: RelicScreen
+var _relic_inventory: RelicInventory
+var _relic_grid: GridContainer = null      # RELICS section in the left sidebar
+var _relic_heading: Control = null
 
 # Run tracking (reset each new game)
 var _run_kills: int = 0
+# Which relic-waves (1/11/21) have already handed out their pick this run.
+var _relic_waves_done: Dictionary = {}
 
 # ── Sidebar layout ────────────────────────────────────────────────────────────
 const SIDEBAR_W  := 285.0
@@ -147,9 +165,30 @@ const _PANEL_MID  := Color(0.11, 0.09, 0.17, 0.94)
 const _GOLD_COL   := Color(0.83, 0.69, 0.22, 1.0)
 const _GOLD_DIM   := Color(0.83, 0.69, 0.22, 0.45)
 
-var _left_panel:   PanelContainer
-var _right_panel:  PanelContainer
-var _synergy_list: VBoxContainer   # rebuilt when player roster changes
+# ITEM_ICONS moved to EquipmentManager.ITEM_ICONS so it's shared with other UI
+# (e.g. the round-reward preview in difficulty_panel.gd).
+
+var _left_panel:     PanelContainer
+var _right_panel:    PanelContainer
+var _synergy_list:   VBoxContainer   # rebuilt when player roster changes
+var _inventory_grid: GridContainer   # bag display rebuilt on inventory_changed
+var _synergy_tracker: SynergyTracker = SynergyTracker.new()
+var _synergies_applied: bool = false   # guards the battle-start apply / battle-end revert
+
+# Item hover tooltip
+var _item_tip_layer: CanvasLayer = null
+var _item_tip:           PanelContainer = null
+var _item_tip_name_lbl:  Label = null
+var _item_tip_stats_vb:  VBoxContainer = null
+var _item_tip_passive_lbl:  Label = null
+var _item_tip_passive_desc: Label = null
+var _badge_tip_active: bool = false   # item tooltip is currently shown by a board badge hover
+# Bag drag-to-equip state
+var _drag_candidate: EquipmentItem = null
+var _dragged_item:   EquipmentItem = null
+var _drag_layer:     CanvasLayer   = null
+var _drag_panel:     Panel         = null
+var _drag_press_pos: Vector2       = Vector2.ZERO
 
 # Row-bonus tooltip (floats above grid on mouse hover)
 var _row_tip:       Panel
@@ -160,10 +199,7 @@ var _row_tip_last:  int = -1   # last cell_y we displayed, avoids redundant upda
 
 # Live unit details panel
 var _details_unit:    UnitBase = null
-var _details_hp_bar:  ProgressBar
-var _details_mp_bar:  ProgressBar
-var _details_xp_bar:  ProgressBar
-var _details_xp_lbl:  Label
+var _details_icons_ready: bool = false
 
 # Sidebar-native widgets (built fresh in code so sizing is reliable)
 var _sb_player_hp:    ProgressBar
@@ -174,6 +210,8 @@ var _sb_enemy_lbl:    Label
 var _sb_enemy_ulist:  VBoxContainer
 var _sb_dm_list:      VBoxContainer
 
+
+# ── INITIALIZATION ─────────────────────────────────────────────────────────
 func _ready():
 	initialize_game_components()
 	connect_signals()
@@ -258,25 +296,10 @@ func connect_signals() -> void:
 	
 	# UI button signals
 	spawn_hero_btn.pressed.connect(_on_spawn_hero_pressed)
-	use_items_btn.pressed.connect(_on_use_items_pressed)
+	use_items_btn.text = "Equipment"
+	use_items_btn.pressed.connect(_on_equipment_pressed)
 	classes_btn.pressed.connect(_on_classes_pressed)
 	roster_btn.pressed.connect(_on_roster_pressed)
-
-	# Add equipment button to action panel
-	# TODO: Re-enable synergy button after fixing syntax errors
-	#var synergy_btn = Button.new()
-	#synergy_btn.text = "Synergies"
-	#synergy_btn.custom_minimum_size = Vector2(90, 36)
-	#synergy_btn.add_theme_font_size_override("font_size", 12)
-	#synergy_btn.pressed.connect(_on_synergies_pressed)
-	#action_panel.get_node("VBoxContainer").add_child(synergy_btn)
-
-	var equipment_btn = Button.new()
-	equipment_btn.text = "Equipment"
-	equipment_btn.custom_minimum_size = Vector2(90, 36)
-	equipment_btn.add_theme_font_size_override("font_size", 12)
-	equipment_btn.pressed.connect(_on_equipment_pressed)
-	action_panel.get_node("VBoxContainer").add_child(equipment_btn)
 	ready_btn.pressed.connect(_on_ready_pressed)
 	details_close_btn.pressed.connect(_on_details_close_pressed)
 	unit_details_panel.gui_input.connect(_on_details_panel_input)
@@ -319,7 +342,6 @@ func connect_signals() -> void:
 	damage_meter_panel.gui_input.connect(_make_panel_drag_handler(damage_meter_panel))
 
 	_build_battle_controls()
-	_build_difficulty_panel()
 
 	var cm_scene := load("res://scenes/character_menu.tscn") as PackedScene
 	_character_menu = cm_scene.instantiate() as CharacterMenu
@@ -338,13 +360,23 @@ func connect_signals() -> void:
 	_level_up_screen = lu_scene.instantiate() as LevelUpScreen
 	add_child(_level_up_screen)
 
+	_round_reward_screen = RoundRewardScreen.new()
+	add_child(_round_reward_screen)
+
 	_equipment_inventory = EquipmentInventory.new()
+	_equipment_inventory.inventory_changed.connect(_rebuild_inventory_grid)
+	_equipment_inventory.hero_equipment_changed.connect(_on_hero_equipment_changed)
 	_equipment_panel = EquipmentPanel.new()
 	add_child(_equipment_panel)
 
 	_event_panel = EventPanel.new()
 	_event_panel.event_choice_made.connect(_on_event_choice_made)
 	add_child(_event_panel)
+
+	_relic_inventory = RelicInventory.new()
+	_relic_screen = RelicScreen.new()
+	_relic_screen.chosen.connect(_on_relic_chosen)
+	add_child(_relic_screen)
 
 	var go_scene := load("res://scenes/game_over_screen.tscn") as PackedScene
 	_game_over_screen = go_scene.instantiate() as GameOverScreen
@@ -390,16 +422,25 @@ func _integrate_scene_units() -> void:
 				unit.update_visuals()
 
 
-var max_player_units: int = 6   # base cap; increased by Roster Expansion upgrade
+var max_player_units: int = 27   # base cap; increased by Roster Expansion upgrade
+
+# Wave locking system
+var _current_wave_spec: Array = []  # locked enemy roster for this wave (before instantiation)
+var _locked_difficulty: int = -1    # locked difficulty for this wave (-1 = not locked yet)
 
 func start_new_game() -> void:
 	game_state.gold = 50 + Progression.starting_gold_bonus()
 	game_state.crystals = 0
 	_run_kills = 0
-	max_player_units = 6 + Progression.get_bonus("hero_slots")
+	max_player_units = 27 + Progression.get_bonus("hero_slots")
+	_relic_inventory = RelicInventory.new()
+	_relic_waves_done.clear()
+	_rebuild_relic_bar()
 	game_state.start_battle_round()
 	open_shop()
 
+
+# ── STATE MACHINE & UI UPDATE ──────────────────────────────────────────────
 func update_ui() -> void:
 	gold_label.text = "💰 %d" % game_state.gold
 	crystals_label.text = "💎 %d" % game_state.crystals
@@ -435,9 +476,11 @@ func enable_unit_dragging(enabled: bool) -> void:
 	for unit in player_units:
 		if unit and is_instance_valid(unit) and unit is VisualUnit:
 			unit.can_be_dragged = enabled
+	# Enemy units are never player-controlled — always keep them locked,
+	# regardless of the requested state.
 	for unit in enemy_units:
 		if unit and is_instance_valid(unit) and unit is VisualUnit:
-			unit.can_be_dragged = enabled
+			unit.can_be_dragged = false
 
 # Signal handlers
 func _on_state_changed(new_state: GameState.State) -> void:
@@ -465,20 +508,111 @@ func _on_state_changed(new_state: GameState.State) -> void:
 	if new_state != GameState.State.AUTO_BATTLE and _battle_controls:
 		_battle_controls.visible = false
 
+
+# ── BATTLE ROUND LIFECYCLE ─────────────────────────────────────────────────
 func _on_battle_round_started(round_number: int) -> void:
 	update_ui()
 	print("Battle round %d started!" % round_number)
+	# Generate and lock wave 1 at EASY difficulty
+	_locked_difficulty = WaveScaler.Difficulty.EASY
 	current_difficulty = WaveScaler.Difficulty.EASY
-	clear_enemy_units()
-	spawn_enemies(current_difficulty)
-	if _difficulty_panel:
-		_difficulty_panel.visible = true
-		_update_difficulty_panel()
+	_current_wave_spec = _generate_wave_spec(_locked_difficulty)
+	_instantiate_wave_from_spec(_current_wave_spec)
+	# Roll this round's reward for ALL 3 difficulties up front and show them in
+	# full — the player picks a difficulty knowing exactly what they'd win, not
+	# just vague odds. The roll doesn't change no matter how many times you flip
+	# between difficulties this round.
+	_rolled_rewards = {
+		WaveScaler.Difficulty.EASY:   RoundReward.roll(WaveScaler.Difficulty.EASY, round_number),
+		WaveScaler.Difficulty.NORMAL: RoundReward.roll(WaveScaler.Difficulty.NORMAL, round_number),
+		WaveScaler.Difficulty.HARD:   RoundReward.roll(WaveScaler.Difficulty.HARD, round_number),
+	}
+	if difficulty_panel:
+		difficulty_panel.current_difficulty = current_difficulty
+		difficulty_panel.update_display(_all_difficulty_power(), _rolled_rewards)
+		difficulty_panel.set_panel_visible(true)
+
+	if WaveScaler.is_boss_round(round_number):
+		info_label.text = "⚠ BOSS WAVE %d — a towering Hill Giant leads the assault. Prepare!" % round_number
+
+	# Relic pick at the start of waves 1 / 11 / 21 — a modal over the prep phase.
+	# Effects apply immediately (retroactively to units on the team, and to any
+	# hero recruited afterwards), so there's no strict ordering vs. the shop.
+	if round_number in Relic.RELIC_WAVES and not _relic_waves_done.has(round_number):
+		_relic_waves_done[round_number] = true
+		var offers: Array = Relic.roll_offers(round_number, _relic_inventory.owned_ids())
+		if not offers.is_empty():
+			_relic_screen.present(offers, round_number)
+
+func _on_relic_chosen(relic: Dictionary) -> void:
+	# Store it, then apply retroactively to heroes already on the team. Newly
+	# recruited heroes pick it up in _on_hero_chosen.
+	var owned_copy: Dictionary = _relic_inventory.add_relic(relic)
+	_relic_inventory.apply_relic_to_units(owned_copy, player_units)
+	_rebuild_relic_bar()
+	update_ui()
+	update_team_health_bars()
+	if _details_unit and is_instance_valid(_details_unit):
+		_update_details_panel()
+	info_label.text = "Relic acquired: %s" % relic.get("name", "?")
+
+# The relics picked this run, shown as grade-bordered icons in the left sidebar
+# (RELICS section, above the bag). Hover an icon for its name + effect.
+const RELIC_SLOT := 34
+
+func _rebuild_relic_bar() -> void:
+	if not _relic_grid:
+		return
+	for c in _relic_grid.get_children():
+		c.queue_free()
+
+	# Hide the whole RELICS section (heading + grid) until the first relic drops.
+	var has_relics: bool = _relic_inventory != null and not _relic_inventory.is_empty()
+	if _relic_heading:
+		_relic_heading.visible = has_relics
+	_relic_grid.visible = has_relics
+	if not has_relics:
+		return
+
+	for r in _relic_inventory.owned:
+		var grade: String = r.get("grade", "D")
+		var col: Color = Relic.grade_color(grade)
+		var slot := PanelContainer.new()
+		slot.custom_minimum_size = Vector2(RELIC_SLOT, RELIC_SLOT)
+		var cs := StyleBoxFlat.new()
+		cs.bg_color = col.darkened(0.62)
+		cs.border_color = col
+		cs.set_border_width_all(2)
+		cs.set_corner_radius_all(5)
+		slot.add_theme_stylebox_override("panel", cs)
+		slot.tooltip_text = "%s  [%s-rank]\n%s" % [r.get("name", ""), grade, r.get("desc", "")]
+		slot.mouse_filter = Control.MOUSE_FILTER_STOP
+
+		var icon_path: String = Relic.icon_path(r)
+		if icon_path != "":
+			var tex := TextureRect.new()
+			tex.expand_mode  = TextureRect.EXPAND_IGNORE_SIZE
+			tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tex.texture      = load(icon_path) as Texture2D
+			tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			slot.add_child(tex)
+		else:
+			# Fallback: first letters of the relic name if art is missing.
+			var lbl := Label.new()
+			lbl.text = str(r.get("name", "?")).substr(0, 2)
+			lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
+			lbl.add_theme_font_size_override("font_size", 12)
+			lbl.add_theme_color_override("font_color", col.lightened(0.4))
+			lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			slot.add_child(lbl)
+		_relic_grid.add_child(slot)
 
 func _on_battle_started() -> void:
-	if _difficulty_panel:
-		_difficulty_panel.visible = false
+	if difficulty_panel:
+		difficulty_panel.set_panel_visible(false)
 	enable_unit_dragging(false)
+	_apply_team_synergies()
 	info_label.text = "Battle started! Units are fighting automatically."
 	close_shop()
 	update_team_health_bars()
@@ -515,14 +649,19 @@ func _build_battle_controls() -> void:
 	_btn_pause.pressed.connect(func(): auto_battle_manager.set_paused(true))
 	hbox.add_child(_btn_pause)
 
-	# 0.25× is the slow play-by-play mode; 4× fast-forwards.
+	# 0.25× is the slow play-by-play mode; 4× fast-forwards. Labels stay the
+	# familiar "1×"/"2×"/etc. (the user's mental model of "normal speed"), but
+	# every tier is actually scaled by AutoBattleManager.BASE_TIME_SCALE under
+	# the hood (the game-wide -10% pacing cut), so "1×" now means the new,
+	# slightly slower baseline rather than literally 1.0.
 	_speed_buttons.clear()
 	for scale in SPEED_OPTIONS:
 		var label := ("%.2f×" % scale) if scale < 1.0 else ("%d×" % int(scale))
 		var btn := _make_ctrl_btn(label, 66)
-		btn.pressed.connect(func(): auto_battle_manager.set_time_scale(scale))
+		var actual_scale: float = scale * AutoBattleManager.BASE_TIME_SCALE
+		btn.pressed.connect(func(): auto_battle_manager.set_time_scale(actual_scale))
 		hbox.add_child(btn)
-		_speed_buttons[scale] = btn
+		_speed_buttons[actual_scale] = btn
 
 func _make_ctrl_btn(text: String, width: float = 90.0) -> Button:
 	var b := Button.new()
@@ -540,82 +679,34 @@ func _on_pace_changed(is_paused: bool, scale: float) -> void:
 		var active: bool = (not is_paused) and is_equal_approx(s, scale)
 		_speed_buttons[s].modulate = Color(0.5, 1.0, 0.6) if active else Color(1, 1, 1)
 
-const VICTORY_ROUND := 10  # completing this round triggers the victory screen
+const VICTORY_ROUND := 30  # completing this round triggers the victory screen
+						   # (bosses at 10/20/30; relic picks at 1/11/21)
 
-# ── Wave difficulty panel ─────────────────────────────────────────────────────
-func _build_difficulty_panel() -> void:
-	_difficulty_panel = Panel.new()
-	_difficulty_panel.name = "DifficultyPanel"
-	_difficulty_panel.size = Vector2(400, 86)
-	_difficulty_panel.position = Vector2((1280 - 400) / 2.0, 66)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.08, 0.14, 0.96)
-	style.border_color = Color(0.55, 0.4, 0.65, 1)
-	style.set_border_width_all(2)
-	style.corner_radius_top_left = 6; style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6; style.corner_radius_bottom_right = 6
-	_difficulty_panel.add_theme_stylebox_override("panel", style)
-	_difficulty_panel.visible = false
+# ── Wave difficulty section (embedded in left sidebar) ────────────────────────
+func _build_difficulty_panel_ui(parent_vb: VBoxContainer) -> void:
+	difficulty_panel = DifficultyPanel.new()
+	difficulty_panel.difficulty_selected.connect(_on_difficulty_panel_selected)
+	parent_vb.add_child(difficulty_panel)
 
-	var title := Label.new()
-	title.text = "ENEMY DIFFICULTY"
-	title.position = Vector2(0, 5)
-	title.size = Vector2(400, 18)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 11)
-	title.add_theme_color_override("font_color", Color(0.8, 0.7, 1.0))
-	_difficulty_panel.add_child(title)
-
-	var diff_labels: Array = ["★ Easy", "★★ Normal", "★★★ Hard"]
-	var btn_w: float = 110.0
-	var btn_spacing: float = 14.0
-	var total_w: float = btn_w * 3.0 + btn_spacing * 2.0
-	var start_x: float = (400.0 - total_w) / 2.0
-	_diff_btns = []
-	for i in range(3):
-		var btn := Button.new()
-		btn.text = diff_labels[i]
-		btn.position = Vector2(start_x + i * (btn_w + btn_spacing), 24)
-		btn.size = Vector2(btn_w, 28)
-		btn.pressed.connect(_on_difficulty_selected.bind(i))
-		_difficulty_panel.add_child(btn)
-		_diff_btns.append(btn)
-
-	_diff_power_lbl = Label.new()
-	_diff_power_lbl.text = ""
-	_diff_power_lbl.position = Vector2(0, 60)
-	_diff_power_lbl.size = Vector2(400, 18)
-	_diff_power_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_diff_power_lbl.add_theme_font_size_override("font_size", 11)
-	_diff_power_lbl.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
-	_difficulty_panel.add_child(_diff_power_lbl)
-
-	$UI.add_child(_difficulty_panel)
-
-func _update_difficulty_panel() -> void:
-	if not _difficulty_panel:
-		return
-	var diff_colors: Array = [Color(0.2, 0.75, 0.3), Color(0.9, 0.65, 0.1), Color(0.9, 0.2, 0.15)]
-	for i in range(_diff_btns.size()):
-		var btn: Button = _diff_btns[i]
-		btn.modulate = diff_colors[i] if i == current_difficulty else Color(0.5, 0.5, 0.5)
-
-	var total_power: float = 0.0
-	for unit in enemy_units:
-		if unit and is_instance_valid(unit):
-			total_power += WaveScaler.score_unit(unit)
-	var diff_names: Array = ["Easy", "Normal", "Hard"]
-	_diff_power_lbl.text = "%s — Enemy Power: %d" % [diff_names[current_difficulty], int(total_power)]
-
-func _on_difficulty_selected(diff: int) -> void:
-	if diff == current_difficulty:
-		return
+func _on_difficulty_panel_selected(diff: int) -> void:
 	current_difficulty = diff
-	clear_enemy_units()
+	# Preview only — show what enemies would spawn at this difficulty, but don't lock it
 	spawn_enemies(current_difficulty)
-	_update_difficulty_panel()
+	difficulty_panel.update_display(_all_difficulty_power(), _rolled_rewards)
+
+# Power for all 3 difficulties at once (dry-run — no units touch the battlefield)
+# so the panel can show every option side by side instead of just the active preview.
+func _all_difficulty_power() -> Dictionary:
+	return {
+		WaveScaler.Difficulty.EASY:   _estimate_wave_power(WaveScaler.Difficulty.EASY),
+		WaveScaler.Difficulty.NORMAL: _estimate_wave_power(WaveScaler.Difficulty.NORMAL),
+		WaveScaler.Difficulty.HARD:   _estimate_wave_power(WaveScaler.Difficulty.HARD),
+	}
 
 func _on_battle_ended(player_won: bool) -> void:
+	# Strip the battle-only synergy bonuses first so between-round stats/displays
+	# show base values (they recompute fresh next fight).
+	_revert_team_synergies()
 	if player_won:
 		# Check if the player just cleared the final scripted wave
 		if game_state.battle_round >= VICTORY_ROUND:
@@ -628,8 +719,19 @@ func _on_battle_ended(player_won: bool) -> void:
 				game_state.crystals, game_state.battle_round, total_dmg, _run_kills)
 			return
 
-		info_label.text = "Victory! You won the battle. +50 gold!"
-		game_state.add_gold(50)
+		# Economy pass (2026-07-02): this flat bonus used to be 50g — combined with
+		# per-kill gold and the RoundReward gacha (also cut, see WaveScaler/RoundReward),
+		# that let the roster fill up (and trivialize difficulty) far faster than
+		# intended: ~4 heroes by round 2, ~8 by round 3. Target curve from actual
+		# play: 2nd hero ~wave 3, 3rd ~wave 5, 4th-5th by wave 10 (Easy, no other
+		# spending). Needs a real playtest to confirm/re-tune — this is a first cut.
+		const ROUND_WIN_GOLD := 12
+		var relic_gold: int = _relic_inventory.gold_per_round() if _relic_inventory else 0
+		game_state.add_gold(ROUND_WIN_GOLD + relic_gold)
+		if relic_gold > 0:
+			info_label.text = "Victory! +%d gold (+%d from relics)." % [ROUND_WIN_GOLD + relic_gold, relic_gold]
+		else:
+			info_label.text = "Victory! You won the battle. +%dg!" % ROUND_WIN_GOLD
 		clear_enemy_units()
 		_despawn_summons()
 		reset_player_positions()
@@ -653,6 +755,7 @@ func _on_battle_ended(player_won: bool) -> void:
 
 	update_ui()
 	await get_tree().create_timer(2.0).timeout
+	await _grant_round_reward()
 	# Show level-up perk choices for any hero that leveled up this round
 	var leveled: Array = player_units.filter(
 		func(u): return u and is_instance_valid(u) and u.perk_points > 0)
@@ -660,6 +763,35 @@ func _on_battle_ended(player_won: bool) -> void:
 		_level_up_screen.present(leveled)
 		await _level_up_screen.all_done
 	game_state.start_battle_round()
+
+# Grants the reward rolled at "Ready for Battle" time for the round that was
+# just cleared. STAT_BONUS pauses on a pick-a-card/pick-a-hero screen; the rest
+# apply immediately with just an info-label message.
+func _grant_round_reward() -> void:
+	var reward: Dictionary = _pending_round_reward
+	_pending_round_reward = {}
+	if reward.is_empty():
+		return
+	match reward.get("type", RoundReward.Type.NOTHING):
+		RoundReward.Type.GOLD:
+			var amt: int = reward.get("gold", 0)
+			game_state.add_gold(amt)
+			info_label.text = "Round reward: +%d gold!" % amt
+			update_ui()
+		RoundReward.Type.ITEM:
+			var item: EquipmentItem = reward.get("item")
+			if item:
+				_equipment_inventory.add_item(item)
+				info_label.text = "Round reward: %s (%s)!" % [item.name, item.get_rarity_name()]
+		RoundReward.Type.STAT_BONUS:
+			var alive_units: Array = player_units.filter(
+				func(u): return u and is_instance_valid(u))
+			if alive_units.is_empty():
+				return
+			_round_reward_screen.present(reward, alive_units)
+			await _round_reward_screen.done
+		_:
+			pass   # NOTHING
 
 func _on_unit_summoned(unit: UnitBase) -> void:
 	if not (unit and is_instance_valid(unit)):
@@ -700,6 +832,8 @@ func _on_unit_action(_unit, _action_type: String) -> void:
 	_rebuild_damage_meter()
 
 
+
+# ── TEAM HEALTH & COMBAT FEEDBACK ──────────────────────────────────────────
 func _style_team_bar(bar: ProgressBar, fill_color: Color) -> void:
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color(0.05, 0.05, 0.07, 1)
@@ -802,7 +936,7 @@ func _rebuild_unit_list(container: VBoxContainer, units: Array, name_color: Colo
 		container.add_child(gap)
 
 func _add_stat_bar(container: VBoxContainer, lbl_text: String,
-		current: int, maximum: int, color: Color) -> void:
+		current, maximum, color: Color) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 5)
 
@@ -815,9 +949,11 @@ func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(lbl)
 
-	# Current / max numbers
+	# Current / max numbers (format floats with 1 decimal, ints as-is)
 	var nums := Label.new()
-	nums.text = "%d / %d" % [current, maximum]
+	var cur_str := "%.1f" % current if current is float and current != int(current) else str(int(current))
+	var max_str := "%.1f" % maximum if maximum is float and maximum != int(maximum) else str(int(maximum))
+	nums.text = "%s / %s" % [cur_str, max_str]
 	nums.custom_minimum_size = Vector2(90, 12)
 	nums.add_theme_font_size_override("font_size", 10)
 	nums.add_theme_color_override("font_color", Color(0.72, 0.72, 0.85, 1))
@@ -830,8 +966,8 @@ func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 	bar.custom_minimum_size = Vector2(0, 10)
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.size_flags_vertical   = Control.SIZE_SHRINK_CENTER
-	bar.max_value = max(maximum, 1)
-	bar.value     = current
+	bar.max_value = maxf(float(maximum), 1.0)
+	bar.value     = float(current)
 	bar.show_percentage = false
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = color
@@ -845,6 +981,8 @@ func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 
 	container.add_child(row)
 
+
+# ── UNIT PLACEMENT & GRID INPUT ────────────────────────────────────────────
 func _on_cell_clicked(grid_pos: Vector2i) -> void:
 	# Right-click to show unit details
 	if battle_grid.is_cell_occupied(grid_pos):
@@ -865,6 +1003,8 @@ func _on_unit_placed(placed_unit, grid_pos: Vector2i) -> void:
 # Action button handlers
 
 
+
+# ── SHOP & HERO MANAGEMENT ─────────────────────────────────────────────────
 func _on_spawn_hero_pressed() -> void:
 	if not shop_open:
 		info_label.text = "Shop is closed!"
@@ -872,7 +1012,8 @@ func _on_spawn_hero_pressed() -> void:
 	if game_state.gold < HeroShop.HERO_COST:
 		info_label.text = "Not enough gold! Need %d gold." % HeroShop.HERO_COST
 		return
-	_hero_shop.open(game_state.gold)
+	var shop_slots: int = 3 + (_relic_inventory.shop_slot_bonus() if _relic_inventory else 0)
+	_hero_shop.open(game_state.gold, shop_slots)
 
 func _apply_progression_bonuses(unit: VisualUnit) -> void:
 	var hp_bonus: int = Progression.get_bonus("team_hp")
@@ -887,6 +1028,9 @@ func _on_hero_chosen(unit_class: UnitBase.UnitClass, element: UnitBase.Element, 
 	var unit := UnitFactory.create_unit(unit_class, element, true)
 	UnitFactory.apply_recruit_rolls(unit, rolls)
 	_apply_progression_bonuses(unit)
+	# Grant every relic picked so far to this new hire (each applies at most once).
+	if _relic_inventory:
+		_relic_inventory.apply_all_to_unit(unit)
 	var spawn_pos := find_empty_player_slot()
 	if spawn_pos == Vector2i(-1, -1):
 		info_label.text = "No room for more units!"
@@ -954,7 +1098,7 @@ func _on_event_choice_made(choice_index: int) -> void:
 	if effects.has("team_dmg_mult"):
 		for unit in player_units:
 			if unit and is_instance_valid(unit):
-				unit.strength = int(unit.strength * effects["team_dmg_mult"])
+				unit.attack_damage = int(unit.attack_damage * effects["team_dmg_mult"])
 
 	if effects.has("team_def_mult"):
 		for unit in player_units:
@@ -1002,8 +1146,18 @@ func _on_ready_pressed() -> void:
 		return
 
 	close_shop()
-	if _difficulty_panel:
-		_difficulty_panel.visible = false
+	if difficulty_panel:
+		difficulty_panel.set_panel_visible(false)
+
+	# Lock in the currently selected difficulty and generate+instantiate the final wave roster
+	_locked_difficulty = current_difficulty
+	_current_wave_spec = _generate_wave_spec(_locked_difficulty)
+	_instantiate_wave_from_spec(_current_wave_spec)
+
+	# Use the reward already rolled (and shown) for this difficulty when the
+	# round started — the player picked this difficulty knowing exactly what
+	# they'd win, so commit to that exact result, not a fresh roll.
+	_pending_round_reward = _rolled_rewards.get(_locked_difficulty, {})
 
 	# Trigger random event between rounds (25% chance)
 	if randf() < 0.25 and game_state.battle_round > 1:
@@ -1013,85 +1167,255 @@ func _on_ready_pressed() -> void:
 		game_state.player_ready_for_battle()
 
 # Unit Details Panel
-func _make_details_bar(fill_col: Color) -> ProgressBar:
-	var bar := ProgressBar.new()
-	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.custom_minimum_size = Vector2(0, 10)
-	bar.show_percentage = false
-	var fg := StyleBoxFlat.new()
-	fg.bg_color = fill_col
-	fg.corner_radius_top_left = 3; fg.corner_radius_top_right = 3
-	fg.corner_radius_bottom_left = 3; fg.corner_radius_bottom_right = 3
-	bar.add_theme_stylebox_override("fill", fg)
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.08, 0.08, 0.12, 1)
-	bar.add_theme_stylebox_override("background", bg)
-	return bar
 
-
-func _ensure_details_bars() -> void:
-	if _details_hp_bar:
+# ── UNIT DETAILS PANEL ─────────────────────────────────────────────────────
+# Assign the static combat-stat and element glyph textures once (they never
+# change per unit). Value labels are updated every refresh in _refresh_details().
+func _ensure_details_icons() -> void:
+	if _details_icons_ready:
 		return
-	var vb = details_hp.get_parent()
-	# HP bar after HPLabel
-	_details_hp_bar = _make_details_bar(Color(0.18, 0.75, 0.28))
-	vb.add_child(_details_hp_bar)
-	vb.move_child(_details_hp_bar, details_hp.get_index() + 1)
-	# MP bar after ManaLabel
-	_details_mp_bar = _make_details_bar(Color(0.22, 0.45, 0.90))
-	vb.add_child(_details_mp_bar)
-	vb.move_child(_details_mp_bar, details_mana.get_index() + 1)
-	# XP label + bar (inserted after ResLabel)
-	_details_xp_lbl = Label.new()
-	_details_xp_lbl.add_theme_font_size_override("font_size", 11)
-	_details_xp_lbl.add_theme_color_override("font_color", Color(0.83, 0.69, 0.22))
-	vb.add_child(_details_xp_lbl)
-	vb.move_child(_details_xp_lbl, details_res.get_index() + 1)
-	_details_xp_bar = _make_details_bar(Color(0.83, 0.69, 0.22))
-	vb.add_child(_details_xp_bar)
-	vb.move_child(_details_xp_bar, _details_xp_lbl.get_index() + 1)
+	_details_icons_ready = true
+	# Crit cells aren't in the .tscn (added after that scene was built) — create
+	# them at runtime, matching the existing CellAtk/etc. HBoxContainer+Icon+Value
+	# structure exactly, so _set_combat_cell's "%s/Value" lookup finds them too.
+	for crit_cell in ["CellCritChance", "CellCritDamage"]:
+		if details_combat_grid.get_node_or_null(crit_cell):
+			continue
+		var cell := HBoxContainer.new()
+		cell.name = crit_cell
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.add_theme_constant_override("separation", 6)
+		var icon := TextureRect.new()
+		icon.name = "Icon"
+		icon.custom_minimum_size = Vector2(16, 16)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		cell.add_child(icon)
+		var val := Label.new()
+		val.name = "Value"
+		val.add_theme_font_size_override("font_size", 12)
+		val.text = "-"
+		cell.add_child(val)
+		details_combat_grid.add_child(cell)
+	for pair in _COMBAT_CELLS:
+		var stat_key: String = pair[1]
+		var path: String = UnitFactory.STAT_ICONS.get(stat_key, "")
+		if path == "":
+			continue
+		var cell := details_combat_grid.get_node_or_null(pair[0])
+		var icon := cell.get_node_or_null("Icon") as TextureRect if cell else null
+		if icon:
+			icon.texture = load(path) as Texture2D
+			var tip: String = UnitFactory.STAT_NAMES.get(stat_key, stat_key)
+			icon.tooltip_text = tip
+			icon.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.get_node_or_null("Value").tooltip_text = tip
+	for pair in _AFF_ELEMENTS:
+		var epath: String = UnitFactory.ELEMENT_ICONS.get(pair[0], "")
+		if epath == "":
+			continue
+		var eicon := details_affinity_grid.get_node_or_null("Icon%s" % pair[1]) as TextureRect
+		if eicon:
+			eicon.texture = load(epath) as Texture2D
+			eicon.tooltip_text = pair[1]
+			eicon.mouse_filter = Control.MOUSE_FILTER_STOP
+	for pair in _GROWTH_CELLS:
+		var gstat_key: String = pair[1]
+		var gpath: String = UnitFactory.STAT_ICONS.get(gstat_key, "")
+		if gpath == "":
+			continue
+		var gcell := details_growth_grid.get_node_or_null(pair[0])
+		var gicon := gcell.get_node_or_null("Icon") as TextureRect if gcell else null
+		if gicon:
+			gicon.texture = load(gpath) as Texture2D
+			var gtip: String = UnitFactory.STAT_NAMES.get(gstat_key, gstat_key)
+			gicon.tooltip_text = gtip
+			gicon.mouse_filter = Control.MOUSE_FILTER_STOP
+			gcell.get_node_or_null("Value").tooltip_text = gtip
 
+
+# Portrait for the header: heroes use their full sprite; monsters use their
+# using/ override if present. Returns null when nothing suitable exists.
+func _get_unit_portrait_texture(unit: UnitBase) -> Texture2D:
+	var path := ""
+	if VisualUnit.HERO_SPRITE_PATHS.has(unit.unit_class):
+		path = VisualUnit.HERO_SPRITE_PATHS[unit.unit_class]
+	else:
+		# Resolve a sprite folder: enemy override meta, else class-based folder.
+		var folder := ""
+		if unit.has_meta("sprite_folder"):
+			folder = str(unit.get_meta("sprite_folder"))
+		elif unit.has_method("get_class_sprite_folder"):
+			folder = unit.get_class_sprite_folder()
+		if folder != "":
+			if VisualUnit.MONSTER_SPRITE_PATHS.has(folder):
+				path = VisualUnit.MONSTER_SPRITE_PATHS[folder]
+			else:
+				var gen := "res://assets/sprites/generated/%s/0/single.png" % folder
+				if ResourceLoader.exists(gen):
+					path = gen
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
+
+func _cell_int_text(current: int, bonus: float) -> String:
+	return ("%d → %d" % [current - int(bonus), current]) if bonus > 0 else ("%d" % current)
+
+
+func _cell_float_text(current: float, bonus: float) -> String:
+	return ("%.2f → %.2f" % [current - bonus, current]) if bonus > 0 else ("%.2f" % current)
+
+
+# Returns [display_current, display_bonus] for a combat-grid cell, combining
+# equipment (eq_bonus — always baked into unit.<stat> live) with synergy set
+# bonuses. Synergy is only physically applied to unit.<stat> during battle (see
+# _apply_team_synergies/syn_backup meta) — outside of battle this previews the
+# same multiplier so the base→boosted arrow is never one round stale.
+func _combat_cell_values(unit: UnitBase, stat: String, eq_bonus: float) -> Array:
+	var current: float = float(unit.get(stat))
+	if unit.is_player_unit and unit.has_meta("syn_backup"):
+		var bk: Dictionary = unit.get_meta("syn_backup")
+		if bk.has(stat):
+			return [current, current - (float(bk[stat]) - eq_bonus)]
+	var mult := 1.0
+	if unit.is_player_unit:
+		_synergy_tracker.update_from_team(player_units)
+		mult = float(_synergy_tracker.team_bonuses().get(stat, 1.0))
+	var boosted: float = current * mult
+	return [boosted, boosted - (current - eq_bonus)]
+
+
+# Player heroes track equipment in EquipmentInventory; enemies carry their held
+# item(s) directly on the unit (see UnitBase.held_items). This is the one place
+# both UI paths (stat display, bag panel) should read from.
+func _get_unit_held_items(unit: UnitBase) -> Array:
+	if unit.is_player_unit:
+		return _equipment_inventory.get_hero_equipment(unit) if _equipment_inventory else []
+	return unit.held_items
+
+func _sum_equipment_stats(unit: UnitBase) -> Dictionary:
+	var totals: Dictionary = {}
+	for item in _get_unit_held_items(unit):
+		for stat in item.stat_bonus:
+			var v: float = float(item.stat_bonus[stat])
+			if v > 0:
+				totals[stat] = totals.get(stat, 0.0) + v
+	return totals
 
 func show_unit_details(unit: UnitBase) -> void:
 	_details_unit = unit
 	unit_details_panel.visible = true
-	_ensure_details_bars()
+	_ensure_details_icons()
+	_refresh_details()
 
-	# Static info (only changes on level-up)
+
+# Populates the whole panel from _details_unit. Used on open and for live
+# refresh during battle (see _update_details_panel).
+func _refresh_details() -> void:
+	var unit := _details_unit
+	if not (unit and is_instance_valid(unit)):
+		return
+
+	# ── Header: portrait, name, chips ──
+	var portrait := _get_unit_portrait_texture(unit)
+	details_portrait.texture = portrait
+	details_portrait_frame.visible = portrait != null
 	details_unit_name.text = unit.unit_name
-	details_class.text = "Class: " + unit.get_class_name_string()
-	details_element.text = "Element: " + unit.get_element_name_string()
-	details_level.text = "Level: %d" % unit.level
+	details_class.text = unit.get_class_name_string()
+	details_element.text = unit.get_element_name_string()
+	details_element.add_theme_color_override("font_color", Color(get_element_color_hex(unit.current_element)))
+	details_element_icon.texture = load(UnitFactory.ELEMENT_ICONS.get(unit.current_element, "")) as Texture2D
+	details_level.text = "Lv %d" % unit.level
 
-	details_hp.text = "HP: %d / %d" % [unit.current_hp, unit.max_hp]
-	details_mana.text = "Mana: %d / %d" % [unit.current_mana, unit.max_mana]
-	details_str.text = "STR: %d" % unit.strength
-	details_dex.text = "DEX: %d" % unit.dexterity
-	details_int.text = "INT: %d" % unit.intelligence
-	details_res.text = "RES: %d" % unit.resistance
-	
-	details_attack.text = "Attack Damage: %d" % unit.attack_damage
-	details_magic.text = "Magic Power: %d" % unit.magic_power
-	details_defense.text = "Defense: %d" % unit.defense
-	
-	details_move_speed.text = "Movement Speed: %d" % unit.movement_speed
-	details_attack_range.text = "Attack Range: %d" % unit.attack_range
-	
-	# Display offensive affinity for each element with colors
-	update_affinity_label(off_normal, "Normal", unit.offensive_affinity[UnitBase.Element.NORMAL], UnitBase.Element.NORMAL, true)
-	update_affinity_label(off_fire, "Fire", unit.offensive_affinity[UnitBase.Element.FIRE], UnitBase.Element.FIRE, true)
-	update_affinity_label(off_water, "Water", unit.offensive_affinity[UnitBase.Element.WATER], UnitBase.Element.WATER, true)
-	update_affinity_label(off_earth, "Earth", unit.offensive_affinity[UnitBase.Element.EARTH], UnitBase.Element.EARTH, true)
-	update_affinity_label(off_air, "Air", unit.offensive_affinity[UnitBase.Element.AIR], UnitBase.Element.AIR, true)
-	update_affinity_label(off_lightning, "Lightning", unit.offensive_affinity[UnitBase.Element.LIGHTNING], UnitBase.Element.LIGHTNING, true)
-	
-	# Display defensive affinity for each element with colors
-	update_affinity_label(def_normal, "Normal", unit.defensive_affinity[UnitBase.Element.NORMAL], UnitBase.Element.NORMAL, false)
-	update_affinity_label(def_fire, "Fire", unit.defensive_affinity[UnitBase.Element.FIRE], UnitBase.Element.FIRE, false)
-	update_affinity_label(def_water, "Water", unit.defensive_affinity[UnitBase.Element.WATER], UnitBase.Element.WATER, false)
-	update_affinity_label(def_earth, "Earth", unit.defensive_affinity[UnitBase.Element.EARTH], UnitBase.Element.EARTH, false)
-	update_affinity_label(def_air, "Air", unit.defensive_affinity[UnitBase.Element.AIR], UnitBase.Element.AIR, false)
-	update_affinity_label(def_lightning, "Lightning", unit.defensive_affinity[UnitBase.Element.LIGHTNING], UnitBase.Element.LIGHTNING, false)
+	var eq := _sum_equipment_stats(unit)
+
+	# ── Vitals ──
+	details_hp_bar.max_value = max(1, unit.max_hp)
+	details_hp_bar.value = unit.current_hp
+	details_hp_val.text = "HP  %d / %d" % [unit.current_hp, unit.max_hp]
+	details_mp_bar.max_value = max(1, unit.max_mana)
+	details_mp_bar.value = unit.current_mana
+	details_mp_val.text = "MP  %d / %d" % [unit.current_mana, unit.max_mana]
+	details_xp_bar.max_value = max(1.0, unit.xp_to_level)
+	details_xp_bar.value = unit.current_xp
+	details_xp_val.text = "XP  %.0f / %.0f" % [unit.current_xp, unit.xp_to_level]
+
+	# ── Combat grid ──
+	# Synergy set bonuses only get physically applied to unit stats during battle
+	# (see _apply_team_synergies) — outside of battle, _combat_cell_values previews
+	# the same amount so the base→boosted display never has to "wait for the round
+	# to start" to reflect a set bonus the player can already see in SET BONUSES.
+	var atk := _combat_cell_values(unit, "attack_damage", eq.get("atk", 0.0))
+	var def := _combat_cell_values(unit, "resistance", eq.get("res", 0.0))
+	var mag := _combat_cell_values(unit, "magic_power", eq.get("magic", 0.0))
+	var aspd := _combat_cell_values(unit, "attack_speed", eq.get("aspd", 0.0))
+	_set_combat_cell("CellAtk", _cell_int_text(int(round(atk[0])), atk[1]), atk[1] > 0)
+	_set_combat_cell("CellDef", _cell_int_text(int(round(def[0])), def[1]), def[1] > 0)
+	_set_combat_cell("CellMag", _cell_int_text(int(round(mag[0])), mag[1]), mag[1] > 0)
+	_set_combat_cell("CellAspd", _cell_float_text(aspd[0], aspd[1]), aspd[1] > 0)
+	_set_combat_cell("CellHpRegen", _cell_float_text(unit.hp_regen, eq.get("hpregen", 0.0)), eq.get("hpregen", 0.0) > 0)
+	_set_combat_cell("CellMpRegen", _cell_float_text(unit.mana_regen, eq.get("manaregen", 0.0)), eq.get("manaregen", 0.0) > 0)
+	_set_combat_cell("CellMove", "%d" % unit.movement_speed, false)
+	_set_combat_cell("CellRange", "%d" % unit.attack_range, false)
+	_set_combat_cell("CellCritChance", "%.0f%%" % (unit.crit_chance * 100.0), false)
+	_set_combat_cell("CellCritDamage", "x%.2f" % unit.crit_damage, false)
+
+	# ── Growth per level (final — base class growth + this unit's personal roll) ──
+	for pair in _GROWTH_CELLS:
+		var gcell := details_growth_grid.get_node_or_null(pair[0])
+		var glbl := gcell.get_node_or_null("Value") as Label if gcell else null
+		if not glbl:
+			continue
+		var amount: float = unit.stat_growth(pair[1])
+		glbl.text = ("+%.2f" % amount) if pair[1] in _GROWTH_FLOAT_STATS else ("+%d" % int(round(amount)))
+
+	# ── Affinity matrix + item bag ──
+	_refresh_affinity(unit)
+	_update_details_bag(unit)
+
+
+func _set_combat_cell(cell: String, text: String, buffed: bool) -> void:
+	var lbl := details_combat_grid.get_node_or_null("%s/Value" % cell) as Label
+	if not lbl:
+		return
+	lbl.text = text
+	lbl.add_theme_color_override("font_color", Color(0.4, 0.95, 0.5) if buffed else Color(0.9, 0.9, 0.95))
+
+
+func _refresh_affinity(unit: UnitBase) -> void:
+	for pair in _AFF_ELEMENTS:
+		var element: UnitBase.Element = pair[0]
+		var suffix: String = pair[1]
+		var atk_lbl := details_affinity_grid.get_node_or_null("Atk%s" % suffix) as Label
+		var def_lbl := details_affinity_grid.get_node_or_null("Def%s" % suffix) as Label
+		if not (atk_lbl and def_lbl):
+			continue
+		var off_val: float = unit.offensive_affinity[element]
+		var def_val: float = unit.defensive_affinity[element]
+		var atk_pct := int(round(100.0 + off_val))
+		var def_pct := int(round(100.0 * 100.0 / (def_val + 100.0)))
+		atk_lbl.text = "%d%%" % atk_pct
+		def_lbl.text = "%d%%" % def_pct
+		atk_lbl.add_theme_color_override("font_color", _aff_color(atk_pct, true))
+		def_lbl.add_theme_color_override("font_color", _aff_color(def_pct, false))
+
+
+# Neutral (100%) fades into the grid; otherwise green = favourable, red = weak.
+# higher_is_good is true for offensive %, false for defensive % (lower = tankier).
+func _aff_color(pct: int, higher_is_good: bool) -> Color:
+	if pct == 100:
+		return Color(0.5, 0.5, 0.55)
+	var good := (pct > 100) if higher_is_good else (pct < 100)
+	return Color(0.3, 0.92, 0.45) if good else Color(0.95, 0.32, 0.32)
+
+func _on_hero_equipment_changed(unit_id: String) -> void:
+	if not (_details_unit and is_instance_valid(_details_unit) and unit_details_panel.visible):
+		return
+	var cur_id: String = _details_unit.unit_name + "_" + str(_details_unit.get_instance_id())
+	if cur_id == unit_id:
+		_update_details_bag(_details_unit)
 
 func _on_details_close_pressed() -> void:
 	unit_details_panel.visible = false
@@ -1139,6 +1463,8 @@ func _on_eh_toggle() -> void:
 	if _eh_expanded:
 		_render_event_log()
 
+
+# ── DAMAGE METER & EVENT LOG ───────────────────────────────────────────────
 func _on_action_logged(text: String, is_player: bool) -> void:
 	_event_log.append({"text": text, "is_player": is_player})
 	if _event_log.size() > 200:
@@ -1259,16 +1585,64 @@ func _on_details_panel_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and _panel_dragging:
 		unit_details_panel.position += event.relative
 
-func update_affinity_label(label: RichTextLabel, element_name: String, value: float, element: UnitBase.Element, is_offensive: bool) -> void:
-	var color = get_element_color_hex(element)
-	
-	if is_offensive:
-		# Offensive: show as percentage
-		label.text = "[color=%s]%s: +%.0f%%[/color]" % [color, element_name, value]
-	else:
-		# Defensive: show value and reduction percentage
-		var reduction_pct = (1.0 - (1.0 - (value / (value + 100.0)))) * 100
-		label.text = "[color=%s]%s: %.0f (%.1f%% reduction)[/color]" % [color, element_name, value, reduction_pct]
+# ── Held-items bag (Unit Details panel) ────────────────────────────────────────
+# Shows up to 6 slots: player heroes show their real equipped items (from
+# EquipmentInventory); enemies show whatever they spawned wielding (UnitBase.held_items).
+# Lives inline in the header (right of the Lv chip) — the ItemBag GridContainer
+# in the scene; this fills its slots.
+const DETAILS_BAG_SLOTS := 6
+
+func _update_details_bag(unit: UnitBase) -> void:
+	if not details_item_bag:
+		return
+	for c in details_item_bag.get_children():
+		c.queue_free()
+
+	var items: Array = _get_unit_held_items(unit)
+	const SLOT_SIZE := Vector2(26, 26)
+
+	for i in range(DETAILS_BAG_SLOTS):
+		var slot_bg := StyleBoxFlat.new()
+		slot_bg.corner_radius_top_left     = 4
+		slot_bg.corner_radius_top_right    = 4
+		slot_bg.corner_radius_bottom_left  = 4
+		slot_bg.corner_radius_bottom_right = 4
+
+		if i < items.size():
+			var item: EquipmentItem = items[i]
+			var btn := Button.new()
+			btn.custom_minimum_size = SLOT_SIZE
+			btn.mouse_filter = Control.MOUSE_FILTER_STOP
+
+			slot_bg.bg_color     = item.icon_color.darkened(0.55)
+			slot_bg.border_color = item.icon_color
+			slot_bg.set_border_width_all(1)
+			btn.add_theme_stylebox_override("normal", slot_bg)
+
+			var hover_bg := slot_bg.duplicate() as StyleBoxFlat
+			hover_bg.bg_color = item.icon_color.darkened(0.35)
+			btn.add_theme_stylebox_override("hover", hover_bg)
+
+			var icon_path: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
+			if icon_path != "":
+				var tex: Texture2D = load(icon_path)
+				if tex:
+					btn.icon = tex
+					btn.expand_icon = true
+
+			var captured_item := item
+			btn.mouse_entered.connect(func(): _show_item_tooltip(captured_item, get_viewport().get_mouse_position()))
+			btn.mouse_exited.connect(func(): _hide_item_tooltip())
+			details_item_bag.add_child(btn)
+		else:
+			var ph := Panel.new()
+			ph.custom_minimum_size = SLOT_SIZE
+			slot_bg.bg_color     = Color(0.10, 0.10, 0.16, 0.6)
+			slot_bg.border_color = Color(0.22, 0.22, 0.32, 0.5)
+			slot_bg.set_border_width_all(1)
+			ph.add_theme_stylebox_override("panel", slot_bg)
+			ph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			details_item_bag.add_child(ph)
 
 func get_element_color_hex(element: UnitBase.Element) -> String:
 	match element:
@@ -1288,6 +1662,8 @@ func get_element_color_hex(element: UnitBase.Element) -> String:
 			return "#FFFFFF"
 
 # Shop and spawning functions
+
+# ── SHOP CONTROL & ENEMY SPAWNING ──────────────────────────────────────────
 func open_shop() -> void:
 	shop_open = true
 	info_label.text = "Shop open! Buy heroes then click READY FOR BATTLE."
@@ -1321,8 +1697,63 @@ func spawn_random_player_unit() -> void:
 	else:
 		unit.queue_free()
 
-func spawn_enemies(difficulty: int = WaveScaler.Difficulty.EASY) -> void:
+# Enemy code (WaveData/formation) → EnemyFactory type string. Empty = unknown.
+func _code_to_type(code: String) -> String:
+	match code:
+		"M":  return "goblin"
+		"A":  return "goblin_archer"
+		"S":  return "goblin_shaman"
+		"B":  return "orc_brute"
+		"G":  return "hill_giant"
+		"SL": return "slime"
+		"SK": return "skeleton"
+		"R":  return "rat"
+		"TRI": return "triarch"
+		"SS": return "stat_stealer"
+		"AH": return "ant_hill"
+		"KHA": return "khagan"
+		_:    return ""
+
+func _generate_wave_spec(difficulty: int) -> Array:
+	# Generate a wave specification (not instantiated units) for the given difficulty.
+	# Returns an array of {"type": str, "level": int, "pos"?: Vector2i} entries.
 	var round := game_state.battle_round
+	var spec: Array = []
+
+	# ── Boss rounds (10 / 20 / 30): a scaled boss + escalating adds. ──
+	if WaveScaler.is_boss_round(round):
+		var placed: Array = WaveScaler.build_boss_formation(round, difficulty, battle_grid.grid_width)
+		var boss_lvl: int = WaveScaler.boss_level(round)
+		var boss_code: String = WaveScaler.boss_code_for(round)
+		for entry: Dictionary in placed:
+			var code: String = entry["code"]
+			var t: String = _code_to_type(code)
+			if t == "":
+				continue
+			var lvl: int = boss_lvl if code == boss_code else _enemy_level_for_round(round, false)
+			spec.append({"type": t, "level": lvl, "pos": entry["pos"]})
+		return spec
+
+	# ── Elite rounds (5 / 15 / 25): a mini-boss + light fodder support. ──
+	if WaveScaler.is_elite_round(round):
+		# Lock the elite pick once per round (this func gets called again when
+		# Ready is pressed, after the round-start formation preview already
+		# showed one — without caching, that second call re-rolled independently
+		# and could spawn a DIFFERENT elite than the one shown on the grid).
+		if not _locked_elite_code_by_round.has(round):
+			_locked_elite_code_by_round[round] = WaveScaler.ELITE_POOL[randi() % WaveScaler.ELITE_POOL.size()]
+		var elite_code: String = _locked_elite_code_by_round[round]
+		var placed: Array = WaveScaler.build_elite_formation(round, difficulty, battle_grid.grid_width, elite_code)
+		var elite_lvl: int = WaveScaler.elite_level(round)
+		for entry: Dictionary in placed:
+			var code: String = entry["code"]
+			var t: String = _code_to_type(code)
+			if t == "":
+				continue
+			var lvl: int = elite_lvl if code in WaveScaler.ELITE_POOL else _enemy_level_for_round(round, false)
+			spec.append({"type": t, "level": lvl, "pos": entry["pos"]})
+		return spec
+
 	var formation_data: Array = WaveScaler.build_formation(round, difficulty, battle_grid.grid_width)
 
 	if formation_data.is_empty():
@@ -1332,26 +1763,85 @@ func spawn_enemies(difficulty: int = WaveScaler.Difficulty.EASY) -> void:
 		for i in range(count):
 			var is_last := (i == count - 1)
 			var lvl := _enemy_level_for_round(round, is_last)
-			var unit := UnitFactory.create_random_class_unit(false)
-			if lvl > 1: unit.set_level(lvl)
-			_place_enemy(unit)
-		return
+			spec.append({"type": "random", "level": lvl})
+		return spec
 
 	for entry: Dictionary in formation_data:
-		var code: String = entry["code"]
-		var grid_pos: Vector2i = entry["pos"]
-		match code:
-			"M":  _place_at(EnemyFactory.create_goblin(), grid_pos)
-			"A":  _place_at(EnemyFactory.create_goblin_archer(), grid_pos)
-			"S":  _place_at(EnemyFactory.create_goblin_shaman(), grid_pos)
-			"B":  _place_at(EnemyFactory.create_orc_brute(), grid_pos)
-			"G":  _place_at(EnemyFactory.create_hill_giant(), grid_pos)
-			"SL": _place_at(EnemyFactory.create_slime(), grid_pos)
-			"SK": _place_at(EnemyFactory.create_skeleton(), grid_pos)
-			"R":  _place_at(EnemyFactory.create_rat(), grid_pos)
+		var type: String = _code_to_type(entry["code"])
+		if type != "":
+			# Store both type and grid position
+			spec.append({"type": type, "level": 1, "pos": entry["pos"]})
+	return spec
 
-# Place any unit at an explicit grid position (respects cell_size for 2×2 units)
-func _place_at(unit: VisualUnit, grid_pos: Vector2i) -> void:
+# Dry-run power estimate for a difficulty WITHOUT touching the battlefield —
+# lets the difficulty panel show all 3 tiers' power at once instead of only
+# whichever one is currently previewed/spawned.
+func _estimate_wave_power(difficulty: int) -> float:
+	var spec: Array = _generate_wave_spec(difficulty)
+	var total: float = 0.0
+	for entry: Dictionary in spec:
+		var unit: VisualUnit = _create_enemy_for_entry(entry)
+		if unit:
+			total += WaveScaler.score_unit(unit)
+			unit.free()
+	return total
+
+# Create the enemy described by one wave-spec entry (type + level). "random" =
+# procedural class unit; everything else routes through EnemyFactory.
+func _create_enemy_for_entry(entry: Dictionary) -> VisualUnit:
+	var type: String = entry["type"]
+	var lvl: int = entry.get("level", 1)
+	var unit: VisualUnit = null
+	if type == "random":
+		unit = UnitFactory.create_random_class_unit(false)
+		# Give procedural enemy heroes the same stat-roll grade system player
+		# recruits get, biased upward by round so power scales with both level
+		# AND roll quality the deeper into the run you go (see enemy_roll_bias).
+		var bias: float = WaveScaler.enemy_roll_bias(game_state.battle_round)
+		UnitFactory.apply_recruit_rolls(unit, UnitFactory.generate_recruit_rolls(bias))
+	else:
+		match type:
+			"goblin": unit = EnemyFactory.create_goblin()
+			"goblin_archer": unit = EnemyFactory.create_goblin_archer()
+			"goblin_shaman": unit = EnemyFactory.create_goblin_shaman()
+			"orc_brute": unit = EnemyFactory.create_orc_brute()
+			"hill_giant": unit = EnemyFactory.create_hill_giant()
+			"slime": unit = EnemyFactory.create_slime()
+			"skeleton": unit = EnemyFactory.create_skeleton()
+			"rat": unit = EnemyFactory.create_rat()
+			"triarch": unit = EnemyFactory.create_triarch()
+			"stat_stealer": unit = EnemyFactory.create_stat_stealer()
+			"ant_hill": unit = EnemyFactory.create_ant_hill()
+			"khagan": unit = EnemyFactory.create_khagan()
+	if unit and lvl > 1:
+		unit.set_level(lvl)
+	return unit
+
+# Instantiate a wave spec onto the board. roll_item=false for the difficulty
+# preview (so scouting can't free-reroll held-item drops); true for the real
+# locked wave.
+func _instantiate_wave_from_spec(spec: Array, roll_item: bool = true) -> void:
+	clear_enemy_units()
+	for entry: Dictionary in spec:
+		var unit: VisualUnit = _create_enemy_for_entry(entry)
+		if not unit:
+			continue
+		var grid_pos: Vector2i = entry.get("pos", Vector2i(-1, -1))
+		if grid_pos != Vector2i(-1, -1):
+			_place_at(unit, grid_pos, roll_item)
+		else:
+			_place_enemy(unit, roll_item)
+
+func spawn_enemies(difficulty: int = WaveScaler.Difficulty.EASY) -> void:
+	# Difficulty PREVIEW — same spec generator as the real wave (so boss rounds and
+	# every difficulty preview exactly), but never rolls held items.
+	_instantiate_wave_from_spec(_generate_wave_spec(difficulty), false)
+
+# Place any unit at an explicit grid position (respects cell_size for 2×2 units).
+# roll_item=false is used by the difficulty PREVIEW so switching difficulty back
+# and forth can't be used to free-scout (and re-roll) held-item drops before
+# committing — items only ever roll on the real, locked wave instantiation.
+func _place_at(unit: VisualUnit, grid_pos: Vector2i, roll_item: bool = true) -> void:
 	unit.grid_position = grid_pos
 	var world := battle_grid.grid_to_world(grid_pos)
 	# 2×2 units: offset visual centre so sprite aligns to the middle of the 2×2 block
@@ -1364,16 +1854,40 @@ func _place_at(unit: VisualUnit, grid_pos: Vector2i) -> void:
 		unit.died.connect(_on_unit_died.bind(unit))
 		unit.battle_manager = auto_battle_manager
 		unit.damage_text_container = damage_text_container
+		if roll_item:
+			_roll_held_item(unit)
 	else:
 		unit.queue_free()
 
+# Enemies can spawn already wielding a dropped item — stat bonuses apply for the
+# whole fight, and the exact same item drops on death (what you see is what you loot).
+const HELD_ITEM_BASE_CHANCE := 0.12
+func _roll_held_item(unit: VisualUnit) -> void:
+	if unit.is_player_unit:
+		return
+	var chance: float = HELD_ITEM_BASE_CHANCE + game_state.battle_round * 0.015
+	if randf() >= chance:
+		return
+	var item := EquipmentManager.generate_item(game_state.battle_round, EquipmentItem.Rarity.RARE)
+	EquipmentManager.apply_to_unit(unit, item)
+	unit.held_items.append(item)
+	if unit.health_bar:
+		unit.health_bar.update_hp(unit.current_hp, unit.max_hp)
+		unit.health_bar.update_mp(unit.current_mana, unit.max_mana)
+	var icon_path: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
+	if icon_path != "":
+		var tex: Texture2D = load(icon_path)
+		if tex and unit is VisualUnit:
+			unit.show_held_item_icon(tex, item.icon_color)
+
 # Slot-fill for procedural rounds (keeps existing behaviour)
-func _place_enemy(unit: VisualUnit) -> void:
+func _place_enemy(unit: VisualUnit, roll_item: bool = true) -> void:
 	var spawn_pos := find_empty_enemy_slot()
 	if spawn_pos == Vector2i(-1, -1):
 		unit.queue_free()
 		return
-	_place_at(unit, spawn_pos)
+	unit.can_be_dragged = false
+	_place_at(unit, spawn_pos, roll_item)
 
 func _enemy_level_for_round(round: int, is_elite: bool) -> int:
 	if is_elite and round % 5 == 0:
@@ -1381,7 +1895,14 @@ func _enemy_level_for_round(round: int, is_elite: bool) -> int:
 	if is_elite and round >= 4:
 		return min(round / 2, 5)
 	if round <= 2: return 1
-	return 1 + randi() % min(round / 2, 3)
+	if round <= 10:
+		return 1 + randi() % min(round / 2, 3)
+	# Round 11+ (procedural enemy heroes): the old formula capped at level 4
+	# forever past round 6, so a round-30 enemy was no stronger via level than a
+	# round-11 one — only stat-roll grade (see enemy_roll_bias) would differ.
+	# Now the level floor keeps climbing too: ~3 at round 11 up to ~13-15 by round 30.
+	var floor_lvl: int = 3 + (round - 10) / 2
+	return floor_lvl + randi() % 3
 
 func find_empty_player_slot() -> Vector2i:
 	if player_units.size() >= max_player_units:
@@ -1447,6 +1968,8 @@ func reset_player_positions() -> void:
 		unit.move_start_pos = unit.position
 		unit.move_target_pos = unit.position
 
+
+# ── BETWEEN-ROUND BONUSES ──────────────────────────────────────────────────
 func _grant_between_round_bonuses() -> void:
 	# Player zone: y=5 (front, closest to middle) to y=8 (back, farthest from middle).
 	# Front row: 10% heal, +40% XP.  Back row: 40% heal, +10% XP.
@@ -1457,7 +1980,6 @@ func _grant_between_round_bonuses() -> void:
 	const XP_MULT_BACK     := 1.10
 	const XP_MULT_FRONT    := 1.40
 	const XP_PER_DMG       := 8          # 1 XP per N damage dealt
-	const XP_PER_KILL      := 80         # flat XP per kill
 
 	for unit in player_units:
 		if not (unit and is_instance_valid(unit)):
@@ -1474,8 +1996,8 @@ func _grant_between_round_bonuses() -> void:
 
 		# XP from output this battle
 		var xp_mult: float = lerpf(XP_MULT_BACK, XP_MULT_FRONT, front_t)
-		var base_xp: int   = int(unit.damage_dealt / XP_PER_DMG) + unit.kill_count * XP_PER_KILL
-		var xp_gained: int = int(base_xp * xp_mult)
+		var base_xp: float = float(unit.damage_dealt) / float(XP_PER_DMG) + unit.kill_xp
+		var xp_gained: float = base_xp * xp_mult
 		if xp_gained > 0:
 			unit.grant_xp(xp_gained)
 		_log_between_round(unit, heal_amt, xp_gained, front_t)
@@ -1483,19 +2005,23 @@ func _grant_between_round_bonuses() -> void:
 		# Reset per-battle trackers for next round
 		unit.damage_dealt = 0
 		unit.kill_count   = 0
+		unit.kill_xp      = 0
 
 	update_team_health_bars()
 	_rebuild_damage_meter()
 
 
-func _log_between_round(unit: UnitBase, heal: int, xp: int, front_t: float) -> void:
+func _log_between_round(unit: UnitBase, heal: int, xp: float, front_t: float) -> void:
 	var row_label := "back" if front_t < 0.35 else ("mid" if front_t < 0.65 else "front")
+	var xp_str: String = "%.1f" % xp if xp != int(xp) else str(int(xp))
 	_on_action_logged(
-		"[%s] %s row → +%d HP healed, +%d XP (Lv.%d)" % [
-			unit.unit_name, row_label, heal, xp, unit.level],
+		"[%s] %s row → +%d HP healed, +%s XP (Lv.%d)" % [
+			unit.unit_name, row_label, heal, xp_str, unit.level],
 		true)
 
 
+
+# ── UNIT DEATH & SUMMONS ───────────────────────────────────────────────────
 func _on_unit_died(unit) -> void:
 	var was_enemy := enemy_units.has(unit)
 	var dead_level: int = unit.level if (unit and is_instance_valid(unit)) else 1
@@ -1519,10 +2045,24 @@ func _on_unit_died(unit) -> void:
 		if _mdl and is_instance_valid(_mdl) and _mdl.is_player_unit:
 			_mdl.kill_count += 1
 
-		# Generate item drops (30% chance per kill, scales with round)
-		if randf() < 0.3 + (game_state.battle_round * 0.05):
-			var item = EquipmentManager.generate_item(game_state.battle_round)
-			_equipment_inventory.add_item(item)
+		# Distribute kill XP equally among all living player heroes
+		var living_heroes: int = 0
+		for hero in player_units:
+			if hero and is_instance_valid(hero):
+				living_heroes += 1
+
+		if living_heroes > 0:
+			var xp_per_hero: float = float(unit.xp_reward) / float(living_heroes)
+			for hero in player_units:
+				if hero and is_instance_valid(hero):
+					hero.kill_xp += xp_per_hero
+
+		# Loot ONLY drops from enemies that were actually wielding an item — the
+		# exact item you saw on it mid-fight, no re-roll. Enemies that spawned
+		# empty-handed drop nothing (no separate random death-drop roll).
+		if not unit.held_items.is_empty():
+			for held in unit.held_items:
+				_equipment_inventory.add_item(held)
 
 	update_team_health_bars()
 
@@ -1531,6 +2071,8 @@ func _on_unit_died(unit) -> void:
 # ROW BONUS TOOLTIP
 # ════════════════════════════════════════════════════════════════════════════
 
+
+# ── ROW BONUS TOOLTIP ──────────────────────────────────────────────────────
 func _create_row_tooltip() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 20
@@ -1567,9 +2109,88 @@ func _tip_lbl(size: int, col: Color, pos: Vector2) -> Label:
 	return l
 
 
+
+# ── PROCESS LOOP ───────────────────────────────────────────────────────────
 func _process(_delta: float) -> void:
 	_update_row_tooltip()
 	_update_details_panel()
+	_update_bag_drag()
+	_update_held_item_tooltip()
+
+# Hovering an enemy's held-item badge on the battlefield shows the same item
+# tooltip (name / rarity / stats / passive) as the Unit Details bag. The badge is
+# a Sprite2D (no Control hover), so we hit-test the mouse against it here — the
+# codebase already polls the mouse in _process for the row/bag tooltips.
+func _update_held_item_tooltip() -> void:
+	if not _item_tip or _dragged_item:
+		return
+	var mouse: Vector2 = get_viewport().get_mouse_position()
+	var hovered: EquipmentItem = null
+	for u in enemy_units:
+		if not (u and is_instance_valid(u) and u is VisualUnit):
+			continue
+		var badge: Sprite2D = u.held_item_badge
+		if not (badge and badge.visible and badge.texture and not u.held_items.is_empty()):
+			continue
+		var xform := badge.get_global_transform_with_canvas()
+		var half: Vector2 = (badge.texture.get_size() * 0.5) * xform.get_scale() * 1.3
+		var rect := Rect2(xform.origin - half, half * 2.0)
+		if rect.has_point(mouse):
+			hovered = u.held_items[0]
+			break
+	if hovered:
+		_show_item_tooltip(hovered, mouse)
+		_reposition_item_tooltip(mouse)
+		_badge_tip_active = true
+	elif _badge_tip_active:
+		# Only hide tooltips this poll opened — leave Unit-Details-bag hovers alone.
+		_hide_item_tooltip()
+		_badge_tip_active = false
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		if _dragged_item:
+			_end_item_drag()
+		else:
+			_drag_candidate = null
+
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_B:
+			_on_spawn_hero_pressed()
+		elif event.keycode == KEY_ESCAPE:
+			_close_top_menu()
+
+# Esc closes whichever browse-style menu is currently open (topmost first).
+# Forced-choice screens (level up, round reward, event) are deliberately not
+# included here — dismissing them would skip a choice the player still owes.
+func _close_top_menu() -> void:
+	if unit_details_panel.visible:
+		unit_details_panel.visible = false
+		_details_unit = null
+	elif _hero_shop and _hero_shop.visible:
+		_hero_shop.visible = false
+	elif _class_browser and _class_browser.visible:
+		_class_browser.visible = false
+	elif _character_menu and _character_menu.visible:
+		_character_menu.visible = false
+	elif _equipment_panel and _equipment_panel.visible:
+		_equipment_panel.visible = false
+
+
+func _update_bag_drag() -> void:
+	# Promote candidate to active drag once the threshold is crossed
+	if _drag_candidate and not _dragged_item:
+		if get_viewport().get_mouse_position().distance_to(_drag_press_pos) > 8.0:
+			_dragged_item   = _drag_candidate
+			_drag_candidate = null
+			_create_drag_preview(_dragged_item)
+	# Move drag preview with the cursor
+	if _drag_panel:
+		_drag_panel.position = get_viewport().get_mouse_position() - Vector2(24, 24)
+	# Keep item tooltip positioned under cursor
+	if _item_tip and _item_tip.visible and not _dragged_item:
+		_reposition_item_tooltip(get_viewport().get_mouse_position())
 
 
 func _update_details_panel() -> void:
@@ -1579,24 +2200,18 @@ func _update_details_panel() -> void:
 		_details_unit = null
 		unit_details_panel.visible = false
 		return
-	var u := _details_unit
-	details_hp.text   = "HP: %d / %d" % [u.current_hp, u.max_hp]
-	details_mana.text = "Mana: %d / %d" % [u.current_mana, u.max_mana]
-	details_level.text = "Level: %d" % u.level
-	if _details_hp_bar:
-		_details_hp_bar.max_value = u.max_hp
-		_details_hp_bar.value    = u.current_hp
-	if _details_mp_bar:
-		_details_mp_bar.max_value = u.max_mana
-		_details_mp_bar.value    = u.current_mana
-	if _details_xp_bar and _details_xp_lbl:
-		_details_xp_lbl.text     = "XP: %d / %d" % [u.current_xp, u.xp_to_level]
-		_details_xp_bar.max_value = u.xp_to_level
-		_details_xp_bar.value    = u.current_xp
+	_refresh_details()
 
 
 func _update_row_tooltip() -> void:
 	if not _row_tip or not battle_grid:
+		return
+	# Hide while any full-screen overlay is open so it doesn't bleed through
+	if (_hero_shop and _hero_shop.visible) \
+			or (_level_up_screen and _level_up_screen.visible) \
+			or unit_details_panel.visible:
+		_row_tip.visible = false
+		_row_tip_last = -1
 		return
 
 	var mouse: Vector2 = get_viewport().get_mouse_position()
@@ -1660,6 +2275,8 @@ func _reposition_tooltip(mouse: Vector2) -> void:
 # SIDEBAR UI — left panel (synergies / events) + right panel (economy / menus)
 # ════════════════════════════════════════════════════════════════════════════
 
+
+# ── SIDEBAR LAYOUT CONSTRUCTION ────────────────────────────────────────────
 func _build_new_layout() -> void:
 	# Hide old panel shells — their child nodes will be reparented below
 	for path in ["UI/TopBar", "UI/ActionPanel", "UI/TeamStatsPanel",
@@ -1676,6 +2293,7 @@ func _build_new_layout() -> void:
 
 	_build_left_panel()
 	_build_right_panel()
+	_build_item_tooltip()
 
 
 func _position_sidebars() -> void:
@@ -1690,7 +2308,7 @@ func _position_sidebars() -> void:
 		_center_battlefield()
 
 
-# ── Left panel: synergies + events ───────────────────────────────────────────
+# ── Left panel: synergies + bag ──────────────────────────────────────────────
 func _build_left_panel() -> void:
 	var mg := _sb_margin(_left_panel)
 	var vb := VBoxContainer.new()
@@ -1703,6 +2321,30 @@ func _build_left_panel() -> void:
 	_synergy_list.add_theme_constant_override("separation", 4)
 	vb.add_child(_synergy_list)
 	_rebuild_synergy_display()
+
+	vb.add_child(_sb_sep())
+	_build_difficulty_panel_ui(vb)
+	vb.add_child(_sb_sep())
+
+	# RELICS (above the bag) — hidden until the first relic is picked.
+	_relic_heading = _sb_heading("RELICS")
+	vb.add_child(_relic_heading)
+	_relic_grid = GridContainer.new()
+	_relic_grid.columns = 6
+	_relic_grid.add_theme_constant_override("h_separation", 4)
+	_relic_grid.add_theme_constant_override("v_separation", 4)
+	vb.add_child(_relic_grid)
+	_rebuild_relic_bar()
+	vb.add_child(_sb_sep())
+
+	vb.add_child(_sb_heading("BAG"))
+
+	_inventory_grid = GridContainer.new()
+	_inventory_grid.columns = 5
+	_inventory_grid.add_theme_constant_override("h_separation", 4)
+	_inventory_grid.add_theme_constant_override("v_separation", 4)
+	vb.add_child(_inventory_grid)
+	_rebuild_inventory_grid()
 
 
 # ── Right panel: economy header + scrollable accordion menus ─────────────────
@@ -1849,43 +2491,23 @@ func _make_sb_lbl(placeholder: String) -> Label:
 
 # ── Synergy display ───────────────────────────────────────────────────────────
 # Counts TraitClass across deployed player_units and draws TFT-style rows.
-# Call this whenever the roster changes. Wire to synergy_tracker when re-enabled.
+# Call this whenever the roster changes.
+
+# ── SYNERGY DISPLAY ────────────────────────────────────────────────────────
+# Shows the ACTIVE element + trait synergies for the current roster (each row is
+# the real stat bonus that will apply in battle). Bonuses themselves are applied
+# at battle start (see _apply_team_synergies).
 func _rebuild_synergy_display() -> void:
 	if not _synergy_list:
 		return
 	for c in _synergy_list.get_children():
 		c.queue_free()
 
-	var counts: Dictionary = {}
-	for unit in player_units:
-		if unit and is_instance_valid(unit):
-			counts[unit.trait_class] = counts.get(unit.trait_class, 0) + 1
+	_synergy_tracker.update_from_team(player_units)
 
-	const TRAIT_NAMES := {
-		UnitBase.TraitClass.TANK:    "Tank",
-		UnitBase.TraitClass.MAGE:    "Mage",
-		UnitBase.TraitClass.FIGHTER: "Fighter",
-		UnitBase.TraitClass.RANGED:  "Ranged",
-		UnitBase.TraitClass.HEALER:  "Healer",
-	}
-	const THRESHOLDS := {
-		UnitBase.TraitClass.TANK:    [2, 4],
-		UnitBase.TraitClass.MAGE:    [2, 4],
-		UnitBase.TraitClass.FIGHTER: [2, 4],
-		UnitBase.TraitClass.RANGED:  [2, 3],
-		UnitBase.TraitClass.HEALER:  [1, 2],
-	}
-	const TIPS := {
-		UnitBase.TraitClass.TANK:    "2: +15% DEF all Tanks\n4: +30% DEF + taunt nearby enemies",
-		UnitBase.TraitClass.MAGE:    "2: +20% Magic Power\n4: +40% MP + chain cast on kill",
-		UnitBase.TraitClass.FIGHTER: "2: +15% ATK\n4: +30% ATK + fury on low HP",
-		UnitBase.TraitClass.RANGED:  "2: +2 attack range\n3: +4 range + snipe (ignore dodge)",
-		UnitBase.TraitClass.HEALER:  "1: regen on kill\n2: team-wide HP regen per second",
-	}
-
-	if counts.is_empty():
+	if _synergy_tracker.active.is_empty():
 		var ph := Label.new()
-		ph.text = "Deploy units to see\nactive synergies"
+		ph.text = "Match elements or stack a\nrole to trigger synergies"
 		ph.add_theme_font_size_override("font_size", 10)
 		ph.add_theme_color_override("font_color", Color(0.42, 0.42, 0.52, 1))
 		ph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1893,36 +2515,158 @@ func _rebuild_synergy_display() -> void:
 		_synergy_list.add_child(ph)
 		return
 
-	for trait_id in counts:
-		var count: int  = counts[trait_id]
-		var tname: String = TRAIT_NAMES.get(trait_id, "?")
-		var tiers: Array  = THRESHOLDS.get(trait_id, [99])
-		var active: bool  = count >= tiers[0]
-		var at_max: bool  = count >= tiers[-1]
-
+	for syn in _synergy_tracker.active:
+		var col: Color = syn["color"]
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
-		row.tooltip_text  = TIPS.get(trait_id, "")
-		row.mouse_filter  = Control.MOUSE_FILTER_STOP
+		row.tooltip_text = "%s ×%d  (tier %d)\n%s" % [syn["name"], syn["count"], syn["tier"], syn["desc"]]
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
 
 		var pip := ColorRect.new()
 		pip.custom_minimum_size = Vector2(8, 14)
-		pip.color = _GOLD_COL if active else Color(0.28, 0.28, 0.38, 1)
+		pip.color = col if syn["tier"] >= 2 else col.darkened(0.25)
 		row.add_child(pip)
 
 		var lbl := Label.new()
-		var suffix: String = " MAX" if at_max else "/%d" % tiers[-1]
-		lbl.text = "%s  %d%s" % [tname, count, suffix]
+		lbl.text = "%s ×%d — %s" % [syn["name"], syn["count"], syn["desc"]]
 		lbl.add_theme_font_size_override("font_size", 11)
-		lbl.add_theme_color_override("font_color",
-			_GOLD_COL if active else Color(0.50, 0.50, 0.60, 1))
+		lbl.add_theme_color_override("font_color", col.lightened(0.15))
 		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(lbl)
 
 		_synergy_list.add_child(row)
 
+# ── Synergy combat bonuses (battle-start apply / battle-end revert) ───────────
+# Applied to every player unit at battle start and reverted at battle end, so
+# they recompute fresh each fight (post level-ups / relics / items) and never
+# compound. Each unit backs up the touched stats in meta.
+func _apply_team_synergies() -> void:
+	if _synergies_applied:
+		return
+	_synergy_tracker.update_from_team(player_units)
+	var b: Dictionary = _synergy_tracker.team_bonuses()
+	for u in player_units:
+		if not (u and is_instance_valid(u)):
+			continue
+		u.set_meta("syn_backup", {
+			"attack_damage": u.attack_damage, "magic_power": u.magic_power,
+			"resistance": u.resistance, "max_hp": u.max_hp,
+			"attack_speed": u.attack_speed, "attack_range": u.attack_range,
+		})
+		u.attack_damage = maxi(1, int(round(u.attack_damage * b["attack_damage"])))
+		u.magic_power   = maxi(0, int(round(u.magic_power   * b["magic_power"])))
+		u.resistance    = maxi(0, int(round(u.resistance    * b["resistance"])))
+		u.attack_speed  = u.attack_speed * float(b["attack_speed"])
+		u.attack_range  = maxi(1, u.attack_range + int(b["range_add"]))
+		if float(b["max_hp"]) != 1.0:
+			u.max_hp = maxi(1, int(round(u.max_hp * float(b["max_hp"]))))
+			u.current_hp = clampi(int(round(u.current_hp * float(b["max_hp"]))), 1, u.max_hp)
+			if u.health_bar:
+				u.health_bar.update_hp(u.current_hp, u.max_hp)
+	_synergies_applied = true
+
+func _revert_team_synergies() -> void:
+	if not _synergies_applied:
+		return
+	for u in player_units:
+		if not (u and is_instance_valid(u) and u.has_meta("syn_backup")):
+			continue
+		var bk: Dictionary = u.get_meta("syn_backup")
+		u.attack_damage = int(bk["attack_damage"])
+		u.magic_power   = int(bk["magic_power"])
+		u.resistance    = int(bk["resistance"])
+		u.attack_speed  = float(bk["attack_speed"])
+		u.attack_range  = int(bk["attack_range"])
+		u.max_hp        = int(bk["max_hp"])
+		u.current_hp    = mini(u.current_hp, u.max_hp)
+		u.remove_meta("syn_backup")
+	_synergies_applied = false
+
+
+# ── Bag / inventory grid ──────────────────────────────────────────────────────
+# Redraws 30 fixed slots: filled slots show a coloured tile with a short label,
+# empty slots show a dim placeholder. Clicking any filled slot opens the equipment panel.
+func _rebuild_inventory_grid() -> void:
+	if not _inventory_grid:
+		return
+	for c in _inventory_grid.get_children():
+		c.queue_free()
+
+	const SLOT_SIZE := Vector2(44, 44)
+	const MAX_SLOTS := 30
+
+	var items: Array = _equipment_inventory.items if _equipment_inventory else []
+
+	for i in range(MAX_SLOTS):
+		var slot_bg := StyleBoxFlat.new()
+		slot_bg.corner_radius_top_left     = 4
+		slot_bg.corner_radius_top_right    = 4
+		slot_bg.corner_radius_bottom_left  = 4
+		slot_bg.corner_radius_bottom_right = 4
+
+		if i < items.size():
+			var item: EquipmentItem = items[i]
+			var btn := Button.new()
+			btn.custom_minimum_size = SLOT_SIZE
+			btn.mouse_filter = Control.MOUSE_FILTER_STOP
+
+			# Background tinted to rarity colour (dimmed)
+			slot_bg.bg_color     = item.icon_color.darkened(0.55)
+			slot_bg.border_color = item.icon_color
+			slot_bg.set_border_width_all(1)
+			btn.add_theme_stylebox_override("normal", slot_bg)
+
+			var hover_bg := slot_bg.duplicate() as StyleBoxFlat
+			hover_bg.bg_color = item.icon_color.darkened(0.35)
+			btn.add_theme_stylebox_override("hover", hover_bg)
+
+			# Load icon texture
+			var icon_path: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
+			if icon_path != "":
+				var tex: Texture2D = load(icon_path)
+				if tex:
+					btn.icon = tex
+					btn.expand_icon = true
+
+			# Passive indicator: tiny gold dot in corner
+			if item.passive_effect != "":
+				var dot := ColorRect.new()
+				dot.color = Color(1, 0.9, 0.3)
+				dot.custom_minimum_size = Vector2(6, 6)
+				dot.position = Vector2(SLOT_SIZE.x - 8, SLOT_SIZE.y - 8)
+				dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				btn.add_child(dot)
+
+			# Hover tooltip + drag-to-equip (click with no drag opens equipment panel)
+			var captured_item := item
+			btn.mouse_entered.connect(func():
+				_show_item_tooltip(captured_item, get_viewport().get_mouse_position()))
+			btn.mouse_exited.connect(func(): _hide_item_tooltip())
+			btn.gui_input.connect(func(event: InputEvent):
+				if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+					if event.pressed:
+						_drag_candidate = captured_item
+						_drag_press_pos = get_viewport().get_mouse_position()
+					elif _dragged_item == null and _drag_candidate == captured_item:
+						_drag_candidate = null
+						_equipment_panel.open(_equipment_inventory, player_units)
+			)
+			_inventory_grid.add_child(btn)
+		else:
+			# Empty slot
+			var ph := Panel.new()
+			ph.custom_minimum_size = SLOT_SIZE
+			slot_bg.bg_color     = Color(0.10, 0.10, 0.16, 0.6)
+			slot_bg.border_color = Color(0.22, 0.22, 0.32, 0.5)
+			slot_bg.set_border_width_all(1)
+			ph.add_theme_stylebox_override("panel", slot_bg)
+			ph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			_inventory_grid.add_child(ph)
+
 
 # ── Shared sidebar helpers ────────────────────────────────────────────────────
+
+# ── SIDEBAR WIDGET HELPERS ─────────────────────────────────────────────────
 func _sb_panel() -> PanelContainer:
 	var p := PanelContainer.new()
 	var s := StyleBoxFlat.new()
@@ -1958,6 +2702,181 @@ func _sb_sep() -> HSeparator:
 	s.bg_color = _GOLD_DIM
 	sep.add_theme_stylebox_override("separator", s)
 	return sep
+
+
+func _build_item_tooltip() -> void:
+	_item_tip_layer = CanvasLayer.new()
+	_item_tip_layer.layer = 28
+	add_child(_item_tip_layer)
+
+	_item_tip = PanelContainer.new()
+	_item_tip.custom_minimum_size = Vector2(190, 0)
+	_item_tip.visible = false
+	var s := StyleBoxFlat.new()
+	s.bg_color     = Color(0.06, 0.05, 0.10, 0.97)
+	s.border_color = Color(0.50, 0.42, 0.72, 0.9)
+	s.set_border_width_all(1)
+	s.corner_radius_top_left = 5; s.corner_radius_top_right = 5
+	s.corner_radius_bottom_left = 5; s.corner_radius_bottom_right = 5
+	_item_tip.add_theme_stylebox_override("panel", s)
+	_item_tip_layer.add_child(_item_tip)
+
+	var mg := MarginContainer.new()
+	for k in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
+		mg.add_theme_constant_override(k, 8)
+	_item_tip.add_child(mg)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 5)
+	mg.add_child(vb)
+
+	_item_tip_name_lbl = Label.new()
+	_item_tip_name_lbl.add_theme_font_size_override("font_size", 13)
+	vb.add_child(_item_tip_name_lbl)
+
+	var sep := HSeparator.new()
+	var ss := StyleBoxFlat.new()
+	ss.bg_color = Color(0.4, 0.35, 0.55, 0.6)
+	sep.add_theme_stylebox_override("separator", ss)
+	vb.add_child(sep)
+
+	_item_tip_stats_vb = VBoxContainer.new()
+	_item_tip_stats_vb.add_theme_constant_override("separation", 2)
+	vb.add_child(_item_tip_stats_vb)
+
+	_item_tip_passive_lbl = Label.new()
+	_item_tip_passive_lbl.add_theme_font_size_override("font_size", 11)
+	_item_tip_passive_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.30))
+	_item_tip_passive_lbl.visible = false
+	vb.add_child(_item_tip_passive_lbl)
+
+	_item_tip_passive_desc = Label.new()
+	_item_tip_passive_desc.add_theme_font_size_override("font_size", 10)
+	_item_tip_passive_desc.add_theme_color_override("font_color", Color(0.70, 0.70, 0.82))
+	_item_tip_passive_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_item_tip_passive_desc.custom_minimum_size = Vector2(174, 0)
+	_item_tip_passive_desc.visible = false
+	vb.add_child(_item_tip_passive_desc)
+
+
+func _show_item_tooltip(item: EquipmentItem, mouse_pos: Vector2) -> void:
+	if not _item_tip or _dragged_item:
+		return
+	_item_tip_name_lbl.text = "%s  ·  %s" % [item.name, item.get_rarity_name()]
+	_item_tip_name_lbl.add_theme_color_override("font_color", item.icon_color.lightened(0.25))
+
+	for c in _item_tip_stats_vb.get_children():
+		c.free()
+	const STAT_NAMES := {
+		"hp": "HP", "mana": "Mana", "atk": "ATK",
+		"magic": "Magic Power", "res": "Defense",
+		"aspd": "Attack Speed", "hpregen": "HP Regen", "manaregen": "MP Regen"
+	}
+	const FLOAT_STATS := ["aspd", "hpregen", "manaregen"]
+	for stat in ["hp", "mana", "atk", "magic", "res", "aspd", "hpregen", "manaregen"]:
+		var raw: float = float(item.stat_bonus.get(stat, 0))
+		if raw > 0:
+			var lbl := Label.new()
+			if stat in FLOAT_STATS:
+				lbl.text = "+%.2f  %s" % [raw, STAT_NAMES.get(stat, stat.to_upper())]
+			else:
+				lbl.text = "+%d  %s" % [int(raw), STAT_NAMES.get(stat, stat.to_upper())]
+			lbl.add_theme_font_size_override("font_size", 11)
+			lbl.add_theme_color_override("font_color", Color(0.82, 0.96, 0.72))
+			_item_tip_stats_vb.add_child(lbl)
+
+	if item.passive_effect != "":
+		_item_tip_passive_lbl.text = "◆ " + item.passive_effect
+		_item_tip_passive_lbl.visible = true
+		_item_tip_passive_desc.text = item.description
+		_item_tip_passive_desc.visible = true
+	else:
+		_item_tip_passive_lbl.visible = false
+		_item_tip_passive_desc.visible = false
+
+	_item_tip.visible = true
+	_reposition_item_tooltip(mouse_pos)
+
+
+func _hide_item_tooltip() -> void:
+	if _item_tip:
+		_item_tip.visible = false
+
+
+func _reposition_item_tooltip(mouse_pos: Vector2) -> void:
+	if not _item_tip:
+		return
+	var vp  := get_viewport().get_visible_rect().size
+	var ts  := _item_tip.size
+	if ts == Vector2.ZERO:
+		ts = _item_tip.get_minimum_size()
+	var pos := mouse_pos + Vector2(16, -ts.y * 0.5)
+	pos.x = clamp(pos.x, 4, vp.x - ts.x - 4)
+	pos.y = clamp(pos.y, 4, vp.y - ts.y - 4)
+	_item_tip.position = pos
+
+
+func _create_drag_preview(item: EquipmentItem) -> void:
+	_hide_item_tooltip()
+	if _drag_layer:
+		_drag_layer.queue_free()
+
+	_drag_layer = CanvasLayer.new()
+	_drag_layer.layer = 35
+	add_child(_drag_layer)
+
+	_drag_panel = Panel.new()
+	_drag_panel.size = Vector2(48, 48)
+	_drag_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_drag_panel.modulate = Color(1, 1, 1, 0.82)
+	var s := StyleBoxFlat.new()
+	s.bg_color     = item.icon_color.darkened(0.45)
+	s.border_color = item.icon_color
+	s.set_border_width_all(2)
+	s.corner_radius_top_left = 4; s.corner_radius_top_right = 4
+	s.corner_radius_bottom_left = 4; s.corner_radius_bottom_right = 4
+	_drag_panel.add_theme_stylebox_override("panel", s)
+
+	var icon_path: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
+	if icon_path != "":
+		var tex: Texture2D = load(icon_path)
+		if tex:
+			var tr := TextureRect.new()
+			tr.texture = tex
+			tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			tr.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			_drag_panel.add_child(tr)
+
+	_drag_layer.add_child(_drag_panel)
+
+
+func _end_item_drag() -> void:
+	var item := _dragged_item
+	_dragged_item  = null
+	_drag_candidate = null
+	if _drag_layer:
+		_drag_layer.queue_free()
+		_drag_layer = null
+		_drag_panel = null
+
+	if not item:
+		return
+
+	var mouse     := get_viewport().get_mouse_position()
+	var grid_local := mouse - Vector2(battle_grid_node.global_position)
+	var cx := int(grid_local.x / battle_grid.cell_size)
+	var cy := int(grid_local.y / battle_grid.cell_size)
+
+	if cx < 0 or cx >= battle_grid.grid_width or cy < 0 or cy >= battle_grid.grid_height:
+		return
+	var unit = battle_grid.get_unit_at(Vector2i(cx, cy))
+	if unit and is_instance_valid(unit) and unit.is_player_unit:
+		if not _equipment_inventory.apply_to_hero(item, unit):
+			info_label.text = "%s already has 6 items!" % unit.unit_name
+	else:
+		info_label.text = "Drop on a hero to equip."
 
 
 func _sb_accordion(title: String, body: Control, open: bool = false) -> Button:

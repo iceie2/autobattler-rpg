@@ -22,30 +22,49 @@ const IDLE_FRAME := Rect2(0, 640, 64, 64)
 
 # Card layout constants
 const CARD_W     := 400.0
-const CARD_H     := 660.0
+const CARD_H     := 780.0
 const PANEL_W    := 1340.0
-const PANEL_H    := 830.0
-const PORT_SIZE  := 160.0
+const PANEL_H    := 950.0
+const PORT_SIZE  := 240.0
 
 var _offers:    Array = []
 var _card_btns: Array = []
 var _panel:     Panel
+var _title_lbl: Label
+var _sub_lbl:   Label
+var _cancel_btn: Button
+var _slot_count: int = 3   # hero cards shown (raised by the Merchant's Ledger relic)
+
+const CARD_GAP     := 20.0
+const SIDE_MARGIN  := 50.0
 
 func _ready() -> void:
 	_build_ui()
 
-func open(gold: int) -> void:
+func open(gold: int, slot_count: int = 3) -> void:
+	_slot_count = maxi(3, slot_count)
+	_layout_for_slots()
 	_offers.clear()
 	_card_btns.clear()
 	_generate_offers()
 	_rebuild_all_cards(gold)
 	visible = true
 
+# Widen the panel and re-center the header/cancel for the current card count so
+# 4-card shops (Merchant's Ledger) fit without cramping the default 3-card layout.
+func _layout_for_slots() -> void:
+	var panel_w: float = _slot_count * CARD_W + (_slot_count - 1) * CARD_GAP + 2.0 * SIDE_MARGIN
+	_panel.size.x = panel_w
+	if _title_lbl: _title_lbl.size.x = panel_w
+	if _sub_lbl:   _sub_lbl.size.x = panel_w
+	if _cancel_btn: _cancel_btn.position.x = (panel_w - 200) / 2.0
+	_center_panel()
+
 func _generate_offers() -> void:
 	var classes  := UnitFactory.get_all_classes()
 	var elements := UnitFactory.get_all_elements()
 	var used: Array = []
-	while _offers.size() < 3:
+	while _offers.size() < _slot_count:
 		var cls:  UnitBase.UnitClass = classes[randi() % classes.size()]
 		var elem: UnitBase.Element   = elements[randi() % elements.size()]
 		var key := "%d_%d" % [cls, elem]
@@ -71,31 +90,31 @@ func _build_ui() -> void:
 		_flat(Color(0.07, 0.07, 0.12, 0.99), Color(0.42, 0.38, 0.62), 2, 14))
 	overlay.add_child(_panel)
 
-	_lbl(_panel, "CHOOSE A HERO", 30, Color(0.88, 0.88, 1.0),
+	_title_lbl = _lbl(_panel, "CHOOSE A HERO", 30, Color(0.88, 0.88, 1.0),
 		Vector2(0, 18), Vector2(PANEL_W, 44), true)
-	_lbl(_panel, "Each hero has unique stat rolls  ·  %dg each  ·  Roll again next round" % HERO_COST,
+	_sub_lbl = _lbl(_panel, "Each hero has unique stat rolls  ·  %dg each  ·  Roll again next round" % HERO_COST,
 		13, Color(1.0, 0.82, 0.3, 0.80), Vector2(0, 58), Vector2(PANEL_W, 26), true)
 
 	# Cancel button
-	var cancel := _btn("Cancel", Rect2((PANEL_W - 200) / 2.0, PANEL_H - 54, 200, 40))
-	cancel.pressed.connect(_on_cancel)
-	_panel.add_child(cancel)
+	_cancel_btn = _btn("Cancel", Rect2((PANEL_W - 200) / 2.0, PANEL_H - 54, 200, 40))
+	_cancel_btn.pressed.connect(_on_cancel)
+	_panel.add_child(_cancel_btn)
 
 	visible = false
 	_center_panel()
 
-# Destroy and recreate all three cards (called on open())
+# Destroy and recreate all hero cards (called on open()).
 func _rebuild_all_cards(gold: int) -> void:
 	for old in _card_btns:
 		if is_instance_valid(old):
 			old.queue_free()
 	_card_btns.clear()
 
-	var gap     := 20.0
-	var start_x := (PANEL_W - 3 * CARD_W - 2 * gap) / 2.0
+	var total_w: float = _slot_count * CARD_W + (_slot_count - 1) * CARD_GAP
+	var start_x: float = (_panel.size.x - total_w) / 2.0
 
-	for i in range(3):
-		var x    := start_x + i * (CARD_W + gap)
+	for i in range(_slot_count):
+		var x    := start_x + i * (CARD_W + CARD_GAP)
 		var card := _build_card(Vector2(x, 86), i, gold)
 		_panel.add_child(card)
 		_card_btns.append(card)
@@ -117,26 +136,28 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	btn.position = pos
 	btn.size     = Vector2(CARD_W, CARD_H)
 	btn.text     = ""
+	# Whole card is tinted by its rolled grade at all times (gacha-style FOMO) —
+	# hover/pressed just intensify the same grade color rather than switching to a
+	# neutral one.
+	var bg_base: Color = grade_col.darkened(0.82)
 	btn.add_theme_stylebox_override("normal",
-		_flat(Color(0.09, 0.09, 0.16, 1.0), Color(0.28, 0.28, 0.48), 1, 10))
+		_flat(bg_base, grade_col, 3, 12))
 	btn.add_theme_stylebox_override("hover",
-		_flat(Color(0.15, 0.15, 0.26, 1.0), grade_col.darkened(0.1), 2, 10))
+		_flat(bg_base.lightened(0.10), grade_col.lightened(0.25), 4, 12))
 	btn.add_theme_stylebox_override("pressed",
-		_flat(Color(0.07, 0.07, 0.13, 1.0), Color(0.4, 0.35, 0.7), 2, 10))
+		_flat(bg_base.darkened(0.15), grade_col.lightened(0.1), 4, 12))
+	btn.add_theme_stylebox_override("focus",
+		_flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
 	btn.disabled = gold < HERO_COST
 	btn.pressed.connect(_on_choose.bind(idx))
 
 	# ── Portrait ──────────────────────────────────────────────────────────────
-	var pbg := ColorRect.new()
-	pbg.position = Vector2((CARD_W - PORT_SIZE) / 2.0, 14)
-	pbg.size     = Vector2(PORT_SIZE, PORT_SIZE)
-	pbg.color    = Color(0.05, 0.05, 0.10)
-	pbg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	btn.add_child(pbg)
-
+	# No backing box — the model sits directly on the card's grade-tinted
+	# background so the area behind it reads as the roll's colour.
+	var port_pos := Vector2((CARD_W - PORT_SIZE) / 2.0, 14)
 	var portrait := TextureRect.new()
-	portrait.position    = pbg.position
-	portrait.size        = pbg.size
+	portrait.position    = port_pos
+	portrait.size        = Vector2(PORT_SIZE, PORT_SIZE)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -145,7 +166,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 
 	# ── Grade badge (top-right of portrait) ───────────────────────────────────
 	var badge_bg := ColorRect.new()
-	badge_bg.position = Vector2(pbg.position.x + PORT_SIZE - 38, pbg.position.y)
+	badge_bg.position = Vector2(port_pos.x + PORT_SIZE - 38, port_pos.y)
 	badge_bg.size     = Vector2(38, 38)
 	badge_bg.color    = grade_col.darkened(0.4)
 	badge_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -163,7 +184,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	btn.add_child(badge_lbl)
 
 	# ── Name ──────────────────────────────────────────────────────────────────
-	var y_name := pbg.position.y + PORT_SIZE + 8.0
+	var y_name := port_pos.y + PORT_SIZE + 8.0
 	var name_lbl := _clbl(btn, _class_name(cls), 22, elem_col,
 		Vector2(0, y_name), Vector2(CARD_W, 30), true)
 
@@ -172,8 +193,11 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 		Vector2(0, y_name + 32), Vector2(CARD_W, 20), true)
 
 	# ── Grade summary ─────────────────────────────────────────────────────────
-	var avg_sign := "+" if avg_pct >= 0.0 else ""
-	var grade_line := "%s-RANK  ·  avg %s%.1f%%" % [grade, avg_sign, avg_pct * 100.0]
+	# avg_pct is the average GROWTH ROLL MULTIPLIER (1.0 = neutral); show it as a
+	# +/- % relative to that baseline so "1.1" reads as "+10%", not "110%".
+	var avg_rel: float = (avg_pct - 1.0) * 100.0
+	var avg_sign := "+" if avg_rel >= 0.0 else ""
+	var grade_line := "%s-RANK  ·  growth %s%.1f%%" % [grade, avg_sign, avg_rel]
 	_clbl(btn, grade_line, 13, grade_col,
 		Vector2(0, y_name + 56), Vector2(CARD_W, 20), true)
 
@@ -186,101 +210,139 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(div)
 
-	# ── Stat roll table ───────────────────────────────────────────────────────
-	var table_y := div_y + 8.0
-	var ROW_H   := 20.0
-	var COL_W   := CARD_W / 2.0 - 10.0   # ~190px per column
+	var tmp := UnitFactory.create_unit(cls, elem, true)
 
-	# [key, display_name, base_key_in_CLASS_BASE_STATS, is_int]
-	var STAT_PAIRS := [
-		[["hp",    "HP",   "hp",    false], ["mana",  "MP",   "mana",  false]],
-		[["str",   "STR",  "str",   false], ["dex",   "DEX",  "dex",   false]],
-		[["int",   "INT",  "int",   false], ["res",   "RES",  "res",   false]],
-		[["spr",   "SPR",  "spr",   false], ["move",  "SPD",  "move",  true ]],
-		[["range", "RNG",  "range", true],  [null,    null,   null,    false]],
-	]
-
-	for row_i in STAT_PAIRS.size():
-		var row_data = STAT_PAIRS[row_i]
-		for col_i in 2:
-			var cell = row_data[col_i]
-			var roll_key = cell[0]
-			if roll_key == null:
-				continue
-			var disp_name: String  = cell[1]
-			var base_key:  String  = cell[2]
-			var is_int:    bool    = cell[3]
-
-			var ox := 14.0 + col_i * (COL_W + 16.0)
-			var oy := table_y + row_i * ROW_H
-
-			# Stat name
-			_clbl(btn, disp_name, 10, Color(0.55, 0.55, 0.72),
-				Vector2(ox, oy), Vector2(34, ROW_H))
-
-			# Compute modified value
-			var roll_entry = stats_dict.get(roll_key, {"flat": 0.0})
-			var base_val: int = base.get(base_key, 0)
-			var delta: float  = roll_entry.get("flat", 0.0)
-			var new_val: int
-			if is_int:
-				new_val = base_val + int(delta)
-			else:
-				new_val = int(float(base_val) * (1.0 + delta))
-
-			_clbl(btn, str(new_val), 11, Color(0.86, 0.86, 1.0),
-				Vector2(ox + 36, oy), Vector2(38, ROW_H))
-
-			# Delta label
-			var delta_str: String
-			var delta_col: Color
-			if is_int:
-				var di := int(delta)
-				delta_str = "+%d" % di if di >= 0 else str(di)
-				delta_col = Color(0.3, 0.9, 0.45) if di > 0 else (Color(0.92, 0.3, 0.3) if di < 0 else Color(0.5, 0.5, 0.6))
-			else:
-				var pct := delta * 100.0
-				delta_str = "+%.0f%%" % pct if pct >= 0 else "%.0f%%" % pct
-				delta_col = Color(0.3, 0.9, 0.45) if pct > 1.0 else (Color(0.92, 0.3, 0.3) if pct < -1.0 else Color(0.5, 0.5, 0.6))
-			_clbl(btn, delta_str, 10, delta_col,
-				Vector2(ox + 76, oy), Vector2(56, ROW_H))
-
-	# ── Growth summary line ───────────────────────────────────────────────────
-	var growth_y := table_y + STAT_PAIRS.size() * ROW_H + 4.0
-	_clbl(btn, "GROWTH PER LVL", 9, Color(0.4, 0.4, 0.55),
-		Vector2(14, growth_y), Vector2(CARD_W - 28, 14))
-
-	var GRW_STATS := [["hp","HP"],["str","STR"],["dex","DEX"],["int","INT"],["res","RES"],["spr","SPR"]]
-	var grw_parts: Array[String] = []
-	for pair in GRW_STATS:
-		var g: float = stats_dict.get(pair[0], {}).get("growth", 0.0) * 100.0
-		var s := "+%.0f%%" % g if g >= 0 else "%.0f%%" % g
-		grw_parts.append("%s%s" % [pair[1], s])
-	var grw_lbl := _clbl(btn, "  ".join(grw_parts), 9, Color(0.55, 0.7, 0.55),
-		Vector2(14, growth_y + 14), Vector2(CARD_W - 28, 14))
-	grw_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-
-	# ── Divider ───────────────────────────────────────────────────────────────
-	var div2_y := growth_y + 33.0
-	var div2 := ColorRect.new()
-	div2.position = Vector2(16, div2_y)
-	div2.size     = Vector2(CARD_W - 32, 1)
-	div2.color    = Color(0.3, 0.3, 0.5, 0.5)
-	div2.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	btn.add_child(div2)
-
-	# ── Skill ─────────────────────────────────────────────────────────────────
-	var skill_y := div2_y + 8.0
+	# ── Skill (below the portrait, so the player sees what the hero does
+	# before scanning the stat table) ──────────────────────────────────────────
+	var skill_y := div_y + 8.0
 	_clbl(btn, "SKILL", 9, Color(0.42, 0.46, 0.62),
 		Vector2(14, skill_y), Vector2(CARD_W - 28, 14))
-
-	var tmp := UnitFactory.create_unit(cls, elem, true)
 	_clbl(btn, tmp.skill_name if tmp.skill_name != "" else "—", 15,
 		Color(1.0, 0.85, 0.35),
 		Vector2(14, skill_y + 14), Vector2(CARD_W - 28, 22))
-	_clbl(btn, _skill_short_desc(tmp), 11, Color(0.62, 0.62, 0.76),
-		Vector2(14, skill_y + 38), Vector2(CARD_W - 28, 36))
+	var skill_desc_lbl := Label.new()
+	skill_desc_lbl.mouse_filter  = Control.MOUSE_FILTER_IGNORE
+	skill_desc_lbl.position      = Vector2(14, skill_y + 38)
+	skill_desc_lbl.size          = Vector2(CARD_W - 28, 40)
+	skill_desc_lbl.add_theme_font_size_override("font_size", 11)
+	skill_desc_lbl.add_theme_color_override("font_color", Color(0.62, 0.62, 0.76))
+	skill_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	skill_desc_lbl.text          = _skill_short_desc(tmp)
+	btn.add_child(skill_desc_lbl)
+
+	# ── Divider ───────────────────────────────────────────────────────────────
+	var div_skill_y := skill_y + 88.0
+	var div_skill := ColorRect.new()
+	div_skill.position = Vector2(16, div_skill_y)
+	div_skill.size     = Vector2(CARD_W - 32, 1)
+	div_skill.color    = Color(0.3, 0.3, 0.5, 0.5)
+	div_skill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(div_skill)
+
+	# ── Ultimate ────────────────────────────────────────────────────────────────
+	var ult_y := div_skill_y + 8.0
+	_clbl(btn, "ULTIMATE", 9, Color(0.62, 0.46, 0.22),
+		Vector2(14, ult_y), Vector2(CARD_W - 28, 14))
+	_clbl(btn, tmp.ultimate_name if tmp.ultimate_name != "" else "—", 15,
+		Color(1.0, 0.65, 0.25),
+		Vector2(14, ult_y + 14), Vector2(CARD_W - 28, 22))
+	var ult_desc_lbl := Label.new()
+	ult_desc_lbl.mouse_filter  = Control.MOUSE_FILTER_IGNORE
+	ult_desc_lbl.position      = Vector2(14, ult_y + 38)
+	ult_desc_lbl.size          = Vector2(CARD_W - 28, 58)
+	ult_desc_lbl.add_theme_font_size_override("font_size", 11)
+	ult_desc_lbl.add_theme_color_override("font_color", Color(0.62, 0.62, 0.76))
+	ult_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ult_desc_lbl.text          = _ultimate_short_desc(tmp, cls)
+	btn.add_child(ult_desc_lbl)
 	tmp.free()
+
+	# ── Divider ───────────────────────────────────────────────────────────────
+	var div_ult_y := ult_y + 106.0
+	var div_ult := ColorRect.new()
+	div_ult.position = Vector2(16, div_ult_y)
+	div_ult.size     = Vector2(CARD_W - 32, 1)
+	div_ult.color    = Color(0.3, 0.3, 0.5, 0.5)
+	div_ult.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(div_ult)
+
+	# ── Stat roll table ───────────────────────────────────────────────────────
+	# Each row shows: LABEL   current → next-level (+delta)   growth%
+	# "current" already includes this recruit's one-time flat roll; "growth%" is
+	# this recruit's personalized per-level rate (see UnitFactory.apply_recruit_rolls).
+	var table_y := div_ult_y + 8.0
+	var ROW_H   := 22.0
+
+	# [roll_key, display_name, base_key, is_small_float]
+	var GROWTH_ROWS := [
+		["hp",        "HP",       "hp",        false],
+		["mana",      "MP",       "mana",      false],
+		["atk",       "ATK",      "atk",       false],
+		["magic",     "MAG",      "magic",     false],
+		["res",       "RES",      "res",       false],
+		["aspd",      "AS",       "aspd",      true],
+		["hpregen",   "HPREGEN",  "hpregen",   true],
+		["manaregen", "MPREGEN",  "manaregen", true],
+	]
+
+	var class_growth: Dictionary = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(cls, {})
+
+	var row_y := table_y
+	for row in GROWTH_ROWS:
+		var roll_key: String       = row[0]
+		var disp_name: String      = row[1]
+		var base_key: String       = row[2]
+		var is_small_float: bool   = row[3]
+
+		var roll_entry: Dictionary = stats_dict.get(roll_key, {"flat": 0.0, "growth": 1.0})
+		var class_base: float      = base.get(base_key, 0)
+		var flat: float            = roll_entry.get("flat", 0.0)
+		var current_val: float     = class_base * (1.0 + flat)
+
+		# Additive growth: fixed per-class amount + this recruit's personalized
+		# bonus (base_growth * rolled multiplier). e.g. base 18, growth 3, bonus 4
+		# → 25. See UnitBase.stat_growth()/UnitFactory.apply_recruit_rolls.
+		var base_growth: float = class_growth.get(base_key, 0.0)
+		var mult: float         = roll_entry.get("growth", 1.0)
+		var bonus: float        = snappedf(base_growth * mult, 0.01) if is_small_float else float(round(base_growth * mult))
+		var next_val: float     = current_val + base_growth + bonus
+
+		# Base value is always plain white — only the growth (arrow/delta/roll) is
+		# tier-colored by the ROLL MULTIPLIER, so color always tells you the
+		# QUALITY of this roll, not just whether the base stat is high or low.
+		var growth_col: Color = UnitFactory.grade_color_for_growth(mult)
+
+		var base_str: String
+		var growth_str: String
+		if is_small_float:
+			base_str = "%.2f" % current_val
+			growth_str = "→ %.2f  (base %.2f + bonus %.2f)" % [next_val, base_growth, bonus]
+		else:
+			base_str = "%d" % int(current_val)
+			growth_str = "→ %d  (base %d + bonus %d)" % [int(next_val), int(base_growth), int(bonus)]
+
+		_add_stat_icon(btn, roll_key, Vector2(14, row_y + 2), 18.0)
+		_clbl(btn, disp_name, 10, Color(0.55, 0.55, 0.72),
+			Vector2(34, row_y), Vector2(40, ROW_H))
+		_clbl(btn, base_str, 12, Color(0.92, 0.92, 0.96),
+			Vector2(74, row_y), Vector2(44, ROW_H))
+		_clbl(btn, growth_str, 11, growth_col,
+			Vector2(118, row_y), Vector2(CARD_W - 132, ROW_H))
+		row_y += ROW_H
+
+	# ── Move / Range (no per-level growth) ────────────────────────────────────
+	var COL_W := CARD_W / 2.0 - 10.0
+	for pair in [["move", "SPD", "move"], ["range", "RNG", "range"]]:
+		var col_i: int = ["move", "range"].find(pair[0])
+		var roll_entry: Dictionary = stats_dict.get(pair[0], {"flat": 0.0})
+		var val: int = int(base.get(pair[2], 0)) + int(roll_entry.get("flat", 0.0))
+		var ox := 14.0 + col_i * (COL_W + 16.0)
+		_add_stat_icon(btn, pair[0], Vector2(ox, row_y + 2), 18.0)
+		_clbl(btn, pair[1], 10, Color(0.55, 0.55, 0.72),
+			Vector2(ox + 20, row_y), Vector2(30, ROW_H))
+		_clbl(btn, str(val), 12, Color(0.86, 0.86, 1.0),
+			Vector2(ox + 54, row_y), Vector2(70, ROW_H))
+	row_y += ROW_H
 
 	return btn
 
@@ -296,17 +358,14 @@ func _on_cancel() -> void:
 
 # ── Portrait loader ───────────────────────────────────────────────────────────
 func _load_portrait(portrait: TextureRect, cls: UnitBase.UnitClass) -> void:
-	# Try custom sprites first (Nemi, Bloodhound, etc.)
-	const CUSTOM := {
-		UnitBase.UnitClass.NEMI:       "res://assets/using/nemi.png",
-		UnitBase.UnitClass.BLOODHOUND: "res://assets/using/bloodhound.png",
-	}
-	if CUSTOM.has(cls):
-		var tex := load(CUSTOM[cls]) as Texture2D
+	# Try AI sprite first — filename = class name lowercased, spaces → underscores.
+	var ai_path := "res://assets/using/%s.png" % _class_name(cls).to_lower().replace(" ", "_")
+	if ResourceLoader.exists(ai_path):
+		var tex := load(ai_path) as Texture2D
 		if tex:
 			portrait.texture = tex
 			return
-	# Fall back to generated sprite sheet
+	# Fall back to LPC sprite sheet (old RPG classes and any hero without AI art yet).
 	var folder: String = SPRITE_FOLDERS.get(cls, "warrior")
 	var sheet := load("res://assets/sprites/generated/%s/0/single.png" % folder) as Texture2D
 	if sheet:
@@ -319,6 +378,9 @@ func _load_portrait(portrait: TextureRect, cls: UnitBase.UnitClass) -> void:
 func _skill_short_desc(unit: UnitBase) -> String:
 	if unit.skill_name == "":
 		return ""
+	if unit.skill_description != "":
+		return unit.skill_description
+	# Legacy fallback for old classes without a written description
 	var parts: Array[String] = []
 	if unit.skill_damage_multiplier > 0:
 		parts.append("%.0f%% DMG" % (unit.skill_damage_multiplier * 100))
@@ -329,6 +391,44 @@ func _skill_short_desc(unit: UnitBase) -> String:
 	if unit.skill_mana_cost > 0:
 		parts.append("%d MP" % unit.skill_mana_cost)
 	return " · ".join(parts)
+
+# Ultimates don't carry their own written description on UnitBase — reuse the
+# flavor text already authored in ClassBrowser (the "[ULTIMATE ...] Name —
+# description" segment of its skill_desc) so the recruit card and the class
+# compendium never drift apart.
+func _ultimate_short_desc(unit: UnitBase, cls: UnitBase.UnitClass) -> String:
+	if unit.ultimate_name == "":
+		return ""
+	var full := _ultimate_desc_from_browser(cls)
+	if full != "":
+		return full
+	# Fallback for any ultimate without browser flavor text yet
+	var parts: Array[String] = []
+	if unit.ultimate_damage_mult > 0:
+		parts.append("%.0f%% DMG" % (unit.ultimate_damage_mult * 100))
+	if unit.ultimate_range > 0:
+		parts.append("RNG %d" % unit.ultimate_range)
+	if unit.ultimate_charge_max > 0:
+		parts.append("%d charge" % unit.ultimate_charge_max)
+	return " · ".join(parts)
+
+func _ultimate_desc_from_browser(cls: UnitBase.UnitClass) -> String:
+	for entry in ClassBrowser.CLASSES:
+		if entry.get("unit_class") != cls:
+			continue
+		var full: String = entry.get("skill_desc", "")
+		var idx := full.find("[ULTIMATE")
+		if idx == -1:
+			return ""
+		var seg := full.substr(idx)
+		var bracket_end := seg.find("] ")
+		if bracket_end != -1:
+			seg = seg.substr(bracket_end + 2)
+		var dash_idx := seg.find(" — ")
+		if dash_idx != -1:
+			seg = seg.substr(dash_idx + 3)
+		return seg.strip_edges()
+	return ""
 
 func _center_panel() -> void:
 	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
@@ -389,13 +489,15 @@ func _elem_color(elem: UnitBase.Element) -> Color:
 		UnitBase.Element.LIGHTNING: return Color(1.0,  1.0,  0.25)
 		_:                          return Color(0.85, 0.85, 0.92)
 
+# Same grey/dark-green/blue/purple/gold progression as item rarity — matches
+# UnitFactory.GRADE_COLORS so every roll's quality reads consistently.
 func _grade_color(grade: String) -> Color:
 	match grade:
 		"S": return Color(1.0,  0.85, 0.0)
-		"A": return Color(0.25, 0.90, 0.45)
-		"B": return Color(0.40, 0.68, 1.0)
-		"C": return Color(0.72, 0.72, 0.72)
-		"D": return Color(0.95, 0.30, 0.30)
+		"A": return Color(0.68, 0.35, 0.95)
+		"B": return Color(0.30, 0.55, 0.95)
+		"C": return Color(0.20, 0.62, 0.28)
+		"D": return Color(0.65, 0.65, 0.68)
 		_:   return Color(0.60, 0.60, 0.72)
 
 func _lbl(parent: Node, text: String, sz: int, col: Color,
@@ -414,6 +516,24 @@ func _clbl(parent: Node, text: String, sz: int, col: Color,
 	var l := _lbl(parent, text, sz, col, pos, size, center)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
+
+# Small stat icon (see UnitFactory.STAT_ICONS) — silently does nothing if that
+# stat doesn't have an icon yet.
+func _add_stat_icon(parent: Node, stat_key: String, pos: Vector2, size: float) -> void:
+	var path: String = UnitFactory.STAT_ICONS.get(stat_key, "")
+	if path == "":
+		return
+	var tex: Texture2D = load(path) as Texture2D
+	if not tex:
+		return
+	var icon := TextureRect.new()
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture = tex
+	icon.position = pos
+	icon.size = Vector2(size, size)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(icon)
 
 func _btn(text: String, rect: Rect2) -> Button:
 	var b := Button.new()

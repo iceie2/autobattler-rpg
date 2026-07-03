@@ -646,19 +646,13 @@ func _refresh() -> void:
 
 	# Stats pulled live from the factory so they always match the real units.
 	var s: Dictionary = UnitFactory.CLASS_BASE_STATS.get(uc, {})
-	var strv: int = s.get("str", 0)
-	var dexv: int = s.get("dex", 0)
-	var intv: int = s.get("int", 0)
-	var resv: int = s.get("res", 0)
-	var atk: int = strv + int(dexv * 0.5)   # mirrors UnitBase.attack_damage
-	var mag: int = intv + int(strv * 0.3)   # mirrors UnitBase.magic_power
-	var def: int = resv + int(strv * 0.2)   # mirrors UnitBase.defense
 	_stat_lbl.text = (
 		"HP: %-6d  Mana: %-6d  Move: %-3d  Range: %d\n" +
-		"STR: %-5d  DEX: %-5d  INT: %-5d  RES: %-5d\n" +
-		"Attack: %-4d  Magic: %-4d  Defense: %d"
+		"Attack: %-4d  Magic: %-4d  Defense: %-4d\n" +
+		"Attack Speed: %-4.2f  HP/s: %-4.2f  MP/s: %.2f"
 	) % [s.get("hp", 0), s.get("mana", 0), s.get("move", 0), s.get("range", 0),
-		 strv, dexv, intv, resv, atk, mag, def]
+		 s.get("atk", 0), s.get("magic", 0), s.get("res", 0),
+		 s.get("aspd", 0.0), s.get("hpregen", 0.0), s.get("manaregen", 0.0)]
 
 	_skill_name_lbl.text = c["skill"]
 	_skill_name_lbl.add_theme_color_override("font_color", c["skill_color"])

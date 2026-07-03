@@ -49,9 +49,6 @@ var _propagating: bool = false
 # Snapshots of fallen player heroes so Doc can revive one (Field Surgery).
 var fallen_allies: Array = []
 
-# ── Regen tuning (per second, scaled by spirit + a partner stat) ──────────────
-const HP_REGEN_DIVISOR := 40.0   # (spirit+strength)/40 HP per second
-const MP_REGEN_DIVISOR := 6.0    # (spirit+intelligence)/6 MP per second
 
 signal battle_started()
 signal battle_ended(player_won: bool)
@@ -73,11 +70,23 @@ func initialize(grid: BattleGrid, state: GameState) -> void:
 func _on_auto_battle_started() -> void:
 	start_battle()
 
+# Global pacing knob: the game plays too fast per user feedback (2026-07-02) —
+# a first, easily-reversible -10% cut across the whole sim (movement, attacks,
+# regen, everything derives dt from time_scale). Revisit if -20% ends up wanted.
+const BASE_TIME_SCALE := 0.9
+
+# Perf pass (2026-07-03): several per-unit passives (NEMI/BOUNCER/PASTOR/JUNE/REED)
+# used to re-scan the full ally+enemy roster every single frame purely to check
+# proximity — O(N) distance checks x every unit with that class x 60fps. These
+# are slow-moving auras, not instant reactions, so they're now throttled to this
+# interval instead (~4 refreshes/sec) via a per-unit "aura_tick_t" meta countdown.
+const AURA_TICK_INTERVAL := 0.25
+
 func start_battle() -> void:
 	battle_active = true
 	unit_paths.clear()
 	paused = false
-	time_scale = 1.0
+	time_scale = BASE_TIME_SCALE
 	_clear_board_effects()
 	afterimage_actor = null
 	afterimage_time = 0.0
@@ -122,6 +131,20 @@ func _init_unit_timers() -> void:
 		unit.meltdown_time = 0.0
 		unit.combat_healing_done = 0
 		unit.revive_used = false
+		# Stat Stealer drain — no lingering theft into a fresh battle.
+		unit.drain_time = 0.0; unit.drain_stat = ""; unit.drain_per_sec = 0.0
+		unit.drain_stolen = 0.0; unit.drain_source = null; unit.drain_accum = 0.0
+		# Ant Hill swarm — no lingering bite-vulnerability into a fresh battle;
+		# the hill's spawn clock gets a short pre-delay before its first ant.
+		unit.ant_bite_stacks = 0
+		unit.summon_spawn_timer = 2.5
+		# ── Relic battle-start effects ──
+		unit.relic_revive_used = false
+		if unit.relic_start_shield_pct > 0.0:
+			unit.current_shield += int(round(unit.max_hp * unit.relic_start_shield_pct))
+		if unit.relic_free_first_ult and unit.ultimate_charge_max > 0:
+			unit.ultimate_charge = unit.ultimate_charge_max
+			unit.ultimate_ready = true
 
 func collect_units() -> void:
 	player_units.clear()
@@ -300,11 +323,16 @@ func _tick_unit(unit: UnitBase, dt: float) -> void:
 					unit.attack(second)
 			unit.attack(target)
 			_apply_on_hit_passives(unit, target, opponents)
+			# Twin Fang relic: chance for the attack to strike a second time.
+			if unit.relic_double_atk_chance > 0.0 and randf() < unit.relic_double_atk_chance and is_instance_valid(target) and target.current_hp > 0:
+				unit.attack(target)
+				_apply_on_hit_passives(unit, target, opponents)
 			# Shauna Overdrive: an extra swing per attack while active.
 			if unit.overdrive_time > 0.0:
 				unit.attack(target)
 				_spawn_skill_effect_sized(SkillEffect.Type.OVERDRIVE, unit.global_position, 32.0)
-			unit.attack_cooldown = 1.0 / unit.attacks_per_second
+			var haste: float = unit.equipment_passives.get("Haste", 0.0)
+			unit.attack_cooldown = 1.0 / (unit.attacks_per_second * (1.0 + haste))
 			unit_action.emit(unit, "attack")
 			unit_paths.erase(unit)
 			var atk_dmg: int = unit.pending_attack_log_damage
@@ -323,13 +351,20 @@ func _tick_unit(unit: UnitBase, dt: float) -> void:
 # slow regen ticks up correctly at any time scale.
 func _regen_tick(unit: UnitBase, dt: float) -> void:
 	if unit.current_hp < unit.max_hp:
-		unit.hp_regen_accum += ((unit.spirit + unit.strength) / HP_REGEN_DIVISOR) * dt
+		unit.hp_regen_accum += unit.hp_regen * dt
+		# Equipment Regeneration: effect_value * 30 HP/sec (0.15–0.30 → 4.5–9 HP/sec)
+		var regen_passive: float = unit.equipment_passives.get("Regeneration", 0.0)
+		if regen_passive > 0.0:
+			unit.hp_regen_accum += regen_passive * 30.0 * dt
+		# Titan's Heart relic: regenerate a fraction of MAX HP per second.
+		if unit.relic_regen_pct > 0.0:
+			unit.hp_regen_accum += unit.max_hp * unit.relic_regen_pct * dt
 		if unit.hp_regen_accum >= 1.0:
 			var whole: int = int(unit.hp_regen_accum)
 			unit.heal(whole)
 			unit.hp_regen_accum -= whole
 	if unit.current_mana < unit.max_mana:
-		unit.mp_regen_accum += ((unit.spirit + unit.intelligence) / MP_REGEN_DIVISOR) * dt
+		unit.mp_regen_accum += unit.mana_regen * dt
 		if unit.mp_regen_accum >= 1.0:
 			var whole: int = int(unit.mp_regen_accum)
 			unit.restore_mana(whole)
@@ -384,6 +419,9 @@ func _second_nearest(unit: UnitBase, first: UnitBase, opponents: Array) -> UnitB
 # ── Passive evaluations ───────────────────────────────────────────────────────
 func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -> void:
 	match unit.unit_class:
+		UnitBase.UnitClass.ANT_HILL:
+			_ant_hill_spawn_tick(unit, allies, dt)
+
 		UnitBase.UnitClass.BLOODHOUND:
 			# Blood Frenzy: below 45% HP
 			var threshold := unit.max_hp * 0.45
@@ -401,36 +439,54 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 				unit.most_damage_dealer = top_dealer
 
 		UnitBase.UnitClass.NEMI:
-			# Resonance: allies near Nemi get +1 move speed this turn; nearest enemy gets -1
-			for ally in allies:
-				if ally and is_instance_valid(ally) and ally != unit:
-					if unit.grid_position.distance_to(ally.grid_position) <= 3:
-						# Temporary buff via metadata reset each turn
-						if not ally.has_meta("resonance_buffed"):
-							ally.movement_speed = min(ally.movement_speed + 1, 8)
-							ally.set_meta("resonance_buffed", true)
-					else:
-						if ally.has_meta("resonance_buffed"):
-							ally.movement_speed = max(ally.movement_speed - 1, 1)
-							ally.remove_meta("resonance_buffed")
-			var debuff_target := find_nearest_enemy(unit, opponents)
-			if debuff_target and not debuff_target.has_meta("resonance_debuffed"):
-				debuff_target.movement_speed = max(debuff_target.movement_speed - 1, 0)
-				debuff_target.set_meta("resonance_debuffed", true)
+			# Resonance: allies near Nemi get +1 move speed this turn; nearest enemy gets -1.
+			# Full-roster distance scan — throttled to every AURA_TICK_INTERVAL (perf: was
+			# every frame, i.e. O(N) roster scans x 60/sec per Nemi on the field).
+			var nemi_t: float = float(unit.get_meta("aura_tick_t", 0.0)) - dt
+			if nemi_t > 0.0:
+				unit.set_meta("aura_tick_t", nemi_t)
+			else:
+				unit.set_meta("aura_tick_t", AURA_TICK_INTERVAL)
+				for ally in allies:
+					if ally and is_instance_valid(ally) and ally != unit:
+						if unit.grid_position.distance_to(ally.grid_position) <= 3:
+							# Temporary buff via metadata reset each turn
+							if not ally.has_meta("resonance_buffed"):
+								ally.movement_speed = min(ally.movement_speed + 1, 8)
+								ally.set_meta("resonance_buffed", true)
+						else:
+							if ally.has_meta("resonance_buffed"):
+								ally.movement_speed = max(ally.movement_speed - 1, 1)
+								ally.remove_meta("resonance_buffed")
+				var debuff_target := find_nearest_enemy(unit, opponents)
+				if debuff_target and not debuff_target.has_meta("resonance_debuffed"):
+					# Floor of 1 (not 0) — a debuff should never fully immobilize a
+					# unit. Ant Hill is the sole deliberately-stationary exception
+					# (movement_speed=0 by design, see enemy_factory.gd) so it's
+					# excluded here rather than getting bumped to 1 by a debuff.
+					var move_floor: int = 0 if debuff_target.unit_class == UnitBase.UnitClass.ANT_HILL else 1
+					debuff_target.movement_speed = max(debuff_target.movement_speed - 1, move_floor)
+					debuff_target.set_meta("resonance_debuffed", true)
 
 		UnitBase.UnitClass.BOUNCER:
-			# Presence: count units within 2 tiles (recalculated, stored in offensive affinity)
-			var nearby := 0
-			for opp in opponents:
-				if opp and is_instance_valid(opp):
-					if unit.grid_position.distance_to(opp.grid_position) <= 2:
-						nearby += 1
-			for ally in allies:
-				if ally and is_instance_valid(ally) and ally != unit:
-					if unit.grid_position.distance_to(ally.grid_position) <= 2:
-						nearby += 1
-			# Store presence bonus as a temp modifier (applied in damage calc)
-			unit.set_meta("presence_bonus", min(nearby * 0.05, 0.3))
+			# Presence: count units within 2 tiles (recalculated, stored in offensive affinity).
+			# Throttled to AURA_TICK_INTERVAL — see NEMI comment above, same perf reasoning.
+			var bouncer_t: float = float(unit.get_meta("aura_tick_t", 0.0)) - dt
+			if bouncer_t > 0.0:
+				unit.set_meta("aura_tick_t", bouncer_t)
+			else:
+				unit.set_meta("aura_tick_t", AURA_TICK_INTERVAL)
+				var nearby := 0
+				for opp in opponents:
+					if opp and is_instance_valid(opp):
+						if unit.grid_position.distance_to(opp.grid_position) <= 2:
+							nearby += 1
+				for ally in allies:
+					if ally and is_instance_valid(ally) and ally != unit:
+						if unit.grid_position.distance_to(ally.grid_position) <= 2:
+							nearby += 1
+				# Store presence bonus as a temp modifier (applied in damage calc)
+				unit.set_meta("presence_bonus", min(nearby * 0.05, 0.3))
 
 		UnitBase.UnitClass.LORDEE:
 			# Feeding Frenzy: AoE damage pulse every 0.8s to adjacent enemies
@@ -477,30 +533,50 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 			unit.set_meta("triage_t", doc_t)
 
 		UnitBase.UnitClass.PASTOR:
-			# Righteous Fury: nearby allies deal bonus damage (refreshed each frame).
-			var pastor_bonus: float = 0.12 * UnitFactory.natural_aspect(unit)
-			for ally in allies:
-				if ally and is_instance_valid(ally):
-					if unit.grid_position.distance_to(ally.grid_position) <= 3.0:
-						ally.outgoing_dmg_mult = maxf(ally.outgoing_dmg_mult, 1.0 + pastor_bonus)
-						ally.outgoing_dmg_time = maxf(ally.outgoing_dmg_time, 0.35)
+			# Righteous Fury: nearby allies deal bonus damage.
+			# Throttled to AURA_TICK_INTERVAL — see NEMI comment above, same perf reasoning
+			# (the buff duration below outlasts the tick gap, so no per-frame precision lost).
+			var pastor_t: float = float(unit.get_meta("aura_tick_t", 0.0)) - dt
+			if pastor_t > 0.0:
+				unit.set_meta("aura_tick_t", pastor_t)
+			else:
+				unit.set_meta("aura_tick_t", AURA_TICK_INTERVAL)
+				var pastor_bonus: float = 0.12 * UnitFactory.natural_aspect(unit)
+				for ally in allies:
+					if ally and is_instance_valid(ally):
+						if unit.grid_position.distance_to(ally.grid_position) <= 3.0:
+							ally.outgoing_dmg_mult = maxf(ally.outgoing_dmg_mult, 1.0 + pastor_bonus)
+							ally.outgoing_dmg_time = maxf(ally.outgoing_dmg_time, 0.35)
 
 		UnitBase.UnitClass.JUNE:
 			# Verdant Aura: nearby allies slowly regenerate HP.
-			for ally in allies:
-				if ally and is_instance_valid(ally) and ally != unit:
-					if unit.grid_position.distance_to(ally.grid_position) <= 3.0:
-						ally.hp_regen_accum += (float(unit.spirit + unit.magic_power) * 0.05 * UnitFactory.natural_aspect(unit)) * dt
+			# Throttled to AURA_TICK_INTERVAL — regen amount uses the fixed interval (not dt)
+			# so the total HP/sec granted is unchanged, just delivered in bigger, less frequent chunks.
+			var june_t: float = float(unit.get_meta("aura_tick_t", 0.0)) - dt
+			if june_t > 0.0:
+				unit.set_meta("aura_tick_t", june_t)
+			else:
+				unit.set_meta("aura_tick_t", AURA_TICK_INTERVAL)
+				for ally in allies:
+					if ally and is_instance_valid(ally) and ally != unit:
+						if unit.grid_position.distance_to(ally.grid_position) <= 3.0:
+							ally.hp_regen_accum += (float(unit.magic_power) * 0.10 * UnitFactory.natural_aspect(unit)) * AURA_TICK_INTERVAL
 
 		UnitBase.UnitClass.REED:
 			# Wellspring: stronger nearby regen + debuffs fade 30% faster.
-			for ally in allies:
-				if ally and is_instance_valid(ally) and ally != unit:
-					if unit.grid_position.distance_to(ally.grid_position) <= 3.0:
-						ally.hp_regen_accum += (float(unit.spirit + unit.magic_power) * 0.06 * UnitFactory.natural_aspect(unit)) * dt
-						if ally.slow_time > 0.0: ally.slow_time -= dt * 0.3
-						if ally.burn_time > 0.0: ally.burn_time -= dt * 0.3
-						if ally.root_time > 0.0: ally.root_time -= dt * 0.3
+			# Throttled to AURA_TICK_INTERVAL — same reasoning as JUNE above.
+			var reed_t: float = float(unit.get_meta("aura_tick_t", 0.0)) - dt
+			if reed_t > 0.0:
+				unit.set_meta("aura_tick_t", reed_t)
+			else:
+				unit.set_meta("aura_tick_t", AURA_TICK_INTERVAL)
+				for ally in allies:
+					if ally and is_instance_valid(ally) and ally != unit:
+						if unit.grid_position.distance_to(ally.grid_position) <= 3.0:
+							ally.hp_regen_accum += (float(unit.magic_power) * 0.12 * UnitFactory.natural_aspect(unit)) * AURA_TICK_INTERVAL
+							if ally.slow_time > 0.0: ally.slow_time -= AURA_TICK_INTERVAL * 0.3
+							if ally.burn_time > 0.0: ally.burn_time -= AURA_TICK_INTERVAL * 0.3
+							if ally.root_time > 0.0: ally.root_time -= AURA_TICK_INTERVAL * 0.3
 
 		UnitBase.UnitClass.SPORE:
 			# Spore Cloud: enemies within 2 cells accrue stacks; burst handled in _tick_statuses.
@@ -515,6 +591,9 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 # ── Ultimate implementations ──────────────────────────────────────────────────
 func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 	match caster.unit_class:
+		UnitBase.UnitClass.STAT_STEALER:
+			_stat_steal_drain(caster, opponents)
+
 		UnitBase.UnitClass.BLOODHOUND:
 			# Pounce — leap to most-damage-dealer, stun + 250% ATK
 			var _mdl = caster.most_damage_dealer
@@ -537,9 +616,11 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 				bonus = float(caster.get_meta("presence_bonus"))
 			dmg = int(dmg * (1.0 + bonus))
 
-			# Large gravity drop effect centred on Bouncer (covers the pull area)
-			_spawn_skill_effect_sized(SkillEffect.Type.GRAVITY_DROP,
-				caster.global_position, 80.0)
+			# Large gravity drop effect centred on Bouncer, sized to cover the 4x4 pull area
+			# (grid cell_size is 110px, so 4 cells ≈ 440px across)
+			_spawn_sprite_sheet_effect(
+				"res://assets/using/effects_projectiles/bouncer_ult.png",
+				caster.global_position, 64, 60, 14, Vector2(480, 480))
 
 			for opp in opponents:
 				if not (opp and is_instance_valid(opp)):
@@ -694,6 +775,10 @@ func assign_preferred_target(unit: UnitBase, target: UnitBase) -> void:
 func _use_skill(caster: UnitBase, opponents: Array, allies: Array = []) -> void:
 	var effect_type: SkillEffect.Type
 	match caster.unit_class:
+		UnitBase.UnitClass.STAT_STEALER:
+			effect_type = SkillEffect.Type.CHI_BURST
+			_grant_shield(caster, int(float(caster.max_hp) * 0.25))
+
 		UnitBase.UnitClass.WARRIOR:
 			effect_type = SkillEffect.Type.WHIRLWIND
 			_whirlwind(caster, opponents)
@@ -800,7 +885,9 @@ func _use_skill(caster: UnitBase, opponents: Array, allies: Array = []) -> void:
 		# Enemy special skills re-use existing implementations
 		_:
 			return
-	_spawn_skill_effect(effect_type, caster.global_position)
+	# Bouncer spawns its own sprite-based effect (see _bouncer_slam) — skip the generic one.
+	if caster.unit_class != UnitBase.UnitClass.BOUNCER:
+		_spawn_skill_effect(effect_type, caster.global_position)
 
 # ── New class active skills ───────────────────────────────────────────────────
 
@@ -824,6 +911,9 @@ func _bouncer_slam(caster: UnitBase, opponents: Array) -> void:
 	target.take_damage(dmg, caster.current_element)
 	target.stun_time = 1.5
 	caster.damage_dealt += dmg
+	_spawn_sprite_sheet_effect(
+		"res://assets/using/effects_projectiles/bouncer_active.png",
+		target.global_position, 64, 60, 12, Vector2(140, 140))
 
 func _nemi_tidal_wave(caster: UnitBase, opponents: Array) -> void:
 	var dmg := int(caster.magic_power * caster.ultimate_damage_mult * UnitFactory.natural_aspect(caster))
@@ -942,6 +1032,21 @@ func _spawn_skill_effect_sized(type: SkillEffect.Type, world_pos: Vector2, r: fl
 	skill_effect_container.add_child(fx)
 	fx.setup(type, world_pos, r)
 
+# Sprite-sheet skill effect (used for heroes with dedicated frame-by-frame art,
+# e.g. Bouncer's active/ultimate). `size` is the max on-screen bounding box in
+# pixels (aspect ratio of the source frame is preserved).
+func _spawn_sprite_sheet_effect(texture_path: String, world_pos: Vector2,
+		frame_width: int, frame_height: int, frame_count: int, size: Vector2,
+		fps: float = 18.0) -> void:
+	if not skill_effect_container:
+		return
+	var tex: Texture2D = load(texture_path) as Texture2D
+	if not tex:
+		return
+	var fx := TexturedSkillEffect.new()
+	skill_effect_container.add_child(fx)
+	fx.setup(tex, world_pos, frame_width, frame_height, frame_count, size, fps)
+
 # Warrior: hits all adjacent enemies
 func _whirlwind(caster: UnitBase, opponents: Array) -> void:
 	for opp in opponents:
@@ -1032,6 +1137,83 @@ func _grant_shield(unit: UnitBase, amount: int) -> void:
 	unit.current_shield += amount
 	unit.shield_changed.emit(unit.current_shield)
 
+# Stat Stealer ultimate: picks one random stat off the target and starts a
+# 10-second drain (10% of the cast-time value per second — see _tick_statuses
+# for the actual tick). Devastating if it lands on a carry's attack_damage;
+# harmless if it lands on a tank's magic_power — the randomness is the point.
+const STAT_STEAL_POOL: Array[String] = [
+	"attack_damage", "crit_chance", "crit_damage", "attack_speed", "magic_power", "resistance",
+]
+func _stat_steal_drain(caster: UnitBase, opponents: Array) -> void:
+	var target: UnitBase = caster.target_unit if (caster.target_unit and is_instance_valid(caster.target_unit)) else find_nearest_enemy(caster, opponents)
+	if not target:
+		return
+	var stat: String = STAT_STEAL_POOL[randi() % STAT_STEAL_POOL.size()]
+	var snapshot: float = float(target.get(stat))
+	target.drain_time = 10.0
+	target.drain_stat = stat
+	target.drain_per_sec = snapshot * 0.10
+	target.drain_source = caster
+	target.drain_stolen = 0.0
+	_spawn_skill_effect(SkillEffect.Type.CHAOS_BOLT, target.global_position)
+
+# Called from VisualUnit.die() when a Stat Stealer actually dies (real death
+# only — not a Triarch-style phase-transform or a relic revive). Returns every
+# stat it currently has stolen to whichever player unit it stole from — "you
+# only get it back when you kill him."
+func restore_stat_theft(dying_stealer: UnitBase) -> void:
+	for u in player_units:
+		if not (u and is_instance_valid(u)):
+			continue
+		if u.drain_source == dying_stealer:
+			if u.drain_stolen > 0.0 and u.drain_stat != "":
+				u.set(u.drain_stat, float(u.get(u.drain_stat)) + u.drain_stolen)
+			u.drain_time = 0.0
+			u.drain_stat = ""
+			u.drain_per_sec = 0.0
+			u.drain_stolen = 0.0
+			u.drain_source = null
+
+# ── Khagan: mind-control finale ────────────────────────────────────────────────
+# Called from EnemyFactory.advance_khagan_phase() as Khagan's phase-2 body
+# "dies". Picks the player's highest attack_damage hero (turns your best carry
+# against you) and moves it from player_units into enemy_units for the rest of
+# the fight — no stat buff, its own full kit turned against its former allies
+# is the threat. Requires >=2 living heroes so possessing your last one can't
+# leave the player instantly defeated; if that safety fails, Khagan just dies
+# with no phase 3 this time.
+func start_khagan_possession(khagan: UnitBase) -> void:
+	var candidates: Array = player_units.filter(func(u): return u and is_instance_valid(u))
+	if candidates.size() < 2:
+		return
+	var chosen: UnitBase = candidates[0]
+	for u in candidates:
+		if u.attack_damage > chosen.attack_damage:
+			chosen = u
+	player_units.erase(chosen)
+	enemy_units.append(chosen)
+	chosen.is_player_unit = false
+	chosen.set_meta("khagan_puppet", true)
+	action_logged.emit("Khagan's spirit seizes control of %s!" % chosen.unit_name, false)
+	_spawn_skill_effect_sized(SkillEffect.Type.SHADOW_STRIKE, chosen.global_position, 56.0)
+
+# Called from UnitBase/VisualUnit.die() the instant the possessed hero's HP
+# would hit 0 — breaks the control, returns it to the player's side, and ends
+# the fight in victory (defeating the puppet IS defeating Khagan; nothing else
+# on the field needs to die too). Deferred so the current per-unit tick loop
+# finishes cleanly before the battle-end signal cascade runs.
+func end_khagan_possession(unit: UnitBase) -> void:
+	if not unit.has_meta("khagan_puppet"):
+		return
+	unit.remove_meta("khagan_puppet")
+	enemy_units.erase(unit)
+	if unit not in player_units:
+		player_units.append(unit)
+	unit.is_player_unit = true
+	unit.current_hp = maxi(unit.current_hp, int(unit.max_hp * 0.15))
+	action_logged.emit("%s breaks free of Khagan's control!" % unit.unit_name, true)
+	call_deferred("end_battle", true)
+
 # Sheildor skill: shield + small heal to the most-damaged nearby ally (or self)
 func _sheildor_shield_ally(caster: UnitBase, allies: Array) -> void:
 	var best_target: UnitBase = caster
@@ -1045,7 +1227,7 @@ func _sheildor_shield_ally(caster: UnitBase, allies: Array) -> void:
 		if pct < lowest_hp_pct:
 			lowest_hp_pct = pct
 			best_target = ally
-	var shield_amt: int = int(float(caster.intelligence) * 8.0 + float(best_target.max_hp) * 0.06)
+	var shield_amt: int = int(float(caster.magic_power) * 8.0 + float(best_target.max_hp) * 0.06)
 	_grant_shield(best_target, shield_amt)
 	best_target.heal(int(float(best_target.max_hp) * 0.05))
 	_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, best_target.global_position, 44.0)
@@ -1071,7 +1253,7 @@ func _sheildor_guardian_leap(caster: UnitBase, allies: Array, opponents: Array) 
 			caster.grid_position = dest
 			caster.position = _world_pos_for(caster, dest)
 	# Massive shield for both
-	var big_shield: int = int(float(caster.intelligence) * 15.0 + float(target.max_hp) * 0.20)
+	var big_shield: int = int(float(caster.magic_power) * 15.0 + float(target.max_hp) * 0.20)
 	_grant_shield(target, big_shield)
 	_grant_shield(caster, big_shield / 2)
 	_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, target.global_position, 64.0)
@@ -1181,6 +1363,56 @@ func _spawn_summon(summoner: UnitBase, summon_class: UnitBase.UnitClass) -> void
 		unit_summoned.emit(summon)  # main_game.gd adds to scene tree here (signal is synchronous)
 		summon.position = battle_grid.grid_to_world(spawn_cell)
 		action_logged.emit("%s raises a %s!" % [summoner.unit_name, summon.get_class_name_string()], summoner.is_player_unit)
+
+# ── Ant Hill: periodic spawn (DPS check) ──────────────────────────────────────
+const ANT_HILL_SPAWN_INTERVAL := 3.5
+const ANT_HILL_MAX_ANTS := 5
+
+func _ant_hill_spawn_tick(hill: UnitBase, allies: Array, dt: float) -> void:
+	hill.summon_spawn_timer -= dt
+	if hill.summon_spawn_timer > 0.0:
+		return
+	hill.summon_spawn_timer = ANT_HILL_SPAWN_INTERVAL
+	var alive_ants := 0
+	for a in allies:
+		if a and is_instance_valid(a) and a.summon_owner == hill and a.is_summoned:
+			alive_ants += 1
+	if alive_ants >= ANT_HILL_MAX_ANTS:
+		return   # swarm is already at its cap — try again next interval
+	_spawn_ant(hill)
+
+# Like _spawn_summon, but for the Ant Hill specifically: uses the real ant.png
+# art (via sprite_folder meta) instead of the generic Zombie/Bat shape-fallback,
+# and searches a wider ring since the hill is 2×2 (no single "in front" cell).
+func _spawn_ant(hill: UnitBase) -> void:
+	var search_offsets: Array[Vector2i] = [
+		Vector2i(0, 2), Vector2i(1, 2), Vector2i(-1, 2), Vector2i(2, 0), Vector2i(2, 1),
+		Vector2i(-2, 0), Vector2i(-2, 1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, -1),
+	]
+	var spawn_cell := Vector2i(-1, -1)
+	for offset in search_offsets:
+		var candidate: Vector2i = hill.grid_position + offset
+		if battle_grid.is_valid_position(candidate) and not battle_grid.is_cell_occupied(candidate):
+			spawn_cell = candidate
+			break
+	if spawn_cell == Vector2i(-1, -1):
+		return  # no room this tick — try again next interval
+	var ant: VisualUnit = UnitFactory.create_unit(UnitBase.UnitClass.ANT, hill.current_element, hill.is_player_unit)
+	ant.is_summoned = true
+	ant.summon_owner = hill
+	ant.is_player_unit = hill.is_player_unit
+	ant.set_meta("sprite_folder", "ant")
+	ant.grid_position = spawn_cell
+	if battle_grid.place_unit(ant, spawn_cell):
+		if ant.is_player_unit:
+			player_units.append(ant)
+		else:
+			enemy_units.append(ant)
+		unit_summoned.emit(ant)
+		ant.position = battle_grid.grid_to_world(spawn_cell)
+		action_logged.emit("The Ant Hill spawns another ant!", hill.is_player_unit)
+	else:
+		ant.queue_free()
 
 func check_battle_end() -> void:
 	# Remove dead units
@@ -1359,6 +1591,47 @@ func _tick_statuses(unit: UnitBase, dt: float) -> void:
 	if not is_instance_valid(unit):
 		return
 
+	# Stat Stealer drain-over-time: 10%/sec of the cast-time snapshot, transferred
+	# live onto drain_source's matching stat. Once drain_time runs out the theft
+	# is NOT reverted here — it stays stolen until drain_source dies (see
+	# restore_stat_theft), or forever if it's never killed this fight.
+	if unit.drain_time > 0.0:
+		unit.drain_time -= dt
+		var stat: String = unit.drain_stat
+		if stat != "":
+			# crit_damage is a multiplier (2.0 = double dmg) — its natural "no
+			# bonus" floor is 1.0, not 0. attack_speed floors just above zero to
+			# avoid a divide-by-zero elsewhere (1.0 / attacks_per_second).
+			var floor_val: float = 1.0 if stat == "crit_damage" else (0.05 if stat == "attack_speed" else 0.0)
+			# attack_speed/crit_chance/crit_damage are float fields, so fractional
+			# amounts apply directly. attack_damage/magic_power/resistance are
+			# INT fields — repeatedly setting a truncating int property would
+			# silently discard the sub-1 remainder every single tick, so those
+			# bank the fraction in drain_accum first (mirrors burn_accum above).
+			var is_float_stat: bool = stat in ["attack_speed", "crit_chance", "crit_damage"]
+			var cur: float = float(unit.get(stat))
+			var raw: float = unit.drain_per_sec * dt
+			if is_float_stat:
+				var amount: float = minf(raw, maxf(0.0, cur - floor_val))
+				if amount > 0.0:
+					unit.set(stat, cur - amount)
+					unit.drain_stolen += amount
+					var src = unit.drain_source
+					if src and is_instance_valid(src):
+						src.set(stat, float(src.get(stat)) + amount)
+			else:
+				unit.drain_accum += raw
+				if unit.drain_accum >= 1.0:
+					var whole: int = int(unit.drain_accum)
+					var actual: int = mini(whole, maxi(0, int(cur) - int(floor_val)))
+					unit.drain_accum -= float(whole)
+					if actual > 0:
+						unit.set(stat, int(cur) - actual)
+						unit.drain_stolen += float(actual)
+						var src2 = unit.drain_source
+						if src2 and is_instance_valid(src2):
+							src2.set(stat, int(src2.get(stat)) + actual)
+
 	# Spore stacks burst at 10.
 	if unit.spore_stacks >= 10.0:
 		unit.spore_stacks = 0.0
@@ -1397,6 +1670,12 @@ func _tick_statuses(unit: UnitBase, dt: float) -> void:
 			unit.weakened_time = 3.0
 	if unit.link_partner != null and not is_instance_valid(unit.link_partner):
 		unit.link_partner = null
+
+	# Equipment Spell Echo: persistent outgoing damage bonus (never expires)
+	var echo: float = unit.equipment_passives.get("Spell Echo", 0.0)
+	if echo > 0.0:
+		unit.outgoing_dmg_mult = maxf(unit.outgoing_dmg_mult, 1.0 + echo)
+		unit.outgoing_dmg_time = 0.1  # keep refreshed so the normal expiry path never fires
 
 # ── Status application helpers (refresh = take stronger value / longer time) ───
 func apply_burn(target: UnitBase, dps: float, dur: float, source) -> void:
@@ -1476,6 +1755,10 @@ func _apply_on_hit_passives(attacker: UnitBase, target: UnitBase, opponents: Arr
 		return
 	var aspect: float = UnitFactory.natural_aspect(attacker)
 	match attacker.unit_class:
+		UnitBase.UnitClass.ANT:
+			# Bite lands (damage already dealt in UnitBase.attack, which read the
+			# PRE-increment stack count) — now bump the stack for the NEXT bite.
+			target.ant_bite_stacks = mini(target.ant_bite_stacks + 1, 20)
 		UnitBase.UnitClass.COAL:
 			var stacks: int = 2 if attacker.stoke_charges > 0 else 1
 			if attacker.stoke_charges > 0: attacker.stoke_charges -= 1
@@ -1499,6 +1782,14 @@ func _apply_on_hit_passives(attacker: UnitBase, target: UnitBase, opponents: Arr
 				second.take_damage(d, attacker.current_element, attacker)
 				attacker.damage_dealt += d
 				_spawn_skill_effect_sized(SkillEffect.Type.CHAOS_BOLT, second.global_position, 20.0)
+
+	# Equipment Lifesteal: heal for a fraction of melee damage dealt this swing
+	var lifesteal: float = attacker.equipment_passives.get("Lifesteal", 0.0)
+	if lifesteal > 0.0 and attacker.pending_attack_log_damage > 0 and attacker.current_hp < attacker.max_hp:
+		var heal_amt: int = int(float(attacker.pending_attack_log_damage) * lifesteal)
+		if heal_amt > 0:
+			attacker.heal(heal_amt)
+			_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, attacker.global_position, 16.0)
 
 # ── Reactive: runs whenever ANY unit takes damage (called from UnitBase) ──────
 func propagate_damage_links(victim: UnitBase, dmg: int, attacker) -> void:
@@ -1545,6 +1836,13 @@ func propagate_damage_links(victim: UnitBase, dmg: int, attacker) -> void:
 			for mate in team.duplicate():
 				if mate and is_instance_valid(mate) and mate != victim:
 					mate.take_damage(bleed, UnitBase.Element.NORMAL, null, true)
+
+	# Equipment Thorns: reflect a fraction of incoming damage back to the attacker
+	var thorns_eq: float = victim.equipment_passives.get("Thorns", 0.0)
+	if thorns_eq > 0.0 and attacker and is_instance_valid(attacker) and attacker != victim:
+		var reflect: int = int(float(dmg) * thorns_eq)
+		if reflect > 0:
+			attacker.take_damage(reflect, UnitBase.Element.NORMAL, null, true)
 
 	_propagating = false
 
