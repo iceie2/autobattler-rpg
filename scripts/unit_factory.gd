@@ -140,17 +140,22 @@ const CLASS_BASE_STATS = {
 	UnitBase.UnitClass.RED_MAGE: { "hp":850,"mana":650, "atk":15,"magic":17,"res":10,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":2,"range":5, "off_affinity":45.0,"def_affinity":20.0 },
 	UnitBase.UnitClass.BLOODHOUND: { "hp":1100,"mana":400, "atk":20,"magic":10,"res":14,"aspd":0.74,"hpregen":0.5,"manaregen":2.0, "move":3,"range":1, "off_affinity":35.0,"def_affinity":25.0 },
 	UnitBase.UnitClass.BOUNCER: { "hp":1300,"mana":600, "atk":11,"magic":18,"res":16,"aspd":0.62,"hpregen":0.5,"manaregen":4.67, "move":2,"range":1, "off_affinity":30.0,"def_affinity":35.0 },
-	UnitBase.UnitClass.HEADHUNTER: { "hp":600,"mana":350, "atk":24,"magic":16,"res":5,"aspd":0.9,"hpregen":0.47,"manaregen":2.83, "move":3,"range":6, "off_affinity":55.0,"def_affinity":8.0 },
+	# Balance 2026-07-03: HEADHUNTER atk 24→23, SABLE atk 21→20, RUSH atk 24→22,
+	# NEMI magic 19→21 — arena sweep + user playtests: the first three top the
+	# damage board (their base stats over-fit their kits), Nemi underperforms
+	# even for a support. ZOMBIE/BAT summon stats buffed (melted instantly,
+	# making Necro's whole kit weak: 183 solo dmg, worst-3 in roster).
+	UnitBase.UnitClass.HEADHUNTER: { "hp":600,"mana":350, "atk":23,"magic":16,"res":5,"aspd":0.9,"hpregen":0.47,"manaregen":2.83, "move":3,"range":6, "off_affinity":55.0,"def_affinity":8.0 },
 	UnitBase.UnitClass.SHAUNA: { "hp":700,"mana":400, "atk":22,"magic":11,"res":6,"aspd":0.9,"hpregen":0.45,"manaregen":2.33, "move":3,"range":5, "off_affinity":50.0,"def_affinity":8.0 },
-	UnitBase.UnitClass.NEMI: { "hp":750,"mana":600, "atk":11,"magic":19,"res":10,"aspd":0.7,"hpregen":0.6,"manaregen":6.0, "move":2,"range":4, "off_affinity":35.0,"def_affinity":20.0 },
+	UnitBase.UnitClass.NEMI: { "hp":750,"mana":600, "atk":11,"magic":21,"res":10,"aspd":0.7,"hpregen":0.6,"manaregen":6.0, "move":2,"range":4, "off_affinity":35.0,"def_affinity":20.0 },
 	UnitBase.UnitClass.SHEILDOR: { "hp":1400,"mana":700, "atk":14,"magic":17,"res":18,"aspd":0.66,"hpregen":0.6,"manaregen":4.67, "move":2,"range":1, "off_affinity":20.0,"def_affinity":40.0 },
 	UnitBase.UnitClass.LORDEE: { "hp":950,"mana":500, "atk":23,"magic":14,"res":10,"aspd":0.78,"hpregen":0.6,"manaregen":3.0, "move":3,"range":1, "off_affinity":45.0,"def_affinity":15.0 },
 	UnitBase.UnitClass.NECRO: { "hp":800,"mana":900, "atk":8,"magic":21,"res":8,"aspd":0.64,"hpregen":0.53,"manaregen":6.0, "move":2,"range":4, "off_affinity":30.0,"def_affinity":15.0 },
 	UnitBase.UnitClass.DOC: { "hp":850,"mana":750, "atk":10,"magic":17,"res":9,"aspd":0.68,"hpregen":0.6,"manaregen":5.67, "move":3,"range":3, "off_affinity":30.0,"def_affinity":20.0 },
 	UnitBase.UnitClass.RIOT: { "hp":1500,"mana":500, "atk":14,"magic":11,"res":20,"aspd":0.64,"hpregen":0.47,"manaregen":2.67, "move":2,"range":1, "off_affinity":20.0,"def_affinity":40.0 },
 	UnitBase.UnitClass.PASTOR: { "hp":900,"mana":650, "atk":12,"magic":17,"res":11,"aspd":0.68,"hpregen":0.53,"manaregen":4.67, "move":2,"range":3, "off_affinity":40.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.SABLE: { "hp":650,"mana":350, "atk":21,"magic":12,"res":6,"aspd":0.88,"hpregen":0.45,"manaregen":2.5, "move":3,"range":6, "off_affinity":55.0,"def_affinity":8.0 },
-	UnitBase.UnitClass.RUSH: { "hp":820,"mana":300, "atk":24,"magic":11,"res":8,"aspd":0.86,"hpregen":0.53,"manaregen":2.17, "move":15,"range":1, "off_affinity":45.0,"def_affinity":10.0 },
+	UnitBase.UnitClass.SABLE: { "hp":650,"mana":350, "atk":20,"magic":12,"res":6,"aspd":0.88,"hpregen":0.45,"manaregen":2.5, "move":3,"range":6, "off_affinity":55.0,"def_affinity":8.0 },
+	UnitBase.UnitClass.RUSH: { "hp":820,"mana":300, "atk":22,"magic":11,"res":8,"aspd":0.86,"hpregen":0.53,"manaregen":2.17, "move":15,"range":1, "off_affinity":45.0,"def_affinity":10.0 },
 	UnitBase.UnitClass.STITCH: { "hp":780,"mana":700, "atk":13,"magic":18,"res":9,"aspd":0.74,"hpregen":0.47,"manaregen":4.67, "move":2,"range":2, "off_affinity":40.0,"def_affinity":15.0 },
 	UnitBase.UnitClass.COAL: { "hp":1150,"mana":350, "atk":22,"magic":13,"res":13,"aspd":0.72,"hpregen":0.57,"manaregen":2.33, "move":3,"range":1, "off_affinity":45.0,"def_affinity":20.0 },
 	UnitBase.UnitClass.JUNE: { "hp":880,"mana":700, "atk":10,"magic":15,"res":10,"aspd":0.68,"hpregen":0.57,"manaregen":5.17, "move":2,"range":3, "off_affinity":30.0,"def_affinity":22.0 },
@@ -164,8 +169,8 @@ const CLASS_BASE_STATS = {
 	UnitBase.UnitClass.REED: { "hp":860,"mana":780, "atk":10,"magic":16,"res":11,"aspd":0.66,"hpregen":0.6,"manaregen":5.5, "move":2,"range":4, "off_affinity":30.0,"def_affinity":25.0 },
 	UnitBase.UnitClass.VAIL: { "hp":820,"mana":780, "atk":11,"magic":16,"res":9,"aspd":0.7,"hpregen":0.6,"manaregen":5.5, "move":3,"range":4, "off_affinity":30.0,"def_affinity":18.0 },
 	UnitBase.UnitClass.SPORE: { "hp":780,"mana":820, "atk":9,"magic":20,"res":9,"aspd":0.68,"hpregen":0.47,"manaregen":5.5, "move":2,"range":4, "off_affinity":50.0,"def_affinity":18.0 },
-	UnitBase.UnitClass.ZOMBIE: { "hp":85,"mana":0, "atk":8,"magic":2,"res":5,"aspd":0.58,"hpregen":0.17,"manaregen":0.33, "move":2,"range":1, "off_affinity":20.0,"def_affinity":10.0 },
-	UnitBase.UnitClass.BAT: { "hp":55,"mana":0, "atk":9,"magic":2,"res":3,"aspd":0.7,"hpregen":0.12,"manaregen":0.33, "move":4,"range":1, "off_affinity":20.0,"def_affinity":5.0 },
+	UnitBase.UnitClass.ZOMBIE: { "hp":110,"mana":0, "atk":10,"magic":2,"res":5,"aspd":0.58,"hpregen":0.17,"manaregen":0.33, "move":2,"range":1, "off_affinity":20.0,"def_affinity":10.0 },
+	UnitBase.UnitClass.BAT: { "hp":70,"mana":0, "atk":9,"magic":2,"res":3,"aspd":0.7,"hpregen":0.12,"manaregen":0.33, "move":4,"range":1, "off_affinity":20.0,"def_affinity":5.0 },
 	UnitBase.UnitClass.ANT: { "hp":25,"mana":0, "atk":4,"magic":0,"res":1,"aspd":0.9,"hpregen":0.0,"manaregen":0.0, "move":4,"range":1, "off_affinity":15.0,"def_affinity":5.0 },
 }
 
@@ -330,7 +335,9 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_mana_cost = 60
 			unit.skill_description = "Fire an extra shot at a second target and gain +2 attack range for 4s. · 60 MP · 5s CD"
 			unit.ultimate_name = "Snipe"
-			unit.ultimate_damage_mult = 4.0
+			# Balance 2026-07-03: 4.0 → 3.5 — Headhunter sits top-3 on the arena
+			# damage board and user playtests flag him overtuned.
+			unit.ultimate_damage_mult = 3.5
 			unit.ultimate_range = 99
 			unit.ultimate_charge_max = 400
 		UnitBase.UnitClass.SHAUNA:

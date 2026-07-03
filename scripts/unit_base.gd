@@ -341,7 +341,9 @@ func outgoing_damage_multiplier() -> float:
 	if weakened_time > 0.0:
 		m *= (1.0 - clampf(weakened_pct, 0.0, 0.9))
 	if unit_class == UnitClass.SABLE:
-		m *= (1.0 + momentum_stacks * 0.06)
+		# Balance 2026-07-03: 0.06 → 0.05/stack (12-stack cap: max +72% → +60%).
+		# Sable topped the arena solo-damage board; user playtests flag her strong.
+		m *= (1.0 + momentum_stacks * 0.05)
 	return m
 
 func get_defense_multiplier(attacking_element: Element = Element.NORMAL) -> float:

@@ -578,6 +578,40 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 							if ally.burn_time > 0.0: ally.burn_time -= AURA_TICK_INTERVAL * 0.3
 							if ally.root_time > 0.0: ally.root_time -= AURA_TICK_INTERVAL * 0.3
 
+		UnitBase.UnitClass.SHEILDOR:
+			# "Guardian Aura" (implemented 2026-07-03 — the factory has shown this
+			# passive_name in the UI since creation with NO implementation behind
+			# it): every few seconds, grant a small shield to the most-wounded
+			# adjacent ally. A mini echo of his skill, aura-throttle pattern.
+			var shel_t: float = float(unit.get_meta("bulwark_t", 0.0)) - dt
+			if shel_t > 0.0:
+				unit.set_meta("bulwark_t", shel_t)
+			else:
+				unit.set_meta("bulwark_t", 4.0)
+				var shel_tar := _lowest_hp_ally(unit, allies, 1.5, false)
+				if shel_tar and shel_tar != unit:
+					var shel_amt: int = int(float(unit.magic_power) * 0.35 * UnitFactory.natural_aspect(unit))
+					shel_tar.current_shield += shel_amt
+					if shel_tar.health_bar:
+						shel_tar.health_bar.update_shield(shel_tar.current_shield, shel_tar.max_hp)
+					_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, shel_tar.global_position, 22.0)
+
+		UnitBase.UnitClass.VAIL:
+			# "Far Winds" (implemented 2026-07-03 — passive_name existed in the UI
+			# with NO implementation): allies near Vail attack slightly faster.
+			# Mirrors PASTOR's refresh-a-short-buff aura shape — never stacks/leaks.
+			var vail_t: float = float(unit.get_meta("aura_tick_t", 0.0)) - dt
+			if vail_t > 0.0:
+				unit.set_meta("aura_tick_t", vail_t)
+			else:
+				unit.set_meta("aura_tick_t", AURA_TICK_INTERVAL)
+				var vail_bonus: float = 0.10 * UnitFactory.natural_aspect(unit)
+				for v_ally in allies:
+					if v_ally and is_instance_valid(v_ally) and v_ally != unit:
+						if unit.grid_position.distance_to(v_ally.grid_position) <= 3.0:
+							v_ally.bonus_aspd_pct = maxf(v_ally.bonus_aspd_pct, vail_bonus)
+							v_ally.bonus_aspd_time = maxf(v_ally.bonus_aspd_time, 0.35)
+
 		UnitBase.UnitClass.SPORE:
 			# Spore Cloud: enemies within 2 cells accrue stacks; burst handled in _tick_statuses.
 			var spore_burst_amt: int = int(float(unit.magic_power) * 1.6 * UnitFactory.natural_aspect(unit))
@@ -1804,8 +1838,11 @@ func propagate_damage_links(victim: UnitBase, dmg: int, attacker) -> void:
 		apply_slow(attacker, 0.3, 1.5)
 
 	# Cross Penance: heal a share of damage taken (counts toward Judgment).
+	# Balance 2026-07-03: 0.35 → 0.20 — at 35% Cross out-sustained an entire
+	# 11-unit wave solo in arena sweeps (3119 self-healing, 100% solo win rate,
+	# highest damage in the roster). Still the tankiest sustain in the game at 20%.
 	if victim.unit_class == UnitBase.UnitClass.CROSS:
-		var ch: int = int(float(dmg) * 0.35)
+		var ch: int = int(float(dmg) * 0.20)
 		if ch > 0:
 			victim.heal(ch)
 			victim.combat_healing_done += ch

@@ -68,8 +68,24 @@ func _draw() -> void:
 	if shield_current > 0.0:
 		var sh_pct: float = clamp(shield_current / max(hp_max, 1.0), 0.0, 1.0)
 		draw_rect(Rect2(x, 0.0, bar_width * sh_pct, bar_height), Color(0.20, 0.90, 1.0, 0.72))
+	_draw_hp_number(x)
 	_draw_bar(x, bar_height + gap,         bar_height, mp_pct,  TEX_MP)
 	_draw_bar(x, (bar_height + gap) * 2.0, bar_height, ult_pct, TEX_ULT, ult_tint)
+
+# Numeric HP readout inside the bar (2026-07-03, user request: "maybe a health
+# total inside the hp bar"). "cur/max" when it fits, else just current HP.
+# Outlined so it reads over both the green fill and the dark empty track.
+func _draw_hp_number(x: float) -> void:
+	var font: Font = ThemeDB.fallback_font
+	var fsize: int = 8 if bar_width < 100.0 else 12
+	var txt: String = "%d/%d" % [maxi(int(hp_current), 0), int(hp_max)]
+	if font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x > bar_width - 4.0:
+		txt = str(maxi(int(hp_current), 0))
+	var tw: float = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
+	var baseline: float = (bar_height + font.get_ascent(fsize) - font.get_descent(fsize)) / 2.0
+	var pos := Vector2(-tw / 2.0, baseline)
+	draw_string_outline(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, 3, Color(0, 0, 0, 0.9))
+	draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, Color(1, 1, 1, 0.95))
 
 func _draw_bar(x: float, y: float, h: float, pct: float, tex: Texture2D, tint: Color = Color.WHITE) -> void:
 	# Dark track with a 1px border so empty bars stay readable over any sprite.

@@ -70,10 +70,9 @@ const EXPECTED_SILENT := {
 	"CROSS":     {"passive": "retaliation heal — verified in on_being_hit phase"},
 	"RIFT":      {"passive": "Backlash damage-redirect — verified in on_being_hit phase"},
 	"STATIC":    {"passive": "Live Wire triggers on enemy MOVEMENT (update_unit_movements) — untestable statically, verify in sim"},
-	# DESIGN GAP (not bugs): these two have no passive hook anywhere in the
-	# codebase — kit is skill+ult only. Logged for a future content pass.
-	"SHEILDOR":  {"passive": "no passive implemented — skill+ult kit (design gap)"},
-	"VAIL":      {"passive": "no passive implemented — skill+ult kit (design gap)"},
+	# SHEILDOR "Guardian Aura" + VAIL "Far Winds" were design gaps (UI names
+	# with no implementation) until 2026-07-03 — both implemented; the probe
+	# now REQUIRES them to fire, so no entries here.
 	"goblin": {"passive": "no kit yet"}, "goblin_archer": {"passive": "no kit yet"},
 	"goblin_shaman": {"passive": "no kit yet"}, "orc_brute": {"passive": "no kit yet"},
 	"slime": {"passive": "no kit yet"}, "skeleton": {"passive": "no kit yet"},
@@ -94,6 +93,8 @@ func _ready() -> void:
 			result = await _run_probe(args)
 		"sim":
 			result = await _run_sims(args)
+		"sweep":
+			result = await _run_sweep(args)
 		_:
 			result = {"error": "unknown mode '%s'" % mode}
 			_had_failures = true
@@ -356,6 +357,81 @@ func _unit_stats(units: Array) -> Array:
 			"kills": u.kill_count,
 		})
 	return out
+
+# ── SWEEP MODE ────────────────────────────────────────────────────────────────
+# Comparative kit-power measurement: every recruitable hero, level 3, run through
+# two fixtures — (a) SOLO vs a small wave (raw solo strength; the user's "supports
+# fare very poorly alone" signal), (b) PAIRED with a Riot tank anchor vs a medium
+# wave (does the kit contribute when it has a frontline to work behind).
+# Same seeds across heroes → differences are the hero, not the wave roll.
+
+# Fixture difficulty is tuned so outcomes SPREAD (fixture v1 was so easy that
+# 24/26 heroes hit 100% solo — useless for ranking). The pair wave is sized so
+# the anchor ALONE loses most runs: a support's real value then shows up as
+# win-rate lift over that baseline, not as damage (which undersells supports).
+const SWEEP_SOLO_ENEMY := "goblin:4,goblin:4,goblin_archer:3"
+const SWEEP_PAIR_ENEMY := "goblin:5,goblin:5,goblin_archer:4,goblin_shaman:4"
+const SWEEP_ANCHOR := "RIOT"
+
+func _run_sweep(args: Dictionary) -> Dictionary:
+	var runs: int = int(args.get("runs", "5"))
+	var base_seed: int = int(args.get("seed", "5000"))
+	var lvl: String = args.get("level", "3")
+	var rows: Array = []
+	# Baseline: how does the anchor fare completely alone vs the pair wave?
+	var anchor_solo: Dictionary = await _run_sims({
+		"team": "%s:%s" % [SWEEP_ANCHOR, lvl], "enemy": SWEEP_PAIR_ENEMY,
+		"runs": str(runs), "seed": str(base_seed + 100), "max-sim-seconds": "90",
+	})
+	log_line("[sweep] anchor-alone baseline win=%.2f" % float(anchor_solo.get("win_rate", -1)))
+	for cls in UnitFactory.get_all_classes():
+		if cls in MINION_CLASSES:
+			continue
+		var cname: String = UnitBase.UnitClass.keys()[cls]
+		# 60/90 sim-second caps: a solo fight that drags past 60s is already
+		# "can't close a 1v4" — the stall itself is the data point.
+		var solo: Dictionary = await _run_sims({
+			"team": "%s:%s" % [cname, lvl], "enemy": SWEEP_SOLO_ENEMY,
+			"runs": str(runs), "seed": str(base_seed), "max-sim-seconds": "60",
+		})
+		var paired: Dictionary = await _run_sims({
+			"team": "%s:%s,%s:%s" % [cname, lvl, SWEEP_ANCHOR, lvl],
+			"enemy": SWEEP_PAIR_ENEMY,
+			"runs": str(runs), "seed": str(base_seed + 100), "max-sim-seconds": "90",
+		})
+		rows.append({
+			"class": cname,
+			"solo_win_rate": solo.get("win_rate", -1),
+			"solo_stalls": solo.get("stalls", 0),
+			"solo_avg": _sweep_averages(solo, cname),
+			"paired_win_rate": paired.get("win_rate", -1),
+			"paired_stalls": paired.get("stalls", 0),
+			"paired_avg": _sweep_averages(paired, cname),
+		})
+		log_line("[sweep] %s solo=%.2f paired=%.2f" % [cname,
+				float(solo.get("win_rate", -1)), float(paired.get("win_rate", -1))])
+	return {"mode": "sweep", "runs_per_fixture": runs, "level": lvl,
+			"solo_enemy": SWEEP_SOLO_ENEMY, "pair_enemy": SWEEP_PAIR_ENEMY,
+			"anchor": SWEEP_ANCHOR,
+			"anchor_alone_win_rate": anchor_solo.get("win_rate", -1),
+			"rows": rows}
+
+# Mean damage/healing/hp% for the SWEPT hero (not the anchor) across runs.
+func _sweep_averages(sim_result: Dictionary, cname: String) -> Dictionary:
+	var dmg := 0.0; var heal := 0.0; var hp := 0.0; var n := 0
+	for run in sim_result.get("results", []):
+		for u in run.get("team", []):
+			if u.get("class", "") == cname:
+				dmg += u.get("damage_dealt", 0)
+				heal += u.get("healing_done", 0)
+				hp += u.get("hp_pct", 0.0)
+				n += 1
+	if n == 0: return {}
+	return {"dmg": int(dmg / n), "heal": int(heal / n),
+			"end_hp_pct": snappedf(hp / n, 0.01)}
+
+func log_line(s: String) -> void:
+	print(s)
 
 # ── PROBE MODE ────────────────────────────────────────────────────────────────
 # For every hero class and every enemy factory type: spawn it with dummies,
