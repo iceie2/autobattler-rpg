@@ -59,6 +59,21 @@ const EXPECTED_SILENT := {
 	"HEADHUNTER": {"passive": "crit logic lives inside attack() — see on_hit"},
 	"SHAUNA":    {"passive": "kite logic reacts to enemy proximity while moving"},
 	"STITCH":    {"passive": "Loose Threads reacts to a linked ally taking damage"},
+	# Kits verified in another probe phase — the _tick_passive phase is
+	# rightfully a no-op for them (audited 2026-07-03, see balance journal):
+	"SABLE":     {"passive": "Momentum is on-hit — verified in on_hit phase"},
+	"COAL":      {"passive": "Stoke charges are on-hit — verified in on_hit phase"},
+	"EMBER":     {"passive": "burn application is on-hit — verified in on_hit phase"},
+	"ZOLT":      {"passive": "on-hit shock — verified in on_hit phase"},
+	"LUMEN":     {"passive": "on-hit refraction — verified in on_hit phase"},
+	"RIOT":      {"passive": "retaliation — verified in on_being_hit phase"},
+	"CROSS":     {"passive": "retaliation heal — verified in on_being_hit phase"},
+	"RIFT":      {"passive": "Backlash damage-redirect — verified in on_being_hit phase"},
+	"STATIC":    {"passive": "Live Wire triggers on enemy MOVEMENT (update_unit_movements) — untestable statically, verify in sim"},
+	# DESIGN GAP (not bugs): these two have no passive hook anywhere in the
+	# codebase — kit is skill+ult only. Logged for a future content pass.
+	"SHEILDOR":  {"passive": "no passive implemented — skill+ult kit (design gap)"},
+	"VAIL":      {"passive": "no passive implemented — skill+ult kit (design gap)"},
 	"goblin": {"passive": "no kit yet"}, "goblin_archer": {"passive": "no kit yet"},
 	"goblin_shaman": {"passive": "no kit yet"}, "orc_brute": {"passive": "no kit yet"},
 	"slime": {"passive": "no kit yet"}, "skeleton": {"passive": "no kit yet"},
@@ -436,7 +451,11 @@ func _probe_one(make_unit: Callable, subject_is_player: bool,
 	# subject well below half HP (frenzy thresholds sit at ~45%) + a recorded
 	# damage source, a wounded ally (heal targets), and a fallen ally (revive
 	# ults). ally2 stays at FULL health — Link-style skills need a healthy partner.
-	subject.take_damage(int(subject.max_hp * 0.65), UnitBase.Element.NORMAL, d_near)
+	# take_damage records the attacker (frenzy attribution) but resist/affinity
+	# soften it unpredictably, so pin the final HP deterministically at 35%
+	# (frenzy-style thresholds sit at ~45% of max).
+	subject.take_damage(int(subject.max_hp * 0.2), UnitBase.Element.NORMAL, d_near)
+	subject.current_hp = mini(subject.current_hp, int(subject.max_hp * 0.35))
 	ally.take_damage(25000, UnitBase.Element.NORMAL, d_near)
 	if subject_is_player:
 		ally3.take_damage(99999999, UnitBase.Element.NORMAL, d_near)  # → fallen_allies
@@ -534,6 +553,7 @@ func _world_snapshot() -> Dictionary:
 			"regen_bank": snappedf(u.hp_regen_accum, 0.01),
 			"frenzy": u.frenzy_active,
 			"stoke": u.stoke_charges,
+			"meltdown": u.meltdown_time > 0.0,
 			"linked": u.link_partner != null,
 			"puppet": u.puppet_time > 0.0,
 			"ult_charge": u.ultimate_charge,
