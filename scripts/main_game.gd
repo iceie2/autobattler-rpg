@@ -143,7 +143,7 @@ var _level_up_screen: LevelUpScreen
 var _round_reward_screen: RoundRewardScreen
 var _pending_round_reward: Dictionary = {}
 var _rolled_rewards: Dictionary = {}   # {difficulty: reward} — rolled once per round, shown in full
-var _locked_elite_code_by_round: Dictionary = {}   # {round: "SS"/"AH"/"G"} — locked once per round (see _generate_wave_spec)
+var _wave_director := WaveDirector.new()   # wave specs + enemy creation (shared logic w/ arena)
 var _coin_container: Node2D            # gold drops on the field (GoldCoin nodes)
 var _equipment_inventory: EquipmentInventory
 var _equipment_panel: EquipmentPanel
@@ -1765,104 +1765,16 @@ func spawn_random_player_unit() -> void:
 	else:
 		unit.queue_free()
 
-# Enemy code (WaveData/formation) → EnemyFactory type string. Empty = unknown.
-# Single source of truth lives in EnemyFactory.CODE_TO_TYPE (shared with the
-# arena harness) — register new enemies THERE, not here.
-func _code_to_type(code: String) -> String:
-	return EnemyFactory.CODE_TO_TYPE.get(code, "")
-
+# Wave spec generation + enemy creation live in WaveDirector (2026-07-04
+# refactor) — scene-independent and shared with the arena harness, so the
+# simulator can never drift from the live game's waves again.
 func _generate_wave_spec(difficulty: int) -> Array:
-	# Generate a wave specification (not instantiated units) for the given difficulty.
-	# Returns an array of {"type": str, "level": int, "pos"?: Vector2i} entries.
-	var round := game_state.battle_round
-	var spec: Array = []
+	return _wave_director.generate_wave_spec(
+			game_state.battle_round, difficulty, battle_grid.grid_width)
 
-	# ── Boss rounds (10 / 20 / 30): a scaled boss + escalating adds. ──
-	if WaveScaler.is_boss_round(round):
-		var placed: Array = WaveScaler.build_boss_formation(round, difficulty, battle_grid.grid_width)
-		var boss_lvl: int = WaveScaler.boss_level(round)
-		var boss_code: String = WaveScaler.boss_code_for(round)
-		for entry: Dictionary in placed:
-			var code: String = entry["code"]
-			var t: String = _code_to_type(code)
-			if t == "":
-				continue
-			var lvl: int = boss_lvl if code == boss_code else _enemy_level_for_round(round, false)
-			spec.append({"type": t, "level": lvl, "pos": entry["pos"]})
-		return spec
-
-	# ── Elite rounds (5 / 15 / 25): a mini-boss + light fodder support. ──
-	if WaveScaler.is_elite_round(round):
-		# Lock the elite pick once per round (this func gets called again when
-		# Ready is pressed, after the round-start formation preview already
-		# showed one — without caching, that second call re-rolled independently
-		# and could spawn a DIFFERENT elite than the one shown on the grid).
-		if not _locked_elite_code_by_round.has(round):
-			_locked_elite_code_by_round[round] = WaveScaler.ELITE_POOL[randi() % WaveScaler.ELITE_POOL.size()]
-		var elite_code: String = _locked_elite_code_by_round[round]
-		var placed: Array = WaveScaler.build_elite_formation(round, difficulty, battle_grid.grid_width, elite_code)
-		var elite_lvl: int = WaveScaler.elite_level(round)
-		for entry: Dictionary in placed:
-			var code: String = entry["code"]
-			var t: String = _code_to_type(code)
-			if t == "":
-				continue
-			var lvl: int = elite_lvl if code in WaveScaler.ELITE_POOL else _enemy_level_for_round(round, false)
-			spec.append({"type": t, "level": lvl, "pos": entry["pos"]})
-		return spec
-
-	var formation_data: Array = WaveScaler.build_formation(round, difficulty, battle_grid.grid_width)
-
-	if formation_data.is_empty():
-		# Procedural round (round 11+): scaled by difficulty
-		var base_count: int = min(3 + (round - 1) * 2, 10)
-		var count: int = WaveScaler.procedural_count(base_count, difficulty)
-		for i in range(count):
-			var is_last := (i == count - 1)
-			var lvl := _enemy_level_for_round(round, is_last)
-			spec.append({"type": "random", "level": lvl})
-		return spec
-
-	for entry: Dictionary in formation_data:
-		var type: String = _code_to_type(entry["code"])
-		if type != "":
-			# Store both type and grid position
-			spec.append({"type": type, "level": 1, "pos": entry["pos"]})
-	return spec
-
-# Dry-run power estimate for a difficulty WITHOUT touching the battlefield —
-# lets the difficulty panel show all 3 tiers' power at once instead of only
-# whichever one is currently previewed/spawned.
 func _estimate_wave_power(difficulty: int) -> float:
-	var spec: Array = _generate_wave_spec(difficulty)
-	var total: float = 0.0
-	for entry: Dictionary in spec:
-		var unit: VisualUnit = _create_enemy_for_entry(entry)
-		if unit:
-			total += WaveScaler.score_unit(unit)
-			unit.free()
-	return total
-
-# Create the enemy described by one wave-spec entry (type + level). "random" =
-# procedural class unit; everything else routes through EnemyFactory.
-func _create_enemy_for_entry(entry: Dictionary) -> VisualUnit:
-	var type: String = entry["type"]
-	var lvl: int = entry.get("level", 1)
-	var unit: VisualUnit = null
-	if type == "random":
-		unit = UnitFactory.create_random_class_unit(false)
-		# Give procedural enemy heroes the same stat-roll grade system player
-		# recruits get, biased upward by round so power scales with both level
-		# AND roll quality the deeper into the run you go (see enemy_roll_bias).
-		var bias: float = WaveScaler.enemy_roll_bias(game_state.battle_round)
-		UnitFactory.apply_recruit_rolls(unit, UnitFactory.generate_recruit_rolls(bias))
-	else:
-		# Factory dispatch lives in EnemyFactory.create_by_type (shared with the
-		# arena harness) — register new enemies there.
-		unit = EnemyFactory.create_by_type(type)
-	if unit and lvl > 1:
-		unit.set_level(lvl)
-	return unit
+	return _wave_director.estimate_wave_power(
+			game_state.battle_round, difficulty, battle_grid.grid_width)
 
 # Instantiate a wave spec onto the board. roll_item=false for the difficulty
 # preview (so scouting can't free-reroll held-item drops); true for the real
@@ -1870,7 +1782,7 @@ func _create_enemy_for_entry(entry: Dictionary) -> VisualUnit:
 func _instantiate_wave_from_spec(spec: Array, roll_item: bool = true) -> void:
 	clear_enemy_units()
 	for entry: Dictionary in spec:
-		var unit: VisualUnit = _create_enemy_for_entry(entry)
+		var unit: VisualUnit = _wave_director.create_enemy_for_entry(entry, game_state.battle_round)
 		if not unit:
 			continue
 		var grid_pos: Vector2i = entry.get("pos", Vector2i(-1, -1))
@@ -1935,11 +1847,6 @@ func _place_enemy(unit: VisualUnit, roll_item: bool = true) -> void:
 		return
 	unit.can_be_dragged = false
 	_place_at(unit, spawn_pos, roll_item)
-
-# Curve lives in WaveScaler.enemy_level_for_round (shared with the arena
-# harness) — tune it THERE, not here.
-func _enemy_level_for_round(round: int, is_elite: bool) -> int:
-	return WaveScaler.enemy_level_for_round(round, is_elite)
 
 func find_empty_player_slot() -> Vector2i:
 	if player_units.size() >= max_player_units:

@@ -243,47 +243,17 @@ func _spawn_enemies(spec: String, difficulty: int) -> Array:
 			out.append(u)
 	return out
 
-# Mirrors main_game._generate_wave_spec using the shared WaveScaler statics.
+# Waves come from the SAME WaveDirector the live game uses (2026-07-04
+# refactor) — this used to be a hand-copied mirror of main_game's spec logic
+# that could silently drift. A fresh director per call keeps elite-round picks
+# independent across runs (matches a fresh run's behaviour).
 func _spawn_wave(round: int, difficulty: int) -> Array:
+	var director := WaveDirector.new()
 	var out: Array = []
-	if WaveScaler.is_boss_round(round):
-		var placed: Array = WaveScaler.build_boss_formation(round, difficulty, grid.grid_width)
-		var boss_code: String = WaveScaler.boss_code_for(round)
-		for entry: Dictionary in placed:
-			var u: VisualUnit = EnemyFactory.create_by_code(entry["code"])
-			if u == null: continue
-			var lvl: int = WaveScaler.boss_level(round) if entry["code"] == boss_code \
-					else WaveScaler.enemy_level_for_round(round, false)
-			if lvl > 1: u.set_level(lvl)
+	for entry: Dictionary in director.generate_wave_spec(round, difficulty, grid.grid_width):
+		var u: VisualUnit = director.create_enemy_for_entry(entry, round)
+		if u:
 			out.append(u)
-		return out
-	if WaveScaler.is_elite_round(round):
-		var code: String = WaveScaler.ELITE_POOL[randi() % WaveScaler.ELITE_POOL.size()]
-		var placed: Array = WaveScaler.build_elite_formation(round, difficulty, grid.grid_width, code)
-		for entry: Dictionary in placed:
-			var u: VisualUnit = EnemyFactory.create_by_code(entry["code"])
-			if u == null: continue
-			var lvl: int = WaveScaler.elite_level(round) if entry["code"] in WaveScaler.ELITE_POOL \
-					else WaveScaler.enemy_level_for_round(round, false)
-			if lvl > 1: u.set_level(lvl)
-			out.append(u)
-		return out
-	var formation: Array = WaveScaler.build_formation(round, difficulty, grid.grid_width)
-	if formation.is_empty():
-		# Procedural round (11+): random hero-class enemies with biased rolls.
-		var base_count: int = mini(3 + (round - 1) * 2, 10)
-		var count: int = WaveScaler.procedural_count(base_count, difficulty)
-		for i in range(count):
-			var u: VisualUnit = UnitFactory.create_random_class_unit(false)
-			var bias: float = WaveScaler.enemy_roll_bias(round)
-			UnitFactory.apply_recruit_rolls(u, UnitFactory.generate_recruit_rolls(bias))
-			var lvl: int = WaveScaler.enemy_level_for_round(round, i == count - 1)
-			if lvl > 1: u.set_level(lvl)
-			out.append(u)
-		return out
-	for entry: Dictionary in formation:
-		var u: VisualUnit = EnemyFactory.create_by_code(entry["code"])
-		if u: out.append(u)
 	return out
 
 # ── SIM MODE ──────────────────────────────────────────────────────────────────
