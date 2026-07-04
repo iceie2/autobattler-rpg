@@ -20,8 +20,8 @@ const WAVE_ODDS := {
 	21: {"D": 5,  "C": 10, "B": 50, "A": 25, "S": 10},
 }
 
-# Waves that trigger a relic pick.
-const RELIC_WAVES: Array[int] = [1, 11, 21]
+# Waves that trigger a relic pick — tune in balance.gd.
+const RELIC_WAVES: Array[int] = Balance.RELIC_WAVES
 
 # Weakest → strongest (used for the odds walk and for exhausted-tier fallback).
 const GRADE_ORDER: Array[String] = ["D", "C", "B", "A", "S"]

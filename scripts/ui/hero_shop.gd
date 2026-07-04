@@ -5,8 +5,8 @@ signal hero_chosen(unit_class: UnitBase.UnitClass, element: UnitBase.Element, ro
 signal cancelled()
 
 # Economy v3 (2026-07-03): 30 → 10 — whole economy rescaled to coin-drop size
-# (10 starting gold, ~1g coin drops per kill). See balance journal.
-const HERO_COST := 10
+# (10 starting gold, ~1g coin drops per kill). Tune in balance.gd.
+const HERO_COST := Balance.HERO_COST
 
 const SPRITE_FOLDERS := {
 	UnitBase.UnitClass.WARRIOR:    "warrior",

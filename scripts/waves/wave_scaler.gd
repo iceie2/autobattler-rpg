@@ -88,14 +88,17 @@ static func gold_drops_for_unit(unit: UnitBase, round: int) -> int:
 	if unit.is_summoned:
 		return 0
 	if unit.is_boss:
-		return 4
+		return Balance.BOSS_COIN_DROP
 	if unit.is_elite:
-		return 2 + (1 if round >= 15 else 0)
+		return Balance.ELITE_COIN_DROP \
+				+ (1 if round >= Balance.ELITE_COIN_LATE_BONUS_ROUND else 0)
 	# EV-modeled 2026-07-03: hits the user's early curve (2nd hero ~wave 3,
-	# 3rd ~wave 5, ~5 by wave 8-10 on Easy). Capped at 0.75 to soften the
-	# late-game re-acceleration; the planned TFT-style player-level/team-size
-	# system is the intended structural gate past wave ~12 (user's idea).
-	var chance: float = clampf(0.20 + float(round) * 0.025, 0.20, 0.75)
+	# 3rd ~wave 5, ~5 by wave 8-10 on Easy). Capped to soften the late-game
+	# re-acceleration; the planned TFT-style player-level/team-size system is
+	# the intended structural gate past wave ~12 (user's idea). Tune in balance.gd.
+	var chance: float = clampf(
+			Balance.COIN_CHANCE_BASE + float(round) * Balance.COIN_CHANCE_PER_ROUND,
+			Balance.COIN_CHANCE_BASE, Balance.COIN_CHANCE_CAP)
 	return 1 if randf() < chance else 0
 
 static func crystals_for_unit(unit: UnitBase) -> int:
@@ -287,11 +290,12 @@ static func procedural_count(base_count: int, difficulty: int) -> int:
 # A centered 2×2 Hill Giant boss plus escalating adds. Difficulty adds more
 # muscle. Returns the same [{code, pos}] format as build_formation.
 static func is_boss_round(round: int) -> bool:
-	return round > 0 and round % 10 == 0 and round <= 30
+	return round > 0 and round % Balance.BOSS_ROUND_INTERVAL == 0 \
+			and round <= Balance.VICTORY_ROUND
 
 # Boss tier: 1 at round 10, 2 at 20, 3 at 30.
 static func boss_tier(round: int) -> int:
-	return int(round / 10)
+	return int(round / Balance.BOSS_ROUND_INTERVAL)
 
 # Level the boss unit is set to — scales hard between the three encounters.
 static func boss_level(round: int) -> int:
@@ -315,7 +319,7 @@ static func build_boss_formation(round: int, difficulty: int, grid_width: int = 
 # ── Elite waves (rounds 5 / 15 / 25 — the gaps between boss rounds) ──────────
 # A mini-boss (Hill Giant or Stat Stealer) plus light fodder support. Weaker
 # than a full boss encounter, but a real step up from normal fodder.
-const ELITE_ROUNDS: Array[int] = [5, 15, 25]
+const ELITE_ROUNDS: Array[int] = Balance.ELITE_ROUNDS   # tune in balance.gd
 const ELITE_POOL: Array[String] = ["G", "SS", "AH"]   # Hill Giant, Stat Stealer, Ant Hill
 
 static func is_elite_round(round: int) -> bool:

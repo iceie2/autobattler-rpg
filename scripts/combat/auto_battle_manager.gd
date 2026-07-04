@@ -72,8 +72,8 @@ func _on_auto_battle_started() -> void:
 
 # Global pacing knob: the game plays too fast per user feedback (2026-07-02) —
 # a first, easily-reversible -10% cut across the whole sim (movement, attacks,
-# regen, everything derives dt from time_scale). Revisit if -20% ends up wanted.
-const BASE_TIME_SCALE := 0.9
+# regen, everything derives dt from time_scale). Tune in balance.gd.
+const BASE_TIME_SCALE := Balance.BASE_TIME_SCALE
 
 # Perf pass (2026-07-03): several per-unit passives (NEMI/BOUNCER/PASTOR/JUNE/REED)
 # used to re-scan the full ally+enemy roster every single frame purely to check
@@ -1472,9 +1472,9 @@ func _spawn_summon(summoner: UnitBase, summon_class: UnitBase.UnitClass) -> void
 		summon.position = battle_grid.grid_to_world(spawn_cell)
 		action_logged.emit("%s raises a %s!" % [summoner.unit_name, summon.get_class_name_string()], summoner.is_player_unit)
 
-# ── Ant Hill: periodic spawn (DPS check) ──────────────────────────────────────
-const ANT_HILL_SPAWN_INTERVAL := 4.5
-const ANT_HILL_MAX_ANTS := 20
+# ── Ant Hill: periodic spawn (DPS check) — tune in balance.gd ─────────────────
+const ANT_HILL_SPAWN_INTERVAL := Balance.ANT_HILL_SPAWN_INTERVAL
+const ANT_HILL_MAX_ANTS := Balance.ANT_HILL_MAX_ANTS
 
 func _ant_hill_spawn_tick(hill: UnitBase, allies: Array, dt: float) -> void:
 	hill.summon_spawn_timer -= dt

@@ -92,8 +92,8 @@ enum TraitClass {
 # which are separate flavor mechanics) but baseline is 0% chance for everyone —
 # nothing grants crit_chance yet (future gear/relics will). crit_damage still
 # carries a real default so the multiplier is correct the moment something does.
-@export var crit_chance: float = 0.0     # 0.0–1.0 chance to crit on a basic attack
-@export var crit_damage: float = 2.0     # damage multiplier on a crit (2.0 = double)
+@export var crit_chance: float = Balance.CRIT_CHANCE_BASE   # 0.0–1.0 chance to crit on a basic attack
+@export var crit_damage: float = Balance.CRIT_DAMAGE_BASE   # damage multiplier on a crit (2.0 = double)
 
 # Movement and Combat
 @export var movement_speed: int = 3

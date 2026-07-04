@@ -428,7 +428,7 @@ var _locked_difficulty: int = -1    # locked difficulty for this wave (-1 = not 
 func start_new_game() -> void:
 	# Economy v3 (2026-07-03): 50 → 10 starting gold, heroes cost 10 — the whole
 	# economy moved to coin-drop scale (see GoldCoin / gold_drops_for_unit).
-	game_state.gold = 10 + Progression.starting_gold_bonus()
+	game_state.gold = Balance.STARTING_GOLD + Progression.starting_gold_bonus()
 	game_state.crystals = 0
 	_run_kills = 0
 	game_state.reset_player_level()
@@ -678,8 +678,8 @@ func _on_pace_changed(is_paused: bool, scale: float) -> void:
 		var active: bool = (not is_paused) and is_equal_approx(s, scale)
 		_speed_buttons[s].modulate = Color(0.5, 1.0, 0.6) if active else Color(1, 1, 1)
 
-const VICTORY_ROUND := 30  # completing this round triggers the victory screen
-						   # (bosses at 10/20/30; relic picks at 1/11/21)
+const VICTORY_ROUND := Balance.VICTORY_ROUND  # completing this round triggers the
+											  # victory screen (tune in balance.gd)
 
 # ── Wave difficulty section (embedded in left sidebar) ────────────────────────
 func _build_difficulty_panel_ui(parent_vb: VBoxContainer) -> void:
@@ -741,7 +741,7 @@ func _on_battle_ended(player_won: bool) -> void:
 		# coins during the fight, and the round-win bonus + relic income + any
 		# rolled GOLD reward rain onto the field here. Nothing is credited until
 		# the vacuum (below) actually pulls each coin into the counter.
-		const ROUND_WIN_GOLD := 2
+		const ROUND_WIN_GOLD := Balance.ROUND_WIN_GOLD
 		var relic_gold: int = _relic_inventory.gold_per_round() if _relic_inventory else 0
 		_spawn_coin_burst(ROUND_WIN_GOLD + relic_gold)
 		var reward_gold := 0
