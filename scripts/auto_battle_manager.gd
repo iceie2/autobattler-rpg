@@ -1473,8 +1473,8 @@ func _spawn_summon(summoner: UnitBase, summon_class: UnitBase.UnitClass) -> void
 		action_logged.emit("%s raises a %s!" % [summoner.unit_name, summon.get_class_name_string()], summoner.is_player_unit)
 
 # ── Ant Hill: periodic spawn (DPS check) ──────────────────────────────────────
-const ANT_HILL_SPAWN_INTERVAL := 3.5
-const ANT_HILL_MAX_ANTS := 5
+const ANT_HILL_SPAWN_INTERVAL := 4.5
+const ANT_HILL_MAX_ANTS := 20
 
 func _ant_hill_spawn_tick(hill: UnitBase, allies: Array, dt: float) -> void:
 	hill.summon_spawn_timer -= dt
@@ -1582,12 +1582,44 @@ func move_unit_towards_with_pathfinding(unit: UnitBase, target_pos: Vector2i) ->
 	var next_pos = path[0]
 	var occupied = battle_grid.is_cell_occupied(next_pos)
 	if not battle_grid.is_valid_position(next_pos) or occupied:
+		# Local collision avoidance (2026-07-04 user report — Ant Hill swarm
+		# units "got stuck" and zig-zagged): previously a blocked next step
+		# just dropped the whole cached path and did nothing this tick, then
+		# replanned a fresh (often very different) full A* route next tick.
+		# In a dense crowd that thrashes every frame — freeze, replan, freeze,
+		# replan, each recompute finding a different detour around whichever
+		# neighbors currently happen to be occupied. Try a one-cell sidestep
+		# first: any free neighbor that's at least as close to the real target
+		# as staying put. Real forward progress instead of a frame of nothing,
+		# and far fewer full recomputes since the unit isn't perpetually stuck.
+		var sidestep := _find_sidestep(current_pos, target_pos)
+		if sidestep != Vector2i(-1, -1):
+			unit_paths.erase(unit)   # cached route no longer matches from here — replan clean next tick
+			if not unit.is_moving:
+				start_unit_movement(unit, current_pos, sidestep)
+			return
 		if PATH_DEBUG: print("[Path] next_pos %s blocked (occupied=%s)" % [next_pos, occupied])
 		unit_paths.erase(unit)
 		return
 
 	if not unit.is_moving:
 		start_unit_movement(unit, current_pos, next_pos)
+
+# Picks the free neighbor of `current_pos` that gets closest to `target_pos`
+# (Chebyshev distance), but only if it's an actual improvement over staying
+# put — returns Vector2i(-1,-1) if every free neighbor is equal or farther
+# (better to wait one tick than wander away from the goal).
+func _find_sidestep(current_pos: Vector2i, target_pos: Vector2i) -> Vector2i:
+	var best_dist: int = _grid_dist(current_pos, target_pos)
+	var best: Vector2i = Vector2i(-1, -1)
+	for neighbor in Pathfinding.get_neighbors(current_pos, battle_grid):
+		if battle_grid.is_cell_occupied(neighbor):
+			continue
+		var d: int = _grid_dist(neighbor, target_pos)
+		if d < best_dist:
+			best_dist = d
+			best = neighbor
+	return best
 
 func _move_2x2_unit(unit: UnitBase, target_pos: Vector2i) -> void:
 	# Simple cardinal + diagonal movement for large units.
