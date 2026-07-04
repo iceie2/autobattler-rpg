@@ -237,7 +237,9 @@ func _refresh_reward_display() -> void:
 		RoundReward.Type.GOLD:
 			_reward_lbl.text = "Reward: +%d Gold" % int(reward.get("gold", 0))
 		_:
-			_reward_lbl.text = "Reward: Nothing"
+			# No bonus reward this round — leave the area blank instead of
+			# calling it out ("Reward: Nothing" read as needlessly blunt).
+			_reward_lbl.text = ""
 
 # ── Item tooltip (name / rarity / stats / passive) ────────────────────────────
 func _build_tooltip() -> void:
