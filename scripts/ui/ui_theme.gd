@@ -54,6 +54,31 @@ const TEXT_HEADER := Color(0.42, 0.29, 0.12)   # section header labels (SET BONU
 const TEXT_BODY    := Color(0.54, 0.42, 0.23)  # muted body copy on parchment
 const TEXT_BTN     := Color(0.29, 0.18, 0.03)  # button label text (on gold)
 
+# ── Stat bars — ONE look for every HP/MP/XP/ULT bar in the game ───────────────
+# (2026-07-05, user request: in-world unit bars and the sidebar Team Status
+# bars must be the same bars.) Both health_bar.gd (draws these styleboxes
+# directly in _draw) and main_game's sidebar ProgressBars route through here.
+const BAR_HP  := Color(0.2, 0.78, 0.3)
+const BAR_MP  := Color(0.25, 0.4, 0.9)
+const BAR_XP  := Color(0.85, 0.65, 0.1)
+const BAR_ULT := Color(0.62, 0.32, 0.88)
+const BAR_BG  := Color(0.06, 0.06, 0.10)
+
+static func stat_bar_fill(color: Color) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = color
+	s.set_corner_radius_all(2)
+	return s
+
+static func stat_bar_bg() -> StyleBoxFlat:
+	return stat_bar_fill(BAR_BG)
+
+static func style_stat_bar(bar: ProgressBar, color: Color) -> ProgressBar:
+	bar.show_percentage = false
+	bar.add_theme_stylebox_override("fill", stat_bar_fill(color))
+	bar.add_theme_stylebox_override("background", stat_bar_bg())
+	return bar
+
 # ── Stylebox factories ────────────────────────────────────────────────────────
 
 static func _tex_box(file: String, mh: int, mv: int, cm: int) -> StyleBoxTexture:

@@ -194,7 +194,7 @@ func _ready():
 	_center_battlefield()
 	get_viewport().size_changed.connect(_center_battlefield)
 	battle_grid_node.y_sort_enabled = true
-	_style_team_bar(player_hp_bar, Color(0.15, 0.78, 0.30, 1))
+	_style_team_bar(player_hp_bar, UITheme.BAR_HP)
 	_style_team_bar(enemy_hp_bar,  Color(0.88, 0.18, 0.18, 1))
 	_build_new_layout()
 	get_viewport().size_changed.connect(_position_sidebars)
@@ -864,22 +864,7 @@ func _on_unit_action(_unit, _action_type: String) -> void:
 
 # ── TEAM HEALTH & COMBAT FEEDBACK ──────────────────────────────────────────
 func _style_team_bar(bar: ProgressBar, fill_color: Color) -> void:
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.05, 0.05, 0.07, 1)
-	bg.border_color = Color(0.0, 0.0, 0.0, 1)
-	bg.set_border_width_all(1)
-	bg.corner_radius_top_left    = 3
-	bg.corner_radius_top_right   = 3
-	bg.corner_radius_bottom_left = 3
-	bg.corner_radius_bottom_right = 3
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = fill_color
-	fill.corner_radius_top_left    = 3
-	fill.corner_radius_top_right   = 3
-	fill.corner_radius_bottom_left = 3
-	fill.corner_radius_bottom_right = 3
-	bar.add_theme_stylebox_override("background", bg)
-	bar.add_theme_stylebox_override("fill", fill)
+	UITheme.style_stat_bar(bar, fill_color)
 
 func update_team_health_bars() -> void:
 	var p_cur := 0
@@ -959,10 +944,11 @@ func _rebuild_unit_list(container: VBoxContainer, units: Array, name_color: Colo
 		header.add_theme_color_override("font_color", name_color)
 		container.add_child(header)
 
-		# HP / MP / XP bars stacked
-		_add_stat_bar(container, "HP", unit.current_hp,   unit.max_hp,      Color(0.2,  0.78, 0.3,  1))
-		_add_stat_bar(container, "MP", unit.current_mana, unit.max_mana,    Color(0.25, 0.4,  0.9,  1))
-		_add_stat_bar(container, "XP", unit.current_xp,   unit.xp_to_level, Color(0.85, 0.65, 0.1,  1))
+		# HP / MP / XP bars stacked — colors from UITheme so these match the
+		# in-world unit bars exactly.
+		_add_stat_bar(container, "HP", unit.current_hp,   unit.max_hp,      UITheme.BAR_HP)
+		_add_stat_bar(container, "MP", unit.current_mana, unit.max_mana,    UITheme.BAR_MP)
+		_add_stat_bar(container, "XP", unit.current_xp,   unit.xp_to_level, UITheme.BAR_XP)
 
 		# Small gap between units
 		var gap := Control.new()
@@ -995,22 +981,14 @@ func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 	nums.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(nums)
 
-	# Bar
+	# Bar — same UITheme styleboxes the in-world unit bars draw (2026-07-05).
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size = Vector2(0, 10)
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.size_flags_vertical   = Control.SIZE_SHRINK_CENTER
 	bar.max_value = maxf(float(maximum), 1.0)
 	bar.value     = float(current)
-	bar.show_percentage = false
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = color
-	fill.corner_radius_top_left = 2; fill.corner_radius_top_right = 2
-	fill.corner_radius_bottom_left = 2; fill.corner_radius_bottom_right = 2
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(color.r * 0.18, color.g * 0.18, color.b * 0.18)
-	bar.add_theme_stylebox_override("fill", fill)
-	bar.add_theme_stylebox_override("background", bg)
+	UITheme.style_stat_bar(bar, color)
 	row.add_child(bar)
 
 	container.add_child(row)
@@ -2076,7 +2054,7 @@ func _build_right_panel() -> void:
 	sv.add_child(_sb_accordion("TEAM STATUS", team_body, true))
 	sv.add_child(team_body)
 
-	_sb_player_hp  = _make_sb_bar(Color(0.15, 0.78, 0.30, 1))
+	_sb_player_hp  = _make_sb_bar(UITheme.BAR_HP)
 	_sb_player_lbl = _make_sb_lbl("No player units")
 	_sb_player_ulist = VBoxContainer.new()
 	_sb_player_ulist.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2138,16 +2116,7 @@ func _make_sb_bar(fill_col: Color) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.custom_minimum_size   = Vector2(0, 14)
-	bar.show_percentage       = false
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = fill_col
-	fill.corner_radius_top_left = 2; fill.corner_radius_top_right = 2
-	fill.corner_radius_bottom_left = 2; fill.corner_radius_bottom_right = 2
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.06, 0.06, 0.10)
-	bar.add_theme_stylebox_override("fill", fill)
-	bar.add_theme_stylebox_override("background", bg)
-	return bar
+	return UITheme.style_stat_bar(bar, fill_col)
 
 
 func _make_sb_lbl(placeholder: String) -> Label:
