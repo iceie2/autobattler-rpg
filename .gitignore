@@ -7,6 +7,9 @@
 
 # Editor backup files
 *.bak
+# Godot's atomic-save temp files (e.g. main_game.tscn1364373634.tmp) — left
+# behind if the editor is killed mid-save
+*.tmp
 
 # Python cache (sprite pipeline tools)
 __pycache__/
