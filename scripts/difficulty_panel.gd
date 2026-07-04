@@ -22,6 +22,7 @@ const _DIFF_ART := [
 	{"normal": "diff_hard_normal.png",   "pressed": "diff_hard_pressed.png"},
 ]
 const _DIFF_ART_PATH := "res://assets/UI/generated/"
+const _DIFF_NAMES := ["Easy", "Medium", "Hard"]
 # Margins found by sampling the source pixel art directly (see session notes):
 # the left/right end-caps end by ~x=20 of the 192px-wide (3x) texture, and
 # rows 40-55 of the 96px-tall texture sit inside a single flat-color band, so
@@ -130,6 +131,15 @@ func _build_ui() -> void:
 		btn.pressed.connect(_on_difficulty_button_pressed.bind(i))
 		col.add_child(btn)
 		_diff_btns.append(btn)
+
+		var name_lbl := Label.new()
+		name_lbl.text = _DIFF_NAMES[i]
+		if font:
+			name_lbl.add_theme_font_override("font", font)
+		name_lbl.add_theme_font_size_override("font_size", 14)
+		name_lbl.add_theme_color_override("font_color", Color(0.78, 0.78, 0.88))
+		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(name_lbl)
 
 	# Single reward display for whichever difficulty is currently selected —
 	# item icon sits centered in its own 1x1 bag-style slot, name/rarity below.

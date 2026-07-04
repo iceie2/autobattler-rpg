@@ -29,6 +29,10 @@ window/stretch/mode="canvas_items"
 
 project/assembly_name="rpg autobattler"
 
+[gui]
+
+theme/custom_font="res://assets/Fonts/LeagueGothic-Regular.otf"
+
 [editor]
 
 "plugins/LPC Animated Sprite"={
