@@ -2050,6 +2050,10 @@ func _build_right_panel() -> void:
 	sv.add_child(act_body)
 	for btn in [ready_btn, spawn_hero_btn, use_items_btn, classes_btn, roster_btn]:
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# Ellipsize instead of forcing the sidebar wider than SIDEBAR_W (see
+		# _sb_panel's clip_contents note) — a graceful truncation, not a
+		# mid-letter hard clip, if a button's text ever outgrows 285px again.
+		btn.clip_text = true
 		btn.reparent(act_body)
 	sv.add_child(_sb_sep())
 
@@ -2326,6 +2330,13 @@ func _sb_panel() -> PanelContainer:
 	# UI theme pass 2026-07-03: dobo-pack card panel instead of flat navy box.
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", UITheme.panel_box())
+	# PanelContainer does NOT clip its children by default — a child whose
+	# auto-sized minimum width exceeds SIDEBAR_W (e.g. a button whose text got
+	# a font bump) just renders past the panel's own edge instead of shrinking.
+	# Since the right sidebar sits flush against the screen's right edge, that
+	# overflow ran straight off-screen (2026-07-04 user report). This clips
+	# it to the panel's actual bounds no matter what content changes later.
+	p.clip_contents = true
 	return p
 
 
