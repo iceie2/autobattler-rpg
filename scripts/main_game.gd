@@ -2365,7 +2365,7 @@ func _sb_margin(parent: Control) -> MarginContainer:
 func _sb_heading(text: String) -> Label:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 15)
+	lbl.add_theme_font_size_override("font_size", UITheme.header_font(15))
 	lbl.add_theme_color_override("font_color", _GOLD_COL)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	# UI theme pass 2026-07-03: header plate from the dobo pack behind the text.
@@ -2561,7 +2561,7 @@ func _sb_accordion(title: String, body: Control, open: bool = false) -> Button:
 	var btn := Button.new()
 	btn.text      = title + ("  ▼" if open else "  ▶")
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.add_theme_font_size_override("font_size", 14)
+	btn.add_theme_font_size_override("font_size", UITheme.header_font(14))
 	btn.add_theme_color_override("font_color", _GOLD_COL)
 	# UI theme pass 2026-07-03: dobo header plate for section accordions.
 	# NOT flat — flat buttons only draw a stylebox while hovered/pressed/

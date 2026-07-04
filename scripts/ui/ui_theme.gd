@@ -38,6 +38,11 @@ const _P := "res://assets/UI/generated/"
 
 # Font size bump (2026-07-04, user request): headers +4, body text +2 over
 # whatever the surrounding code already passes to add_theme_font_size_override.
+# WIRED via each screen's _lbl()/_clbl() label factory (body) and main_game's
+# _sb_heading()/_sb_accordion() (header) — labels built through those
+# factories get the bump automatically. (Found sitting at "+30" on 2026-07-04:
+# a test value cranked up to check whether the bump did anything — it didn't,
+# because no call site used these helpers until this wiring pass.)
 static func header_font(base: int) -> int:
 	return base + 4
 

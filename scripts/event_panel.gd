@@ -100,7 +100,7 @@ func _lbl(parent: Node, text: String, sz: int, col: Color,
 	l.text = text
 	l.position = pos
 	l.size = size
-	l.add_theme_font_size_override("font_size", sz)
+	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", col)
 	if center:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

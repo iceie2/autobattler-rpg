@@ -129,7 +129,7 @@ func _lbl(parent: Node, text: String, sz: int, col: Color, pos: Vector2, size: V
 	l.text = text
 	l.position = pos
 	l.size = size
-	l.add_theme_font_size_override("font_size", sz)
+	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", col)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if center:
