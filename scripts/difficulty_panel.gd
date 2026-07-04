@@ -7,7 +7,6 @@ signal difficulty_selected(difficulty: int)
 
 var current_difficulty: int = WaveScaler.Difficulty.EASY
 var _diff_btns: Array = []
-var _diff_labels: Array = ["★ Easy", "★★ Normal", "★★★ Hard"]
 var _rewards_by_diff: Dictionary = {}
 
 # Difficulty button art (2026-07-04, user-picked tiles from the pixel-button
@@ -37,8 +36,12 @@ static func _diff_tex_box(path: String) -> StyleBoxTexture:
 	sb.texture_margin_right = _DIFF_BTN_MARGIN_H
 	sb.texture_margin_top = _DIFF_BTN_MARGIN_V
 	sb.texture_margin_bottom = _DIFF_BTN_MARGIN_V
-	sb.content_margin_top = 8
-	sb.content_margin_bottom = 8
+	# Content margins deliberately asymmetric (not 8/8) — text is vertically
+	# centered WITHIN the content rect, so a much bigger bottom margin than
+	# top shrinks/shifts that rect toward the top of the button, which is
+	# where the user wants the (now power-number-only) text to sit.
+	sb.content_margin_top = 6
+	sb.content_margin_bottom = 32
 	return sb
 
 # Single reward display (only the CURRENTLY selected difficulty's reward is
@@ -93,10 +96,9 @@ func _build_ui() -> void:
 		row.add_child(col)
 
 		var btn := Button.new()
-		# Power text is now the button's own second line (see update_display) —
-		# moved onto the button per user request, replacing the separate label
-		# that used to sit below it.
-		btn.text = _diff_labels[i]
+		# Text is the power number only (set in update_display); the button's
+		# own art already conveys which difficulty it is (green/blue/red).
+		btn.text = ""
 		if font:
 			btn.add_theme_font_override("font", font)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -177,7 +179,7 @@ func update_display(power_by_diff: Dictionary, rewards_by_diff: Dictionary = {})
 	_update_button_colors()
 	for i in range(3):
 		var power: float = power_by_diff.get(i, 0.0)
-		_diff_btns[i].text = "%s\nPower: %d" % [_diff_labels[i], int(power)]
+		_diff_btns[i].text = "%d" % int(power)
 	_rewards_by_diff = rewards_by_diff
 	_refresh_reward_display()
 
