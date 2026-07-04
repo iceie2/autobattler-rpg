@@ -504,7 +504,6 @@ signal closed()
 
 # UI refs
 var _panel: Panel
-var _portrait_bg: ColorRect
 var _portrait: TextureRect
 var _class_idx_lbl: Label
 var _class_name_lbl: Label
@@ -550,14 +549,10 @@ func _build_ui() -> void:
 	var _sep_top := _hsep(_panel, 58, 720)
 
 	# ── Portrait area (left column) ───────────────────────────────────────────
-	# Dark tinted background behind the sprite
-	_portrait_bg = ColorRect.new()
-	_portrait_bg.position = Vector2(24, 72)
-	_portrait_bg.size = Vector2(140, 140)
-	_portrait_bg.color = Color(0.08, 0.08, 0.14)
-	_panel.add_child(_portrait_bg)
-
-	# Actual LPC sprite (zoomed in, centered)
+	# Sprite sits directly on the panel — no intermediate background box
+	# (2026-07-04 user report: panel > box > sprite should just be panel >
+	# sprite). The element's color is already conveyed via _class_name_lbl's
+	# font color below, so nothing is lost by dropping the tinted backdrop.
 	_portrait = TextureRect.new()
 	_portrait.position = Vector2(24, 72)
 	_portrait.size = Vector2(140, 140)
@@ -615,7 +610,6 @@ func _refresh() -> void:
 	var c: Dictionary = CLASSES[_idx]
 	var uc: int = c["unit_class"]
 
-	_portrait_bg.color = c["color"].darkened(0.55)
 	# Try AI-generated portrait first (file name = hero name lowercased).
 	var ai_path: String = "res://assets/using/%s.png" % c["name"].to_lower()
 	var ai_tex: Texture2D = null

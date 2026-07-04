@@ -17,7 +17,6 @@ var _unit_name_lbl: Label
 var _unit_class_lbl: Label
 var _unit_elem_lbl: Label
 var _unit_level_lbl: Label
-var _portrait_bg: ColorRect
 var _portrait: TextureRect
 var _hp_bar: ProgressBar
 var _mp_bar: ProgressBar
@@ -74,12 +73,9 @@ func _build_ui() -> void:
 	_panel.add_child(sep1)
 
 	# ── Portrait area ──────────────────────────────────────────────────────────
-	_portrait_bg = ColorRect.new()
-	_portrait_bg.position = Vector2(24, 68)
-	_portrait_bg.size = Vector2(120, 120)
-	_portrait_bg.color = Color(0.08, 0.08, 0.14)
-	_panel.add_child(_portrait_bg)
-
+	# Sprite sits directly on the panel — no intermediate background box
+	# (2026-07-04 user report: panel > box > sprite should just be panel >
+	# sprite).
 	_portrait = TextureRect.new()
 	_portrait.position = Vector2(24, 68)
 	_portrait.size = Vector2(120, 120)
@@ -155,7 +151,6 @@ func _refresh() -> void:
 
 	if units.is_empty():
 		_unit_name_lbl.text  = "No units"
-		_portrait_bg.color = Color(0.08, 0.08, 0.14)
 		_portrait.texture = null
 		_unit_class_lbl.text = ""
 		_unit_elem_lbl.text  = ""
@@ -170,7 +165,6 @@ func _refresh() -> void:
 	_idx = clamp(_idx, 0, units.size() - 1)
 	var u: UnitBase = units[_idx]
 
-	_portrait_bg.color = Color(0.08, 0.08, 0.14)
 	var sprite_path := "res://assets/sprites/generated/%s/0/single.png" % _class_folder(u.unit_class)
 	var sheet := load(sprite_path) as Texture2D
 	if sheet:
