@@ -53,6 +53,7 @@ func _build_main(canvas: CanvasLayer) -> void:
 		["START GAME",    _on_start],
 		["CLASSES",       _on_classes],
 		["CRYSTAL SHOP",  _on_crystal_shop],
+		["ARENA",         _on_arena],
 		["OPTIONS",       _on_options],
 	]
 	var by := 240.0
@@ -106,6 +107,11 @@ func _on_classes() -> void:
 func _on_crystal_shop() -> void:
 	_options_panel.visible = false
 	_crystal_shop.open()
+
+func _on_arena() -> void:
+	# Test sandbox — arena_main.gd defaults to interactive sandbox mode when
+	# there's a window (headless CLI runs keep probe as their default).
+	get_tree().change_scene_to_file("res://scenes/arena.tscn")
 
 func _on_options() -> void:
 	_options_panel.visible = not _options_panel.visible

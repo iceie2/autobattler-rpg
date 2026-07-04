@@ -87,11 +87,21 @@ const EXPECTED_SILENT := {
 	"stat_stealer": {"passive": "kit is skill+ult only"},
 }
 
+# Set before add_child to force a mode without CLI args (tests use this).
+var mode_override := ""
+
 func _ready() -> void:
 	# Defer the run one frame so the tree is fully up.
 	await get_tree().process_frame
 	var args := _parse_args()
-	var mode: String = args.get("mode", "probe")
+	# Windowed launches (main menu ARENA button, or running the scene from the
+	# editor) default to the interactive sandbox; headless CLI runs keep probe
+	# as the default so every existing harness command is unchanged.
+	var default_mode: String = "probe" if DisplayServer.get_name() == "headless" else "sandbox"
+	var mode: String = mode_override if mode_override != "" else args.get("mode", default_mode)
+	if mode == "sandbox":
+		_build_sandbox()
+		return   # interactive — no JSON dump, no quit
 	var result: Dictionary
 	match mode:
 		"probe":
@@ -642,3 +652,135 @@ func _diff_report(a: Dictionary, b: Dictionary, label: String = "", phase: Strin
 			return {"status": "EXPECTED", "reason": expected[phase], "changes": []}
 		return {"status": "SILENT", "changes": []}
 	return {"status": "OK", "changes": changes}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SANDBOX MODE (2026-07-05, user request) — interactive tester reachable from
+# the main menu's ARENA button. Same env/spawn plumbing as sim mode, but with
+# a visible board, a matchup form, and no quit-on-finish. Windowed default;
+# headless CLI default stays probe (see _ready).
+# ══════════════════════════════════════════════════════════════════════════════
+
+var _sand_team_edit: LineEdit
+var _sand_element_edit: LineEdit
+var _sand_enemy_edit: LineEdit
+var _sand_diff_opt: OptionButton
+var _sand_status: Label
+var _sand_fight_btn: Button
+var _sand_busy := false
+
+func _build_sandbox() -> void:
+	# Camera centers the 9x9 board (990px, centered at 495,495) in the space
+	# right of the form panel — screen-space UI is unaffected by the camera.
+	var cam := Camera2D.new()
+	cam.position = Vector2(325, 495)
+	add_child(cam)
+	cam.make_current()
+
+	var canvas := CanvasLayer.new()
+	canvas.layer = 10
+	add_child(canvas)
+
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+	panel.position = Vector2(16, 16)
+	panel.custom_minimum_size = Vector2(330, 0)
+	canvas.add_child(panel)
+
+	var mg := MarginContainer.new()
+	for k in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
+		mg.add_theme_constant_override(k, 12)
+	panel.add_child(mg)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 6)
+	mg.add_child(vb)
+
+	vb.add_child(_sand_lbl("ARENA SANDBOX", 22, UITheme.TEXT_HEADER))
+	vb.add_child(_sand_lbl("Team — HERO:level, one per unit", 13, UITheme.TEXT_BODY))
+	_sand_team_edit = LineEdit.new()
+	_sand_team_edit.text = "SABLE:3,RIOT:3"
+	vb.add_child(_sand_team_edit)
+
+	vb.add_child(_sand_lbl("Team element (NORMAL/FIRE/WATER/…)", 13, UITheme.TEXT_BODY))
+	_sand_element_edit = LineEdit.new()
+	_sand_element_edit.text = "NORMAL"
+	vb.add_child(_sand_element_edit)
+
+	vb.add_child(_sand_lbl("Enemy — wave:N  or  goblin:2,orc_brute:3", 13, UITheme.TEXT_BODY))
+	_sand_enemy_edit = LineEdit.new()
+	_sand_enemy_edit.text = "wave:5"
+	vb.add_child(_sand_enemy_edit)
+
+	vb.add_child(_sand_lbl("Difficulty (wave enemies only)", 13, UITheme.TEXT_BODY))
+	_sand_diff_opt = OptionButton.new()
+	for d in ["Easy", "Normal", "Hard"]:
+		_sand_diff_opt.add_item(d)
+	vb.add_child(_sand_diff_opt)
+
+	_sand_fight_btn = Button.new()
+	_sand_fight_btn.text = "FIGHT"
+	UITheme.style_button(_sand_fight_btn)
+	_sand_fight_btn.pressed.connect(_sandbox_fight)
+	vb.add_child(_sand_fight_btn)
+
+	_sand_status = _sand_lbl("Pick a matchup and hit FIGHT.", 14, UITheme.TEXT_BODY)
+	_sand_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sand_status.custom_minimum_size = Vector2(300, 0)
+	vb.add_child(_sand_status)
+
+	var menu_btn := Button.new()
+	menu_btn.text = "Back to Menu"
+	UITheme.style_button(menu_btn)
+	menu_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/main_menu.tscn"))
+	vb.add_child(menu_btn)
+
+func _sand_lbl(text: String, size: int, col: Color) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", UITheme.body_font(size))
+	l.add_theme_color_override("font_color", col)
+	return l
+
+func _sandbox_fight() -> void:
+	if _sand_busy:
+		return
+	_sand_busy = true
+	_sand_fight_btn.disabled = true
+	_sand_status.text = "Fighting…"
+	if mgr:   # tear down the previous run's board
+		await _teardown_env()
+	_build_env()
+	var element: int = _element_from_name(_sand_element_edit.text.strip_edges())
+	var difficulty: int = _sand_diff_opt.selected
+	var team: Array = _spawn_team(_sand_team_edit.text.strip_edges(), element)
+	var enemies: Array = _spawn_enemies(_sand_enemy_edit.text.strip_edges(), difficulty)
+	if team.is_empty() or enemies.is_empty():
+		_sand_status.text = "Bad spec — team or enemy list came up empty. Hero names are class names (see View Classes); enemies are factory codes or wave:N."
+		for u in team + enemies:
+			if is_instance_valid(u):
+				u.queue_free()
+		await _teardown_env()
+		_sand_busy = false
+		_sand_fight_btn.disabled = false
+		return
+	for u in team:
+		_wire_unit(u)
+		if not _place_player(u): push_error("no room for player unit")
+	for u in enemies:
+		_wire_unit(u)
+		if not _place_enemy(u): push_error("no room for enemy unit")
+	mgr.start_battle()
+	var t := 0.0
+	while mgr and is_instance_valid(mgr) and mgr.battle_active and t < 300.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	if mgr and is_instance_valid(mgr):
+		if mgr.battle_active:
+			mgr.battle_active = false
+			_sand_status.text = "Stalled — stopped after 300s."
+		else:
+			var won: bool = mgr.enemy_units.is_empty() and not mgr.player_units.is_empty()
+			_sand_status.text = "%s  ·  %.0fs  ·  %d ally / %d enemy left" % [
+					"VICTORY" if won else "DEFEAT", t,
+					mgr.player_units.size(), mgr.enemy_units.size()]
+	_sand_busy = false
+	_sand_fight_btn.disabled = false
