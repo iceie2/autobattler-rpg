@@ -148,3 +148,19 @@ THEN: git add -A && git commit with message "<given message>"
 IF ANY CHECK FAILS: git checkout -- . and report the error verbatim instead
 of working around it.
 ```
+
+## 8. Perf landmines (2026-07-04 lag investigation — measured, not guessed)
+
+- **NEVER `print()` in per-frame battle code.** Four [Path] debug prints firing
+  per blocked unit per frame cost ~45ms/frame at 29 units. Gate behind a
+  `const *_DEBUG := false` (see PATH_DEBUG in auto_battle_manager.gd).
+- **NEVER rebuild Control lists per unit-action.** Mark dirty, let main_game's
+  4Hz throttle repaint, and early-return from rebuilders when
+  `not container.is_visible_in_tree()`. The old per-action rebuilds cost
+  100-165ms/frame at 15v14.
+- Verify perf claims with `godot --headless res://scenes/perf_probe.tscn`
+  (forces 15v14 in the real main_game scene, prints avg/p95/max frame ms).
+- After ANY UI refactor run `godot --headless res://scenes/ui_smoke.tscn`
+  (drives details panel/tooltips/sidebar paths the boot smoke never touches);
+  must print `UI_SMOKE: ALL PASS`.
+- F3 in-game toggles the FPS/frame-ms/node-count overlay.
