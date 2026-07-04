@@ -7,6 +7,7 @@ signal difficulty_selected(difficulty: int)
 
 var current_difficulty: int = WaveScaler.Difficulty.EASY
 var _diff_btns: Array = []
+var _power_by_diff: Dictionary = {}
 var _rewards_by_diff: Dictionary = {}
 
 # Difficulty button art (2026-07-04, user-picked tiles from the pixel-button
@@ -119,6 +120,10 @@ func _build_ui() -> void:
 		btn.add_theme_stylebox_override("normal", normal_box)
 		btn.add_theme_stylebox_override("hover", normal_box)
 		btn.add_theme_stylebox_override("pressed", pressed_box)
+		# Kill Godot's default focus-ring stylebox — otherwise whichever button
+		# was last clicked keeps a light focus box drawn over the pixel art.
+		btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		btn.focus_mode = Control.FOCUS_NONE
 		btn.toggle_mode = true
 		btn.button_group = group
 		btn.button_pressed = (i == current_difficulty)   # Easy selected by default
@@ -185,10 +190,8 @@ func set_panel_visible(show: bool) -> void:
 # rolled once for the round (see main_game.gd). Only the currently selected
 # difficulty's reward is shown; switch difficulty to see the others.
 func update_display(power_by_diff: Dictionary, rewards_by_diff: Dictionary = {}) -> void:
+	_power_by_diff = power_by_diff
 	_update_button_colors()
-	for i in range(3):
-		var power: float = power_by_diff.get(i, 0.0)
-		_diff_btns[i].text = "%d" % int(power)
 	_rewards_by_diff = rewards_by_diff
 	_refresh_reward_display()
 
@@ -339,7 +342,12 @@ func _update_button_colors() -> void:
 	# is re-synced here too since main_game sets current_difficulty directly
 	# (e.g. resetting to EASY each round) without going through the click
 	# handler, and the ButtonGroup's own auto-untoggle only fires on click.
+	# The selected button's power number is hidden while it stays pressed
+	# (its own pressed art already signals selection) and reappears once a
+	# different difficulty is chosen.
 	for i in range(_diff_btns.size()):
 		var btn: Button = _diff_btns[i]
-		btn.modulate = Color(1, 1, 1) if i == current_difficulty else Color(0.6, 0.6, 0.6)
-		btn.button_pressed = (i == current_difficulty)
+		var selected: bool = (i == current_difficulty)
+		btn.modulate = Color(1, 1, 1) if selected else Color(0.6, 0.6, 0.6)
+		btn.button_pressed = selected
+		btn.text = "" if selected else "%d" % int(_power_by_diff.get(i, 0.0))
