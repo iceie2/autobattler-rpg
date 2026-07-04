@@ -446,7 +446,7 @@ func update_ui() -> void:
 	# Coin/gem art is part of the currency plates (see UITheme) — number only.
 	gold_label.text = "%d" % game_state.gold
 	crystals_label.text = "%d" % game_state.crystals
-	round_label.text = "Round: %d   ·   Lv %d   ·   Team %d/%d" % [
+	round_label.text = "Round: %d  ·  Lv %d  ·  Team %d/%d" % [
 		game_state.battle_round, game_state.player_level,
 		player_units.size(), max_player_units]
 	
@@ -2021,15 +2021,20 @@ func _build_right_panel() -> void:
 	crystals_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	crystals_label.reparent(econ)
 
-	var meta_row := HBoxContainer.new()
-	meta_row.add_theme_constant_override("separation", 6)
-	vb.add_child(meta_row)
+	# Stacked, not side-by-side (2026-07-04 user report): squeezing both into
+	# one HBox left ~130px each, too narrow for "Round: 1 · Lv 1 · Team 0/4" —
+	# it overflowed into state_label's slot and both got hard-clipped by the
+	# panel's edge. Each now gets the full sidebar width on its own line.
 	round_label.add_theme_font_size_override("font_size", 17)
+	round_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	round_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	round_label.reparent(meta_row)
+	round_label.clip_text = true   # ellipsize as a safety net at high round/level numbers
+	round_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	round_label.reparent(vb)
 	state_label.add_theme_font_size_override("font_size", 17)
+	state_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	state_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	state_label.reparent(meta_row)
+	state_label.reparent(vb)
 	vb.add_child(_sb_sep())
 
 	# Scrollable accordion container
