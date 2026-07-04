@@ -2553,11 +2553,18 @@ func _sb_accordion(title: String, body: Control, open: bool = false) -> Button:
 	body.visible = open
 	var btn := Button.new()
 	btn.text      = title + ("  ▼" if open else "  ▶")
-	btn.flat      = true
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.add_theme_font_size_override("font_size", 14)
 	btn.add_theme_color_override("font_color", _GOLD_COL)
 	# UI theme pass 2026-07-03: dobo header plate for section accordions.
+	# NOT flat — flat buttons only draw a stylebox while hovered/pressed/
+	# focused, so with `flat=true` the header plate was only ever visible on
+	# whichever accordion was last clicked (it keeps focus after the click)
+	# and every other header rendered with no background at all (2026-07-04
+	# user report: "TeamStatus has the UI but only when it's the last thing
+	# you clicked"). focus_mode is also disabled so a click doesn't leave
+	# any lingering focus-only visual state.
+	btn.focus_mode = Control.FOCUS_NONE
 	var s := UITheme.header_box()
 	for state in ["normal", "hover", "pressed", "focus"]:
 		btn.add_theme_stylebox_override(state, s)
