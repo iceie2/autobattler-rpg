@@ -1,7 +1,7 @@
 [gd_scene load_steps=23 format=3 uid="uid://c2qx8ydlq8vny"]
 
-[ext_resource type="Script" uid="uid://g0qrs80ptukf" path="res://scripts/main_game.gd" id="1_main"]
-[ext_resource type="Script" uid="uid://dy2nsxf8t0l4p" path="res://scripts/background_layer.gd" id="3_bg"]
+[ext_resource type="Script" uid="uid://g0qrs80ptukf" path="res://scripts/core/main_game.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://dy2nsxf8t0l4p" path="res://scripts/combat/background_layer.gd" id="3_bg"]
 
 [sub_resource type="StyleBoxFlat" id="TopBarStyle"]
 bg_color = Color(0.15, 0.15, 0.2, 0.9)
@@ -299,7 +299,7 @@ theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("ButtonNormal")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_styles/hover = SubResource("ButtonHover")
-text = "Buy Hero (20g) [B]"
+text = "Buy Hero (10g) [B]"
 
 [node name="UseItemsBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
