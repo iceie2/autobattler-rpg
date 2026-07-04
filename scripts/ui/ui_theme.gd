@@ -1,28 +1,37 @@
 extends Object
 class_name UITheme
 # ══════════════════════════════════════════════════════════════════════════════
-# Central UI theme, "parchment and gold" (2026-07-04) — built on the Vector UI
-# pack's warm cream/yellow colorway instead of the navy modal used in the first
-# two passes. User feedback: didn't like solid blue/navy anywhere; wanted the
-# classic wood/parchment-and-gold look common in mobile RPGs, matching the
-# bold-outline painted style of the game's actual monster/hero art (see
-# assets/using/Goblin.png) rather than the pack's own candy-bright demo screens.
+# Central UI theme, "parchment and gold" — built on the Vector UI pack's warm
+# cream/yellow colorway. User feedback across two earlier passes: didn't like
+# solid blue/navy anywhere; wanted the classic wood/parchment-and-gold look
+# common in mobile RPGs, matching the bold-outline painted style of the game's
+# actual monster/hero art (see assets/using/Goblin.png) rather than the pack's
+# own candy-bright demo screens.
 #
-# - panel_dark.png: mail_cream.png with its off-center diamond watermark
-#   CROPPED OUT and mirrored into a symmetric clean strip (assets/UI/generated/
-#   _panel_clean_source.png) — the original had the watermark fixed near the
-#   left edge, which would smear/duplicate when stretched to different panel
-#   widths. This one tiles safely at any size.
-# - header_black.png / btn_black.png / btn_blue.png / btn_purple.png / slot_*:
-#   swapped to header_cream / buttonAdvanced_yellow / buttonAdvanced_cream
-#   (hover) / buttonAdvanced_yellow again (pressed, darkened via modulate) /
-#   itemSlotAdvanced_yellow+white. Filenames kept as-is so call sites below
-#   don't need to change — only the underlying PNGs and colors did.
-# - All text colors flipped from light-on-dark to dark-brown-on-cream.
+# Filenames in assets/UI/generated/ are HONEST as of 2026-07-04 — panel_cream,
+# header_cream, btn_gold, btn_cream_hover, slot_gold, slot_white. Earlier
+# passes kept stale names (panel_dark.png, btn_black.png, header_black.png)
+# from the original navy theme to avoid touching call sites across three
+# texture swaps — that shortcut left filenames actively lying about their
+# contents (btn_black.png held a gold button) and confused review of the
+# actual art. Renamed once, for good: if you add a new colorway, name the
+# file for what's IN it, not what an earlier draft called it.
 #
-# Textures live in assets/UI/generated/ — pre-scaled copies of the pack
-# sources. USE THESE HELPERS for any new panel/button/slot — that's what keeps
-# the game looking like one product instead of default Godot.
+# - panel_cream.png: mail_cream.png (Vector pack) with its off-center diamond
+#   watermark cropped out and mirrored into a symmetric clean strip — the
+#   original had the watermark fixed near the left edge, which would smear/
+#   duplicate when stretched to different panel widths. This tiles safely.
+# - header_cream.png / btn_gold.png / btn_cream_hover.png / slot_gold.png /
+#   slot_white.png: header_cream.png, buttonAdvanced_yellow.png,
+#   buttonAdvanced_cream.png, itemSlotAdvanced_yellow.png,
+#   itemSlotAdvanced_white.png from the Vector pack.
+# - Pressed button state reuses btn_gold.png darkened via modulate_color
+#   rather than a separate file — same source pack asset either way.
+# - All text colors are dark-brown-on-cream (see TEXT_* below).
+#
+# Textures live in assets/UI/generated/. USE THESE HELPERS for any new panel/
+# button/slot — that's what keeps the game looking like one product instead
+# of default Godot.
 # ══════════════════════════════════════════════════════════════════════════════
 
 const _P := "res://assets/UI/generated/"
@@ -55,10 +64,10 @@ static func _tex_box(file: String, mh: int, mv: int, cm: int) -> StyleBoxTexture
 	sb.content_margin_bottom = cm * 0.6
 	return sb
 
-# Parchment panel — sidebars, tooltips, popups. (source 150x148, clean corner
-# brackets only, no off-center watermark — see swap note above)
+# Parchment panel — sidebars, tooltips, popups. Clean corner brackets only,
+# no off-center watermark (see cropping note above).
 static func panel_box() -> StyleBoxTexture:
-	return _tex_box("panel_dark.png", 18, 18, 12)
+	return _tex_box("panel_cream.png", 18, 18, 12)
 
 # Same panel, tinted (e.g. victory=green / defeat=red game-over screens) —
 # keeps the pack's border art consistent while still signaling game state.
@@ -69,26 +78,26 @@ static func panel_box_tinted(tint: Color) -> StyleBoxTexture:
 
 # Section header plate (SET BONUSES / RELICS / BAG ...). Slim: tight content.
 static func header_box() -> StyleBoxTexture:
-	var sb := _tex_box("header_black.png", 20, 12, 12)
+	var sb := _tex_box("header_cream.png", 20, 12, 12)
 	sb.content_margin_top = 4
 	sb.content_margin_bottom = 4
 	return sb
 
 # Item/relic/bag slot.
-static func slot_box(purple: bool = false) -> StyleBoxTexture:
-	var sb := _tex_box("slot_purple.png" if purple else "slot_black.png", 16, 16, 4)
+static func slot_box(white: bool = false) -> StyleBoxTexture:
+	var sb := _tex_box("slot_white.png" if white else "slot_gold.png", 16, 16, 4)
 	sb.content_margin_top = 4
 	sb.content_margin_bottom = 4
 	return sb
 
-# Buttons: normal/hover/pressed as different pack colorways. Source is now a
-# rounded rect (buttonAdvanced_*, ~131x81), not the old pill — bigger margins.
+# Buttons: normal/hover/pressed. Source is a rounded rect (buttonAdvanced_*,
+# ~131x81), not a pill — generous margins to preserve the corner radius.
 static func button_boxes() -> Dictionary:
-	var pressed := _tex_box("btn_purple.png", 20, 16, 10)
+	var pressed := _tex_box("btn_gold.png", 20, 16, 10)
 	pressed.modulate_color = Color(0.82, 0.82, 0.82)   # darken on press
 	return {
-		"normal":  _tex_box("btn_black.png", 20, 16, 10),
-		"hover":   _tex_box("btn_blue.png", 20, 16, 10),
+		"normal":  _tex_box("btn_gold.png", 20, 16, 10),
+		"hover":   _tex_box("btn_cream_hover.png", 20, 16, 10),
 		"pressed": pressed,
 	}
 
@@ -97,7 +106,7 @@ static func style_button(b: Button) -> Button:
 	b.add_theme_stylebox_override("normal", boxes["normal"])
 	b.add_theme_stylebox_override("hover", boxes["hover"])
 	b.add_theme_stylebox_override("pressed", boxes["pressed"])
-	var dis: StyleBoxTexture = _tex_box("btn_black.png", 20, 16, 10)
+	var dis: StyleBoxTexture = _tex_box("btn_gold.png", 20, 16, 10)
 	dis.modulate_color = Color(0.75, 0.75, 0.75)
 	b.add_theme_stylebox_override("disabled", dis)
 	b.add_theme_color_override("font_color", TEXT_BTN)
