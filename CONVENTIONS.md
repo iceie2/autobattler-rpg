@@ -75,21 +75,52 @@ verified task; never commit with a failing check.
 
 ## 3. Where things live / registration points
 
+Folder layout (2026-07-04 reorg — scripts/ is categorized, nothing lives loose;
+all cross-script references are class_name-based, so moving a file only breaks
+`.tscn` ext_resource paths + the project.godot autoload, nothing in .gd code):
+
+```
+scripts/
+  core/       main_game, game_state, progression, balance  <- TUNING KNOBS
+  units/      unit_base, visual_unit, unit_factory, enemy_factory,
+              health_bar, status_icon, lpc_generated_animation_data
+  combat/     auto_battle_manager, battle_grid, pathfinding, projectile,
+              skill_effect, textured_skill_effect, storm_hazard,
+              damage_text, background_layer
+  waves/      wave_scaler, wave_data, wave_director
+  economy/    gold_coin, gold_coin_system, round_reward
+  equipment/  equipment_item, equipment_inventory, equipment_manager
+  relics/     relic, relic_inventory
+  synergies/  synergy_data, synergy_tracker
+  events/     event_blessing, event_generator
+  ui/         every screen/panel + ui_theme (styleboxes/colors/fonts) +
+              unit_details_controller
+  arena/      headless test harness (probe/sim/sweep/perf/ui_smoke)
+```
+
+**`core/balance.gd` is the single tuning file** — run-economy scalars, spawn
+cadence, combat baselines (crit/time-scale), boss/elite/relic round numbers.
+Balance passes start THERE. Per-class stat/growth tables stay in unit_factory
+(data tables, not knobs). Old call sites keep local aliases
+(`const HERO_COST := Balance.HERO_COST`) so grep still finds the old names.
+
 | Thing | File | Notes |
 |---|---|---|
-| Hero classes (enum, stats, growth, traits) | `unit_factory.gd` | `CLASS_BASE_STATS`, `CLASS_GROWTH_PER_LEVEL`, `TRAIT_CLASS_MAP` |
-| Hero passives (per-frame) | `auto_battle_manager.gd` `_tick_passive` | aura-style ones throttle via `AURA_TICK_INTERVAL` meta pattern |
+| Tuning knobs (economy, crit, rounds, pacing) | `core/balance.gd` | START HERE for balance changes |
+| Hero classes (enum, stats, growth, traits) | `units/unit_factory.gd` | `CLASS_BASE_STATS`, `CLASS_GROWTH_PER_LEVEL`, `TRAIT_CLASS_MAP` |
+| Hero passives (per-frame) | `combat/auto_battle_manager.gd` `_tick_passive` | aura-style ones throttle via `AURA_TICK_INTERVAL` meta pattern |
 | Hero on-hit passives | `_apply_on_hit_passives` | ANT/COAL/EMBER/SABLE/ZOLT/LUMEN |
 | On-being-hit passives | `propagate_damage_links` + `take_damage` | RIOT/CROSS/RIFT/STITCH-link |
 | On-move triggers | `update_unit_movements` | STATIC Live Wire, SEAR fire trail, field hazards |
 | Skills / ultimates | `_use_skill` / `_use_ultimate` dispatch | one match arm per class |
-| Enemy factories | `enemy_factory.gd` | register new enemies in `CODE_TO_TYPE` + `create_by_type` + WaveScaler dicts (`CODE_ROLE`, `CODE_IS_LARGE`, `UNIT_POWER`) |
-| Wave composition / difficulty | `wave_scaler.gd` | all statics — arena-testable |
-| Boss rounds 10/20/30, elites 5/15/25 | `wave_scaler.gd` | `boss_code_for`, `ELITE_POOL` |
-| Economy knobs | `ROUND_WIN_GOLD` (main_game), `gold_for_unit` (wave_scaler), RoundReward gold formula (round_reward.gd) | cut ~55% on 2026-07-02, do not buff without playtest data |
-| Relics | `relic*.gd` | 25-relic pool, hooks throughout battle manager |
-| Equipment | `equipment_*.gd` | combine = 3 same-rarity → next tier |
-| Synergies | `synergy_data.gd`/`synergy_tracker.gd` | applied at battle start, reverted at end (`syn_backup` meta) |
+| Enemy factories | `units/enemy_factory.gd` | register new enemies in `CODE_TO_TYPE` + `create_by_type` + WaveScaler dicts (`CODE_ROLE`, `CODE_IS_LARGE`, `UNIT_POWER`) |
+| Wave composition / difficulty | `waves/wave_scaler.gd` | all statics — arena-testable |
+| Boss rounds 10/20/30, elites 5/15/25 | `waves/wave_scaler.gd` (round numbers in `core/balance.gd`) | `boss_code_for`, `ELITE_POOL` |
+| Economy knobs | `core/balance.gd` (values), formulas in `waves/wave_scaler.gd` + `economy/round_reward.gd` | cut ~55% on 2026-07-02, do not buff without playtest data |
+| Relics | `relics/relic*.gd` | 25-relic pool, hooks throughout battle manager |
+| Equipment | `equipment/equipment_*.gd` | combine = 3 same-rarity → next tier |
+| Synergies | `synergies/synergy_data.gd`/`synergy_tracker.gd` | applied at battle start, reverted at end (`syn_backup` meta) |
+| UI theming | `ui/ui_theme.gd` | panel/button/slot styleboxes, text colors, font-size bump helpers (wired via each screen's `_lbl` factory) |
 | Arena harness | `scripts/arena/arena_main.gd` | probe/sim/sweep modes |
 
 ## 4. Patterns to copy
@@ -124,13 +155,26 @@ verified task; never commit with a failing check.
 
 ## 6. UI conventions
 
-- UI is built in code (StyleBoxFlat everywhere, no theme resource yet).
-  Panels use the `_flat(bg, border, border_w, radius)` helper pattern.
+- Theme is "parchment and gold" (2026-07-03/04 pass) — panels/buttons/slots
+  come from `UITheme` (`scripts/ui/ui_theme.gd`): `panel_box()`,
+  `header_box()`, `slot_box()`, `style_button()`. USE THOSE for any new
+  panel/button/slot; hand-rolled dark-navy `_flat()` boxes are the OLD look
+  (some screens may still carry them — migrate on touch, don't add more).
+- Fonts: project-wide default is LeagueGothic (set in project.godot
+  `gui/theme/custom_font`); font-size bumps go through
+  `UITheme.header_font()/body_font()`, wired via each screen's `_lbl()`
+  label factory — route new labels through the factory or they miss the bump.
 - Monster/hero ability icons are PLANNED (assets incoming) — when building
   ability UI, always include an icon slot (TextureRect) next to the name,
   even if empty for now.
-- Colors: dark navy panels (0.08-0.14 range bg), gacha grade colors for
-  rarity, element colors via `get_element_color_hex`.
+- Colors: `UITheme.TEXT_HEADER/TEXT_BODY/TEXT_BTN` for text on parchment,
+  gacha grade colors for rarity (`UnitFactory.GRADE_COLORS`), element colors
+  via `get_element_color_hex`.
+- Buttons in radio-style groups (e.g. difficulty picker): set
+  `focus_mode = FOCUS_NONE` + an empty "focus" stylebox, or the last-clicked
+  button keeps a lingering focus ring. Never `flat = true` on a button that
+  should always show its stylebox (flat buttons only paint when
+  hovered/pressed/focused).
 
 ## 7. Delegated-task template (for Sonnet/lesser models)
 
