@@ -144,7 +144,7 @@ var _round_reward_screen: RoundRewardScreen
 var _pending_round_reward: Dictionary = {}
 var _rolled_rewards: Dictionary = {}   # {difficulty: reward} — rolled once per round, shown in full
 var _wave_director := WaveDirector.new()   # wave specs + enemy creation (shared logic w/ arena)
-var _coin_container: Node2D            # gold drops on the field (GoldCoin nodes)
+var _coin_system: GoldCoinSystem       # gold drops on the field (see gold_coin_system.gd)
 var _equipment_inventory: EquipmentInventory
 var _equipment_panel: EquipmentPanel
 var _event_panel: EventPanel
@@ -269,10 +269,12 @@ func initialize_game_components() -> void:
 	skill_effect_container.name = "SkillEffectContainer"
 	battle_grid_node.add_child(skill_effect_container)
 
-	# Gold coins dropped by kills/rewards (2026-07-03 economy — see GoldCoin)
-	_coin_container = Node2D.new()
-	_coin_container.name = "GoldCoinContainer"
-	battle_grid_node.add_child(_coin_container)
+	# Gold coins dropped by kills/rewards (2026-07-03 economy — see GoldCoinSystem)
+	_coin_system = GoldCoinSystem.new()
+	_coin_system.name = "GoldCoinSystem"
+	battle_grid_node.add_child(_coin_system)
+	_coin_system.battle_grid = battle_grid
+	_coin_system.coin_collected.connect(_on_coin_collected)
 
 	# Create and attach AutoBattleManager
 	auto_battle_manager = AutoBattleManager.new()
@@ -727,38 +729,24 @@ func _all_difficulty_power() -> Dictionary:
 		WaveScaler.Difficulty.HARD:   _estimate_wave_power(WaveScaler.Difficulty.HARD),
 	}
 
-# ── Gold coin drops (economy v3, 2026-07-03) ──────────────────────────────────
-# Kills drop coins where the enemy died; round-win/relic/reward gold rains onto
-# the enemy half at victory. Gold is only credited when a coin ARRIVES at the
-# counter via the round-end spiral vacuum — collection is a visible event now.
+# ── Gold coin drops (economy v3) ──────────────────────────────────────────────
+# Mechanics live in GoldCoinSystem (2026-07-04 refactor); main_game only
+# supplies the vacuum target (gold counter) and banks arriving coins.
 func _spawn_gold_coins(world_pos: Vector2, count: int) -> void:
-	if count <= 0 or not _coin_container:
-		return
-	for i in range(count):
-		var c := GoldCoin.new()
-		c.position = world_pos + Vector2(randf_range(-16.0, 16.0), randf_range(-10.0, 8.0))
-		c.collected.connect(_on_coin_collected)
-		_coin_container.add_child(c)
+	if count > 0 and _coin_system:
+		_coin_system.spawn_coins(world_pos, count)
 
 func _on_coin_collected(v: int) -> void:
 	game_state.add_gold(v)
 	update_ui()
 
-# Reward gold rains across the enemy half of the board (visibly "comes down").
 func _spawn_coin_burst(count: int) -> void:
-	for i in range(count):
-		var cell := Vector2i(randi() % battle_grid.grid_width, randi() % 4)
-		_spawn_gold_coins(battle_grid.grid_to_world(cell), 1)
+	if _coin_system:
+		_coin_system.spawn_burst(count)
 
 func _vacuum_all_coins() -> void:
-	if not _coin_container:
-		return
-	var target: Vector2 = gold_label.get_global_rect().get_center()
-	var i := 0
-	for c in _coin_container.get_children():
-		if c is GoldCoin:
-			c.start_vacuum(target, float(i) * 0.05)   # staggered — reads as a wave
-			i += 1
+	if _coin_system:
+		_coin_system.vacuum_all(gold_label.get_global_rect().get_center())
 
 func _on_battle_ended(player_won: bool) -> void:
 	# Strip the battle-only synergy bonuses first so between-round stats/displays
