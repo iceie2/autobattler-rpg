@@ -29,7 +29,7 @@ set UNSTAGED_EMPTY=%errorlevel%
 git ls-files --others --exclude-standard > "%TEMP%\gu_untracked.txt"
 for %%A in ("%TEMP%\gu_untracked.txt") do set UNTRACKED_SIZE=%%~zA
 
-if "%STAGED_EMPTY%%UNSTAGED_EMPTY%"=="10" if "%UNTRACKED_SIZE%"=="0" (
+if "%STAGED_EMPTY%"=="0" if "%UNSTAGED_EMPTY%"=="0" if "%UNTRACKED_SIZE%"=="0" (
     echo Nothing to commit - working tree is clean.
     del "%TEMP%\gu_untracked.txt" >nul 2>&1
     pause
