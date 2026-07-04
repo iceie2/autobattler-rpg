@@ -1645,7 +1645,14 @@ func _on_unit_died(unit) -> void:
 		_run_kills += 1
 		# Economy v3: kills drop physical coins on the field (collected by the
 		# round-end vacuum) instead of crediting gold instantly.
-		_spawn_gold_coins(unit.global_position,
+		# NOTE: `unit.position` (local to battle_grid_node), not global_position.
+		# GoldCoinSystem is battle_grid_node's sibling-under-the-same-parent, so
+		# spawn_coins() treats its `world_pos` arg as local-to-battle_grid_node
+		# (see spawn_burst()'s use of grid_to_world(), which is local too).
+		# Passing global_position here double-counted battle_grid_node's own
+		# centering offset (_center_battlefield), flinging every drop off the
+		# visible board (2026-07-04 user report).
+		_spawn_gold_coins(unit.position,
 				WaveScaler.gold_drops_for_unit(unit, game_state.battle_round))
 		var crystal_bonus: int = Progression.get_bonus("crystal_drop")
 		var crystals: int = WaveScaler.crystals_for_unit(unit) + crystal_bonus

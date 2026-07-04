@@ -29,10 +29,16 @@ func spawn_burst(count: int) -> void:
 		spawn_coins(battle_grid.grid_to_world(cell), 1)
 
 # THE vacuum: every coin on the field spirals into `target` (the gold counter),
-# staggered so it reads as a wave.
+# staggered so it reads as a wave. `target` is a GLOBAL screen position (the
+# gold counter's UI rect center) — convert it to local space before handing it
+# to GoldCoin, since coins live under this node (itself offset from the true
+# origin by the battlefield's centering transform). Passing the raw global
+# value double-counted that offset and sent every coin arcing toward a point
+# well past the actual counter (2026-07-04 user report).
 func vacuum_all(target: Vector2) -> void:
+	var local_target := to_local(target)
 	var i := 0
 	for c in get_children():
 		if c is GoldCoin:
-			c.start_vacuum(target, float(i) * 0.05)
+			c.start_vacuum(local_target, float(i) * 0.05)
 			i += 1
