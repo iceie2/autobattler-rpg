@@ -44,10 +44,11 @@ const _P := "res://assets/UI/generated/"
 # a test value cranked up to check whether the bump did anything — it didn't,
 # because no call site used these helpers until this wiring pass.)
 static func header_font(base: int) -> int:
-	return base + 4
+	return base + 18
 
 static func body_font(base: int) -> int:
-	return base + 2
+	return base + 24
+
 
 # Dark-brown text colors for the cream/parchment surfaces.
 const TEXT_HEADER := Color(0.42, 0.29, 0.12)   # section header labels (SET BONUSES...)
@@ -55,27 +56,46 @@ const TEXT_BODY    := Color(0.54, 0.42, 0.23)  # muted body copy on parchment
 const TEXT_BTN     := Color(0.29, 0.18, 0.03)  # button label text (on gold)
 
 # ── Stat bars — ONE look for every HP/MP/XP/ULT bar in the game ───────────────
-# (2026-07-05, user request: in-world unit bars and the sidebar Team Status
-# bars must be the same bars.) Both health_bar.gd (draws these styleboxes
-# directly in _draw) and main_game's sidebar ProgressBars route through here.
+# (2026-07-05, user request — take two.) The beveled strip textures in
+# assets/UI/stat_bar/ are the INTENDED bar art (the in-world unit bars had
+# them first); the sidebar's flat StyleBoxFlat bars were the old look. The
+# first unification pass got that backwards and flattened everything — this
+# routes BOTH through the strips. fill_xp/fill_enemy were hue-shifted from
+# fill_hp (same bevel art, gold and red) so all five strips are one family.
+const _BAR_TEX := {
+	"hp":    preload("res://assets/UI/stat_bar/fill_hp.png"),
+	"mp":    preload("res://assets/UI/stat_bar/fill_mp.png"),
+	"ult":   preload("res://assets/UI/stat_bar/fill_ult.png"),
+	"xp":    preload("res://assets/UI/stat_bar/fill_xp.png"),
+	"enemy": preload("res://assets/UI/stat_bar/fill_enemy.png"),
+}
+# Label/text tint companions (e.g. the HP/MP/XP row labels in Team Status).
 const BAR_HP  := Color(0.2, 0.78, 0.3)
 const BAR_MP  := Color(0.25, 0.4, 0.9)
 const BAR_XP  := Color(0.85, 0.65, 0.1)
-const BAR_ULT := Color(0.62, 0.32, 0.88)
-const BAR_BG  := Color(0.06, 0.06, 0.10)
+# Dark track behind every bar (same as the unit bars always had).
+const BAR_TRACK_BG     := Color(0.06, 0.06, 0.08, 0.92)
+const BAR_TRACK_BORDER := Color(0.0, 0.0, 0.0, 0.85)
 
-static func stat_bar_fill(color: Color) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color = color
-	s.set_corner_radius_all(2)
+static func stat_bar_fill(kind: String) -> StyleBoxTexture:
+	var s := StyleBoxTexture.new()
+	s.texture = _BAR_TEX[kind]
+	# 1px margins keep the bevel's highlight/shadow rows and end pixels crisp
+	# while the flat middle stretches to any bar size.
+	s.texture_margin_left = 1; s.texture_margin_right = 1
+	s.texture_margin_top = 1;  s.texture_margin_bottom = 1
 	return s
 
 static func stat_bar_bg() -> StyleBoxFlat:
-	return stat_bar_fill(BAR_BG)
+	var s := StyleBoxFlat.new()
+	s.bg_color = BAR_TRACK_BG
+	s.border_color = BAR_TRACK_BORDER
+	s.set_border_width_all(1)
+	return s
 
-static func style_stat_bar(bar: ProgressBar, color: Color) -> ProgressBar:
+static func style_stat_bar(bar: ProgressBar, kind: String) -> ProgressBar:
 	bar.show_percentage = false
-	bar.add_theme_stylebox_override("fill", stat_bar_fill(color))
+	bar.add_theme_stylebox_override("fill", stat_bar_fill(kind))
 	bar.add_theme_stylebox_override("background", stat_bar_bg())
 	return bar
 

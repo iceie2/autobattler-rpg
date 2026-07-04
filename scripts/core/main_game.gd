@@ -194,8 +194,8 @@ func _ready():
 	_center_battlefield()
 	get_viewport().size_changed.connect(_center_battlefield)
 	battle_grid_node.y_sort_enabled = true
-	_style_team_bar(player_hp_bar, UITheme.BAR_HP)
-	_style_team_bar(enemy_hp_bar,  Color(0.88, 0.18, 0.18, 1))
+	_style_team_bar(player_hp_bar, "hp")
+	_style_team_bar(enemy_hp_bar,  "enemy")
 	_build_new_layout()
 	get_viewport().size_changed.connect(_position_sidebars)
 	_create_row_tooltip()
@@ -863,8 +863,8 @@ func _on_unit_action(_unit, _action_type: String) -> void:
 
 
 # ── TEAM HEALTH & COMBAT FEEDBACK ──────────────────────────────────────────
-func _style_team_bar(bar: ProgressBar, fill_color: Color) -> void:
-	UITheme.style_stat_bar(bar, fill_color)
+func _style_team_bar(bar: ProgressBar, kind: String) -> void:
+	UITheme.style_stat_bar(bar, kind)
 
 func update_team_health_bars() -> void:
 	var p_cur := 0
@@ -944,11 +944,11 @@ func _rebuild_unit_list(container: VBoxContainer, units: Array, name_color: Colo
 		header.add_theme_color_override("font_color", name_color)
 		container.add_child(header)
 
-		# HP / MP / XP bars stacked — colors from UITheme so these match the
-		# in-world unit bars exactly.
-		_add_stat_bar(container, "HP", unit.current_hp,   unit.max_hp,      UITheme.BAR_HP)
-		_add_stat_bar(container, "MP", unit.current_mana, unit.max_mana,    UITheme.BAR_MP)
-		_add_stat_bar(container, "XP", unit.current_xp,   unit.xp_to_level, UITheme.BAR_XP)
+		# HP / MP / XP bars stacked — same beveled strips as the in-world
+		# unit bars (kind picks the strip; color tints the row label).
+		_add_stat_bar(container, "HP", unit.current_hp,   unit.max_hp,      "hp", UITheme.BAR_HP)
+		_add_stat_bar(container, "MP", unit.current_mana, unit.max_mana,    "mp", UITheme.BAR_MP)
+		_add_stat_bar(container, "XP", unit.current_xp,   unit.xp_to_level, "xp", UITheme.BAR_XP)
 
 		# Small gap between units
 		var gap := Control.new()
@@ -956,7 +956,7 @@ func _rebuild_unit_list(container: VBoxContainer, units: Array, name_color: Colo
 		container.add_child(gap)
 
 func _add_stat_bar(container: VBoxContainer, lbl_text: String,
-		current, maximum, color: Color) -> void:
+		current, maximum, kind: String, color: Color) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 5)
 
@@ -981,14 +981,14 @@ func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 	nums.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(nums)
 
-	# Bar — same UITheme styleboxes the in-world unit bars draw (2026-07-05).
+	# Bar — same beveled-strip styleboxes the in-world unit bars draw.
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size = Vector2(0, 10)
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.size_flags_vertical   = Control.SIZE_SHRINK_CENTER
 	bar.max_value = maxf(float(maximum), 1.0)
 	bar.value     = float(current)
-	UITheme.style_stat_bar(bar, color)
+	UITheme.style_stat_bar(bar, kind)
 	row.add_child(bar)
 
 	container.add_child(row)
@@ -2054,7 +2054,7 @@ func _build_right_panel() -> void:
 	sv.add_child(_sb_accordion("TEAM STATUS", team_body, true))
 	sv.add_child(team_body)
 
-	_sb_player_hp  = _make_sb_bar(UITheme.BAR_HP)
+	_sb_player_hp  = _make_sb_bar("hp")
 	_sb_player_lbl = _make_sb_lbl("No player units")
 	_sb_player_ulist = VBoxContainer.new()
 	_sb_player_ulist.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2063,7 +2063,7 @@ func _build_right_panel() -> void:
 	team_body.add_child(_sb_player_ulist)
 	team_body.add_child(_sb_sep())
 
-	_sb_enemy_hp  = _make_sb_bar(Color(0.88, 0.18, 0.18, 1))
+	_sb_enemy_hp  = _make_sb_bar("enemy")
 	_sb_enemy_lbl = _make_sb_lbl("No enemy units")
 	_sb_enemy_ulist = VBoxContainer.new()
 	_sb_enemy_ulist.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2112,11 +2112,11 @@ func _build_right_panel() -> void:
 	update_team_health_bars()
 
 
-func _make_sb_bar(fill_col: Color) -> ProgressBar:
+func _make_sb_bar(kind: String) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.custom_minimum_size   = Vector2(0, 14)
-	return UITheme.style_stat_bar(bar, fill_col)
+	return UITheme.style_stat_bar(bar, kind)
 
 
 func _make_sb_lbl(placeholder: String) -> Label:

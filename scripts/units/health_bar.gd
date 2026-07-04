@@ -17,22 +17,27 @@ var ult_current:    float = 0.0
 var ult_max:        float = 1.0
 var shield_current: float = 0.0
 
-# Same bars as the sidebar Team Status (2026-07-05, user request) — fills and
-# track come from UITheme.stat_bar_*, the single source for every stat bar in
-# the game. Styleboxes are built ONCE here and drawn directly in _draw();
-# per-frame allocation in bar redraws is a real perf cost at 29 units.
+# Same bars as the sidebar Team Status (2026-07-05, user request) — the
+# beveled strip fills and dark track come from UITheme.stat_bar_*, the single
+# source for every stat bar in the game. Styleboxes are built ONCE here and
+# drawn directly in _draw(); per-frame allocation in bar redraws is a real
+# perf cost at 29 units.
 var _sb_bg:  StyleBoxFlat
-var _sb_hp:  StyleBoxFlat
-var _sb_mp:  StyleBoxFlat
-var _sb_ult: StyleBoxFlat
-var _sb_ult_ready: StyleBoxFlat   # brightened fill when the ult is charged
+var _sb_hp:  StyleBoxTexture
+var _sb_mp:  StyleBoxTexture
+var _sb_ult: StyleBoxTexture
+var _sb_ult_ready: StyleBoxTexture   # brightened fill when the ult is charged
+
+const ULT_GLOW := Color(1.25, 1.20, 0.85)   # warm brighten when ult is ready
 
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_sb_bg  = UITheme.stat_bar_bg()
-	_sb_hp  = UITheme.stat_bar_fill(UITheme.BAR_HP)
-	_sb_mp  = UITheme.stat_bar_fill(UITheme.BAR_MP)
-	_sb_ult = UITheme.stat_bar_fill(UITheme.BAR_ULT)
-	_sb_ult_ready = UITheme.stat_bar_fill(UITheme.BAR_ULT.lightened(0.35))
+	_sb_hp  = UITheme.stat_bar_fill("hp")
+	_sb_mp  = UITheme.stat_bar_fill("mp")
+	_sb_ult = UITheme.stat_bar_fill("ult")
+	_sb_ult_ready = UITheme.stat_bar_fill("ult")
+	_sb_ult_ready.modulate_color = ULT_GLOW
 	var total_h: float = bar_height * 3.0 + gap * 2.0
 	if placement == BarPlacement.TOP:
 		position.y = -(offset_y + total_h)
@@ -66,7 +71,7 @@ func _draw() -> void:
 	var hp_pct: float  = clamp(hp_current  / max(hp_max,  1.0), 0.0, 1.0)
 	var mp_pct: float  = clamp(mp_current  / max(mp_max,  1.0), 0.0, 1.0)
 	var ult_pct: float = clamp(ult_current / max(ult_max, 1.0), 0.0, 1.0)
-	var ult_fill: StyleBoxFlat = _sb_ult_ready if ult_current >= ult_max else _sb_ult
+	var ult_fill: StyleBoxTexture = _sb_ult_ready if ult_current >= ult_max else _sb_ult
 
 	_draw_bar(x, 0.0,                      bar_height, hp_pct,  _sb_hp)
 	# Shield overlay on HP bar (cyan, semi-transparent, caps at bar width)
@@ -92,9 +97,9 @@ func _draw_hp_number(x: float) -> void:
 	draw_string_outline(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, 3, Color(0, 0, 0, 0.9))
 	draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, Color(1, 1, 1, 0.95))
 
-func _draw_bar(x: float, y: float, h: float, pct: float, fill: StyleBoxFlat) -> void:
-	# Dark rounded track + flat rounded fill — drawn with the SAME styleboxes
-	# the sidebar's ProgressBars use, so the two render identically.
+func _draw_bar(x: float, y: float, h: float, pct: float, fill: StyleBoxTexture) -> void:
+	# Dark track + beveled strip fill — drawn with the SAME styleboxes the
+	# sidebar's ProgressBars use, so the two render identically.
 	_sb_bg.draw(get_canvas_item(), Rect2(x, y, bar_width, h))
 	if pct > 0.0:
 		fill.draw(get_canvas_item(), Rect2(x, y, bar_width * pct, h))
