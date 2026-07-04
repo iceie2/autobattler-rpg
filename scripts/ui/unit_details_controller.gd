@@ -1,0 +1,406 @@
+class_name UnitDetailsController
+extends RefCounted
+# ══════════════════════════════════════════════════════════════════════════════
+# Unit Details panel logic, extracted from main_game.gd (2026-07-04 refactor,
+# increment 3). Owns panel population/refresh/close; main_game keeps the panel
+# node itself, drag handling and signal wiring, and delegates here.
+# Verified end-to-end by scenes/ui_smoke.tscn (opens the panel on a live enemy).
+# ══════════════════════════════════════════════════════════════════════════════
+
+var game                          # main_game node (untyped — avoids cyclic dep)
+var current_unit: UnitBase = null
+var _icons_ready: bool = false
+
+# Panel node refs, resolved once from main_game's _dpanel_root in _init.
+var panel: Control
+var portrait_frame: PanelContainer
+var portrait: TextureRect
+var unit_name_lbl: Label
+var class_lbl: Label
+var element_icon: TextureRect
+var element_lbl: Label
+var level_lbl: Label
+var hp_bar: ProgressBar
+var hp_val: Label
+var mp_bar: ProgressBar
+var mp_val: Label
+var xp_bar: ProgressBar
+var xp_val: Label
+var combat_grid: GridContainer
+var affinity_grid: GridContainer
+var growth_grid: GridContainer
+var item_bag: GridContainer
+
+# Combat-stat grid cells (node name -> STAT_ICONS key) and affinity element order
+const _COMBAT_CELLS := [
+	["CellAtk", "atk"], ["CellDef", "res"], ["CellMag", "magic"], ["CellAspd", "aspd"],
+	["CellHpRegen", "hpregen"], ["CellMpRegen", "manaregen"], ["CellMove", "move"], ["CellRange", "range"],
+	["CellCritChance", "crit_chance"], ["CellCritDamage", "crit_damage"],
+]
+const _AFF_ELEMENTS := [
+	[UnitBase.Element.NORMAL, "Normal"], [UnitBase.Element.FIRE, "Fire"],
+	[UnitBase.Element.WATER, "Water"], [UnitBase.Element.EARTH, "Earth"],
+	[UnitBase.Element.AIR, "Air"], [UnitBase.Element.LIGHTNING, "Lightning"],
+]
+# Growth-grid cells (node name -> stat key). Stats without a per-level growth
+# roll (move/range) are excluded — see UnitBase.apply_stat_growth.
+const _GROWTH_CELLS := [
+	["CellGHp", "hp"], ["CellGAtk", "atk"], ["CellGMana", "mana"], ["CellGMag", "magic"],
+	["CellGDef", "res"], ["CellGAspd", "aspd"], ["CellGHpRegen", "hpregen"], ["CellGMpRegen", "manaregen"],
+]
+# Stats whose growth is a fractional roll (rounded to 0.01/level) rather than
+# a whole-number roll — see UnitFactory.apply_recruit_rolls.
+const _GROWTH_FLOAT_STATS := ["aspd", "hpregen", "manaregen"]
+
+const DETAILS_BAG_SLOTS := 6
+
+func _init(p_game) -> void:
+	game = p_game
+	panel = game.unit_details_panel
+	var root: Control = game._dpanel_root
+	portrait_frame = root.get_node("Header/PortraitFrame")
+	portrait       = root.get_node("Header/PortraitFrame/Portrait")
+	unit_name_lbl  = root.get_node("Header/HeaderInfo/UnitName")
+	class_lbl      = root.get_node("Header/HeaderInfo/ChipRow/ClassChip/ClassLabel")
+	element_icon   = root.get_node("Header/HeaderInfo/ChipRow/ElementChip/EChipRow/ElementIcon")
+	element_lbl    = root.get_node("Header/HeaderInfo/ChipRow/ElementChip/EChipRow/ElementLabel")
+	level_lbl      = root.get_node("Header/HeaderInfo/ChipRow/LevelChip/LevelLabel")
+	hp_bar         = root.get_node("Vitals/HPBar")
+	hp_val         = root.get_node("Vitals/HPBar/Value")
+	mp_bar         = root.get_node("Vitals/MPBar")
+	mp_val         = root.get_node("Vitals/MPBar/Value")
+	xp_bar         = root.get_node("Vitals/XPBar")
+	xp_val         = root.get_node("Vitals/XPBar/Value")
+	combat_grid    = root.get_node("CombatGrid")
+	affinity_grid  = root.get_node("AffinityRow/AffinityCol/AffinityGrid")
+	growth_grid    = root.get_node("AffinityRow/GrowthCol/GrowthGrid")
+	item_bag       = root.get_node("Header/HeaderInfo/ChipRow/ItemBag")
+
+# ── Public API (main_game delegates here) ─────────────────────────────────────
+
+func show_unit(unit: UnitBase) -> void:
+	current_unit = unit
+	panel.visible = true
+	_ensure_icons()
+	_refresh()
+
+func close() -> void:
+	panel.visible = false
+	current_unit = null
+
+# Live refresh during battle — called from main_game._process via delegate.
+func refresh_live() -> void:
+	if not panel.visible:
+		return
+	if not current_unit or not is_instance_valid(current_unit):
+		current_unit = null
+		panel.visible = false
+		return
+	_refresh()
+
+func on_hero_equipment_changed(unit_id: String) -> void:
+	if not (current_unit and is_instance_valid(current_unit) and panel.visible):
+		return
+	var cur_id: String = current_unit.unit_name + "_" + str(current_unit.get_instance_id())
+	if cur_id == unit_id:
+		_update_bag(current_unit)
+
+# ── Internals (moved verbatim from main_game, refs rewritten) ─────────────────
+
+# Assign the static combat-stat and element glyph textures once (they never
+# change per unit). Value labels are updated every refresh in _refresh().
+func _ensure_icons() -> void:
+	if _icons_ready:
+		return
+	_icons_ready = true
+	# Crit cells aren't in the .tscn (added after that scene was built) — create
+	# them at runtime, matching the existing CellAtk/etc. HBoxContainer+Icon+Value
+	# structure exactly, so _set_combat_cell's "%s/Value" lookup finds them too.
+	for crit_cell in ["CellCritChance", "CellCritDamage"]:
+		if combat_grid.get_node_or_null(crit_cell):
+			continue
+		var cell := HBoxContainer.new()
+		cell.name = crit_cell
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.add_theme_constant_override("separation", 6)
+		var icon := TextureRect.new()
+		icon.name = "Icon"
+		icon.custom_minimum_size = Vector2(16, 16)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		cell.add_child(icon)
+		var val := Label.new()
+		val.name = "Value"
+		val.add_theme_font_size_override("font_size", 14)
+		val.text = "-"
+		cell.add_child(val)
+		combat_grid.add_child(cell)
+	for pair in _COMBAT_CELLS:
+		var stat_key: String = pair[1]
+		var path: String = UnitFactory.STAT_ICONS.get(stat_key, "")
+		if path == "":
+			continue
+		var cell := combat_grid.get_node_or_null(pair[0])
+		var icon := cell.get_node_or_null("Icon") as TextureRect if cell else null
+		if icon:
+			icon.texture = load(path) as Texture2D
+			var tip: String = UnitFactory.STAT_NAMES.get(stat_key, stat_key)
+			icon.tooltip_text = tip
+			icon.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.get_node_or_null("Value").tooltip_text = tip
+	for pair in _AFF_ELEMENTS:
+		var epath: String = UnitFactory.ELEMENT_ICONS.get(pair[0], "")
+		if epath == "":
+			continue
+		var eicon := affinity_grid.get_node_or_null("Icon%s" % pair[1]) as TextureRect
+		if eicon:
+			eicon.texture = load(epath) as Texture2D
+			eicon.tooltip_text = pair[1]
+			eicon.mouse_filter = Control.MOUSE_FILTER_STOP
+	for pair in _GROWTH_CELLS:
+		var gstat_key: String = pair[1]
+		var gpath: String = UnitFactory.STAT_ICONS.get(gstat_key, "")
+		if gpath == "":
+			continue
+		var gcell := growth_grid.get_node_or_null(pair[0])
+		var gicon := gcell.get_node_or_null("Icon") as TextureRect if gcell else null
+		if gicon:
+			gicon.texture = load(gpath) as Texture2D
+			var gtip: String = UnitFactory.STAT_NAMES.get(gstat_key, gstat_key)
+			gicon.tooltip_text = gtip
+			gicon.mouse_filter = Control.MOUSE_FILTER_STOP
+			gcell.get_node_or_null("Value").tooltip_text = gtip
+
+# Portrait for the header: heroes use their full sprite; monsters use their
+# using/ override if present. Returns null when nothing suitable exists.
+func _get_portrait_texture(unit: UnitBase) -> Texture2D:
+	var path := ""
+	if VisualUnit.HERO_SPRITE_PATHS.has(unit.unit_class):
+		path = VisualUnit.HERO_SPRITE_PATHS[unit.unit_class]
+	else:
+		# Resolve a sprite folder: enemy override meta, else class-based folder.
+		var folder := ""
+		if unit.has_meta("sprite_folder"):
+			folder = str(unit.get_meta("sprite_folder"))
+		elif unit.has_method("get_class_sprite_folder"):
+			folder = unit.get_class_sprite_folder()
+		if folder != "":
+			if VisualUnit.MONSTER_SPRITE_PATHS.has(folder):
+				path = VisualUnit.MONSTER_SPRITE_PATHS[folder]
+			else:
+				var gen := "res://assets/sprites/generated/%s/0/single.png" % folder
+				if ResourceLoader.exists(gen):
+					path = gen
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
+func _cell_int_text(current: int, bonus: float) -> String:
+	return ("%d → %d" % [current - int(bonus), current]) if bonus > 0 else ("%d" % current)
+
+func _cell_float_text(current: float, bonus: float) -> String:
+	return ("%.2f → %.2f" % [current - bonus, current]) if bonus > 0 else ("%.2f" % current)
+
+# Returns [display_current, display_bonus] for a combat-grid cell, combining
+# equipment (eq_bonus — always baked into unit.<stat> live) with synergy set
+# bonuses. Synergy is only physically applied to unit.<stat> during battle (see
+# _apply_team_synergies/syn_backup meta) — outside of battle this previews the
+# same multiplier so the base→boosted arrow is never one round stale.
+func _combat_cell_values(unit: UnitBase, stat: String, eq_bonus: float) -> Array:
+	var current: float = float(unit.get(stat))
+	if unit.is_player_unit and unit.has_meta("syn_backup"):
+		var bk: Dictionary = unit.get_meta("syn_backup")
+		if bk.has(stat):
+			return [current, current - (float(bk[stat]) - eq_bonus)]
+	var mult := 1.0
+	if unit.is_player_unit:
+		game._synergy_tracker.update_from_team(game.player_units)
+		mult = float(game._synergy_tracker.team_bonuses().get(stat, 1.0))
+	var boosted: float = current * mult
+	return [boosted, boosted - (current - eq_bonus)]
+
+# Player heroes track equipment in EquipmentInventory; enemies carry their held
+# item(s) directly on the unit (see UnitBase.held_items). This is the one place
+# both UI paths (stat display, bag panel) should read from.
+func get_unit_held_items(unit: UnitBase) -> Array:
+	if unit.is_player_unit:
+		return game._equipment_inventory.get_hero_equipment(unit) if game._equipment_inventory else []
+	return unit.held_items
+
+func _sum_equipment_stats(unit: UnitBase) -> Dictionary:
+	var totals: Dictionary = {}
+	for item in get_unit_held_items(unit):
+		for stat in item.stat_bonus:
+			var v: float = float(item.stat_bonus[stat])
+			if v > 0:
+				totals[stat] = totals.get(stat, 0.0) + v
+	return totals
+
+# Populates the whole panel from current_unit. Used on open and for live
+# refresh during battle (see refresh_live).
+func _refresh() -> void:
+	var unit := current_unit
+	if not (unit and is_instance_valid(unit)):
+		return
+
+	# ── Header: portrait, name, chips ──
+	var ptex := _get_portrait_texture(unit)
+	portrait.texture = ptex
+	portrait_frame.visible = ptex != null
+	unit_name_lbl.text = unit.unit_name
+	class_lbl.text = unit.get_class_name_string()
+	element_lbl.text = unit.get_element_name_string()
+	element_lbl.add_theme_color_override("font_color", Color(element_color_hex(unit.current_element)))
+	element_icon.texture = load(UnitFactory.ELEMENT_ICONS.get(unit.current_element, "")) as Texture2D
+	level_lbl.text = "Lv %d" % unit.level
+
+	var eq := _sum_equipment_stats(unit)
+
+	# ── Vitals ──
+	hp_bar.max_value = max(1, unit.max_hp)
+	hp_bar.value = unit.current_hp
+	hp_val.text = "HP  %d / %d" % [unit.current_hp, unit.max_hp]
+	mp_bar.max_value = max(1, unit.max_mana)
+	mp_bar.value = unit.current_mana
+	mp_val.text = "MP  %d / %d" % [unit.current_mana, unit.max_mana]
+	xp_bar.max_value = max(1.0, unit.xp_to_level)
+	xp_bar.value = unit.current_xp
+	xp_val.text = "XP  %.0f / %.0f" % [unit.current_xp, unit.xp_to_level]
+
+	# ── Combat grid ──
+	# Synergy set bonuses only get physically applied to unit stats during battle
+	# (see _apply_team_synergies) — outside of battle, _combat_cell_values previews
+	# the same amount so the base→boosted display never has to "wait for the round
+	# to start" to reflect a set bonus the player can already see in SET BONUSES.
+	var atk := _combat_cell_values(unit, "attack_damage", eq.get("atk", 0.0))
+	var def := _combat_cell_values(unit, "resistance", eq.get("res", 0.0))
+	var mag := _combat_cell_values(unit, "magic_power", eq.get("magic", 0.0))
+	var aspd := _combat_cell_values(unit, "attack_speed", eq.get("aspd", 0.0))
+	_set_combat_cell("CellAtk", _cell_int_text(int(round(atk[0])), atk[1]), atk[1] > 0)
+	_set_combat_cell("CellDef", _cell_int_text(int(round(def[0])), def[1]), def[1] > 0)
+	_set_combat_cell("CellMag", _cell_int_text(int(round(mag[0])), mag[1]), mag[1] > 0)
+	_set_combat_cell("CellAspd", _cell_float_text(aspd[0], aspd[1]), aspd[1] > 0)
+	_set_combat_cell("CellHpRegen", _cell_float_text(unit.hp_regen, eq.get("hpregen", 0.0)), eq.get("hpregen", 0.0) > 0)
+	_set_combat_cell("CellMpRegen", _cell_float_text(unit.mana_regen, eq.get("manaregen", 0.0)), eq.get("manaregen", 0.0) > 0)
+	_set_combat_cell("CellMove", "%d" % unit.movement_speed, false)
+	_set_combat_cell("CellRange", "%d" % unit.attack_range, false)
+	_set_combat_cell("CellCritChance", "%.0f%%" % (unit.crit_chance * 100.0), false)
+	_set_combat_cell("CellCritDamage", "x%.2f" % unit.crit_damage, false)
+
+	# ── Growth per level (final — base class growth + this unit's personal roll) ──
+	for pair in _GROWTH_CELLS:
+		var gcell := growth_grid.get_node_or_null(pair[0])
+		var glbl := gcell.get_node_or_null("Value") as Label if gcell else null
+		if not glbl:
+			continue
+		var amount: float = unit.stat_growth(pair[1])
+		glbl.text = ("+%.2f" % amount) if pair[1] in _GROWTH_FLOAT_STATS else ("+%d" % int(round(amount)))
+
+	# ── Affinity matrix + item bag ──
+	_refresh_affinity(unit)
+	_update_bag(unit)
+
+func _set_combat_cell(cell: String, text: String, buffed: bool) -> void:
+	var lbl := combat_grid.get_node_or_null("%s/Value" % cell) as Label
+	if not lbl:
+		return
+	lbl.text = text
+	lbl.add_theme_color_override("font_color", Color(0.4, 0.95, 0.5) if buffed else Color(0.9, 0.9, 0.95))
+
+func _refresh_affinity(unit: UnitBase) -> void:
+	for pair in _AFF_ELEMENTS:
+		var element: UnitBase.Element = pair[0]
+		var suffix: String = pair[1]
+		var atk_lbl := affinity_grid.get_node_or_null("Atk%s" % suffix) as Label
+		var def_lbl := affinity_grid.get_node_or_null("Def%s" % suffix) as Label
+		if not (atk_lbl and def_lbl):
+			continue
+		var off_val: float = unit.offensive_affinity[element]
+		var def_val: float = unit.defensive_affinity[element]
+		var atk_pct := int(round(100.0 + off_val))
+		var def_pct := int(round(100.0 * 100.0 / (def_val + 100.0)))
+		atk_lbl.text = "%d%%" % atk_pct
+		def_lbl.text = "%d%%" % def_pct
+		atk_lbl.add_theme_color_override("font_color", _aff_color(atk_pct, true))
+		def_lbl.add_theme_color_override("font_color", _aff_color(def_pct, false))
+
+# Neutral (100%) fades into the grid; otherwise green = favourable, red = weak.
+# higher_is_good is true for offensive %, false for defensive % (lower = tankier).
+func _aff_color(pct: int, higher_is_good: bool) -> Color:
+	if pct == 100:
+		return Color(0.5, 0.5, 0.55)
+	var good := (pct > 100) if higher_is_good else (pct < 100)
+	return Color(0.3, 0.92, 0.45) if good else Color(0.95, 0.32, 0.32)
+
+# ── Held-items bag ────────────────────────────────────────────────────────────
+# Shows up to 6 slots: player heroes show their real equipped items (from
+# EquipmentInventory); enemies show whatever they spawned wielding.
+func _update_bag(unit: UnitBase) -> void:
+	if not item_bag:
+		return
+	for c in item_bag.get_children():
+		c.queue_free()
+
+	var items: Array = get_unit_held_items(unit)
+	const SLOT_SIZE := Vector2(26, 26)
+
+	for i in range(DETAILS_BAG_SLOTS):
+		var slot_bg := StyleBoxFlat.new()
+		slot_bg.corner_radius_top_left     = 4
+		slot_bg.corner_radius_top_right    = 4
+		slot_bg.corner_radius_bottom_left  = 4
+		slot_bg.corner_radius_bottom_right = 4
+
+		if i < items.size():
+			var item: EquipmentItem = items[i]
+			var btn := Button.new()
+			btn.custom_minimum_size = SLOT_SIZE
+			btn.mouse_filter = Control.MOUSE_FILTER_STOP
+
+			slot_bg.bg_color     = item.icon_color.darkened(0.55)
+			slot_bg.border_color = item.icon_color
+			slot_bg.set_border_width_all(1)
+			btn.add_theme_stylebox_override("normal", slot_bg)
+
+			var hover_bg := slot_bg.duplicate() as StyleBoxFlat
+			hover_bg.bg_color = item.icon_color.darkened(0.35)
+			btn.add_theme_stylebox_override("hover", hover_bg)
+
+			var icon_path: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
+			if icon_path != "":
+				var tex: Texture2D = load(icon_path)
+				if tex:
+					btn.icon = tex
+					btn.expand_icon = true
+
+			var captured_item := item
+			btn.mouse_entered.connect(func(): game._show_item_tooltip(captured_item, game.get_viewport().get_mouse_position()))
+			btn.mouse_exited.connect(func(): game._hide_item_tooltip())
+			item_bag.add_child(btn)
+		else:
+			var ph := Panel.new()
+			ph.custom_minimum_size = SLOT_SIZE
+			slot_bg.bg_color     = Color(0.10, 0.10, 0.16, 0.6)
+			slot_bg.border_color = Color(0.22, 0.22, 0.32, 0.5)
+			slot_bg.set_border_width_all(1)
+			ph.add_theme_stylebox_override("panel", slot_bg)
+			ph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			item_bag.add_child(ph)
+
+static func element_color_hex(element: UnitBase.Element) -> String:
+	match element:
+		UnitBase.Element.FIRE:
+			return "#FF4D00"  # Orange-red
+		UnitBase.Element.WATER:
+			return "#33AAFF"  # Blue
+		UnitBase.Element.EARTH:
+			return "#B38052"  # Brown
+		UnitBase.Element.AIR:
+			return "#CCFFFF"  # Light cyan
+		UnitBase.Element.LIGHTNING:
+			return "#FFFF33"  # Yellow
+		UnitBase.Element.NORMAL:
+			return "#FFFFFF"  # White
+		_:
+			return "#FFFFFF"
