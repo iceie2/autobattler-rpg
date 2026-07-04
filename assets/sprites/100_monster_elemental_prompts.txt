@@ -1,0 +1,900 @@
+1. Single Prompt for All 6 Elemental Wolfs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral wolfs, arranged in two rows of three, isolated on a solid green background. All wolfs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Wolf): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Wolf): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Wolf): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Wolf): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Wolf): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Wolf): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+2. Single Prompt for All 6 Elemental Bears (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral bears, arranged in two rows of three, isolated on a solid green background. All bears share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Bear): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Bear): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Bear): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Bear): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Bear): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Bear): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+3. Single Prompt for All 6 Elemental Tigers (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral tigers, arranged in two rows of three, isolated on a solid green background. All tigers share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Tiger): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Tiger): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Tiger): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Tiger): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Tiger): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Tiger): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+4. Single Prompt for All 6 Elemental Lions (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral lions, arranged in two rows of three, isolated on a solid green background. All lions share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Lion): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Lion): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Lion): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Lion): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Lion): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Lion): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+5. Single Prompt for All 6 Elemental Foxs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral foxs, arranged in two rows of three, isolated on a solid green background. All foxs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Fox): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Fox): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Fox): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Fox): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Fox): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Fox): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+6. Single Prompt for All 6 Elemental Panthers (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral panthers, arranged in two rows of three, isolated on a solid green background. All panthers share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Panther): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Panther): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Panther): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Panther): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Panther): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Panther): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+7. Single Prompt for All 6 Elemental Hyenas (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral hyenas, arranged in two rows of three, isolated on a solid green background. All hyenas share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Hyena): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Hyena): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Hyena): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Hyena): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Hyena): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Hyena): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+8. Single Prompt for All 6 Elemental Boars (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral boars, arranged in two rows of three, isolated on a solid green background. All boars share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Boar): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Boar): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Boar): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Boar): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Boar): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Boar): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+9. Single Prompt for All 6 Elemental Rhinos (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral rhinos, arranged in two rows of three, isolated on a solid green background. All rhinos share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Rhino): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Rhino): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Rhino): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Rhino): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Rhino): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Rhino): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+10. Single Prompt for All 6 Elemental Elephants (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral elephants, arranged in two rows of three, isolated on a solid green background. All elephants share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Elephant): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Elephant): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Elephant): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Elephant): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Elephant): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Elephant): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+11. Single Prompt for All 6 Elemental Gorillas (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral gorillas, arranged in two rows of three, isolated on a solid green background. All gorillas share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Gorilla): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Gorilla): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Gorilla): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Gorilla): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Gorilla): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Gorilla): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+12. Single Prompt for All 6 Elemental Crocodiles (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral crocodiles, arranged in two rows of three, isolated on a solid green background. All crocodiles share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Crocodile): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Crocodile): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Crocodile): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Crocodile): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Crocodile): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Crocodile): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+13. Single Prompt for All 6 Elemental Lizards (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral lizards, arranged in two rows of three, isolated on a solid green background. All lizards share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Lizard): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Lizard): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Lizard): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Lizard): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Lizard): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Lizard): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+14. Single Prompt for All 6 Elemental Serpents (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral serpents, arranged in two rows of three, isolated on a solid green background. All serpents share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Serpent): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Serpent): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Serpent): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Serpent): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Serpent): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Serpent): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+15. Single Prompt for All 6 Elemental Scorpions (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral scorpions, arranged in two rows of three, isolated on a solid green background. All scorpions share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Scorpion): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Scorpion): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Scorpion): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Scorpion): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Scorpion): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Scorpion): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+16. Single Prompt for All 6 Elemental Spiders (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral spiders, arranged in two rows of three, isolated on a solid green background. All spiders share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Spider): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Spider): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Spider): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Spider): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Spider): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Spider): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+17. Single Prompt for All 6 Elemental Beetles (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral beetles, arranged in two rows of three, isolated on a solid green background. All beetles share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Beetle): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Beetle): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Beetle): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Beetle): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Beetle): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Beetle): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+18. Single Prompt for All 6 Elemental Wasps (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral wasps, arranged in two rows of three, isolated on a solid green background. All wasps share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Wasp): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Wasp): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Wasp): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Wasp): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Wasp): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Wasp): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+19. Single Prompt for All 6 Elemental Mantiss (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral mantiss, arranged in two rows of three, isolated on a solid green background. All mantiss share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Mantis): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Mantis): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Mantis): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Mantis): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Mantis): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Mantis): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+20. Single Prompt for All 6 Elemental Crabs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral crabs, arranged in two rows of three, isolated on a solid green background. All crabs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Crab): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Crab): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Crab): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Crab): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Crab): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Crab): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+21. Single Prompt for All 6 Elemental Owls (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral owls, arranged in two rows of three, isolated on a solid green background. All owls share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Owl): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Owl): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Owl): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Owl): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Owl): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Owl): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+22. Single Prompt for All 6 Elemental Eagles (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral eagles, arranged in two rows of three, isolated on a solid green background. All eagles share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Eagle): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Eagle): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Eagle): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Eagle): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Eagle): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Eagle): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+23. Single Prompt for All 6 Elemental Ravens (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral ravens, arranged in two rows of three, isolated on a solid green background. All ravens share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Raven): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Raven): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Raven): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Raven): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Raven): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Raven): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+24. Single Prompt for All 6 Elemental Vultures (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral vultures, arranged in two rows of three, isolated on a solid green background. All vultures share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Vulture): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Vulture): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Vulture): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Vulture): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Vulture): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Vulture): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+25. Single Prompt for All 6 Elemental Bats (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral bats, arranged in two rows of three, isolated on a solid green background. All bats share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Bat): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Bat): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Bat): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Bat): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Bat): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Bat): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+26. Single Prompt for All 6 Elemental Moths (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral moths, arranged in two rows of three, isolated on a solid green background. All moths share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Moth): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Moth): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Moth): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Moth): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Moth): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Moth): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+27. Single Prompt for All 6 Elemental Dragonflys (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral dragonflys, arranged in two rows of three, isolated on a solid green background. All dragonflys share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Dragonfly): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Dragonfly): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Dragonfly): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Dragonfly): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Dragonfly): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Dragonfly): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+28. Single Prompt for All 6 Elemental Hawks (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral hawks, arranged in two rows of three, isolated on a solid green background. All hawks share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Hawk): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Hawk): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Hawk): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Hawk): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Hawk): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Hawk): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+29. Single Prompt for All 6 Elemental Falcons (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral falcons, arranged in two rows of three, isolated on a solid green background. All falcons share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Falcon): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Falcon): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Falcon): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Falcon): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Falcon): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Falcon): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+30. Single Prompt for All 6 Elemental Phoenixs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral phoenixs, arranged in two rows of three, isolated on a solid green background. All phoenixs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Phoenix): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Phoenix): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Phoenix): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Phoenix): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Phoenix): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Phoenix): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+31. Single Prompt for All 6 Elemental Sharks (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral sharks, arranged in two rows of three, isolated on a solid green background. All sharks share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Shark): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Shark): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Shark): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Shark): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Shark): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Shark): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+32. Single Prompt for All 6 Elemental Octopuss (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral octopuss, arranged in two rows of three, isolated on a solid green background. All octopuss share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Octopus): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Octopus): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Octopus): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Octopus): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Octopus): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Octopus): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+33. Single Prompt for All 6 Elemental Jellyfishs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral jellyfishs, arranged in two rows of three, isolated on a solid green background. All jellyfishs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Jellyfish): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Jellyfish): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Jellyfish): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Jellyfish): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Jellyfish): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Jellyfish): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+34. Single Prompt for All 6 Elemental Piranhas (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral piranhas, arranged in two rows of three, isolated on a solid green background. All piranhas share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Piranha): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Piranha): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Piranha): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Piranha): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Piranha): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Piranha): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+35. Single Prompt for All 6 Elemental Eels (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral eels, arranged in two rows of three, isolated on a solid green background. All eels share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Eel): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Eel): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Eel): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Eel): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Eel): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Eel): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+36. Single Prompt for All 6 Elemental Turtles (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral turtles, arranged in two rows of three, isolated on a solid green background. All turtles share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Turtle): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Turtle): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Turtle): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Turtle): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Turtle): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Turtle): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+37. Single Prompt for All 6 Elemental Frogs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral frogs, arranged in two rows of three, isolated on a solid green background. All frogs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Frog): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Frog): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Frog): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Frog): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Frog): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Frog): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+38. Single Prompt for All 6 Elemental Toads (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral toads, arranged in two rows of three, isolated on a solid green background. All toads share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Toad): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Toad): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Toad): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Toad): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Toad): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Toad): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+39. Single Prompt for All 6 Elemental Newts (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral newts, arranged in two rows of three, isolated on a solid green background. All newts share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Newt): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Newt): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Newt): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Newt): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Newt): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Newt): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+40. Single Prompt for All 6 Elemental Salamanders (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral salamanders, arranged in two rows of three, isolated on a solid green background. All salamanders share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Salamander): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Salamander): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Salamander): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Salamander): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Salamander): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Salamander): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+41. Single Prompt for All 6 Elemental Golems (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral golems, arranged in two rows of three, isolated on a solid green background. All golems share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Golem): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Golem): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Golem): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Golem): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Golem): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Golem): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+42. Single Prompt for All 6 Elemental Gargoyles (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral gargoyles, arranged in two rows of three, isolated on a solid green background. All gargoyles share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Gargoyle): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Gargoyle): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Gargoyle): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Gargoyle): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Gargoyle): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Gargoyle): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+43. Single Prompt for All 6 Elemental Wraiths (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral wraiths, arranged in two rows of three, isolated on a solid green background. All wraiths share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Wraith): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Wraith): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Wraith): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Wraith): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Wraith): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Wraith): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+44. Single Prompt for All 6 Elemental Ghouls (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral ghouls, arranged in two rows of three, isolated on a solid green background. All ghouls share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Ghoul): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Ghoul): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Ghoul): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Ghoul): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Ghoul): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Ghoul): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+45. Single Prompt for All 6 Elemental Zombies (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral zombies, arranged in two rows of three, isolated on a solid green background. All zombies share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Zombie): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Zombie): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Zombie): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Zombie): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Zombie): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Zombie): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+46. Single Prompt for All 6 Elemental Skeletons (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral skeletons, arranged in two rows of three, isolated on a solid green background. All skeletons share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Skeleton): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Skeleton): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Skeleton): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Skeleton): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Skeleton): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Skeleton): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+47. Single Prompt for All 6 Elemental Demons (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral demons, arranged in two rows of three, isolated on a solid green background. All demons share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Demon): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Demon): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Demon): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Demon): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Demon): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Demon): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+48. Single Prompt for All 6 Elemental Imps (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral imps, arranged in two rows of three, isolated on a solid green background. All imps share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Imp): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Imp): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Imp): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Imp): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Imp): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Imp): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+49. Single Prompt for All 6 Elemental Djinns (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral djinns, arranged in two rows of three, isolated on a solid green background. All djinns share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Djinn): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Djinn): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Djinn): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Djinn): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Djinn): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Djinn): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+50. Single Prompt for All 6 Elemental Banshees (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral banshees, arranged in two rows of three, isolated on a solid green background. All banshees share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Banshee): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Banshee): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Banshee): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Banshee): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Banshee): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Banshee): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+51. Single Prompt for All 6 Elemental Minotaurs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral minotaurs, arranged in two rows of three, isolated on a solid green background. All minotaurs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Minotaur): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Minotaur): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Minotaur): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Minotaur): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Minotaur): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Minotaur): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+52. Single Prompt for All 6 Elemental Centaurs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral centaurs, arranged in two rows of three, isolated on a solid green background. All centaurs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Centaur): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Centaur): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Centaur): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Centaur): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Centaur): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Centaur): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+53. Single Prompt for All 6 Elemental Satyrs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral satyrs, arranged in two rows of three, isolated on a solid green background. All satyrs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Satyr): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Satyr): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Satyr): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Satyr): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Satyr): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Satyr): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+54. Single Prompt for All 6 Elemental Cyclopss (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral cyclopss, arranged in two rows of three, isolated on a solid green background. All cyclopss share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Cyclops): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Cyclops): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Cyclops): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Cyclops): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Cyclops): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Cyclops): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+55. Single Prompt for All 6 Elemental Ogres (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral ogres, arranged in two rows of three, isolated on a solid green background. All ogres share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Ogre): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Ogre): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Ogre): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Ogre): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Ogre): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Ogre): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+56. Single Prompt for All 6 Elemental Trolls (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral trolls, arranged in two rows of three, isolated on a solid green background. All trolls share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Troll): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Troll): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Troll): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Troll): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Troll): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Troll): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+57. Single Prompt for All 6 Elemental Goblins (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral goblins, arranged in two rows of three, isolated on a solid green background. All goblins share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Goblin): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Goblin): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Goblin): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Goblin): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Goblin): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Goblin): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+58. Single Prompt for All 6 Elemental Orcs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral orcs, arranged in two rows of three, isolated on a solid green background. All orcs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Orc): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Orc): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Orc): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Orc): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Orc): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Orc): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+59. Single Prompt for All 6 Elemental Kobolds (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral kobolds, arranged in two rows of three, isolated on a solid green background. All kobolds share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Kobold): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Kobold): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Kobold): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Kobold): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Kobold): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Kobold): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+60. Single Prompt for All 6 Elemental Gnolls (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral gnolls, arranged in two rows of three, isolated on a solid green background. All gnolls share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Gnoll): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Gnoll): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Gnoll): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Gnoll): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Gnoll): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Gnoll): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+61. Single Prompt for All 6 Elemental Dragons (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral dragons, arranged in two rows of three, isolated on a solid green background. All dragons share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Dragon): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Dragon): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Dragon): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Dragon): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Dragon): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Dragon): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+62. Single Prompt for All 6 Elemental Wyverns (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral wyverns, arranged in two rows of three, isolated on a solid green background. All wyverns share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Wyvern): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Wyvern): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Wyvern): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Wyvern): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Wyvern): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Wyvern): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+63. Single Prompt for All 6 Elemental Hydras (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral hydras, arranged in two rows of three, isolated on a solid green background. All hydras share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Hydra): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Hydra): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Hydra): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Hydra): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Hydra): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Hydra): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+64. Single Prompt for All 6 Elemental Basilisks (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral basilisks, arranged in two rows of three, isolated on a solid green background. All basilisks share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Basilisk): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Basilisk): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Basilisk): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Basilisk): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Basilisk): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Basilisk): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+65. Single Prompt for All 6 Elemental Chimeras (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral chimeras, arranged in two rows of three, isolated on a solid green background. All chimeras share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Chimera): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Chimera): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Chimera): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Chimera): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Chimera): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Chimera): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+66. Single Prompt for All 6 Elemental Griffins (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral griffins, arranged in two rows of three, isolated on a solid green background. All griffins share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Griffin): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Griffin): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Griffin): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Griffin): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Griffin): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Griffin): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+67. Single Prompt for All 6 Elemental Krakens (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral krakens, arranged in two rows of three, isolated on a solid green background. All krakens share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Kraken): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Kraken): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Kraken): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Kraken): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Kraken): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Kraken): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+68. Single Prompt for All 6 Elemental Leviathans (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral leviathans, arranged in two rows of three, isolated on a solid green background. All leviathans share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Leviathan): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Leviathan): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Leviathan): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Leviathan): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Leviathan): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Leviathan): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+69. Single Prompt for All 6 Elemental Manticores (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral manticores, arranged in two rows of three, isolated on a solid green background. All manticores share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Manticore): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Manticore): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Manticore): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Manticore): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Manticore): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Manticore): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+70. Single Prompt for All 6 Elemental Sphinxs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral sphinxs, arranged in two rows of three, isolated on a solid green background. All sphinxs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Sphinx): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Sphinx): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Sphinx): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Sphinx): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Sphinx): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Sphinx): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+71. Single Prompt for All 6 Elemental Unicorns (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral unicorns, arranged in two rows of three, isolated on a solid green background. All unicorns share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Unicorn): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Unicorn): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Unicorn): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Unicorn): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Unicorn): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Unicorn): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+72. Single Prompt for All 6 Elemental Pegasuss (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral pegasuss, arranged in two rows of three, isolated on a solid green background. All pegasuss share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Pegasus): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Pegasus): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Pegasus): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Pegasus): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Pegasus): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Pegasus): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+73. Single Prompt for All 6 Elemental Kirins (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral kirins, arranged in two rows of three, isolated on a solid green background. All kirins share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Kirin): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Kirin): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Kirin): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Kirin): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Kirin): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Kirin): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+74. Single Prompt for All 6 Elemental Yetis (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral yetis, arranged in two rows of three, isolated on a solid green background. All yetis share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Yeti): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Yeti): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Yeti): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Yeti): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Yeti): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Yeti): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+75. Single Prompt for All 6 Elemental Werewolfs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral werewolfs, arranged in two rows of three, isolated on a solid green background. All werewolfs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Werewolf): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Werewolf): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Werewolf): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Werewolf): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Werewolf): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Werewolf): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+76. Single Prompt for All 6 Elemental Vampire Bats (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral vampire bats, arranged in two rows of three, isolated on a solid green background. All vampire bats share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Vampire Bat): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Vampire Bat): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Vampire Bat): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Vampire Bat): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Vampire Bat): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Vampire Bat): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+77. Single Prompt for All 6 Elemental Mummys (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral mummys, arranged in two rows of three, isolated on a solid green background. All mummys share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Mummy): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Mummy): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Mummy): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Mummy): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Mummy): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Mummy): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+78. Single Prompt for All 6 Elemental Lichs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral lichs, arranged in two rows of three, isolated on a solid green background. All lichs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Lich): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Lich): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Lich): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Lich): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Lich): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Lich): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+79. Single Prompt for All 6 Elemental Reapers (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral reapers, arranged in two rows of three, isolated on a solid green background. All reapers share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Reaper): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Reaper): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Reaper): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Reaper): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Reaper): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Reaper): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+80. Single Prompt for All 6 Elemental Specters (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral specters, arranged in two rows of three, isolated on a solid green background. All specters share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Specter): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Specter): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Specter): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Specter): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Specter): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Specter): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+81. Single Prompt for All 6 Elemental Slimes (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral slimes, arranged in two rows of three, isolated on a solid green background. All slimes share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Slime): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Slime): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Slime): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Slime): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Slime): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Slime): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+82. Single Prompt for All 6 Elemental Mimics (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral mimics, arranged in two rows of three, isolated on a solid green background. All mimics share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Mimic): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Mimic): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Mimic): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Mimic): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Mimic): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Mimic): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+83. Single Prompt for All 6 Elemental Golem Constructs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral golem constructs, arranged in two rows of three, isolated on a solid green background. All golem constructs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Golem Construct): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Golem Construct): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Golem Construct): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Golem Construct): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Golem Construct): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Golem Construct): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+84. Single Prompt for All 6 Elemental Automatons (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral automatons, arranged in two rows of three, isolated on a solid green background. All automatons share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Automaton): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Automaton): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Automaton): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Automaton): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Automaton): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Automaton): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+85. Single Prompt for All 6 Elemental Cyber Hounds (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral cyber hounds, arranged in two rows of three, isolated on a solid green background. All cyber hounds share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Cyber Hound): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Cyber Hound): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Cyber Hound): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Cyber Hound): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Cyber Hound): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Cyber Hound): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+86. Single Prompt for All 6 Elemental Mech Spiders (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral mech spiders, arranged in two rows of three, isolated on a solid green background. All mech spiders share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Mech Spider): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Mech Spider): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Mech Spider): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Mech Spider): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Mech Spider): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Mech Spider): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+87. Single Prompt for All 6 Elemental Drone Beasts (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral drone beasts, arranged in two rows of three, isolated on a solid green background. All drone beasts share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Drone Beast): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Drone Beast): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Drone Beast): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Drone Beast): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Drone Beast): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Drone Beast): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+88. Single Prompt for All 6 Elemental Sentinels (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral sentinels, arranged in two rows of three, isolated on a solid green background. All sentinels share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Sentinel): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Sentinel): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Sentinel): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Sentinel): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Sentinel): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Sentinel): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+89. Single Prompt for All 6 Elemental Wardens (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral wardens, arranged in two rows of three, isolated on a solid green background. All wardens share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Warden): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Warden): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Warden): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Warden): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Warden): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Warden): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+90. Single Prompt for All 6 Elemental Colossuss (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral colossuss, arranged in two rows of three, isolated on a solid green background. All colossuss share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Colossus): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Colossus): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Colossus): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Colossus): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Colossus): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Colossus): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+91. Single Prompt for All 6 Elemental Sabertooth Cats (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral sabertooth cats, arranged in two rows of three, isolated on a solid green background. All sabertooth cats share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Sabertooth Cat): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Sabertooth Cat): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Sabertooth Cat): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Sabertooth Cat): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Sabertooth Cat): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Sabertooth Cat): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+92. Single Prompt for All 6 Elemental Mammoths (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral mammoths, arranged in two rows of three, isolated on a solid green background. All mammoths share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Mammoth): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Mammoth): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Mammoth): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Mammoth): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Mammoth): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Mammoth): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+93. Single Prompt for All 6 Elemental Raptors (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral raptors, arranged in two rows of three, isolated on a solid green background. All raptors share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Raptor): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Raptor): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Raptor): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Raptor): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Raptor): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Raptor): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+94. Single Prompt for All 6 Elemental Pterodactyls (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral pterodactyls, arranged in two rows of three, isolated on a solid green background. All pterodactyls share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Pterodactyl): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Pterodactyl): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Pterodactyl): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Pterodactyl): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Pterodactyl): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Pterodactyl): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+95. Single Prompt for All 6 Elemental Stegosauruss (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral stegosauruss, arranged in two rows of three, isolated on a solid green background. All stegosauruss share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Stegosaurus): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Stegosaurus): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Stegosaurus): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Stegosaurus): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Stegosaurus): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Stegosaurus): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+96. Single Prompt for All 6 Elemental Triceratopss (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral triceratopss, arranged in two rows of three, isolated on a solid green background. All triceratopss share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Triceratops): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Triceratops): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Triceratops): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Triceratops): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Triceratops): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Triceratops): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+97. Single Prompt for All 6 Elemental Velociraptors (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral velociraptors, arranged in two rows of three, isolated on a solid green background. All velociraptors share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Velociraptor): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Velociraptor): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Velociraptor): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Velociraptor): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Velociraptor): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Velociraptor): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+98. Single Prompt for All 6 Elemental Ankylosauruss (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral ankylosauruss, arranged in two rows of three, isolated on a solid green background. All ankylosauruss share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Ankylosaurus): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Ankylosaurus): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Ankylosaurus): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Ankylosaurus): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Ankylosaurus): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Ankylosaurus): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+99. Single Prompt for All 6 Elemental T-Rexs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral t-rexs, arranged in two rows of three, isolated on a solid green background. All t-rexs share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal T-Rex): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire T-Rex): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water T-Rex): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air T-Rex): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth T-Rex): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning T-Rex): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
+100. Single Prompt for All 6 Elemental Dimetrodons (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral dimetrodons, arranged in two rows of three, isolated on a solid green background. All dimetrodons share a thick black outline, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each creature is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Dimetrodon): Rugged dark hide textured like tough tree bark and stone, shaggy natural fur/scales, sharp amber eyes. (Fire Dimetrodon): Made of smoldering ash and charcoal-grey hide with glowing ember cracks, wisps of drifting embers, glowing orange eyes. (Water Dimetrodon): Composed of cascading deep-blue and clear water with visible ripple and splash patterns, foamy water and bubbles clinging to the form, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Dimetrodon): Swift, wispy, translucent hide made of swirling air currents and condensed pale-blue vapor, trailing stylized wind and small floating clouds, bright white glowing eyes. 5. (Earth Dimetrodon): Heavy body made of rugged layered granite plates and deep-brown soil with moss and vines, dense rocky protrusions, glowing emerald eyes. 6. (Lightning Dimetrodon): Pulsing electrical currents and arcing plasma, hide of flashing white and yellow lightning bolts on an indigo form, crackling volatile electricity, intense electric-blue glowing eyes.
+
+================================================================================
+
