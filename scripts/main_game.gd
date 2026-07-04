@@ -145,6 +145,13 @@ var _pending_round_reward: Dictionary = {}
 var _rolled_rewards: Dictionary = {}   # {difficulty: reward} — rolled once per round, shown in full
 var _wave_director := WaveDirector.new()   # wave specs + enemy creation (shared logic w/ arena)
 var _coin_system: GoldCoinSystem       # gold drops on the field (see gold_coin_system.gd)
+
+# ── Combat-UI refresh throttle (perf fix 2026-07-04, see _on_unit_action) ──
+const COMBAT_UI_REFRESH_INTERVAL := 0.25
+var _combat_ui_dirty := false
+var _eh_dirty := false
+var _ui_refresh_accum := 0.0
+var _perf_overlay_lbl: Label = null    # F3 debug overlay (FPS / frame ms / node count)
 var _equipment_inventory: EquipmentInventory
 var _equipment_panel: EquipmentPanel
 var _event_panel: EventPanel
@@ -879,9 +886,13 @@ func _despawn_summons() -> void:
 		if is_instance_valid(unit):
 			unit.queue_free()
 
+# PERF (2026-07-04): this fires for EVERY attack/skill/ult of EVERY unit. It
+# used to rebuild the team lists + damage meter synchronously each time —
+# ~500+ Control nodes created/freed per action at 15v14, measured at 156ms/frame
+# (6 fps) in the perf probe. Now it only marks the combat UI dirty; the actual
+# rebuild runs at most 4x/sec from _process, and only for visible panels.
 func _on_unit_action(_unit, _action_type: String) -> void:
-	update_team_health_bars()
-	_rebuild_damage_meter()
+	_combat_ui_dirty = true
 
 
 
@@ -963,6 +974,11 @@ func update_team_health_bars() -> void:
 		_rebuild_unit_list(_sb_enemy_ulist, enemy_units, Color(0.95, 0.4, 0.4, 1))
 
 func _rebuild_unit_list(container: VBoxContainer, units: Array, name_color: Color) -> void:
+	# PERF: a hidden list (collapsed panel / closed accordion) keeps its stale
+	# content instead of paying ~16 nodes per unit per rebuild. Expanding a
+	# panel repaints within 0.25s via the dirty-flag throttle in _process.
+	if not container.is_visible_in_tree():
+		return
 	for child in container.get_children():
 		child.queue_free()
 
@@ -1525,11 +1541,17 @@ func _on_action_logged(text: String, is_player: bool) -> void:
 	_event_log.append({"text": text, "is_player": is_player})
 	if _event_log.size() > 200:
 		_event_log = _event_log.slice(_event_log.size() - 200)
-	_render_event_log()
+	# PERF (2026-07-04): rendering rebuilt up to 200 Labels PER LOGGED ACTION
+	# (and every attack logs). Now data-only here; render is throttled+gated.
+	_eh_dirty = true
 
 func _rebuild_damage_meter() -> void:
 	# Write to the sidebar-native list; fall back to the scene list if not built yet
 	var target: VBoxContainer = _sb_dm_list if _sb_dm_list else dm_list
+	# PERF: skip entirely while the meter isn't on screen (throttle repaints it
+	# within 0.25s of being expanded during battle).
+	if not target.is_visible_in_tree():
+		return
 	for child in target.get_children():
 		target.remove_child(child)
 		child.free()
@@ -1594,6 +1616,9 @@ func _rebuild_damage_meter() -> void:
 		target.add_child(lbl)
 
 func _render_event_log() -> void:
+	# PERF: rebuilding up to 200 Labels is pointless while the log is hidden.
+	if not eh_list.is_visible_in_tree():
+		return
 	# Clear the event-history list first
 	for child in eh_list.get_children():
 		eh_list.remove_child(child)
@@ -1629,6 +1654,8 @@ func _on_team_toggle() -> void:
 	_set_team_panel_content_visible(_team_panel_expanded)
 	team_toggle_btn.text = "TEAM STATUS  %s" % ("▼" if _team_panel_expanded else "▶")
 	_apply_panel_height(team_stats_panel, _team_panel_expanded, TEAM_PANEL_COLLAPSED_HEIGHT, TEAM_PANEL_EXPANDED_HEIGHT)
+	if _team_panel_expanded:
+		update_team_health_bars()   # repaint immediately — lists were skipped while hidden
 
 func _set_team_panel_content_visible(show: bool) -> void:
 	var vbox := team_stats_panel.get_node("VBox")
@@ -2055,6 +2082,25 @@ func _process(_delta: float) -> void:
 	_update_details_panel()
 	_update_bag_drag()
 	_update_held_item_tooltip()
+	# Throttled combat-UI refresh (see _on_unit_action perf note): rebuild the
+	# heavy lists at most 4x/sec, and each rebuilder skips panels that aren't
+	# visible. During battle actions fire constantly, so a panel expanded
+	# mid-fight repaints within a quarter second anyway.
+	_ui_refresh_accum += _delta
+	if _ui_refresh_accum >= COMBAT_UI_REFRESH_INTERVAL:
+		_ui_refresh_accum = 0.0
+		if _combat_ui_dirty:
+			_combat_ui_dirty = false
+			update_team_health_bars()
+			_rebuild_damage_meter()
+		if _eh_dirty:
+			_eh_dirty = false
+			_render_event_log()
+		if _perf_overlay_lbl and _perf_overlay_lbl.visible:
+			_perf_overlay_lbl.text = "FPS %d   %.1f ms   nodes %d" % [
+				Performance.get_monitor(Performance.TIME_FPS),
+				Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+				Performance.get_monitor(Performance.OBJECT_NODE_COUNT)]
 
 # Hovering an enemy's held-item badge on the battlefield shows the same item
 # tooltip (name / rarity / stats / passive) as the Unit Details bag. The badge is
@@ -2099,6 +2145,26 @@ func _input(event: InputEvent) -> void:
 			_on_spawn_hero_pressed()
 		elif event.keycode == KEY_ESCAPE:
 			_close_top_menu()
+		elif event.keycode == KEY_F3:
+			_toggle_perf_overlay()
+
+# F3 debug overlay: FPS / process ms / live node count, updated 4x/sec from the
+# combat-UI throttle tick. Added with the 2026-07-04 perf fix so lag reports
+# can come with numbers instead of vibes.
+func _toggle_perf_overlay() -> void:
+	if _perf_overlay_lbl == null:
+		var layer := CanvasLayer.new()
+		layer.layer = 99
+		add_child(layer)
+		_perf_overlay_lbl = Label.new()
+		_perf_overlay_lbl.position = Vector2(8, 4)
+		_perf_overlay_lbl.add_theme_font_size_override("font_size", 14)
+		_perf_overlay_lbl.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
+		_perf_overlay_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+		_perf_overlay_lbl.add_theme_constant_override("outline_size", 4)
+		layer.add_child(_perf_overlay_lbl)
+	else:
+		_perf_overlay_lbl.visible = not _perf_overlay_lbl.visible
 
 # Esc closes whichever browse-style menu is currently open (topmost first).
 # Forced-choice screens (level up, round reward, event) are deliberately not

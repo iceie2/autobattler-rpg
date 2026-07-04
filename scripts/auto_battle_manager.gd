@@ -82,6 +82,11 @@ const BASE_TIME_SCALE := 0.9
 # interval instead (~4 refreshes/sec) via a per-unit "aura_tick_t" meta countdown.
 const AURA_TICK_INTERVAL := 0.25
 
+# Gate for per-frame pathfinding debug prints (see move_unit_towards_with_
+# pathfinding). NEVER ship true — printing every frame per stuck unit was a
+# measurable part of the 15+ unit lag (2026-07-04 perf pass).
+const PATH_DEBUG := false
+
 func start_battle() -> void:
 	battle_active = true
 	unit_paths.clear()
@@ -1559,22 +1564,25 @@ func move_unit_towards_with_pathfinding(unit: UnitBase, target_pos: Vector2i) ->
 	if needs_new_path:
 		var new_path = Pathfinding.find_path(current_pos, target_pos, battle_grid)
 		if new_path.is_empty():
-			print("[Path] NO PATH from %s to %s" % [current_pos, target_pos])
+			# PERF (2026-07-04): these [Path] prints fired EVERY FRAME for every
+			# blocked/boxed-in unit on a crowded board — console I/O + string
+			# formatting was a real chunk of the 15+ unit frame time. Debug-only.
+			if PATH_DEBUG: print("[Path] NO PATH from %s to %s" % [current_pos, target_pos])
 			return
 		if new_path.size() > 0 and new_path[0] == current_pos:
 			new_path.remove_at(0)
 		unit_paths[unit] = new_path
-		print("[Path] found len=%d first=%s" % [new_path.size(), new_path[0] if new_path.size() > 0 else "EMPTY"])
+		if PATH_DEBUG: print("[Path] found len=%d first=%s" % [new_path.size(), new_path[0] if new_path.size() > 0 else "EMPTY"])
 
 	var path = unit_paths[unit]
 	if path.is_empty():
-		print("[Path] path empty after cache")
+		if PATH_DEBUG: print("[Path] path empty after cache")
 		return
 
 	var next_pos = path[0]
 	var occupied = battle_grid.is_cell_occupied(next_pos)
 	if not battle_grid.is_valid_position(next_pos) or occupied:
-		print("[Path] next_pos %s blocked (occupied=%s)" % [next_pos, occupied])
+		if PATH_DEBUG: print("[Path] next_pos %s blocked (occupied=%s)" % [next_pos, occupied])
 		unit_paths.erase(unit)
 		return
 
