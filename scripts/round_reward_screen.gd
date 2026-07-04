@@ -63,8 +63,8 @@ func _make_unit_card(unit: UnitBase) -> Button:
 			portrait.texture = tex
 	btn.add_child(portrait)
 
-	_lbl(btn, unit.unit_name, 13, Color(0.90, 0.90, 1.0), Vector2(4, 86), Vector2(132, 20), true)
-	_lbl(btn, "Lv.%d" % unit.level, 11, Color(0.83, 0.69, 0.22), Vector2(4, 108), Vector2(132, 18), true)
+	_lbl(btn, unit.unit_name, 15, Color(0.90, 0.90, 1.0), Vector2(4, 86), Vector2(132, 20), true)
+	_lbl(btn, "Lv.%d" % unit.level, 13, Color(0.83, 0.69, 0.22), Vector2(4, 108), Vector2(132, 18), true)
 
 	btn.pressed.connect(_on_unit_chosen.bind(unit))
 	return btn
@@ -91,7 +91,7 @@ func _build_ui() -> void:
 
 	_title_lbl = Label.new()
 	_title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_lbl.add_theme_font_size_override("font_size", 26)
+	_title_lbl.add_theme_font_size_override("font_size", 30)
 	_title_lbl.add_theme_color_override("font_color", Color(0.83, 0.69, 0.22))
 	_title_lbl.position = Vector2(0, 20)
 	_title_lbl.size = Vector2(PANEL_W, 36)
@@ -99,7 +99,7 @@ func _build_ui() -> void:
 
 	_sub_lbl = Label.new()
 	_sub_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_sub_lbl.add_theme_font_size_override("font_size", 14)
+	_sub_lbl.add_theme_font_size_override("font_size", 16)
 	_sub_lbl.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85))
 	_sub_lbl.position = Vector2(0, 58)
 	_sub_lbl.size = Vector2(PANEL_W, 26)

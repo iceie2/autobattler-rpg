@@ -29,7 +29,7 @@ func _build_ui() -> void:
 	title_lbl.name = "TitleLabel"
 
 	# Description
-	var desc_lbl = _lbl(_panel, "", 16, Color(0.8, 0.8, 0.8),
+	var desc_lbl = _lbl(_panel, "", 18, Color(0.8, 0.8, 0.8),
 		Vector2(20, 80), Vector2(760, 80), true)
 	desc_lbl.name = "DescLabel"
 	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -75,7 +75,7 @@ func _refresh_display() -> void:
 		var choice = _current_event.choices[i]
 		var btn = Button.new()
 		btn.text = choice.text
-		btn.add_theme_font_size_override("font_size", 14)
+		btn.add_theme_font_size_override("font_size", 16)
 		btn.add_theme_color_override("font_color", Color(0.85, 0.85, 1.0))
 		btn.custom_minimum_size = Vector2(600, 50)
 		btn.add_theme_stylebox_override("normal",

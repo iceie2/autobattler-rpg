@@ -92,10 +92,10 @@ func _build_ui() -> void:
 	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
 	overlay.add_child(_panel)
 
-	_title_lbl = _lbl(_panel, "CHOOSE A HERO", 30, Color(0.88, 0.88, 1.0),
+	_title_lbl = _lbl(_panel, "CHOOSE A HERO", 34, Color(0.88, 0.88, 1.0),
 		Vector2(0, 18), Vector2(PANEL_W, 44), true)
 	_sub_lbl = _lbl(_panel, "Each hero has unique stat rolls  ·  %dg each  ·  Roll again next round" % HERO_COST,
-		13, Color(1.0, 0.82, 0.3, 0.80), Vector2(0, 58), Vector2(PANEL_W, 26), true)
+		15, Color(1.0, 0.82, 0.3, 0.80), Vector2(0, 58), Vector2(PANEL_W, 26), true)
 
 	# Cancel button
 	_cancel_btn = _btn("Cancel", Rect2((PANEL_W - 200) / 2.0, PANEL_H - 54, 200, 40))
@@ -180,7 +180,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	badge_lbl.size     = badge_bg.size
 	badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge_lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-	badge_lbl.add_theme_font_size_override("font_size", 22)
+	badge_lbl.add_theme_font_size_override("font_size", 26)
 	badge_lbl.add_theme_color_override("font_color", grade_col)
 	badge_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(badge_lbl)
@@ -226,7 +226,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	skill_desc_lbl.mouse_filter  = Control.MOUSE_FILTER_IGNORE
 	skill_desc_lbl.position      = Vector2(14, skill_y + 38)
 	skill_desc_lbl.size          = Vector2(CARD_W - 28, 40)
-	skill_desc_lbl.add_theme_font_size_override("font_size", 11)
+	skill_desc_lbl.add_theme_font_size_override("font_size", 13)
 	skill_desc_lbl.add_theme_color_override("font_color", Color(0.62, 0.62, 0.76))
 	skill_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	skill_desc_lbl.text          = _skill_short_desc(tmp)
@@ -252,7 +252,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	ult_desc_lbl.mouse_filter  = Control.MOUSE_FILTER_IGNORE
 	ult_desc_lbl.position      = Vector2(14, ult_y + 38)
 	ult_desc_lbl.size          = Vector2(CARD_W - 28, 58)
-	ult_desc_lbl.add_theme_font_size_override("font_size", 11)
+	ult_desc_lbl.add_theme_font_size_override("font_size", 13)
 	ult_desc_lbl.add_theme_color_override("font_color", Color(0.62, 0.62, 0.76))
 	ult_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ult_desc_lbl.text          = _ultimate_short_desc(tmp, cls)
@@ -540,7 +540,7 @@ func _add_stat_icon(parent: Node, stat_key: String, pos: Vector2, size: float) -
 func _btn(text: String, rect: Rect2) -> Button:
 	var b := Button.new()
 	b.text = text; b.position = rect.position; b.size = rect.size
-	b.add_theme_font_size_override("font_size", 15)
+	b.add_theme_font_size_override("font_size", 17)
 	b.add_theme_color_override("font_color", Color(0.85, 0.85, 1.0))
 	b.add_theme_stylebox_override("normal",  _flat(Color(0.14, 0.14, 0.22), Color(0.38, 0.38, 0.55), 1, 6))
 	b.add_theme_stylebox_override("hover",   _flat(Color(0.22, 0.22, 0.33), Color(0.6,  0.6,  0.8),  1, 6))

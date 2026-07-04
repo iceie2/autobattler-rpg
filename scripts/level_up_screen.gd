@@ -454,7 +454,7 @@ func _make_card(perk: Dictionary, pos: Vector2) -> Button:
 	badge_lbl.size     = badge_bg.size
 	badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge_lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-	badge_lbl.add_theme_font_size_override("font_size", 18)
+	badge_lbl.add_theme_font_size_override("font_size", 22)
 	badge_lbl.add_theme_color_override("font_color", grade_col)
 	badge_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(badge_lbl)
@@ -483,7 +483,7 @@ func _make_card(perk: Dictionary, pos: Vector2) -> Button:
 	var desc := Label.new()
 	desc.position             = Vector2(16, desc_y)
 	desc.size                 = Vector2(CARD_W - 32, DESC_H)
-	desc.add_theme_font_size_override("font_size", 12)
+	desc.add_theme_font_size_override("font_size", 14)
 	desc.add_theme_color_override("font_color", Color(0.72, 0.70, 0.82))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.vertical_alignment   = VERTICAL_ALIGNMENT_TOP
@@ -512,9 +512,9 @@ func _build_ui() -> void:
 	overlay.add_child(_panel)
 
 	# Header
-	_hero_lbl = _lbl(_panel, "", 24, Color(1.0, 0.88, 0.45),
+	_hero_lbl = _lbl(_panel, "", 28, Color(1.0, 0.88, 0.45),
 		Vector2(0, 14), Vector2(PANEL_W, 38), true)
-	_level_lbl = _lbl(_panel, "", 13, Color(0.75, 0.72, 0.90, 0.85),
+	_level_lbl = _lbl(_panel, "", 15, Color(0.75, 0.72, 0.90, 0.85),
 		Vector2(0, 52), Vector2(PANEL_W, 22), true)
 
 	# Info section — portrait | stat list | radar
@@ -563,7 +563,7 @@ func _build_ui() -> void:
 	# Stat list on right
 	const STAT_X  := 650.0
 	const ROW_H   := 26.0
-	_lbl(_panel, "STATS", 10, Color(0.48, 0.50, 0.70),
+	_lbl(_panel, "STATS", 12, Color(0.48, 0.50, 0.70),
 		Vector2(STAT_X, INFO_Y), Vector2(200, 18))
 
 	_stat_rows.clear()
@@ -571,13 +571,13 @@ func _build_ui() -> void:
 		var sd: Dictionary = STAT_DEFS[i]
 		var ry := INFO_Y + 22.0 + i * ROW_H
 
-		_lbl(_panel, sd.label, 11, Color(0.52, 0.54, 0.72),
+		_lbl(_panel, sd.label, 13, Color(0.52, 0.54, 0.72),
 			Vector2(STAT_X, ry), Vector2(36, ROW_H))
 
-		var val_lbl := _lbl(_panel, "0", 13, Color(0.90, 0.90, 1.0),
+		var val_lbl := _lbl(_panel, "0", 15, Color(0.90, 0.90, 1.0),
 			Vector2(STAT_X + 40, ry), Vector2(54, ROW_H))
 
-		var prev_lbl := _lbl(_panel, "", 12, Color(0.35, 0.92, 0.45),
+		var prev_lbl := _lbl(_panel, "", 14, Color(0.35, 0.92, 0.45),
 			Vector2(STAT_X + 96, ry), Vector2(80, ROW_H))
 		prev_lbl.visible = false
 

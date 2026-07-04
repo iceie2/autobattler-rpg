@@ -65,15 +65,15 @@ func _build_ui() -> void:
 	skull_lbl.position = Vector2(0, 18)
 	skull_lbl.size = Vector2(560, 60)
 	skull_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	skull_lbl.add_theme_font_size_override("font_size", 52)
+	skull_lbl.add_theme_font_size_override("font_size", 56)
 	skull_lbl.add_theme_color_override("font_color", Color(0.75, 0.12, 0.12))
 	panel.add_child(skull_lbl)
 
 	# ── Title (set dynamically by show_defeat / show_victory) ────────────────
-	_title_lbl = _lbl(panel, "☠  DEFEATED", 34, Color(0.95, 0.3, 0.3),
+	_title_lbl = _lbl(panel, "☠  DEFEATED", 38, Color(0.95, 0.3, 0.3),
 		Vector2(0, 78), Vector2(560, 46), true)
 	_subtitle_lbl = _lbl(panel, "Your heroes have fallen. The gold and heroes are lost.",
-		13, Color(0.65, 0.55, 0.55, 0.9), Vector2(40, 124), Vector2(480, 24), true)
+		15, Color(0.65, 0.55, 0.55, 0.9), Vector2(40, 124), Vector2(480, 24), true)
 
 	# ── Divider ───────────────────────────────────────────────────────────────
 	var sep1 := HSeparator.new()
@@ -81,9 +81,9 @@ func _build_ui() -> void:
 	panel.add_child(sep1)
 
 	# ── Crystal reward (highlighted) ──────────────────────────────────────────
-	_lbl(panel, "CRYSTALS EARNED", 14, Color(0.5, 0.75, 1.0, 0.8),
+	_lbl(panel, "CRYSTALS EARNED", 16, Color(0.5, 0.75, 1.0, 0.8),
 		Vector2(0, 170), Vector2(560, 24), true)
-	_crystal_lbl = _lbl(panel, "0", 54, Color(0.4, 0.8, 1.0),
+	_crystal_lbl = _lbl(panel, "0", 58, Color(0.4, 0.8, 1.0),
 		Vector2(0, 196), Vector2(560, 66), true)
 
 	var sep2 := HSeparator.new()
@@ -91,26 +91,26 @@ func _build_ui() -> void:
 	panel.add_child(sep2)
 
 	# ── Run summary stats ─────────────────────────────────────────────────────
-	_lbl(panel, "RUN SUMMARY", 13, Color(0.6, 0.6, 0.75, 0.7),
+	_lbl(panel, "RUN SUMMARY", 15, Color(0.6, 0.6, 0.75, 0.7),
 		Vector2(0, 282), Vector2(560, 22), true)
 
-	_round_lbl = _lbl(panel, "Rounds Survived:    0", 15, Color(0.8, 0.8, 0.9),
+	_round_lbl = _lbl(panel, "Rounds Survived:    0", 17, Color(0.8, 0.8, 0.9),
 		Vector2(80, 310), Vector2(400, 24))
-	_dmg_lbl   = _lbl(panel, "Total Damage Dealt: 0", 15, Color(0.8, 0.8, 0.9),
+	_dmg_lbl   = _lbl(panel, "Total Damage Dealt: 0", 17, Color(0.8, 0.8, 0.9),
 		Vector2(80, 336), Vector2(400, 24))
-	_kills_lbl = _lbl(panel, "Enemies Defeated:   0", 15, Color(0.8, 0.8, 0.9),
+	_kills_lbl = _lbl(panel, "Enemies Defeated:   0", 17, Color(0.8, 0.8, 0.9),
 		Vector2(80, 362), Vector2(400, 24))
 
 	# ── Tip ───────────────────────────────────────────────────────────────────
 	_lbl(panel, "Crystals carry over — spend them to unlock stronger heroes next run.",
-		11, Color(0.5, 0.55, 0.65, 0.7), Vector2(40, 394), Vector2(480, 22), true)
+		13, Color(0.5, 0.55, 0.65, 0.7), Vector2(40, 394), Vector2(480, 22), true)
 
 	# ── Return button ─────────────────────────────────────────────────────────
 	var btn := Button.new()
 	btn.text = "Return to Main Menu"
 	btn.position = Vector2(155, 420)
 	btn.size = Vector2(250, 44)
-	btn.add_theme_font_size_override("font_size", 16)
+	btn.add_theme_font_size_override("font_size", 18)
 	btn.add_theme_color_override("font_color", Color(0.9, 0.9, 1.0))
 	btn.add_theme_stylebox_override("normal",
 		_flat(Color(0.22, 0.1, 0.1), Color(0.6, 0.2, 0.2), 2, 6))

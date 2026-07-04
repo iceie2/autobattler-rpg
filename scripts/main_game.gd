@@ -160,11 +160,13 @@ var _run_kills: int = 0
 var _relic_waves_done: Dictionary = {}
 
 # ── Sidebar layout ────────────────────────────────────────────────────────────
+# Parchment-and-gold theme (2026-07-04): panels/headers are now light cream
+# (see UITheme), so text colors flipped from light-gold-on-dark to
+# dark-brown-on-cream. _PANEL_DARK/_PANEL_MID (old bg colors) removed —
+# both call sites already switched to UITheme.panel_box()/header_box().
 const SIDEBAR_W  := 285.0
-const _PANEL_DARK := Color(0.07, 0.06, 0.11, 0.94)
-const _PANEL_MID  := Color(0.11, 0.09, 0.17, 0.94)
-const _GOLD_COL   := Color(0.83, 0.69, 0.22, 1.0)
-const _GOLD_DIM   := Color(0.83, 0.69, 0.22, 0.45)
+const _GOLD_COL   := UITheme.TEXT_HEADER
+const _GOLD_DIM   := Color(0.42, 0.29, 0.12, 0.55)
 
 # ITEM_ICONS moved to EquipmentManager.ITEM_ICONS so it's shared with other UI
 # (e.g. the round-reward preview in difficulty_panel.gd).
@@ -629,7 +631,7 @@ func _rebuild_relic_bar() -> void:
 			lbl.text = str(r.get("name", "?")).substr(0, 2)
 			lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-			lbl.add_theme_font_size_override("font_size", 12)
+			lbl.add_theme_font_size_override("font_size", 14)
 			lbl.add_theme_color_override("font_color", col.lightened(0.4))
 			lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slot.add_child(lbl)
@@ -688,7 +690,7 @@ func _make_ctrl_btn(text: String, width: float = 90.0) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(width, 36)
-	b.add_theme_font_size_override("font_size", 13)
+	b.add_theme_font_size_override("font_size", 17)
 	# UI theme pass 2026-07-03: dobo-pack button plates (hover=blue, press=purple).
 	UITheme.style_button(b)
 	return b
@@ -983,7 +985,7 @@ func _rebuild_unit_list(container: VBoxContainer, units: Array, name_color: Colo
 		# Unit header: name + level
 		var header := Label.new()
 		header.text = "● %s   Lv.%d" % [unit.unit_name, unit.level]
-		header.add_theme_font_size_override("font_size", 11)
+		header.add_theme_font_size_override("font_size", 15)
 		header.add_theme_color_override("font_color", name_color)
 		container.add_child(header)
 
@@ -1006,7 +1008,7 @@ func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 	var lbl := Label.new()
 	lbl.text = lbl_text
 	lbl.custom_minimum_size = Vector2(20, 12)
-	lbl.add_theme_font_size_override("font_size", 10)
+	lbl.add_theme_font_size_override("font_size", 12)
 	lbl.add_theme_color_override("font_color", color.lightened(0.25))
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(lbl)
@@ -1017,7 +1019,7 @@ func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 	var max_str := "%.1f" % maximum if maximum is float and maximum != int(maximum) else str(int(maximum))
 	nums.text = "%s / %s" % [cur_str, max_str]
 	nums.custom_minimum_size = Vector2(90, 12)
-	nums.add_theme_font_size_override("font_size", 10)
+	nums.add_theme_font_size_override("font_size", 12)
 	nums.add_theme_color_override("font_color", Color(0.72, 0.72, 0.85, 1))
 	nums.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	nums.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -1260,7 +1262,7 @@ func _ensure_details_icons() -> void:
 		cell.add_child(icon)
 		var val := Label.new()
 		val.name = "Value"
-		val.add_theme_font_size_override("font_size", 12)
+		val.add_theme_font_size_override("font_size", 14)
 		val.text = "-"
 		cell.add_child(val)
 		details_combat_grid.add_child(cell)
@@ -1563,7 +1565,7 @@ func _rebuild_damage_meter() -> void:
 		var name_lbl := Label.new()
 		name_lbl.text = "#%d  %s" % [rank, u.unit_name]
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_lbl.add_theme_font_size_override("font_size", 11)
+		name_lbl.add_theme_font_size_override("font_size", 13)
 		name_lbl.add_theme_color_override("font_color", name_col)
 		row.add_child(name_lbl)
 
@@ -1589,7 +1591,7 @@ func _rebuild_damage_meter() -> void:
 		var num_lbl := Label.new()
 		num_lbl.text = "  %d  (%d%%)" % [u.damage_dealt, pct]
 		num_lbl.custom_minimum_size = Vector2(100, 0)
-		num_lbl.add_theme_font_size_override("font_size", 10)
+		num_lbl.add_theme_font_size_override("font_size", 12)
 		num_lbl.add_theme_color_override("font_color", Color(0.85, 0.75, 0.45))
 		row.add_child(num_lbl)
 
@@ -1599,7 +1601,7 @@ func _rebuild_damage_meter() -> void:
 	if sorted.is_empty():
 		var lbl := Label.new()
 		lbl.text = "No data yet — start a battle."
-		lbl.add_theme_font_size_override("font_size", 10)
+		lbl.add_theme_font_size_override("font_size", 12)
 		lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 		target.add_child(lbl)
 
@@ -1616,7 +1618,7 @@ func _render_event_log() -> void:
 		var e: Dictionary = _event_log[i]
 		var lbl := Label.new()
 		lbl.text = str(e["text"])
-		lbl.add_theme_font_size_override("font_size", 11)
+		lbl.add_theme_font_size_override("font_size", 13)
 		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var is_round := str(e["text"]).begins_with("—")
 		if is_round:
@@ -1630,7 +1632,7 @@ func _render_event_log() -> void:
 	if _event_log.is_empty():
 		var empty := Label.new()
 		empty.text = "No actions yet. Start a battle to see the log."
-		empty.add_theme_font_size_override("font_size", 11)
+		empty.add_theme_font_size_override("font_size", 13)
 		empty.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 		eh_list.add_child(empty)
 
@@ -2134,9 +2136,9 @@ func _create_row_tooltip() -> void:
 	_row_tip.add_theme_stylebox_override("panel", s)
 	layer.add_child(_row_tip)
 
-	_row_tip_title = _tip_lbl(14, Color(0.83, 0.69, 0.22), Vector2(10, 7))
-	_row_tip_heal  = _tip_lbl(12, Color(0.35, 0.92, 0.45), Vector2(10, 28))
-	_row_tip_xp    = _tip_lbl(12, Color(0.90, 0.78, 0.30), Vector2(10, 50))
+	_row_tip_title = _tip_lbl(18, Color(0.83, 0.69, 0.22), Vector2(10, 7))
+	_row_tip_heal  = _tip_lbl(14, Color(0.35, 0.92, 0.45), Vector2(10, 28))
+	_row_tip_xp    = _tip_lbl(14, Color(0.90, 0.78, 0.30), Vector2(10, 50))
 	_row_tip.add_child(_row_tip_title)
 	_row_tip.add_child(_row_tip_heal)
 	_row_tip.add_child(_row_tip_xp)
@@ -2403,12 +2405,12 @@ func _build_right_panel() -> void:
 	vb.add_child(econ)
 	# UI theme pass 2026-07-03: currency plates from the dobo pack — the coin/gem
 	# art is baked into the plate's left side, so update_ui shows just the number.
-	gold_label.add_theme_font_size_override("font_size", 17)
+	gold_label.add_theme_font_size_override("font_size", 21)
 	gold_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gold_label.add_theme_stylebox_override("normal", UITheme.coin_label_box())
 	gold_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	gold_label.reparent(econ)
-	crystals_label.add_theme_font_size_override("font_size", 17)
+	crystals_label.add_theme_font_size_override("font_size", 21)
 	crystals_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	crystals_label.add_theme_stylebox_override("normal", UITheme.gem_label_box())
 	crystals_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -2417,10 +2419,10 @@ func _build_right_panel() -> void:
 	var meta_row := HBoxContainer.new()
 	meta_row.add_theme_constant_override("separation", 6)
 	vb.add_child(meta_row)
-	round_label.add_theme_font_size_override("font_size", 13)
+	round_label.add_theme_font_size_override("font_size", 17)
 	round_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	round_label.reparent(meta_row)
-	state_label.add_theme_font_size_override("font_size", 13)
+	state_label.add_theme_font_size_override("font_size", 17)
 	state_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	state_label.reparent(meta_row)
 	vb.add_child(_sb_sep())
@@ -2503,7 +2505,7 @@ func _build_right_panel() -> void:
 
 	# Info strip at bottom of the outer VBox (outside scroll)
 	vb.add_child(_sb_sep())
-	info_label.add_theme_font_size_override("font_size", 10)
+	info_label.add_theme_font_size_override("font_size", 12)
 	info_label.add_theme_color_override("font_color", Color(0.58, 0.58, 0.68, 1))
 	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info_label.reparent(vb)
@@ -2531,7 +2533,7 @@ func _make_sb_lbl(placeholder: String) -> Label:
 	var lbl := Label.new()
 	lbl.text = placeholder
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lbl.add_theme_font_size_override("font_size", 11)
+	lbl.add_theme_font_size_override("font_size", 13)
 	lbl.add_theme_color_override("font_color", Color(0.70, 0.70, 0.80))
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return lbl
@@ -2556,7 +2558,7 @@ func _rebuild_synergy_display() -> void:
 	if _synergy_tracker.active.is_empty():
 		var ph := Label.new()
 		ph.text = "Match elements or stack a\nrole to trigger synergies"
-		ph.add_theme_font_size_override("font_size", 10)
+		ph.add_theme_font_size_override("font_size", 12)
 		ph.add_theme_color_override("font_color", Color(0.42, 0.42, 0.52, 1))
 		ph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		ph.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -2577,7 +2579,7 @@ func _rebuild_synergy_display() -> void:
 
 		var lbl := Label.new()
 		lbl.text = "%s ×%d — %s" % [syn["name"], syn["count"], syn["desc"]]
-		lbl.add_theme_font_size_override("font_size", 11)
+		lbl.add_theme_font_size_override("font_size", 13)
 		lbl.add_theme_color_override("font_color", col.lightened(0.15))
 		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(lbl)
@@ -2735,7 +2737,7 @@ func _sb_margin(parent: Control) -> MarginContainer:
 func _sb_heading(text: String) -> Label:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 11)
+	lbl.add_theme_font_size_override("font_size", 15)
 	lbl.add_theme_color_override("font_color", _GOLD_COL)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	# UI theme pass 2026-07-03: header plate from the dobo pack behind the text.
@@ -2778,7 +2780,7 @@ func _build_item_tooltip() -> void:
 	mg.add_child(vb)
 
 	_item_tip_name_lbl = Label.new()
-	_item_tip_name_lbl.add_theme_font_size_override("font_size", 13)
+	_item_tip_name_lbl.add_theme_font_size_override("font_size", 15)
 	vb.add_child(_item_tip_name_lbl)
 
 	var sep := HSeparator.new()
@@ -2792,13 +2794,13 @@ func _build_item_tooltip() -> void:
 	vb.add_child(_item_tip_stats_vb)
 
 	_item_tip_passive_lbl = Label.new()
-	_item_tip_passive_lbl.add_theme_font_size_override("font_size", 11)
+	_item_tip_passive_lbl.add_theme_font_size_override("font_size", 13)
 	_item_tip_passive_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.30))
 	_item_tip_passive_lbl.visible = false
 	vb.add_child(_item_tip_passive_lbl)
 
 	_item_tip_passive_desc = Label.new()
-	_item_tip_passive_desc.add_theme_font_size_override("font_size", 10)
+	_item_tip_passive_desc.add_theme_font_size_override("font_size", 12)
 	_item_tip_passive_desc.add_theme_color_override("font_color", Color(0.70, 0.70, 0.82))
 	_item_tip_passive_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_item_tip_passive_desc.custom_minimum_size = Vector2(174, 0)
@@ -2828,7 +2830,7 @@ func _show_item_tooltip(item: EquipmentItem, mouse_pos: Vector2) -> void:
 				lbl.text = "+%.2f  %s" % [raw, STAT_NAMES.get(stat, stat.to_upper())]
 			else:
 				lbl.text = "+%d  %s" % [int(raw), STAT_NAMES.get(stat, stat.to_upper())]
-			lbl.add_theme_font_size_override("font_size", 11)
+			lbl.add_theme_font_size_override("font_size", 13)
 			lbl.add_theme_color_override("font_color", Color(0.82, 0.96, 0.72))
 			_item_tip_stats_vb.add_child(lbl)
 
@@ -2932,7 +2934,7 @@ func _sb_accordion(title: String, body: Control, open: bool = false) -> Button:
 	btn.text      = title + ("  ▼" if open else "  ▶")
 	btn.flat      = true
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.add_theme_font_size_override("font_size", 12)
+	btn.add_theme_font_size_override("font_size", 14)
 	btn.add_theme_color_override("font_color", _GOLD_COL)
 	# UI theme pass 2026-07-03: dobo header plate for section accordions.
 	var s := UITheme.header_box()

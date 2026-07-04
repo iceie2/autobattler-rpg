@@ -43,7 +43,7 @@ func _build_ui() -> void:
 	heading.text = "ENEMY DIFFICULTY"
 	if font:
 		heading.add_theme_font_override("font", font)
-	heading.add_theme_font_size_override("font_size", 22)
+	heading.add_theme_font_size_override("font_size", 26)
 	heading.add_theme_color_override("font_color", Color(0.83, 0.69, 0.22, 1.0))
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(heading)
@@ -77,7 +77,7 @@ func _build_ui() -> void:
 		if font:
 			power_lbl.add_theme_font_override("font", font)
 		power_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		power_lbl.add_theme_font_size_override("font_size", 20)
+		power_lbl.add_theme_font_size_override("font_size", 24)
 		power_lbl.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
 		col.add_child(power_lbl)
 		_power_lbls.append(power_lbl)
@@ -115,7 +115,7 @@ func _build_ui() -> void:
 	if font:
 		_reward_lbl.add_theme_font_override("font", font)
 	_reward_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_reward_lbl.add_theme_font_size_override("font_size", 18)
+	_reward_lbl.add_theme_font_size_override("font_size", 22)
 	_reward_lbl.add_theme_color_override("font_color", Color(0.83, 0.69, 0.22, 0.95))
 	_reward_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_reward_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -220,7 +220,7 @@ func _build_tooltip() -> void:
 	mg.add_child(vb)
 
 	_tip_name_lbl = Label.new()
-	_tip_name_lbl.add_theme_font_size_override("font_size", 13)
+	_tip_name_lbl.add_theme_font_size_override("font_size", 15)
 	vb.add_child(_tip_name_lbl)
 
 	var sep := HSeparator.new()
@@ -234,13 +234,13 @@ func _build_tooltip() -> void:
 	vb.add_child(_tip_stats_vb)
 
 	_tip_passive_lbl = Label.new()
-	_tip_passive_lbl.add_theme_font_size_override("font_size", 11)
+	_tip_passive_lbl.add_theme_font_size_override("font_size", 13)
 	_tip_passive_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.30))
 	_tip_passive_lbl.visible = false
 	vb.add_child(_tip_passive_lbl)
 
 	_tip_passive_desc = Label.new()
-	_tip_passive_desc.add_theme_font_size_override("font_size", 10)
+	_tip_passive_desc.add_theme_font_size_override("font_size", 12)
 	_tip_passive_desc.add_theme_color_override("font_color", Color(0.70, 0.70, 0.82))
 	_tip_passive_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_tip_passive_desc.custom_minimum_size = Vector2(174, 0)
@@ -267,7 +267,7 @@ func _on_reward_icon_hover() -> void:
 			var lbl := Label.new()
 			lbl.text = ("+%.2f  %s" % [v, STAT_NAMES.get(stat, stat.to_upper())]) if stat in FLOAT_STATS \
 				else ("+%d  %s" % [int(v), STAT_NAMES.get(stat, stat.to_upper())])
-			lbl.add_theme_font_size_override("font_size", 11)
+			lbl.add_theme_font_size_override("font_size", 13)
 			lbl.add_theme_color_override("font_color", Color(0.82, 0.96, 0.72))
 			_tip_stats_vb.add_child(lbl)
 

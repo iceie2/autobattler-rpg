@@ -34,7 +34,7 @@ func _build_ui() -> void:
 	overlay.add_child(_panel)
 
 	# Title
-	_lbl(_panel, "EQUIPMENT MANAGEMENT", 28, Color(0.85, 0.85, 1.0),
+	_lbl(_panel, "EQUIPMENT MANAGEMENT", 32, Color(0.85, 0.85, 1.0),
 		Vector2(20, 18), Vector2(960, 40), true)
 
 	# Three-column layout: inventory, heroes, hero equipment
@@ -46,7 +46,7 @@ func _build_ui() -> void:
 	var content_h = 600
 
 	# Left column: inventory
-	_lbl(_panel, "INVENTORY", 14, Color(1.0, 1.0, 0.5),
+	_lbl(_panel, "INVENTORY", 16, Color(1.0, 1.0, 0.5),
 		Vector2(left_x, content_y), Vector2(col_width, 24), true)
 
 	var inv_scroll = ScrollContainer.new()
@@ -64,7 +64,7 @@ func _build_ui() -> void:
 	_combine_toggle_btn.pressed.connect(_toggle_combine_mode)
 	_panel.add_child(_combine_toggle_btn)
 
-	_combine_status_lbl = _lbl(_panel, "", 11, Color(0.7, 0.7, 0.85),
+	_combine_status_lbl = _lbl(_panel, "", 13, Color(0.7, 0.7, 0.85),
 		Vector2(left_x, combine_y + 30), Vector2(col_width, 18), true)
 
 	_fuse_btn = _btn("Fuse ×3", Rect2(left_x, combine_y + 50, col_width, 26))
@@ -73,7 +73,7 @@ func _build_ui() -> void:
 	_panel.add_child(_fuse_btn)
 
 	# Middle column: hero list
-	_lbl(_panel, "HEROES", 14, Color(1.0, 0.5, 1.0),
+	_lbl(_panel, "HEROES", 16, Color(1.0, 0.5, 1.0),
 		Vector2(mid_x, content_y), Vector2(col_width, 24), true)
 
 	_hero_list = ItemList.new()
@@ -163,7 +163,7 @@ func _refresh_hero_equipment() -> void:
 func _add_inventory_item_button(parent: VBoxContainer, item: EquipmentItem) -> void:
 	var btn = Button.new()
 	btn.text = item.to_short_string()
-	btn.add_theme_font_size_override("font_size", 11)
+	btn.add_theme_font_size_override("font_size", 13)
 	btn.add_theme_color_override("font_color", item.icon_color)
 	var selected: bool = _combine_mode and item in _combine_sel
 	if selected:
@@ -250,7 +250,7 @@ func _fuse_selected() -> void:
 func _add_equipped_item_button(parent: VBoxContainer, item: EquipmentItem) -> void:
 	var btn = Button.new()
 	btn.text = "✕ " + item.to_short_string()
-	btn.add_theme_font_size_override("font_size", 11)
+	btn.add_theme_font_size_override("font_size", 13)
 	btn.add_theme_color_override("font_color", item.icon_color)
 	btn.add_theme_stylebox_override("normal",
 		_flat(Color(0.12, 0.12, 0.2, 0.8), Color(0.4, 0.4, 0.5), 1, 4))
@@ -291,7 +291,7 @@ func _btn(text: String, rect: Rect2) -> Button:
 	b.text = text
 	b.position = rect.position
 	b.size = rect.size
-	b.add_theme_font_size_override("font_size", 14)
+	b.add_theme_font_size_override("font_size", 16)
 	b.add_theme_color_override("font_color", Color(0.85, 0.85, 1.0))
 	b.add_theme_stylebox_override("normal",  _flat(Color(0.14, 0.14, 0.22), Color(0.4, 0.4, 0.55), 1, 6))
 	b.add_theme_stylebox_override("hover",   _flat(Color(0.22, 0.22, 0.33), Color(0.6, 0.6, 0.8), 1, 6))

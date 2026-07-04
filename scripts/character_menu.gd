@@ -56,7 +56,7 @@ func _build_ui() -> void:
 	_overlay.add_child(_panel)
 
 	# ── Title row ──────────────────────────────────────────────────────────────
-	_lbl(_panel, "CHARACTER ROSTER", 18, Color(0.8, 0.8, 1.0),
+	_lbl(_panel, "CHARACTER ROSTER", 22, Color(0.8, 0.8, 1.0),
 		Vector2(0, 14), Vector2(680, 32), true)
 
 	# Team toggle button
@@ -88,20 +88,20 @@ func _build_ui() -> void:
 	_panel.add_child(_portrait)
 
 	# Class letter overlay on portrait
-	_unit_level_lbl = _lbl(_panel, "", 13, Color(0, 0, 0, 0.8),
+	_unit_level_lbl = _lbl(_panel, "", 15, Color(0, 0, 0, 0.8),
 		Vector2(24, 168), Vector2(120, 22), true)
 
 	# ── Name / class / element ─────────────────────────────────────────────────
-	_unit_name_lbl  = _lbl(_panel, "", 26, Color(1, 0.9, 0.6), Vector2(160, 66), Vector2(380, 38))
-	_unit_class_lbl = _lbl(_panel, "", 14, Color(0.75, 0.75, 0.9), Vector2(160, 106), Vector2(280, 24))
-	_unit_elem_lbl  = _lbl(_panel, "", 14, Color(0.75, 0.9, 0.75), Vector2(160, 130), Vector2(280, 24))
+	_unit_name_lbl  = _lbl(_panel, "", 30, Color(1, 0.9, 0.6), Vector2(160, 66), Vector2(380, 38))
+	_unit_class_lbl = _lbl(_panel, "", 16, Color(0.75, 0.75, 0.9), Vector2(160, 106), Vector2(280, 24))
+	_unit_elem_lbl  = _lbl(_panel, "", 16, Color(0.75, 0.9, 0.75), Vector2(160, 130), Vector2(280, 24))
 
 	# Navigation
 	_prev_btn = _btn("◀ Prev", Rect2(160, 158, 100, 32))
 	_prev_btn.pressed.connect(_prev)
 	_panel.add_child(_prev_btn)
 
-	_unit_idx_lbl = _lbl(_panel, "", 14, Color(0.6, 0.6, 0.8),
+	_unit_idx_lbl = _lbl(_panel, "", 16, Color(0.6, 0.6, 0.8),
 		Vector2(268, 162), Vector2(100, 26), true)
 
 	_next_btn = _btn("Next ▶", Rect2(376, 158, 100, 32))
@@ -113,30 +113,30 @@ func _build_ui() -> void:
 	_panel.add_child(sep2)
 
 	# ── HP / MP bars ──────────────────────────────────────────────────────────
-	_lbl(_panel, "HP", 12, Color(0.4, 0.9, 0.4), Vector2(24, 216), Vector2(30, 18))
+	_lbl(_panel, "HP", 14, Color(0.4, 0.9, 0.4), Vector2(24, 216), Vector2(30, 18))
 	_hp_bar = _bar(_panel, Rect2(58, 214, 300, 18), Color(0.2, 0.78, 0.3))
-	_hp_lbl = _lbl(_panel, "", 12, Color(0.7, 0.9, 0.7), Vector2(368, 216), Vector2(140, 18))
+	_hp_lbl = _lbl(_panel, "", 14, Color(0.7, 0.9, 0.7), Vector2(368, 216), Vector2(140, 18))
 
-	_lbl(_panel, "MP", 12, Color(0.4, 0.6, 1.0), Vector2(24, 240), Vector2(30, 18))
+	_lbl(_panel, "MP", 14, Color(0.4, 0.6, 1.0), Vector2(24, 240), Vector2(30, 18))
 	_mp_bar = _bar(_panel, Rect2(58, 238, 300, 18), Color(0.25, 0.4, 0.9))
-	_mp_lbl = _lbl(_panel, "", 12, Color(0.6, 0.7, 1.0), Vector2(368, 240), Vector2(140, 18))
+	_mp_lbl = _lbl(_panel, "", 14, Color(0.6, 0.7, 1.0), Vector2(368, 240), Vector2(140, 18))
 
 	var sep3 := HSeparator.new()
 	sep3.position = Vector2(0, 268); sep3.size = Vector2(680, 4)
 	_panel.add_child(sep3)
 
 	# ── Stats grid ────────────────────────────────────────────────────────────
-	_lbl(_panel, "STATS", 13, Color(0.6, 0.65, 0.9), Vector2(24, 278), Vector2(100, 22))
-	_stat_lbl = _lbl(_panel, "", 13, Color(0.8, 0.8, 0.95), Vector2(24, 300), Vector2(640, 100))
+	_lbl(_panel, "STATS", 15, Color(0.6, 0.65, 0.9), Vector2(24, 278), Vector2(100, 22))
+	_stat_lbl = _lbl(_panel, "", 15, Color(0.8, 0.8, 0.95), Vector2(24, 300), Vector2(640, 100))
 
 	var sep4 := HSeparator.new()
 	sep4.position = Vector2(0, 410); sep4.size = Vector2(680, 4)
 	_panel.add_child(sep4)
 
 	# ── Skill ─────────────────────────────────────────────────────────────────
-	_lbl(_panel, "SKILL", 13, Color(1.0, 0.85, 0.35), Vector2(24, 422), Vector2(80, 22))
-	_skill_lbl      = _lbl(_panel, "", 15, Color(1.0, 0.85, 0.3), Vector2(110, 420), Vector2(400, 24))
-	_skill_desc_lbl = _lbl(_panel, "", 12, Color(0.7, 0.7, 0.8),  Vector2(24,  448), Vector2(640, 60))
+	_lbl(_panel, "SKILL", 15, Color(1.0, 0.85, 0.35), Vector2(24, 422), Vector2(80, 22))
+	_skill_lbl      = _lbl(_panel, "", 17, Color(1.0, 0.85, 0.3), Vector2(110, 420), Vector2(400, 24))
+	_skill_desc_lbl = _lbl(_panel, "", 14, Color(0.7, 0.7, 0.8),  Vector2(24,  448), Vector2(640, 60))
 	_skill_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 	visible = false
@@ -268,7 +268,7 @@ func _btn(text: String, rect: Rect2, sz: Vector2 = Vector2.ZERO) -> Button:
 	b.text = text
 	b.position = rect.position
 	b.size = rect.size if sz == Vector2.ZERO else sz
-	b.add_theme_font_size_override("font_size", 13)
+	b.add_theme_font_size_override("font_size", 15)
 	b.add_theme_color_override("font_color", Color(0.9, 0.9, 1.0))
 	b.add_theme_stylebox_override("normal",  _flat(Color(0.18, 0.18, 0.28), Color(0.45, 0.45, 0.6), 1, 4))
 	b.add_theme_stylebox_override("hover",   _flat(Color(0.25, 0.25, 0.38), Color(0.6, 0.6, 0.8),  1, 4))
