@@ -88,6 +88,12 @@ func _build_ui() -> void:
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(row)
 
+	# Radio-style group — toggle_mode + a shared ButtonGroup means the
+	# selected difficulty's button STAYS drawn with its "pressed" stylebox
+	# until a different one is chosen, instead of springing back to "normal"
+	# the instant the mouse is released.
+	var group := ButtonGroup.new()
+
 	_diff_btns = []
 	for i in range(3):
 		var col := VBoxContainer.new()
@@ -113,6 +119,9 @@ func _build_ui() -> void:
 		btn.add_theme_stylebox_override("normal", normal_box)
 		btn.add_theme_stylebox_override("hover", normal_box)
 		btn.add_theme_stylebox_override("pressed", pressed_box)
+		btn.toggle_mode = true
+		btn.button_group = group
+		btn.button_pressed = (i == current_difficulty)   # Easy selected by default
 		btn.pressed.connect(_on_difficulty_button_pressed.bind(i))
 		col.add_child(btn)
 		_diff_btns.append(btn)
@@ -326,7 +335,11 @@ func _hide_tooltip() -> void:
 
 func _update_button_colors() -> void:
 	# Color now comes from the art itself (green/blue/red per difficulty) —
-	# modulate only handles the selected/unselected dimming.
+	# modulate only handles the selected/unselected dimming. button_pressed
+	# is re-synced here too since main_game sets current_difficulty directly
+	# (e.g. resetting to EASY each round) without going through the click
+	# handler, and the ButtonGroup's own auto-untoggle only fires on click.
 	for i in range(_diff_btns.size()):
 		var btn: Button = _diff_btns[i]
 		btn.modulate = Color(1, 1, 1) if i == current_difficulty else Color(0.6, 0.6, 0.6)
+		btn.button_pressed = (i == current_difficulty)
