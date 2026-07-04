@@ -269,9 +269,10 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	btn.add_child(div_ult)
 
 	# ── Stat roll table ───────────────────────────────────────────────────────
-	# Each row shows: LABEL   current → next-level (+delta)   growth%
-	# "current" already includes this recruit's one-time flat roll; "growth%" is
-	# this recruit's personalized per-level rate (see UnitFactory.apply_recruit_rolls).
+	# Each row shows: LABEL   stat value   +growth-per-level
+	# We deliberately don't expose the base/bonus roll breakdown here (2026-07-04
+	# clarity pass, user request) — just the number and how much it goes up per
+	# level (can be negative from bad-roll effects).
 	var table_y := div_ult_y + 8.0
 	var ROW_H   := 22.0
 
@@ -308,20 +309,21 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 		var mult: float         = roll_entry.get("growth", 1.0)
 		var bonus: float        = snappedf(base_growth * mult, 0.01) if is_small_float else float(round(base_growth * mult))
 		var next_val: float     = current_val + base_growth + bonus
+		var delta: float        = base_growth + bonus
 
-		# Base value is always plain white — only the growth (arrow/delta/roll) is
-		# tier-colored by the ROLL MULTIPLIER, so color always tells you the
-		# QUALITY of this roll, not just whether the base stat is high or low.
+		# Growth (the delta) is tier-colored by the ROLL MULTIPLIER, so color
+		# always tells you the QUALITY of this roll. The stat value itself is
+		# plain white.
 		var growth_col: Color = UnitFactory.grade_color_for_growth(mult)
 
 		var base_str: String
 		var growth_str: String
 		if is_small_float:
-			base_str = "%.2f" % current_val
-			growth_str = "→ %.2f  (base %.2f + bonus %.2f)" % [next_val, base_growth, bonus]
+			base_str = "%.2f" % next_val
+			growth_str = "%+.2f" % delta
 		else:
-			base_str = "%d" % int(current_val)
-			growth_str = "→ %d  (base %d + bonus %d)" % [int(next_val), int(base_growth), int(bonus)]
+			base_str = "%d" % int(next_val)
+			growth_str = "%+d" % int(delta)
 
 		_add_stat_icon(btn, roll_key, Vector2(14, row_y + 2), 18.0)
 		_clbl(btn, disp_name, 10, Color(0.55, 0.55, 0.72),
