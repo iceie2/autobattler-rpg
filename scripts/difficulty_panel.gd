@@ -7,8 +7,39 @@ signal difficulty_selected(difficulty: int)
 
 var current_difficulty: int = WaveScaler.Difficulty.EASY
 var _diff_btns: Array = []
-var _power_lbls: Array = []
+var _diff_labels: Array = ["★ Easy", "★★ Normal", "★★★ Hard"]
 var _rewards_by_diff: Dictionary = {}
+
+# Difficulty button art (2026-07-04, user-picked tiles from the pixel-button
+# sheet — see assets/UI/Pixel Buttom.png, 32px grid). Each button is a 2-tile
+# (64x32 native) pill, cropped+3x-scaled into assets/UI/generated/. The user
+# supplied exact (row, col) coords per difficulty; normal/pressed are genuinely
+# distinct art (raised bevel + drop-shadow "foot" vs. flat sunken look), not a
+# modulate trick — pressing these buttons now visibly animates.
+const _DIFF_ART := [
+	{"normal": "diff_easy_normal.png",   "pressed": "diff_easy_pressed.png"},
+	{"normal": "diff_medium_normal.png", "pressed": "diff_medium_pressed.png"},
+	{"normal": "diff_hard_normal.png",   "pressed": "diff_hard_pressed.png"},
+]
+const _DIFF_ART_PATH := "res://assets/UI/generated/"
+# Margins found by sampling the source pixel art directly (see session notes):
+# the left/right end-caps end by ~x=20 of the 192px-wide (3x) texture, and
+# rows 40-55 of the 96px-tall texture sit inside a single flat-color band, so
+# stretching there is invisible — these margins keep every cap/bevel detail
+# fixed and only stretch through genuinely flat regions.
+const _DIFF_BTN_MARGIN_H := 30
+const _DIFF_BTN_MARGIN_V := 40
+
+static func _diff_tex_box(path: String) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = load(_DIFF_ART_PATH + path) as Texture2D
+	sb.texture_margin_left = _DIFF_BTN_MARGIN_H
+	sb.texture_margin_right = _DIFF_BTN_MARGIN_H
+	sb.texture_margin_top = _DIFF_BTN_MARGIN_V
+	sb.texture_margin_bottom = _DIFF_BTN_MARGIN_V
+	sb.content_margin_top = 8
+	sb.content_margin_bottom = 8
+	return sb
 
 # Single reward display (only the CURRENTLY selected difficulty's reward is
 # shown — switch difficulty to see the others).
@@ -54,9 +85,7 @@ func _build_ui() -> void:
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_child(row)
 
-	var diff_labels: Array = ["★ Easy", "★★ Normal", "★★★ Hard"]
 	_diff_btns = []
-	_power_lbls = []
 	for i in range(3):
 		var col := VBoxContainer.new()
 		col.add_theme_constant_override("separation", 2)
@@ -64,23 +93,27 @@ func _build_ui() -> void:
 		row.add_child(col)
 
 		var btn := Button.new()
-		btn.text = diff_labels[i]
+		# Power text is now the button's own second line (see update_display) —
+		# moved onto the button per user request, replacing the separate label
+		# that used to sit below it.
+		btn.text = _diff_labels[i]
 		if font:
 			btn.add_theme_font_override("font", font)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.custom_minimum_size = Vector2(0, 56)
+		btn.add_theme_font_size_override("font_size", 18)
+		btn.add_theme_color_override("font_color", Color(0.10, 0.08, 0.04))
+		btn.add_theme_color_override("font_hover_color", Color(0.10, 0.08, 0.04))
+		btn.add_theme_color_override("font_pressed_color", Color(0.05, 0.04, 0.02))
+		var art: Dictionary = _DIFF_ART[i]
+		var normal_box := _diff_tex_box(art["normal"])
+		var pressed_box := _diff_tex_box(art["pressed"])
+		btn.add_theme_stylebox_override("normal", normal_box)
+		btn.add_theme_stylebox_override("hover", normal_box)
+		btn.add_theme_stylebox_override("pressed", pressed_box)
 		btn.pressed.connect(_on_difficulty_button_pressed.bind(i))
 		col.add_child(btn)
 		_diff_btns.append(btn)
-
-		var power_lbl := Label.new()
-		power_lbl.text = ""
-		if font:
-			power_lbl.add_theme_font_override("font", font)
-		power_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		power_lbl.add_theme_font_size_override("font_size", 24)
-		power_lbl.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
-		col.add_child(power_lbl)
-		_power_lbls.append(power_lbl)
 
 	# Single reward display for whichever difficulty is currently selected —
 	# item icon sits centered in its own 1x1 bag-style slot, name/rarity below.
@@ -144,7 +177,7 @@ func update_display(power_by_diff: Dictionary, rewards_by_diff: Dictionary = {})
 	_update_button_colors()
 	for i in range(3):
 		var power: float = power_by_diff.get(i, 0.0)
-		_power_lbls[i].text = "Power: %d" % int(power)
+		_diff_btns[i].text = "%s\nPower: %d" % [_diff_labels[i], int(power)]
 	_rewards_by_diff = rewards_by_diff
 	_refresh_reward_display()
 
@@ -290,7 +323,8 @@ func _hide_tooltip() -> void:
 		_tip_panel.visible = false
 
 func _update_button_colors() -> void:
-	var diff_colors: Array = [Color(0.2, 0.75, 0.3), Color(0.9, 0.65, 0.1), Color(0.9, 0.2, 0.15)]
+	# Color now comes from the art itself (green/blue/red per difficulty) —
+	# modulate only handles the selected/unselected dimming.
 	for i in range(_diff_btns.size()):
 		var btn: Button = _diff_btns[i]
-		btn.modulate = diff_colors[i] if i == current_difficulty else Color(0.5, 0.5, 0.5)
+		btn.modulate = Color(1, 1, 1) if i == current_difficulty else Color(0.6, 0.6, 0.6)
