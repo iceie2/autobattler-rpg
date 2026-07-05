@@ -1841,8 +1841,16 @@ func _update_row_tooltip() -> void:
 	if not _row_tip or not battle_grid:
 		return
 	# Hide while any full-screen overlay is open so it doesn't bleed through
+	# (this tooltip lives on CanvasLayer 20 — above every modal's default
+	# layer 1 — so an un-listed modal gets covered by it, not the other way
+	# around; see relic_screen "icon overlap" report, 2026-07-05).
 	if (_hero_shop and _hero_shop.visible) \
 			or (_level_up_screen and _level_up_screen.visible) \
+			or (_round_reward_screen and _round_reward_screen.visible) \
+			or (_equipment_panel and _equipment_panel.visible) \
+			or (_event_panel and _event_panel.visible) \
+			or (_game_over_screen and _game_over_screen.visible) \
+			or (_relic_screen and _relic_screen.visible) \
 			or unit_details_panel.visible:
 		_row_tip.visible = false
 		_row_tip_last = -1
