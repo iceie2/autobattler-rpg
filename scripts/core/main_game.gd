@@ -1968,6 +1968,13 @@ func _build_left_panel() -> void:
 	_build_difficulty_panel_ui(vb)
 	vb.add_child(_sb_sep())
 
+	# READY FOR BATTLE (2026-07-05, user request: move it here from the right
+	# sidebar's PLAYER ACTIONS list) — between the difficulty buttons and RELICS.
+	ready_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ready_btn.clip_text = true
+	ready_btn.reparent(vb)
+	vb.add_child(_sb_sep())
+
 	# RELICS (above the bag) — hidden until the first relic is picked.
 	_relic_heading = _sb_heading("RELICS")
 	vb.add_child(_relic_heading)
@@ -2041,12 +2048,14 @@ func _build_right_panel() -> void:
 	scroll.add_child(sv)
 
 	# ── Player Actions (reparent buttons — they adapt fine) ───────────────────
+	# READY FOR BATTLE moved to the left sidebar (2026-07-05, user request) —
+	# see _build_left_panel, between the difficulty buttons and RELICS.
 	var act_body := VBoxContainer.new()
 	act_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	act_body.add_theme_constant_override("separation", 5)
 	sv.add_child(_sb_accordion("PLAYER ACTIONS", act_body, true))
 	sv.add_child(act_body)
-	for btn in [ready_btn, spawn_hero_btn, use_items_btn, classes_btn, roster_btn]:
+	for btn in [spawn_hero_btn, use_items_btn, classes_btn, roster_btn]:
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		# Ellipsize instead of forcing the sidebar wider than SIDEBAR_W (see
 		# _sb_panel's clip_contents note) — a graceful truncation, not a
