@@ -44,10 +44,10 @@ const _P := "res://assets/UI/generated/"
 # a test value cranked up to check whether the bump did anything — it didn't,
 # because no call site used these helpers until this wiring pass.)
 static func header_font(base: int) -> int:
-	return base + 18
+	return base + 10
 
 static func body_font(base: int) -> int:
-	return base + 24
+	return base + 8
 
 
 # Dark-brown text colors for the cream/parchment surfaces.
@@ -164,13 +164,21 @@ static func style_button(b: Button) -> Button:
 	b.add_theme_color_override("font_pressed_color", TEXT_BTN)
 	return b
 
-# Currency plates with the coin/gem art baked into the left side of the label.
-static func coin_label_box() -> StyleBoxTexture:
-	var sb := _tex_box("coin_label.png", 14, 14, 8)
-	sb.content_margin_left = 44   # clear the coin art
-	return sb
+# Currency icons (2026-07-05, user's own art — Coins.png/gems.png, copied in
+# from assets/using/icons/, source untouched). These are square icons, NOT
+# stretchable pill plates — a previous pass tried loading them as 9-slice
+# StyleBoxTexture backgrounds (coin_label_box/gem_label_box), which squished
+# them because 9-slice stretches everything outside the texture_margin, and
+# these icons have no border to protect. Rendered as plain TextureRects
+# instead: fixed 50x50, STRETCH_SCALE so the source scales cleanly up or down
+# to fit, sitting to the left of the gold/crystal number in an HBoxContainer
+# (see main_game.gd _build_right_panel).
+const CURRENCY_ICON_SIZE := 50.0
 
-static func gem_label_box() -> StyleBoxTexture:
-	var sb := _tex_box("gem_label.png", 14, 14, 8)
-	sb.content_margin_left = 44   # clear the gem art
-	return sb
+static func currency_icon(kind: String) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.texture = load(_P + ("coin_label.png" if kind == "coin" else "gem_label.png")) as Texture2D
+	icon.custom_minimum_size = Vector2(CURRENCY_ICON_SIZE, CURRENCY_ICON_SIZE)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_SCALE
+	return icon

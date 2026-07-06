@@ -2004,22 +2004,31 @@ func _build_right_panel() -> void:
 	vb.add_theme_constant_override("separation", 4)
 	mg.add_child(vb)
 
-	# Economy header — reparent simple text labels (they adapt fine)
+	# Economy header — icon (user's own Coins.png/gems.png art, 50x50) +
+	# reparented number label, side by side (2026-07-05).
 	var econ := HBoxContainer.new()
 	econ.add_theme_constant_override("separation", 6)
 	vb.add_child(econ)
-	# UI theme pass 2026-07-03: currency plates from the dobo pack — the coin/gem
-	# art is baked into the plate's left side, so update_ui shows just the number.
+
+	var gold_row := HBoxContainer.new()
+	gold_row.add_theme_constant_override("separation", 4)
+	gold_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gold_row.add_child(UITheme.currency_icon("coin"))
+	econ.add_child(gold_row)
 	gold_label.add_theme_font_size_override("font_size", 21)
 	gold_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	gold_label.add_theme_stylebox_override("normal", UITheme.coin_label_box())
 	gold_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	gold_label.reparent(econ)
+	gold_label.reparent(gold_row)
+
+	var crystals_row := HBoxContainer.new()
+	crystals_row.add_theme_constant_override("separation", 4)
+	crystals_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	crystals_row.add_child(UITheme.currency_icon("gem"))
+	econ.add_child(crystals_row)
 	crystals_label.add_theme_font_size_override("font_size", 21)
 	crystals_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	crystals_label.add_theme_stylebox_override("normal", UITheme.gem_label_box())
 	crystals_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	crystals_label.reparent(econ)
+	crystals_label.reparent(crystals_row)
 
 	# Stacked, not side-by-side (2026-07-04 user report): squeezing both into
 	# one HBox left ~130px each, too narrow for "Round: 1 · Lv 1 · Team 0/4" —
