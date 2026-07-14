@@ -16,16 +16,57 @@ const DIFFICULTY_MULT: Array[float] = [1.0, 1.75, 3.5]
 const CODE_ROLE: Dictionary = {
 	"M":  Role.FRONT,  # Goblin
 	"A":  Role.BACK,   # Goblin Archer
-	"S":  Role.BACK,   # Goblin Shaman
-	"B":  Role.FRONT,  # Orc Brute
+	"S":  Role.BACK,   # Goblin Shaman (Fire) — was plain "Goblin Shaman"
+	"GSN": Role.BACK,  # Goblin Shaman (Normal)
+	"GSW": Role.BACK,  # Goblin Shaman (Water)
+	"GSE": Role.BACK,  # Goblin Shaman (Earth)
+	"GSA": Role.BACK,  # Goblin Shaman (Air)
+	"GSL": Role.BACK,  # Goblin Shaman (Lightning)
+	"B":  Role.FRONT,  # Orc (Earth) — was "Orc Brute"
+	"BN": Role.FRONT,  # Orc (Normal)
+	"BF": Role.FRONT,  # Orc (Fire)
+	"BW": Role.FRONT,  # Orc (Water)
+	"BA": Role.FRONT,  # Orc (Air)
+	"BL": Role.FRONT,  # Orc (Lightning)
 	"G":  Role.BOSS,   # Hill Giant (2×2) — elite-tier now, still centered like a boss when placed
-	"SL": Role.FRONT,  # Slime
+	"SL": Role.FRONT,  # Slime (Water) — was plain "Slime"
+	"SLN": Role.FRONT, # Slime (Normal)
+	"SLF": Role.FRONT, # Slime (Fire)
+	"SLE": Role.FRONT, # Slime (Earth)
+	"SLA": Role.FRONT, # Slime (Air)
+	"SLL": Role.FRONT, # Slime (Lightning)
+	"LZN": Role.BACK,  # Lizard (Normal) — far-range, barely moves
+	"LZF": Role.BACK,  # Lizard (Fire)
+	"LZW": Role.BACK,  # Lizard (Water)
+	"LZE": Role.BACK,  # Lizard (Earth)
+	"LZA": Role.BACK,  # Lizard (Air)
+	"LZL": Role.BACK,  # Lizard (Lightning)
+	"BRN": Role.FRONT, # Bear (Normal) — beefy tank
+	"BRF": Role.FRONT, # Bear (Fire)
+	"BRW": Role.FRONT, # Bear (Water)
+	"BRE": Role.FRONT, # Bear (Earth)
+	"BRA": Role.FRONT, # Bear (Air)
+	"BRL": Role.FRONT, # Bear (Lightning)
+	"TLN": Role.BACK,  # Troll (Normal) — ranged attack-speed support
+	"TLF": Role.BACK,  # Troll (Fire)
+	"TLW": Role.BACK,  # Troll (Water)
+	"TLE": Role.BACK,  # Troll (Earth)
+	"TLA": Role.BACK,  # Troll (Air)
+	"TLL": Role.BACK,  # Troll (Lightning)
+	"WUN": Role.FRONT, # Wind-Up Bot (Normal) — light melee striker
+	"WUF": Role.FRONT, # Wind-Up Bot (Fire)
+	"WUW": Role.FRONT, # Wind-Up Bot (Water)
+	"WUE": Role.FRONT, # Wind-Up Bot (Earth)
+	"WUA": Role.FRONT, # Wind-Up Bot (Air)
+	"WUL": Role.FRONT, # Wind-Up Bot (Lightning)
 	"SK": Role.FRONT,  # Skeleton
 	"R":  Role.FRONT,  # Rat
 	"TRI": Role.FRONT, # The Triarch (1×1 — opens in its melee phase)
 	"SS": Role.FRONT,  # Stat Stealer (1×1 elite)
 	"AH": Role.BOSS,   # Ant Hill (2×2 — stationary spawner)
 	"KHA": Role.BOSS,  # Khagan (2×2 while mounted — phase 1)
+	"HYN": Role.BOSS, "HYF": Role.BOSS, "HYW": Role.BOSS,   # Hydra (all 6 elements, 2×2 final boss)
+	"HYE": Role.BOSS, "HYA": Role.BOSS, "HYL": Role.BOSS,
 }
 
 # Codes that occupy a 2×2 cell block
@@ -33,6 +74,7 @@ const CODE_IS_LARGE: Dictionary = {
 	"G": true,
 	"AH": true,
 	"KHA": true,
+	"HYN": true, "HYF": true, "HYW": true, "HYE": true, "HYA": true, "HYL": true,
 }
 
 # ── Power costs (rough unit strength used for budget system) ──────────────────
@@ -40,21 +82,34 @@ const CODE_IS_LARGE: Dictionary = {
 # random filler units pulled from FILLER_POOL (ordered strongest → weakest).
 const UNIT_POWER: Dictionary = {
 	"R":  15,   # Rat         — very cheap swarm
-	"SL": 25,   # Slime       — tanky but slow
+	"SL": 25, "SLN": 25, "SLF": 25, "SLE": 25, "SLA": 25, "SLL": 25,  # Slime (all 6 elements) — tanky but slow
 	"SK": 25,   # Skeleton    — glass cannon
 	"M":  30,   # Goblin      — basic melee
 	"A":  30,   # Goblin Archer
-	"S":  55,   # Goblin Shaman
-	"B":  95,   # Orc Brute
+	"S":  55, "GSN": 55, "GSW": 55, "GSE": 55, "GSA": 55, "GSL": 55,  # Goblin Shaman (all 6 elements)
+	"LZN": 40, "LZF": 40, "LZW": 40, "LZE": 40, "LZA": 40, "LZL": 40,  # Lizard (all 6 elements) — far range + burst snipe, but barely moves and dies fast if rushed
+	"TLN": 70, "TLF": 70, "TLW": 70, "TLE": 70, "TLA": 70, "TLL": 70,  # Troll (all 6 elements) — no direct damage, but a real attack-speed threat multiplier for the whole side
+	"B":  95, "BN": 95, "BF": 95, "BW": 95, "BA": 95, "BL": 95,  # Orc (all 6 elements)
+	"BRN": 100, "BRF": 100, "BRW": 100, "BRE": 100, "BRA": 100, "BRL": 100,  # Bear (all 6 elements) — beefiest 1×1 HP pool, but low damage output
+	"WUN": 90, "WUF": 90, "WUW": 90, "WUE": 90, "WUA": 90, "WUL": 90,  # Wind-Up Bot (all 6 elements) — light melee striker, hit + stun
 	"G":  300,  # Hill Giant  — elite-tier
 	"TRI": 350, # The Triarch — 3-phase final boss
 	"SS": 150,  # Stat Stealer — elite-tier
 	"AH": 250,  # Ant Hill — elite-tier (tanky spawner; the ants are the real threat, uncounted here)
 	"KHA": 300, # Khagan — wave-10 boss (mount-swap fight)
+	"HYN": 400, "HYF": 400, "HYW": 400, "HYE": 400, "HYA": 400, "HYL": 400,  # Hydra — wave-30 final boss (all 6 elements)
 }
 
 # Ordered strong → weak. _fill_budget() prefers the top of this list.
-const FILLER_POOL: Array[String] = ["G", "B", "S", "A", "M", "SK", "SL", "R"]
+const FILLER_POOL: Array[String] = [
+	"G", "BRN", "BRF", "BRW", "BRE", "BRA", "BRL",
+	"B", "BN", "BF", "BW", "BA", "BL",
+	"S", "GSN", "GSW", "GSE", "GSA", "GSL", "TLN", "TLF", "TLW", "TLE", "TLA", "TLL",
+	"WUN", "WUF", "WUW", "WUE", "WUA", "WUL",
+	"LZN", "LZF", "LZW", "LZE", "LZA", "LZL", "A", "M", "SK",
+	"SL", "SLN", "SLF", "SLE", "SLA", "SLL",
+	"R",
+]
 
 # Row fill priority per role (row 0 = farthest back, row 3 = frontline)
 const ROLE_ROWS: Dictionary = {
@@ -298,22 +353,55 @@ static func boss_tier(round: int) -> int:
 	return int(round / Balance.BOSS_ROUND_INTERVAL)
 
 # Level the boss unit is set to — scales hard between the three encounters.
+# Re-anchored 2026-07-12 to the run targets: Khagan (3) stays first-try
+# beatable with no crystal upgrades; the Triarch (10) needs a stars-align
+# no-upgrade run; the Hydra (18) is meant to be unbeatable without them.
+# (Old 3/6/9 curve: arena sims had a frozen level-5 team killing the Hydra.)
 static func boss_level(round: int) -> int:
-	return 3 + (boss_tier(round) - 1) * 3   # 3 / 6 / 9
+	match boss_tier(round):
+		1:  return 3
+		2:  return 14
+		_:  return 22
 
 # Which boss code fights at a given round. Hill Giant was reclassified to an
 # elite (2026-07-02, now spawns in rounds 5/15/25 instead — see is_elite_round).
-# Wave 10 now has its own dedicated boss (Khagan, a mount-swap fight); The
-# Triarch still covers waves 20/30 until a wave-20 boss is designed too.
-static func boss_code_for(round: int) -> String:
-	return "KHA" if boss_tier(round) == 1 else "TRI"
+# Wave 10: Khagan (mount-swap fight). Wave 20: The Triarch (3-phase fight).
+# Wave 30: the Hydra — the true final boss, fighting as whichever element the
+# player picked pre-battle (see main_game.gd's element-pick screen); defaults
+# to Normal if no pick was ever recorded (e.g. the arena harness, which never
+# shows that screen). chosen_element takes a UnitBase.Element value.
+static func boss_code_for(round: int, chosen_element: int = -1) -> String:
+	match boss_tier(round):
+		1: return "KHA"
+		2: return "TRI"
+		_:
+			match chosen_element:
+				UnitBase.Element.FIRE:      return "HYF"
+				UnitBase.Element.WATER:     return "HYW"
+				UnitBase.Element.EARTH:     return "HYE"
+				UnitBase.Element.AIR:       return "HYA"
+				UnitBase.Element.LIGHTNING: return "HYL"
+				_: return "HYN"   # NORMAL or unset
 
-static func build_boss_formation(round: int, difficulty: int, grid_width: int = 9) -> Array:
+static func build_boss_formation(round: int, difficulty: int, grid_width: int = 9, chosen_element: int = -1) -> Array:
 	var tier: int = boss_tier(round)
-	var counts: Dictionary = {boss_code_for(round): 1}      # the boss
+	var counts: Dictionary = {boss_code_for(round, chosen_element): 1}      # the boss
 	counts["M"] = 2 + tier + difficulty                     # goblin fodder
-	if tier >= 2:
-		counts["B"] = (tier - 1) + difficulty               # orc bruisers on later bosses
+	# Honor guard grows with the boss tier (2026-07-12: a lone boss just gets
+	# focus-fired down by a full late-game roster — arena sims had 10 heroes
+	# killing the Hydra in ~20s through its old 5-goblin escort). Trolls buff
+	# the boss's attack speed, shamans heal it — real support, not fodder.
+	if tier == 2:
+		counts["B"]   = 1 + difficulty                      # orc bruisers
+		counts["BRN"] = 2                                   # bear frontline
+		counts["TLN"] = 2                                   # attack-speed buffers
+		counts["GSN"] = 2                                   # shaman healers
+	elif tier >= 3:
+		counts["BRN"] = 2
+		counts["BN"]  = 2
+		counts["TLN"] = 2                                   # attack-speed buffers
+		counts["GSN"] = 2
+		counts["LZN"] = 2                                   # backline snipers
 	return _auto_place(counts, grid_width)
 
 # ── Elite waves (rounds 5 / 15 / 25 — the gaps between boss rounds) ──────────
@@ -337,9 +425,12 @@ static func enemy_level_for_round(round: int, is_elite_slot: bool) -> int:
 	if round <= 2: return 1
 	if round <= 10:
 		return 1 + randi() % mini(round / 2, 3)
-	# Round 11+ (procedural enemy heroes): level keeps climbing instead of
-	# plateauing — ~3-5 at round 11 up to ~13-15 by round 30 (2026-07-03 pass).
-	var floor_lvl: int = 3 + (round - 10) / 2
+	# Round 11+: level keeps climbing. Steepened 2026-07-12 (was (round-10)/2,
+	# topping out ~13-15 by round 30) after arena sims showed a frozen 5-hero
+	# level-5 team clearing wave 29 at 88% — nowhere near the run targets
+	# (wave 20 = stars-align without crystal upgrades, wave 30 = impossible
+	# without them). Now ~4-6 at round 11 up to ~19-21 by round 30.
+	var floor_lvl: int = 3 + int(float(round - 10) * 0.8)
 	return floor_lvl + randi() % 3
 
 # How much to bias a procedural enemy hero's stat rolls (see
@@ -352,11 +443,15 @@ static func enemy_level_for_round(round: int, is_elite_slot: bool) -> int:
 static func enemy_roll_bias(round: int) -> float:
 	return clampf(float(round - 10) / 20.0, 0.0, 1.0) * 0.5
 
-# Elite level scales gentler than boss_level (2 / 4 / 6 across 5/15/25) since
-# elites are a lesser threat than a full boss.
+# Elite level: a step above the regular mobs of its round (which follow
+# enemy_level_for_round), a step below the next boss. Re-anchored 2026-07-12
+# alongside the steeper round-11+ level curve — the old 2/4/6 would have made
+# the wave-15/25 elites WEAKER than their own escort fodder.
 static func elite_level(round: int) -> int:
-	var idx: int = ELITE_ROUNDS.find(round)
-	return 2 + maxi(idx, 0) * 2
+	match ELITE_ROUNDS.find(round):
+		0:  return 2    # round 5  — fodder is lvl 1-2
+		1:  return 9    # round 15 — fodder is lvl 7-9
+		_:  return 16   # round 25 — fodder is lvl 15-17
 
 # forced_code lets the caller lock in one elite pick for the whole round (the
 # wave spec gets regenerated more than once per round — formation preview at

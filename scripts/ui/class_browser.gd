@@ -406,8 +406,9 @@ const CLASSES := [
 			"[PASSIVE] Chain Lightning — every 6th auto arcs lightning to all enemies " +
 			"within 3 tiles.\n\n" +
 			"[ACTIVE – 90 MP] Thunderstorm — conjures a roaming storm hazard that drifts " +
-			"the board, zapping its tile and neighbours. Persists until the round ends — " +
-			"stack several and the field becomes a deathtrap.\n\n" +
+			"the board in one direction. Its own tile takes full lightning damage plus a " +
+			"0.5s stun; the 8 tiles around it take half damage. Persists until the round " +
+			"ends — stack several and the field becomes a deathtrap.\n\n" +
 			"[ULTIMATE – 480 charge] Thunderhammer — slams the toughest enemy for huge " +
 			"lightning damage and a 5s stun."
 		),

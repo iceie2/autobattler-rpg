@@ -36,6 +36,7 @@ var _title_lbl: Label
 var _sub_lbl:   Label
 var _cancel_btn: Button
 var _slot_count: int = 3   # hero cards shown (raised by the Merchant's Ledger relic)
+var _free_mode:  bool = false  # Call to Arms starting-hero pick (2026-07-10): no cost, no cancel
 
 const CARD_GAP     := 20.0
 const SIDE_MARGIN  := 50.0
@@ -43,13 +44,24 @@ const SIDE_MARGIN  := 50.0
 func _ready() -> void:
 	_build_ui()
 
-func open(gold: int, slot_count: int = 3) -> void:
+# free_mode: Call to Arms' starting-hero pick — every card is pickable regardless
+# of gold, the cancel button is hidden (you must choose one), and the header
+# reads as a free grant rather than a shop.
+func open(gold: int, slot_count: int = 3, free_mode: bool = false) -> void:
 	_slot_count = maxi(3, slot_count)
+	_free_mode = free_mode
 	_layout_for_slots()
 	_offers.clear()
 	_card_btns.clear()
 	_generate_offers()
 	_rebuild_all_cards(gold)
+	if _title_lbl:
+		_title_lbl.text = "CHOOSE YOUR STARTING HERO" if _free_mode else "CHOOSE A HERO"
+	if _sub_lbl:
+		_sub_lbl.text = "Call to Arms — pick your first hero, free" if _free_mode \
+			else "Each hero has unique stat rolls  ·  %dg each  ·  Roll again next round" % HERO_COST
+	if _cancel_btn:
+		_cancel_btn.visible = not _free_mode
 	visible = true
 
 # Widen the panel and re-center the header/cancel for the current card count so
@@ -150,7 +162,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 		_flat(bg_base.darkened(0.15), grade_col.lightened(0.1), 4, 12))
 	btn.add_theme_stylebox_override("focus",
 		_flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
-	btn.disabled = gold < HERO_COST
+	btn.disabled = (not _free_mode) and gold < HERO_COST
 	btn.pressed.connect(_on_choose.bind(idx))
 
 	# ── Portrait ──────────────────────────────────────────────────────────────
@@ -226,7 +238,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	skill_desc_lbl.mouse_filter  = Control.MOUSE_FILTER_IGNORE
 	skill_desc_lbl.position      = Vector2(14, skill_y + 38)
 	skill_desc_lbl.size          = Vector2(CARD_W - 28, 40)
-	skill_desc_lbl.add_theme_font_size_override("font_size", 13)
+	skill_desc_lbl.add_theme_font_size_override("font_size", 20)
 	skill_desc_lbl.add_theme_color_override("font_color", Color(0.62, 0.62, 0.76))
 	skill_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	skill_desc_lbl.text          = _skill_short_desc(tmp)
@@ -252,7 +264,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	ult_desc_lbl.mouse_filter  = Control.MOUSE_FILTER_IGNORE
 	ult_desc_lbl.position      = Vector2(14, ult_y + 38)
 	ult_desc_lbl.size          = Vector2(CARD_W - 28, 58)
-	ult_desc_lbl.add_theme_font_size_override("font_size", 13)
+	ult_desc_lbl.add_theme_font_size_override("font_size", 20)
 	ult_desc_lbl.add_theme_color_override("font_color", Color(0.62, 0.62, 0.76))
 	ult_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ult_desc_lbl.text          = _ultimate_short_desc(tmp, cls)
@@ -542,7 +554,7 @@ func _add_stat_icon(parent: Node, stat_key: String, pos: Vector2, size: float) -
 func _btn(text: String, rect: Rect2) -> Button:
 	var b := Button.new()
 	b.text = text; b.position = rect.position; b.size = rect.size
-	b.add_theme_font_size_override("font_size", 17)
+	b.add_theme_font_size_override("font_size", 20)
 	b.add_theme_color_override("font_color", Color(0.85, 0.85, 1.0))
 	b.add_theme_stylebox_override("normal",  _flat(Color(0.14, 0.14, 0.22), Color(0.38, 0.38, 0.55), 1, 6))
 	b.add_theme_stylebox_override("hover",   _flat(Color(0.22, 0.22, 0.33), Color(0.6,  0.6,  0.8),  1, 6))

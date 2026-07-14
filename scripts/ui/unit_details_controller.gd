@@ -30,6 +30,20 @@ var combat_grid: GridContainer
 var affinity_grid: GridContainer
 var growth_grid: GridContainer
 var item_bag: GridContainer
+var skill_icon_rect: TextureRect
+var skill_name_lbl: Label
+var skill_desc_lbl: Label
+
+# Skill icons keyed by skill_name — the display name shown in SkillName/kit[0],
+# so it works identically for heroes and enemies alike (both hero factories in
+# unit_factory.gd and EnemyFactory set skill_name to a unique string per kit).
+# Also read directly by VisualUnit for the in-battle cooldown badge, so this is
+# the single source of truth for "does this skill have art yet". Add an entry
+# here whenever new skill/ultimate art arrives (heroes are getting a full set
+# soon, per user 2026-07-06) — anything missing just hides its icon slot.
+const SKILL_ICONS: Dictionary = {
+	"Corrosive Goo": "res://assets/icons/unit icons/enemies/corrosive_goo.png",
+}
 
 # Combat-stat grid cells (node name -> STAT_ICONS key) and affinity element order
 const _COMBAT_CELLS := [
@@ -75,6 +89,9 @@ func _init(p_game) -> void:
 	affinity_grid  = root.get_node("AffinityRow/AffinityCol/AffinityGrid")
 	growth_grid    = root.get_node("AffinityRow/GrowthCol/GrowthGrid")
 	item_bag       = root.get_node("Header/HeaderInfo/ChipRow/ItemBag")
+	skill_icon_rect = root.get_node("SkillRow/SkillIcon")
+	skill_name_lbl  = root.get_node("SkillRow/SkillTextCol/SkillName")
+	skill_desc_lbl  = root.get_node("SkillRow/SkillTextCol/SkillDesc")
 
 # ── Public API (main_game delegates here) ─────────────────────────────────────
 
@@ -132,7 +149,7 @@ func _ensure_icons() -> void:
 		cell.add_child(icon)
 		var val := Label.new()
 		val.name = "Value"
-		val.add_theme_font_size_override("font_size", 14)
+		val.add_theme_font_size_override("font_size", 24)
 		val.text = "-"
 		cell.add_child(val)
 		combat_grid.add_child(cell)
@@ -297,9 +314,47 @@ func _refresh() -> void:
 		var amount: float = unit.stat_growth(pair[1])
 		glbl.text = ("+%.2f" % amount) if pair[1] in _GROWTH_FLOAT_STATS else ("+%d" % int(round(amount)))
 
+	# ── Skill (2026-07-06 user report: heroes have a passive + active + ultimate,
+	# but unit.skill_name/skill_description only ever held the ACTIVE one — Rush
+	# showed just "Blitz" when the player expected to see all three moves.
+	# ClassBrowser.CLASSES already has a curated passive+active+ultimate blurb
+	# per hero (used by the class browser), so heroes read from there. Enemies/
+	# mobs piggyback hero UnitClass values for stats (see EnemyFactory) — a
+	# goblin's unit_class is UnitBase.UnitClass.WARRIOR, which WOULD wrongly
+	# match the "Warrior" hero's flavor text, so only player heroes take this
+	# path; enemies and summons (ZOMBIE/BAT, not in CLASSES) keep using their
+	# own skill_name/skill_description straight off the unit, unchanged. ──
+	var kit := _hero_kit_text(unit)
+	if skill_name_lbl:
+		skill_name_lbl.text = kit[0] if kit[0] != "" else (unit.skill_name if unit.skill_name != "" else "-")
+	if skill_desc_lbl:
+		skill_desc_lbl.text = kit[1] if kit[1] != "" else (unit.skill_description if unit.skill_description != "" else "-")
+	if skill_icon_rect:
+		# Keyed on unit.skill_name specifically (NOT kit[0]) — kit[0] is the
+		# curated "Passive / Active / Ultimate" combo label for heroes (see
+		# ClassBrowser.CLASSES), but the icon+cooldown badge only ever tracks
+		# the single active skill that skill_cd_time actually governs.
+		var icon_path: String = SKILL_ICONS.get(unit.skill_name, "")
+		if icon_path != "" and ResourceLoader.exists(icon_path):
+			skill_icon_rect.texture = load(icon_path)
+			skill_icon_rect.visible = true
+		else:
+			skill_icon_rect.visible = false
+
 	# ── Affinity matrix + item bag ──
 	_refresh_affinity(unit)
 	_update_bag(unit)
+
+# Returns [skill_label, skill_desc] from ClassBrowser.CLASSES for player heroes
+# whose unit_class is a real recruitable class, else ["", ""] so the caller
+# falls back to the unit's own skill_name/skill_description.
+func _hero_kit_text(unit: UnitBase) -> Array:
+	if not unit.is_player_unit:
+		return ["", ""]
+	for entry in ClassBrowser.CLASSES:
+		if entry["unit_class"] == unit.unit_class:
+			return [entry["skill"], entry["skill_desc"]]
+	return ["", ""]
 
 func _set_combat_cell(cell: String, text: String, buffed: bool) -> void:
 	var lbl := combat_grid.get_node_or_null("%s/Value" % cell) as Label
@@ -375,8 +430,19 @@ func _update_bag(unit: UnitBase) -> void:
 					btn.expand_icon = true
 
 			var captured_item := item
-			btn.mouse_entered.connect(func(): game._show_item_tooltip(captured_item, game.get_viewport().get_mouse_position()))
+			# Click to unequip (2026-07-10 user request) — only meaningful for
+			# player heroes; enemies' held_items aren't tracked in
+			# EquipmentInventory, so there's nothing to remove them from.
+			var hint: String = "Click to unequip" if unit.is_player_unit else ""
+			btn.mouse_entered.connect(func(): game._show_item_tooltip(captured_item, game.get_viewport().get_mouse_position(), hint))
 			btn.mouse_exited.connect(func(): game._hide_item_tooltip())
+			if unit.is_player_unit:
+				var captured_unit := unit
+				btn.pressed.connect(func():
+					game._hide_item_tooltip()
+					if game._equipment_inventory and game._equipment_inventory.remove_from_hero(captured_item, captured_unit):
+						_refresh()
+				)
 			item_bag.add_child(btn)
 		else:
 			var ph := Panel.new()

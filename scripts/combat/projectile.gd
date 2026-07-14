@@ -3,7 +3,7 @@ class_name Projectile
 
 var start_pos: Vector2
 var target_pos: Vector2
-var speed: float = 400.0
+var speed: float = 600.0
 var damage: int = 0
 var element: UnitBase.Element = UnitBase.Element.NORMAL
 var target_unit = null

@@ -46,16 +46,72 @@ const HERO_SPRITE_PATHS: Dictionary = {
 const MONSTER_SPRITE_PATHS: Dictionary = {
 	"goblin":        "res://assets/using/goblin.png",
 	"goblin_archer": "res://assets/using/goblin_archer.png",
-	"goblin_shaman": "res://assets/using/goblin_shaman.png",
-	"slime":         "res://assets/using/slime.png",
+	# Goblin Shaman — 6 elemental variants (2026-07-09).
+	"goblin_shaman_normal":     "res://assets/using/goblin_shaman_normal.png",
+	"goblin_shaman_fire":       "res://assets/using/goblin_shaman_fire.png",
+	"goblin_shaman_water":      "res://assets/using/goblin_shaman_water.png",
+	"goblin_shaman_earth":      "res://assets/using/goblin_shaman_earth.png",
+	"goblin_shaman_air":        "res://assets/using/goblin_shaman_air.png",
+	"goblin_shaman_lightning":  "res://assets/using/goblin_shaman_lightning.png",
 	"skeleton":      "res://assets/using/skeleton.png",
 	"rat":           "res://assets/using/rat.png",
-	"orc_brute":     "res://assets/using/orc_brute.png",
 	"hill_giant":    "res://assets/using/hill_giant.png",
+	# Orc + Slime — 6 elemental variants each, one sprite per Element enum value.
+	"orc_normal":     "res://assets/using/orc_normal.png",
+	"orc_fire":       "res://assets/using/orc_fire.png",
+	"orc_water":      "res://assets/using/orc_water.png",
+	"orc_earth":      "res://assets/using/orc_earth.png",
+	"orc_air":        "res://assets/using/orc_air.png",
+	"orc_lightning":  "res://assets/using/orc_lightning.png",
+	"slime_normal":     "res://assets/using/slime_normal.png",
+	"slime_fire":       "res://assets/using/slime_fire.png",
+	"slime_water":      "res://assets/using/slime_water.png",
+	"slime_earth":      "res://assets/using/slime_earth.png",
+	"slime_air":        "res://assets/using/slime_air.png",
+	"slime_lightning":  "res://assets/using/slime_lightning.png",
+	# Lizard — 6 elemental variants (2026-07-06), far-range sniper mob.
+	"lizard_normal":     "res://assets/using/lizard_normal.png",
+	"lizard_fire":       "res://assets/using/lizard_fire.png",
+	"lizard_water":      "res://assets/using/lizard_water.png",
+	"lizard_earth":      "res://assets/using/lizard_earth.png",
+	"lizard_air":        "res://assets/using/lizard_air.png",
+	"lizard_lightning":  "res://assets/using/lizard_lightning.png",
+	# Bear — 6 elemental variants (2026-07-06), beefy melee tank.
+	"bear_normal":     "res://assets/using/bear_normal.png",
+	"bear_fire":       "res://assets/using/bear_fire.png",
+	"bear_water":      "res://assets/using/bear_water.png",
+	"bear_earth":      "res://assets/using/bear_earth.png",
+	"bear_air":        "res://assets/using/bear_air.png",
+	"bear_lightning":  "res://assets/using/bear_lightning.png",
+	# Troll — 6 elemental variants (2026-07-06), ranged attack-speed support.
+	"troll_normal":     "res://assets/using/troll_normal.png",
+	"troll_fire":       "res://assets/using/troll_fire.png",
+	"troll_water":      "res://assets/using/troll_water.png",
+	"troll_earth":      "res://assets/using/troll_earth.png",
+	"troll_air":        "res://assets/using/troll_air.png",
+	"troll_lightning":  "res://assets/using/troll_lightning.png",
+	# Wind-Up Bot — 6 elemental variants (2026-07-07), light melee striker.
+	"windup_bot_normal":     "res://assets/using/windup_bot_normal.png",
+	"windup_bot_fire":       "res://assets/using/windup_bot_fire.png",
+	"windup_bot_water":      "res://assets/using/windup_bot_water.png",
+	"windup_bot_earth":      "res://assets/using/windup_bot_earth.png",
+	"windup_bot_air":        "res://assets/using/windup_bot_air.png",
+	"windup_bot_lightning":  "res://assets/using/windup_bot_lightning.png",
 	"zombie_minion": "res://assets/using/zombie_minion.png",
 	"bat_minion":    "res://assets/using/bat_minion.png",
 	"ant":           "res://assets/using/ant.png",
 	"ant_hill":      "res://assets/using/ant_hill.png",
+	"stat_stealer":  "res://assets/using/stat_stealer.png",
+	# Khagan — boss, 2 body phases (phase 3 is a positioning trick, see below).
+	"khagan_phase1": "res://assets/using/khagan_phase1.png",
+	"khagan_phase2": "res://assets/using/khagan_phase2.png",
+	# Hydra — wave-30 final boss, 6 elemental variants (player picks which one fights).
+	"hydra_normal":     "res://assets/using/hydra_normal.png",
+	"hydra_fire":       "res://assets/using/hydra_fire.png",
+	"hydra_water":      "res://assets/using/hydra_water.png",
+	"hydra_earth":      "res://assets/using/hydra_earth.png",
+	"hydra_air":        "res://assets/using/hydra_air.png",
+	"hydra_lightning":  "res://assets/using/hydra_lightning.png",
 }
 # All hero sprites are normalised to this rendered height (px) regardless of source resolution.
 # 166 = what 128px art looked like at the old 1.3× scale — keeps Nemi/Bloodhound unchanged.
@@ -71,6 +127,21 @@ const STATUS_ICON_SHEETS := {
 	"stun": {"path": "res://assets/using/status_icons/stunned.png", "frame_w": 32, "frame_h": 32, "frames": 3, "size": Vector2(60, 60)},
 }
 var _status_icons: Dictionary = {}   # status_key -> StatusIcon node (lazily created)
+
+# Skill-cooldown badge, floated to the left of the health bar (2026-07-06 user
+# request — first skill icon art in the game, "Corrosive Goo" on Slime). Lit up
+# when the skill is off cooldown, dark while on cooldown, blinks briefly the
+# instant it fires. Only created for units whose mob_skill has art registered
+# in UnitDetailsController.SKILL_ICONS — silently absent otherwise.
+const SKILL_ICON_DISPLAY_SIZE := 26.0
+const SKILL_ICON_MARGIN := 8.0
+const SKILL_ICON_BLINK_DURATION := 0.35   # seconds
+const SKILL_ICON_READY_COLOR    := Color(1.0, 1.0, 1.0, 1.0)
+const SKILL_ICON_COOLDOWN_COLOR := Color(0.32, 0.32, 0.32, 1.0)
+const SKILL_ICON_BLINK_COLOR    := Color(1.4, 1.4, 1.0, 1.0)
+var _skill_icon: Sprite2D = null
+var _skill_icon_prev_cd: float = 0.0
+var _skill_icon_blink_time: float = 0.0
 
 # Drag and drop
 var is_dragging: bool = false
@@ -148,6 +219,11 @@ func get_class_sprite_folder() -> String:
 		UnitBase.UnitClass.HEADHUNTER: return "archer"
 		UnitBase.UnitClass.SHAUNA:    return "shauna"
 		UnitBase.UnitClass.NEMI:      return "nemi"
+		# Necro's two summons (2026-07-11) — were drawn as plain triangle/diamond
+		# shapes before real art landed; MONSTER_SPRITE_PATHS already had these
+		# keys registered ahead of the art.
+		UnitBase.UnitClass.ZOMBIE:    return "zombie_minion"
+		UnitBase.UnitClass.BAT:       return "bat_minion"
 		_: return ""
 
 func get_enemy_sprite_override() -> String:
@@ -184,6 +260,7 @@ func _ready():
 	health_bar.bar_width = 70.0 + (cell_size - 1) * 120.0   # 70 / 190 / …
 	health_bar.offset_y  = 60.0 + (cell_size - 1) * 35.0    # 60 / 95 / …
 	add_child(health_bar)
+	_setup_skill_icon()
 	health_bar.update_hp(current_hp, max_hp)
 	health_bar.update_mp(current_mana, max_mana)
 	health_bar.update_ult(ultimate_charge, max(ultimate_charge_max, 1))
@@ -240,6 +317,21 @@ func rebuild_sprite() -> void:
 		plain_sprite.free()
 		plain_sprite = null
 	_setup_lpc_sprite()
+	_rebuild_skill_icon()
+
+# Phase-transform bosses (Triarch/Khagan) swap skill_name mid-fight, so the
+# cooldown badge has to be torn down and re-resolved the same way the sprite
+# does in rebuild_sprite() — otherwise it'd keep showing (or hiding) art for
+# whatever skill the unit had when it first spawned.
+func _rebuild_skill_icon() -> void:
+	if _skill_icon and is_instance_valid(_skill_icon):
+		_skill_icon.get_parent().remove_child(_skill_icon)
+		_skill_icon.free()
+		_skill_icon = null
+	_skill_icon_prev_cd = 0.0
+	_skill_icon_blink_time = 0.0
+	if health_bar:
+		_setup_skill_icon()
 
 func _setup_lpc_sprite() -> void:
 	if unit_class in HERO_SPRITE_PATHS:
@@ -256,6 +348,12 @@ func _setup_lpc_sprite() -> void:
 		if ResourceLoader.exists(mpath):
 			_setup_plain_sprite(mpath)
 			return
+		# Registered but the art hasn't been dropped in yet (e.g. a boss whose
+		# kit shipped ahead of its dedicated art, like Khagan originally) —
+		# "folder" is a monster name, not a real LPC sheet path, so falling
+		# through to the LPC loader below with it would just error. Placeholder
+		# on the generic warrior LPC sheet instead until the real art lands.
+		folder = "warrior"
 	var v: int = sprite_variant % _sprite_variant_count(folder)
 	var sprite_path: String = "res://assets/sprites/generated/%s/%d" % [folder, v]
 
@@ -303,6 +401,34 @@ func show_held_item_icon(tex: Texture2D, rarity_color: Color) -> void:
 		held_item_badge.add_child(ring)
 	held_item_badge.texture = tex
 	held_item_badge.visible = true
+
+# Khagan's possession overlay — his phase-2 "dismounted" sprite pinned above
+# whichever ally he's currently puppeting, so the player can see who's
+# possessed at a glance (2026-07-08 user spec: "attach it to the top of the
+# hero he takes control of" — phase 3 has no dedicated art of its own, it's
+# just this icon placed on the possessed unit). Mirrors show_held_item_icon's
+# lazy-create-then-reuse shape; call hide_possession_icon() when control ends.
+# Scale is computed from the TEXTURE'S OWN pixel size, not a flat multiplier —
+# khagan_phase2.png is a full ~550x550 boss sprite, not a pre-shrunk icon, so a
+# flat 0.5 scale rendered it at ~275px (nearly boss-sized) instead of an icon
+# (2026-07-10 user report: "too big, should be on the unit's head").
+const POSSESSION_ICON_TARGET_PX := 56.0
+var possession_icon: Sprite2D
+func show_possession_icon(tex: Texture2D) -> void:
+	if not possession_icon:
+		possession_icon = Sprite2D.new()
+		possession_icon.z_index = 7
+		possession_icon.position = Vector2(0, -shape_size * 1.15)
+		add_child(possession_icon)
+	var largest_dim: float = max(tex.get_width(), tex.get_height())
+	if largest_dim > 0.0:
+		possession_icon.scale = Vector2.ONE * (POSSESSION_ICON_TARGET_PX / largest_dim)
+	possession_icon.texture = tex
+	possession_icon.visible = true
+
+func hide_possession_icon() -> void:
+	if possession_icon and is_instance_valid(possession_icon):
+		possession_icon.visible = false
 
 func _on_health_changed(current: int, maximum: int) -> void:
 	if health_bar:
@@ -390,11 +516,14 @@ func die() -> void:
 	if _is_dying:
 		return
 	# Khagan's mind-controlled puppet (a player's own hero, temporarily fighting
-	# for the enemy side): a lethal hit clamps to 1 HP and breaks the possession
-	# instead of really dying — "fight your own unit till its 1 hp." Checked
+	# for the enemy side): a lethal hit clamps to 1 HP and STAYS there — no
+	# partial-heal floor (2026-07-08 user spec) — breaking the possession
+	# instead of really dying: "fight your own unit till its 1 hp." Checked
 	# FIRST since a single big hit can overshoot straight past 1 to a negative
 	# number, so this can't be a polling threshold check — it must intercept
-	# every death path the same way Phoenix Pact/Triarch do below.
+	# every death path the same way Phoenix Pact/Triarch do below. The normal
+	# between-round row heal tops it up afterward like any other survivor,
+	# since home_position was never touched.
 	if has_meta("khagan_puppet") and current_hp <= 0:
 		current_hp = 1
 		current_shield = 0
@@ -498,6 +627,7 @@ func _process(delta: float) -> void:
 	_apply_animation()
 	_update_animation()
 	_update_status_icons()
+	_update_skill_icon(delta)
 	if health_bar and ultimate_charge_max > 0 and ultimate_charge != _last_ult_charge_drawn:
 		_last_ult_charge_drawn = ultimate_charge
 		health_bar.update_ult(ultimate_charge, ultimate_charge_max)
@@ -528,6 +658,49 @@ func _set_status_icon_active(key: String, active: bool) -> void:
 		_status_icons[key] = icon
 	icon.visible = true
 
+
+# Creates the skill-cooldown badge on health_bar (so it inherits the bar's
+# TOP/BOTTOM placement offset for free) if this unit's active skill has icon
+# art registered in UnitDetailsController.SKILL_ICONS (keyed by skill_name —
+# same field skill_cd_time governs, so it works identically for heroes and
+# enemies alike; heroes are getting a full icon set soon, per user 2026-07-06).
+func _setup_skill_icon() -> void:
+	var icon_path: String = UnitDetailsController.SKILL_ICONS.get(skill_name, "")
+	if icon_path == "" or not ResourceLoader.exists(icon_path):
+		return
+	_skill_icon = Sprite2D.new()
+	_skill_icon.texture = load(icon_path)
+	_skill_icon.z_index = 5
+	var tex_size: Vector2 = _skill_icon.texture.get_size()
+	_skill_icon.scale = Vector2(SKILL_ICON_DISPLAY_SIZE, SKILL_ICON_DISPLAY_SIZE) / tex_size
+	var hp_h: float = health_bar.bar_height * HealthBar.HP_HEIGHT_SCALE
+	_skill_icon.position = Vector2(
+		-(health_bar.bar_width / 2.0 + SKILL_ICON_MARGIN + SKILL_ICON_DISPLAY_SIZE / 2.0),
+		hp_h / 2.0)
+	_skill_icon.modulate = SKILL_ICON_COOLDOWN_COLOR
+	health_bar.add_child(_skill_icon)
+	_skill_icon_prev_cd = skill_cd_time
+
+# Lit when the skill is off cooldown and ready to fire, dark while on
+# cooldown, and blinks for SKILL_ICON_BLINK_DURATION the instant AutoBattleManager
+# resets skill_cd_time back to skill_cooldown_max (i.e. the moment it fires) —
+# detected here by watching for cd jumping up from ~0, since nothing else
+# refills it.
+func _update_skill_icon(delta: float) -> void:
+	if not _skill_icon:
+		return
+	if skill_cd_time > _skill_icon_prev_cd + 0.001 and _skill_icon_prev_cd <= 0.05:
+		_skill_icon_blink_time = SKILL_ICON_BLINK_DURATION
+	_skill_icon_prev_cd = skill_cd_time
+
+	if _skill_icon_blink_time > 0.0:
+		_skill_icon_blink_time -= delta
+		var flash_on: bool = int(_skill_icon_blink_time * 12.0) % 2 == 0
+		_skill_icon.modulate = SKILL_ICON_BLINK_COLOR if flash_on else SKILL_ICON_COOLDOWN_COLOR
+	elif skill_cd_time <= 0.0:
+		_skill_icon.modulate = SKILL_ICON_READY_COLOR
+	else:
+		_skill_icon.modulate = SKILL_ICON_COOLDOWN_COLOR
 
 func _update_animation() -> void:
 	if not animated_sprite:

@@ -21,14 +21,17 @@ var locked_elite_code_by_round: Dictionary = {}
 
 # Generate a wave specification (not instantiated units).
 # Returns an array of {"type": String, "level": int, "pos"?: Vector2i} entries.
-func generate_wave_spec(round: int, difficulty: int, grid_width: int) -> Array:
+# chosen_element: the player's pre-battle element pick for the wave-30 Hydra
+# (a UnitBase.Element value; -1/unset defaults to Normal — see
+# WaveScaler.boss_code_for). Irrelevant for every other round.
+func generate_wave_spec(round: int, difficulty: int, grid_width: int, chosen_element: int = -1) -> Array:
 	var spec: Array = []
 
 	# ── Boss rounds (10 / 20 / 30): a scaled boss + escalating adds. ──
 	if WaveScaler.is_boss_round(round):
-		var placed: Array = WaveScaler.build_boss_formation(round, difficulty, grid_width)
+		var placed: Array = WaveScaler.build_boss_formation(round, difficulty, grid_width, chosen_element)
 		var boss_lvl: int = WaveScaler.boss_level(round)
-		var boss_code: String = WaveScaler.boss_code_for(round)
+		var boss_code: String = WaveScaler.boss_code_for(round, chosen_element)
 		for entry: Dictionary in placed:
 			var code: String = entry["code"]
 			var t: String = EnemyFactory.CODE_TO_TYPE.get(code, "")
@@ -69,10 +72,15 @@ func generate_wave_spec(round: int, difficulty: int, grid_width: int) -> Array:
 			spec.append({"type": "random", "level": lvl})
 		return spec
 
+	# Fixed waves 1-9 spawn at level 1 (their compositions carry the early curve).
+	# Fixed waves 11+ ride the same level ramp the old procedural rounds used —
+	# composition power AND unit level climb together (see WaveData's header).
 	for entry: Dictionary in formation_data:
 		var type: String = EnemyFactory.CODE_TO_TYPE.get(entry["code"], "")
-		if type != "":
-			spec.append({"type": type, "level": 1, "pos": entry["pos"]})
+		if type == "":
+			continue
+		var lvl: int = 1 if round <= 10 else WaveScaler.enemy_level_for_round(round, false)
+		spec.append({"type": type, "level": lvl, "pos": entry["pos"]})
 	return spec
 
 # Create the enemy described by one wave-spec entry. "random" = procedural
@@ -93,12 +101,22 @@ func create_enemy_for_entry(entry: Dictionary, round: int) -> VisualUnit:
 		unit = EnemyFactory.create_by_type(type)
 	if unit and lvl > 1:
 		unit.set_level(lvl)
+	# Late-game stat multiplier (round 11+, see Balance) — applied AFTER
+	# leveling so it scales the leveled stats. Keeps current/max HP ratio
+	# (Khagan deliberately spawns at half HP).
+	if unit and round > Balance.ENEMY_LATE_SCALE_START_ROUND:
+		var hp_mult: float = Balance.enemy_late_hp_mult(round)
+		var dmg_mult: float = Balance.enemy_late_dmg_mult(round)
+		unit.max_hp        = maxi(1, int(unit.max_hp * hp_mult))
+		unit.current_hp    = maxi(1, int(unit.current_hp * hp_mult))
+		unit.attack_damage = maxi(1, int(unit.attack_damage * dmg_mult))
+		unit.magic_power   = int(unit.magic_power * dmg_mult)
 	return unit
 
 # Dry-run power estimate for a difficulty WITHOUT touching the battlefield —
 # lets the difficulty panel show all 3 tiers' power side by side.
-func estimate_wave_power(round: int, difficulty: int, grid_width: int) -> float:
-	var spec: Array = generate_wave_spec(round, difficulty, grid_width)
+func estimate_wave_power(round: int, difficulty: int, grid_width: int, chosen_element: int = -1) -> float:
+	var spec: Array = generate_wave_spec(round, difficulty, grid_width, chosen_element)
 	var total: float = 0.0
 	for entry: Dictionary in spec:
 		var unit: VisualUnit = create_enemy_for_entry(entry, round)

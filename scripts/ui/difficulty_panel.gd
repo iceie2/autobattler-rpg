@@ -111,7 +111,7 @@ func _build_ui() -> void:
 			btn.add_theme_font_override("font", font)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.custom_minimum_size = Vector2(0, 56)
-		btn.add_theme_font_size_override("font_size", 18)
+		btn.add_theme_font_size_override("font_size", 22)
 		btn.add_theme_color_override("font_color", Color(0.10, 0.08, 0.04))
 		btn.add_theme_color_override("font_hover_color", Color(0.10, 0.08, 0.04))
 		btn.add_theme_color_override("font_pressed_color", Color(0.05, 0.04, 0.02))
@@ -136,7 +136,7 @@ func _build_ui() -> void:
 		name_lbl.text = _DIFF_NAMES[i]
 		if font:
 			name_lbl.add_theme_font_override("font", font)
-		name_lbl.add_theme_font_size_override("font_size", 14)
+		name_lbl.add_theme_font_size_override("font_size", 30)
 		name_lbl.add_theme_color_override("font_color", Color(0.78, 0.78, 0.88))
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(name_lbl)

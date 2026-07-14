@@ -898,3 +898,903 @@ Bottom Row (Elements 4-6):
 
 ================================================================================
 
+101. Single Prompt for All 6 Elemental Kobolds (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct scrawny reptilian kobold skirmishers, arranged in two rows of three, isolated on a solid green background. Each kobold is a small hunched lizard-like humanoid with oversized frilled ears, a long snout, a thin tail, and a crude notched dagger. All six share a thick black outline around the character and around any floating or detached elements (daggers, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Kobold): rust-orange scales, tattered leather scraps, sharp amber eyes. (Fire Kobold): charcoal scales split by glowing ember cracks, a smoldering dagger trailing sparks, glowing orange eyes. (Water Kobold): glossy deep-blue scales beaded with droplets, fin-like ear frills, a coral-shard dagger, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Kobold): pale sky-blue scales fading into wispy vapor at the tail and ear tips, small wind swirls around the dagger, bright white glowing eyes. 5. (Earth Kobold): craggy stone-plated scales with moss tufts, a chipped flint dagger, glowing emerald eyes. 6. (Lightning Kobold): indigo scales laced with crackling white-yellow arcs, static-raised ear frills, a sparking dagger, electric-blue glowing eyes.
+
+================================================================================
+
+102. Single Prompt for All 6 Elemental Goblins (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct vicious little goblin raiders, arranged in two rows of three, isolated on a solid green background. Each goblin is a small hunched humanoid with big pointed ears, a wide toothy snarl, ragged leather scraps, and a jagged rusty shortsword. All six share a thick black outline around the character and around any floating or detached elements (swords, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Goblin): mottled green skin, tribal scars, sharp yellow eyes. (Fire Goblin): soot-black skin veined with glowing ember cracks, singed ears, a smoldering blade shedding sparks, glowing orange eyes. (Water Goblin): slick teal skin sheened with running water, a kelp-wrapped sword hilt, bubbles clinging to its ears, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Goblin): pale wind-blurred body trailing wisps of vapor from its ears and blade, small clouds swirling at its feet, bright white glowing eyes. 5. (Earth Goblin): skin armored in cracked stone plates with moss patches, a heavy flint cleaver, glowing emerald eyes. 6. (Lightning Goblin): indigo skin crawling with white-yellow arcs, hair standing on end with static, a sparking blade, electric-blue glowing eyes.
+
+================================================================================
+
+103. Single Prompt for All 6 Elemental Hobgoblins (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct disciplined hobgoblin soldiers, arranged in two rows of three, isolated on a solid green background. Each hobgoblin is a tall muscular goblinoid in mismatched scavenged plate armor, carrying a straight shortsword and a small kite shield, standing with drilled military bearing. All six share a thick black outline around the character and around any floating or detached elements (swords, shields, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Hobgoblin): dull red-brown skin, iron-grey armor plates, stern amber eyes. (Fire Hobgoblin): scorched black armor glowing at the seams, ember cracks across the skin, a red-hot blade, glowing orange eyes. (Water Hobgoblin): blue-green skin, barnacle-crusted armor dripping seawater, a shield ringed with foam, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Hobgoblin): pale grey skin, lightweight silver armor trailing wind streams, a cape streaming sideways in a constant gale, bright white glowing eyes. 5. (Earth Hobgoblin): granite-plated armor fused to stony skin, moss in the joints, a flint-edged sword, glowing emerald eyes. 6. (Lightning Hobgoblin): indigo skin, armor etched with crackling arc-lines, sparks jumping between sword and shield, electric-blue glowing eyes.
+
+================================================================================
+
+104. Single Prompt for All 6 Elemental Orcs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct savage orc warriors, arranged in two rows of three, isolated on a solid green background. Each orc is a broad muscular humanoid with a heavy underbite, small tusks, crude hide armor, and a battered war axe. All six share a thick black outline around the character and around any floating or detached elements (axes, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Orc): grey-green scarred skin, tribal war paint, sharp amber eyes. (Fire Orc): charcoal skin split by molten ember cracks, smoke curling off the shoulders, an axe with a glowing red edge, glowing orange eyes. (Water Orc): deep blue-green skin streaming with water, shell-and-coral armor, an axe trailing droplets, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Orc): ash-pale skin blurring into wind streaks at the arms, war braids streaming in a constant gale, bright white glowing eyes. 5. (Earth Orc): hide fused with layered granite slabs, moss across the shoulders, a stone-headed axe, glowing emerald eyes. 6. (Lightning Orc): indigo skin webbed with crackling white-yellow arcs, static-charged war braids, a sparking axe, electric-blue glowing eyes.
+
+================================================================================
+
+105. Single Prompt for All 6 Elemental Orc Brutes (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct massive orc brutes, arranged in two rows of three, isolated on a solid green background. Each orc brute is a hulking top-heavy orc with enormous shoulders, heavy scavenged-metal pauldrons, big tusks, and a huge two-handed iron maul. All six share a thick black outline around the character and around any floating or detached elements (mauls, embers, droplets, falling pebbles, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Orc Brute): thick grey-green scarred hide, dented iron pauldrons, sharp amber eyes. (Fire Orc Brute): blackened hide glowing with lava-like cracks, a maul head of smoldering slag, embers drifting off its back, glowing orange eyes. (Water Orc Brute): blue-grey hide slick with cascading water, barnacled armor, a maul crowned with churning foam, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Orc Brute): pale storm-grey hide trailing wind streams from the fists and maul, clouds coiling around the shoulders, bright white glowing eyes. 5. (Earth Orc Brute): hide plated in boulder-like granite slabs, moss and vines on the pauldrons, a maul that is one huge rock, glowing emerald eyes. 6. (Lightning Orc Brute): indigo hide crawling with thick crackling arcs, a maul wreathed in jumping sparks, electric-blue glowing eyes.
+
+================================================================================
+
+106. Single Prompt for All 6 Elemental Trolls (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct lanky feral trolls, arranged in two rows of three, isolated on a solid green background. Each troll is a tall gangly monster with long arms, oversized clawed hands, a hunched back, a long warty nose, and a crude wooden club. All six share a thick black outline around the character and around any floating or detached elements (clubs, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Troll): warty moss-green hide, shaggy matted hair, sharp amber eyes. (Fire Troll): charred cracked hide oozing molten light at the joints, a club burning at one end like a giant torch, glowing orange eyes. (Water Troll): slimy river-blue hide dripping constantly, waterweed hair, a driftwood club trailing droplets, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Troll): gaunt pale hide half-dissolving into fog below the knees, hair streaming upward in a wind current, bright white glowing eyes. 5. (Earth Troll): hide of cracked bedrock and packed soil, small shrubs growing on its back, a boulder lashed to a root as a club, glowing emerald eyes. 6. (Lightning Troll): indigo hide flickering with arcs between its long fingers, static-frizzed hair, a scorched club crackling with sparks, electric-blue glowing eyes.
+
+================================================================================
+
+107. Single Prompt for All 6 Elemental Ogres (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct brutish round-bellied ogres, arranged in two rows of three, isolated on a solid green background. Each ogre is a huge pot-bellied humanoid with a lopsided underbite, jutting lower tusks, a ragged hide loincloth, and a massive tree-trunk club over one shoulder. All six share a thick black outline around the character and around any floating or detached elements (clubs, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Ogre): warty greenish-brown hide, dim angry amber eyes. (Fire Ogre): soot-grey hide glowing with ember veins across the belly, a smoldering tree-trunk club shedding sparks, glowing orange eyes. (Water Ogre): blubbery blue hide sheeting with water, a belly that sloshes like a water-skin, a club of soaked driftwood, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Ogre): puffy cloud-pale hide, its great belly swirling like a storm cloud, wind spiraling around the raised club, bright white glowing eyes. 5. (Earth Ogre): hide of packed earth and boulder plates, grass and vines sprouting from its shoulders, a stone-column club, glowing emerald eyes. 6. (Lightning Ogre): indigo hide with thick arcs crawling over its belly like a plasma globe, a scorched sparking club, electric-blue glowing eyes.
+
+================================================================================
+
+108. Single Prompt for All 6 Elemental Cyclopes (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct towering one-eyed cyclopes, arranged in two rows of three, isolated on a solid green background. Each cyclops is a huge muscular giant with a single enormous eye beneath a heavy brow, a shaggy beard, a simple hide wrap, and a massive iron-shod club. All six share a thick black outline around the character and around any floating or detached elements (clubs, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Cyclops): sun-weathered tan hide, one huge amber eye. (Fire Cyclops): charred hide with magma veins up the arms, a beard of drifting embers, one huge furnace-orange eye. (Water Cyclops): sea-blue hide streaming with water, a beard of foam and dripping kelp, one huge glowing sapphire eye.
+Bottom Row (Elements 4-6):
+4. (Air Cyclops): pale mist-grey hide trailing wind streams, a beard swirling like a small cyclone, one huge glowing white eye. 5. (Earth Cyclops): hide of stacked granite slabs with mossy crevices and a mountain-peak silhouette, one huge glowing emerald eye. 6. (Lightning Cyclops): indigo hide veined with crackling arcs, a beard of static-charged strands, one huge glowing electric-blue eye.
+
+================================================================================
+
+109. Single Prompt for All 6 Elemental Ghouls (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct crouched feral ghouls, arranged in two rows of three, isolated on a solid green background. Each ghoul is a gaunt emaciated undead with flesh stretched tight over its ribs, long digging claws, matted hair, and a hungry unhinged jaw — no fur, no gear, just starved undead flesh. All six share a thick black outline around the character and around any floating or detached elements (claws, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready crouch (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Ghoul): grey-green rotting flesh, milky hungry eyes. (Fire Ghoul): blackened crispy flesh glowing through cracks like dying coals, smoke rising from its spine, glowing orange eyes. (Water Ghoul): bloated waterlogged blue-white flesh dripping constantly, strands of kelp in its hair, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Ghoul): withered papery flesh flaking away into drifting wisps, hair streaming in a constant wind, bright white glowing eyes. 5. (Earth Ghoul): flesh crusted with grave-dirt and embedded pebbles, small roots threading through its limbs, glowing emerald eyes. 6. (Lightning Ghoul): twitching flesh lit from within by flickering arcs, claws sparking against each other, electric-blue glowing eyes.
+
+================================================================================
+
+110. Single Prompt for All 6 Elemental Zombies (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct shambling toon zombies, arranged in two rows of three, isolated on a solid green background. Each zombie is a rotting undead humanoid in tattered rags, one arm outstretched, exposed ribs, a lurching off-balance stance — decayed flesh and torn cloth only, no fur or scales. All six share a thick black outline around the character and around any floating or detached elements (torn cloth scraps, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready lurch (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Zombie): grey rotting skin, blank milky eyes. (Fire Zombie): charred smoking flesh with ember-glowing wounds, one arm burning like a slow candle, glowing orange eyes. (Water Zombie): swollen drowned blue flesh, seaweed draped across the shoulders, water pouring from its sleeves, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Zombie): dried husk-like flesh with rags streaming sideways in a constant wind, wisps of vapor leaking from its wounds, bright white glowing eyes. 5. (Earth Zombie): flesh caked in grave-soil with mushrooms and moss growing from the shoulders, glowing emerald eyes. 6. (Lightning Zombie): flesh jolting with periodic arcs, burnt hair standing on end, sparks jumping between its fingers, electric-blue glowing eyes.
+
+================================================================================
+
+111. Single Prompt for All 6 Elemental Skeleton Warriors (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct toon skeleton warriors, arranged in two rows of three, isolated on a solid green background. Each skeleton is a chunky rounded-bone undead with a big round skull, hollow eye sockets, a rusty sword and small buckler, and scraps of tattered chainmail — bare bone only, no flesh, no fur. All six share a thick black outline around the character and around any floating or detached elements (swords, shields, soul-flames, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Skeleton Warrior): bleached white bones, faint pale soul-flames in the eye sockets. (Fire Skeleton Warrior): scorched charcoal-black bones with orange fire licking between the ribs, a flame-wreathed sword, burning orange eye sockets. (Water Skeleton Warrior): sea-worn bluish bones crusted with barnacles, water flowing through the ribcage like a fountain, glowing sapphire eye sockets.
+Bottom Row (Elements 4-6):
+4. (Air Skeleton Warrior): chalk-white bones held together by visible swirling wind, a few loose bones orbiting the body, glowing white eye sockets. 5. (Earth Skeleton Warrior): heavy fossilized stone-grey bones with moss in the joints, a flint sword, glowing emerald eye sockets. 6. (Lightning Skeleton Warrior): indigo-tinged bones with arcs jumping rib to rib, a sparking sword, crackling electric-blue eye sockets.
+
+================================================================================
+
+112. Single Prompt for All 6 Elemental Skeleton Archers (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct toon skeleton archers, arranged in two rows of three, isolated on a solid green background. Each skeleton archer is a chunky rounded-bone undead drawing a crude shortbow with a nocked arrow, a quiver on its back, hollow eye sockets — bare bone only, no flesh, no fur. All six share a thick black outline around the character and around any floating or detached elements (bows, arrows, soul-flames, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready aiming pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Skeleton Archer): bleached white bones, a plain bone arrow, faint pale soul-flames in the eye sockets. (Fire Skeleton Archer): charred black bones, a drawn arrow with a burning tip trailing embers, burning orange eye sockets. (Water Skeleton Archer): blue-tinged barnacled bones, an arrow formed of pressurized water, droplets spraying from the bowstring, glowing sapphire eye sockets.
+Bottom Row (Elements 4-6):
+4. (Air Skeleton Archer): chalk-white bones wrapped in visible wind currents, an arrow of condensed swirling air, glowing white eye sockets. 5. (Earth Skeleton Archer): fossilized stone-grey bones with mossy joints, a heavy flint-tipped arrow, glowing emerald eye sockets. 6. (Lightning Skeleton Archer): indigo bones with arcs running down the drawn bowstring, an arrow that is a captured lightning bolt, crackling electric-blue eye sockets.
+
+================================================================================
+
+113. Single Prompt for All 6 Elemental Wights (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct barrow-wight undead knights, arranged in two rows of three, isolated on a solid green background. Each wight is a withered corpse-knight in ancient corroded armor with tattered burial shrouds trailing from the shoulders, gripping a rune-etched longsword — desiccated skin and old metal, no fur or scales. All six share a thick black outline around the character and around any floating or detached elements (swords, shroud scraps, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Wight): frost-pale withered skin, tarnished grey armor, cold pale glowing eyes. (Fire Wight): mummified black skin, armor glowing dull red at the edges, a sword sheathed in smoky flame, glowing orange eyes. (Water Wight): drowned green-blue skin, armor crusted in barnacles and dripping seawater, a sword weeping water, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Wight): gaunt grey skin, shrouds and cloak streaming in a perpetual gale, its lower body trailing into mist, bright white glowing eyes. 5. (Earth Wight): skin like cracked dry clay, armor fused with tomb-stone slabs and moss, a sword of chiseled rock, glowing emerald eyes. 6. (Lightning Wight): storm-grey skin, armor humming with arcs across the breastplate, a sword crackling with captive lightning, electric-blue glowing eyes.
+
+================================================================================
+
+114. Single Prompt for All 6 Elemental Wraiths (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct hooded ghostly wraiths, arranged in two rows of three, isolated on a solid green background. Each wraith is a floating hooded spirit with no body inside its robe — just a dark hood, long spectral claw-fingered hands, and a robe hem dissolving into wisps; it is entirely incorporeal, made of glowing translucent energy, with no fur, flesh, or solid hide. All six share a thick black outline around the character and around any floating or detached elements (robe wisps, drifting motes, sparks, droplets), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a floating combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Wraith): a robe of deep shadow-grey mist, cold pale glowing eyes in the empty hood. (Fire Wraith): a robe of black smoke lined with licking orange flame, embers drifting from the hem, glowing orange eyes. (Water Wraith): a robe of flowing translucent deep-blue water, droplets raining from its claws, glowing sapphire eyes.
+Bottom Row (Elements 4-6):
+4. (Air Wraith): a robe of near-invisible pale vapor and swirling wind lines, small clouds spiraling in its hood, glowing white eyes. 5. (Earth Wraith): a robe of drifting dust and suspended pebbles held in a ghostly shape, moss-green mist at the hem, glowing emerald eyes. 6. (Lightning Wraith): a robe of dark storm-cloud vapor flickering with internal arcs, sparks jumping between its claws, glowing electric-blue eyes.
+
+================================================================================
+
+115. Single Prompt for All 6 Elemental Banshees (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct wailing toon banshee ghosts, arranged in two rows of three, isolated on a solid green background. Each banshee is a floating female spirit with long flowing spectral hair streaming upward, a tattered ghostly gown trailing into wisps instead of legs, and a mouth open in a mournful wail with visible sound-ripple rings — entirely incorporeal and translucent, made of glowing ghost-light, with no fur, scales, or solid body. All six share a thick black outline around the character and around any floating or detached elements (hair wisps, sound-ripple rings, drifting motes, sparks, droplets), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a floating combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Banshee): a pale silver-white ghost-light body, hollow sorrowful glowing eyes. (Fire Banshee): a spirit of orange-red flame, hair rising like fire, embers scattering with each wail, glowing orange eyes. (Water Banshee): a spirit of flowing translucent blue water, hair like a cascading waterfall, tear-droplets orbiting her, glowing sapphire eyes.
+Bottom Row (Elements 4-6):
+4. (Air Banshee): a barely-there spirit of white vapor and visible wind spirals, her wail sending curling gust-lines outward, glowing white eyes. 5. (Earth Banshee): a spirit of drifting grave-dust and suspended soil, hair strung with floating pebbles and dead leaves, glowing emerald eyes. 6. (Lightning Banshee): a spirit of flickering storm-light, hair of crackling arc-strands, her wail bursting with sparks, glowing electric-blue eyes.
+
+================================================================================
+
+116. Single Prompt for All 6 Elemental Liches (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct undead lich sorcerers, arranged in two rows of three, isolated on a solid green background. Each lich is a skeletal spellcaster in ornate tattered robes, a floating crown hovering above its bare skull, one bony hand gripping a staff topped with a glowing phylactery gem — bone and cloth only, no flesh, fur, or scales. All six share a thick black outline around the character and around any floating or detached elements (floating crowns, staffs, phylactery gems, orbiting runes, embers, droplets, motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready spellcasting pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Lich): bleached bones in faded purple-and-gold robes, pale arcane fire in the eye sockets, a violet phylactery gem. (Fire Lich): scorched bones in charred crimson robes, flame spilling from the sleeves, a molten-orange phylactery gem, burning orange eye sockets. (Water Lich): coral-crusted bones in deep-sea blue robes that flow like liquid, water streaming from the staff, a glowing sapphire phylactery gem, sapphire eye sockets.
+Bottom Row (Elements 4-6):
+4. (Air Lich): chalk-white bones in robes that billow weightlessly, the crown and loose bones orbiting on wind currents, a pale-white phylactery gem, glowing white eye sockets. 5. (Earth Lich): fossilized stone bones in moss-lined earthen robes, small rocks orbiting the staff, an emerald phylactery gem, glowing emerald eye sockets. 6. (Lightning Lich): indigo-tinted bones in storm-grey robes, arcs leaping between crown and skull, a crackling electric phylactery gem, electric-blue eye sockets.
+
+================================================================================
+
+117. Single Prompt for All 6 Elemental Mummies (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct shambling toon mummies, arranged in two rows of three, isolated on a solid green background. Each mummy is a bandage-wrapped undead with loose wrappings unraveling at the arms and legs, glowing eyes through a gap in the face bindings, one stiff arm outstretched — wrapped cloth over a dried husk only, no fur or scales. All six share a thick black outline around the character and around any floating or detached elements (trailing bandage strips, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready lurch (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Mummy): cracked sand-brown wrappings, dusty seams, glowing amber eyes. (Fire Mummy): scorched black-edged wrappings smoldering at the trailing ends like slow fuses, embers rising from the gaps, glowing orange eyes. (Water Mummy): sodden dark-blue wrappings dripping steadily, loose strips floating as if underwater, glowing sapphire eyes.
+Bottom Row (Elements 4-6):
+4. (Air Mummy): loose pale wrappings unwinding and streaming in a constant spiral of wind around the body, glowing white eyes. 5. (Earth Mummy): mud-caked wrappings studded with pebbles and sprouting moss, sand pouring from the gaps, glowing emerald eyes. 6. (Lightning Mummy): wrappings scorched in zigzag burn patterns, arcs running along the trailing strips like live wires, glowing electric-blue eyes.
+
+================================================================================
+
+118. Single Prompt for All 6 Elemental Vampires (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct aristocratic toon vampires, arranged in two rows of three, isolated on a solid green background. Each vampire is a pale slender humanoid in a high-collared cape over formal dark clothes, with slicked-back hair, sharp fangs bared, and clawed fingers raised — elegant undead flesh and fine cloth, no fur or scales. All six share a thick black outline around the character and around any floating or detached elements (cape edges, small bats, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Vampire): chalk-pale skin, a black cape with blood-red lining, piercing crimson eyes. (Fire Vampire): ash-grey skin with glowing ember veins at the temples, a cape of layered flame, two small fire-bats circling, glowing orange eyes. (Water Vampire): blue-tinged porcelain skin, a cape flowing like a sheet of dark water, droplets orbiting its raised claw, glowing sapphire eyes.
+Bottom Row (Elements 4-6):
+4. (Air Vampire): near-translucent pale skin, a cape dissolving into swirling mist and wind lines, hovering slightly off the ground, glowing white eyes. 5. (Earth Vampire): grey stone-toned skin with a cracked marble texture, a cape of layered slate scales with moss trim, glowing emerald eyes. 6. (Lightning Vampire): livid indigo-pale skin, hair spiked with static, a cape flickering with arc-light, sparks at its fangs, glowing electric-blue eyes.
+
+================================================================================
+
+119. Single Prompt for All 6 Elemental Werewolves (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral toon werewolves, arranged in two rows of three, isolated on a solid green background. Each werewolf is a muscular wolf-headed humanoid with a shaggy mane, torn trousers, long claws, and a snarling fanged muzzle. All six share a thick black outline around the character and around any floating or detached elements (fur tufts, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Werewolf): shaggy dark-brown fur, a ragged mane, sharp amber eyes. (Fire Werewolf): charcoal fur with a mane of living flame down its back, ember cracks glowing along the claws, glowing orange eyes. (Water Werewolf): sleek deep-blue fur slicked flat like an otter, a mane flowing like liquid, droplets flying from its claws, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Werewolf): pale silver fur constantly rippling in wind, the mane streaming into visible gust-lines, bright white glowing eyes. 5. (Earth Werewolf): brown fur matted with soil, granite plates armoring the shoulders and forearms, moss in the mane, glowing emerald eyes. 6. (Lightning Werewolf): indigo fur bristling fully on end with static, arcs snapping between its claws, a crackling mane, electric-blue glowing eyes.
+
+================================================================================
+
+120. Single Prompt for All 6 Elemental Harpies (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct shrieking toon harpies, arranged in two rows of three, isolated on a solid green background. Each harpy is a feral bird-woman with a humanoid upper body, huge feathered wings for arms, taloned bird legs, wild hair, and a screeching open mouth. All six share a thick black outline around the character and around any floating or detached elements (loose feathers, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, wings spread, in a swooping combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Harpy): dusty brown-black feathers, wild dark hair, sharp amber eyes. (Fire Harpy): charcoal feathers with burning orange tips, molted feathers falling as drifting embers, hair of flame, glowing orange eyes. (Water Harpy): sleek blue-green feathers beaded with spray, wingbeats flinging arcs of droplets, hair like wet kelp, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Harpy): pale white-silver feathers half-dissolving into wind streaks at the wingtips, a permanent spiral of gust-lines around her, bright white glowing eyes. 5. (Earth Harpy): feathers like layered slate shards, talons of chipped stone, moss and twigs woven in her hair, glowing emerald eyes. 6. (Lightning Harpy): indigo feathers with white-yellow arcs jumping between the wingtips, static-flared hair, electric-blue glowing eyes.
+
+================================================================================
+
+121. Single Prompt for All 6 Elemental Gorgons (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct serpentine toon gorgons, arranged in two rows of three, isolated on a solid green background. Each gorgon is a snake-woman with a scaled humanoid torso, a long coiling serpent tail instead of legs, and a head of writhing living snakes for hair. All six share a thick black outline around the character and around any floating or detached elements (snake-hair heads, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, coiled upright in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Gorgon): bronze-green scales, hissing green snake-hair, piercing stone-grey eyes. (Fire Gorgon): obsidian scales with lava seams down the tail, snake-hair of small flame-serpents trailing embers, glowing orange eyes. (Water Gorgon): iridescent blue scales sheened with water, snake-hair of translucent eel-like water serpents, droplets spiraling around the coils, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Gorgon): pearl-pale scales fading to vapor at the tail tip, snake-hair of wispy wind-serpents streaming upward, bright white glowing eyes. 5. (Earth Gorgon): scales of layered slate and jade with moss between the coils, snake-hair of stone-headed serpents, glowing emerald eyes. 6. (Lightning Gorgon): indigo scales flickering with arcs along the tail ridge, snake-hair of crackling lightning-serpents, electric-blue glowing eyes.
+
+================================================================================
+
+122. Single Prompt for All 6 Elemental Manticores (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct fearsome toon manticores, arranged in two rows of three, isolated on a solid green background. Each manticore is a lion-bodied monster with a maned feline frame, leathery bat wings, a grotesque fanged humanoid face, and a segmented scorpion tail arched overhead tipped with spikes. All six share a thick black outline around the character and around any floating or detached elements (tail spikes, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, wings spread, in a combat-ready pounce stance (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Manticore): a tawny hide with a dark shaggy mane, sharp amber eyes. (Fire Manticore): soot-black hide, a mane of rolling flame, tail spikes glowing white-hot and trailing embers, glowing orange eyes. (Water Manticore): slick blue hide, a mane of flowing water, tail spikes of sharpened ice dripping steadily, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Manticore): pale grey hide, a mane streaming into wind wisps, wings stirring visible spirals of air, tail spikes of compressed vapor, bright white glowing eyes. 5. (Earth Manticore): brown hide plated with granite along the spine, a moss-green mane, tail spikes of jagged flint, glowing emerald eyes. 6. (Lightning Manticore): indigo hide, a mane of crackling static strands, tail spikes arcing with sparks, electric-blue glowing eyes.
+
+================================================================================
+
+123. Single Prompt for All 6 Elemental Chimeras (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct monstrous toon chimeras, arranged in two rows of three, isolated on a solid green background. Each chimera is a three-headed beast: a lion's muscular forebody, a goat head jutting from its back, and a serpent-headed tail lashing behind, all snarling. All six share a thick black outline around the character and around any floating or detached elements (embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready stance (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Chimera): a tawny lion body, a grey goat head, a green serpent tail, three pairs of sharp amber eyes. (Fire Chimera): a charcoal lion body with a flame mane, a goat head of smoldering ash with ember horns, a serpent tail breathing small fire puffs, glowing orange eyes. (Water Chimera): a deep-blue lion body sheened with water, a goat head with icicle horns, an eel-like translucent serpent tail flinging droplets, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Chimera): a pale silver lion body trailing wind streaks, a goat head with cloud-swirl horns, a serpent tail of coiling vapor, bright white glowing eyes. 5. (Earth Chimera): a brown lion body armored with granite plates, a goat head with mossy stone horns, a serpent tail of linked rock segments, glowing emerald eyes. 6. (Lightning Chimera): an indigo lion body with a static-bristled mane, a goat head with arc-wreathed horns, a serpent tail snapping with sparks, electric-blue glowing eyes.
+
+================================================================================
+
+124. Single Prompt for All 6 Elemental Minotaurs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct towering toon minotaurs, arranged in two rows of three, isolated on a solid green background. Each minotaur is a muscular bull-headed humanoid with massive curved horns, a brass nose-ring, a leather harness, and a huge two-handed battleaxe. All six share a thick black outline around the character and around any floating or detached elements (axes, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Minotaur): shaggy dark-brown fur, ivory horns, furious amber eyes. (Fire Minotaur): charcoal hide with ember cracks across the chest, horns tipped in flame, an axe with a molten edge, steam snorting from its nostrils, glowing orange eyes. (Water Minotaur): slick blue-black hide, horns of clear ice, an axe trailing sheets of water, mist snorting from its nostrils, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Minotaur): pale grey hide with fur rippling in a constant wind, horns wrapped in spiral gust-lines, an axe trailing visible air currents, bright white glowing eyes. 5. (Earth Minotaur): hide plated with granite slabs, horns of jagged rock, moss across the shoulders, a stone-headed axe, glowing emerald eyes. 6. (Lightning Minotaur): indigo hide bristling with static, a lightning bolt jumping between its horn tips, a sparking axe, electric-blue glowing eyes.
+
+================================================================================
+
+125. Single Prompt for All 6 Elemental Basilisks (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct monstrous toon basilisks, arranged in two rows of three, isolated on a solid green background. Each basilisk is a heavy six-legged lizard with thick armored scales, a spined crest around its head, a dragging muscular tail, and a wide petrifying glare. All six share a thick black outline around the character and around any floating or detached elements (crest spines, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a low combat-ready stance (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Basilisk): dull olive-green armored scales, a bone-white crest, hypnotic yellow eyes. (Fire Basilisk): blackened scales with magma glowing in the gaps, a crest of flame spines, smoke curling from beneath its feet, glowing orange eyes. (Water Basilisk): glossy teal scales streaming with water, a crest of translucent fins, a puddle-trailing tail, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Basilisk): pale sand-grey scales, a crest of feathery vapor spines, dust devils swirling around its claws, bright white glowing eyes. 5. (Earth Basilisk): scales of fused boulder plates with moss and lichen, a crest of stone spikes, pebbles shaking loose as it moves, glowing emerald eyes. 6. (Lightning Basilisk): indigo scales with arcs crawling along its spine ridge, a crest of crackling spines, sparks dripping from its jaw, electric-blue glowing eyes.
+
+================================================================================
+
+126. Single Prompt for All 6 Elemental Cockatrices (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct bizarre toon cockatrices, arranged in two rows of three, isolated on a solid green background. Each cockatrice is a rooster-headed wyrm with a feathered crested head, small clawed wings, a scaled serpentine lower body and tail, and an aggressive puffed-up strut. All six share a thick black outline around the character and around any floating or detached elements (loose feathers, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, wings spread, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Cockatrice): rust-red feathers over dull green scales, a crimson comb, beady petrifying yellow eyes. (Fire Cockatrice): charcoal feathers with flame-orange tips, a comb of literal fire, embers scattering when it flaps, glowing orange eyes. (Water Cockatrice): sleek teal feathers over glossy blue scales, a comb of translucent fins, droplets flicking off its tail, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Cockatrice): pale silver feathers dissolving into wind wisps at the tips, a comb of curling vapor, gust-lines spiraling off its wings, bright white glowing eyes. 5. (Earth Cockatrice): feathers like layered slate chips over mossy stone scales, a comb of rough jade, glowing emerald eyes. 6. (Lightning Cockatrice): indigo feathers with arcs jumping between the wing tips, a comb of crackling sparks, electric-blue glowing eyes.
+
+================================================================================
+
+127. Single Prompt for All 6 Elemental Wyverns (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct fierce toon wyverns, arranged in two rows of three, isolated on a solid green background. Each wyvern is a lean two-legged dragonkin with huge leathery wings for forelimbs, a spined back, and a long barbed stinger tail arched to strike. All six share a thick black outline around the character and around any floating or detached elements (wing membranes, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, wings spread, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Wyvern): dull green scales, tattered brown wing membranes, slit yellow eyes. (Fire Wyvern): obsidian scales with magma seams, wing membranes glowing like stained glass over fire, a stinger dripping molten venom, glowing orange eyes. (Water Wyvern): glossy sea-blue scales, translucent wing membranes like sheets of water, a stinger of clear ice, droplets trailing in flight, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Wyvern): pale sky-grey scales, wing membranes fading into open swirling wind at the edges, a vapor-trailing stinger, bright white glowing eyes. 5. (Earth Wyvern): scales of cracked stone plates with moss, heavy slate wing membranes, a stinger of jagged flint, glowing emerald eyes. 6. (Lightning Wyvern): indigo scales, wing membranes flickering with branching arcs like storm clouds, a stinger snapping with sparks, electric-blue glowing eyes.
+
+================================================================================
+
+128. Single Prompt for All 6 Elemental Griffins (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct regal toon griffins, arranged in two rows of three, isolated on a solid green background. Each griffin is a proud beast with an eagle's head and feathered wings, taloned forelegs, and a lion's muscular hindquarters and tail. All six share a thick black outline around the character and around any floating or detached elements (loose feathers, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, wings spread, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Griffin): golden-brown feathers over a tawny lion body, fierce amber eyes. (Fire Griffin): charcoal feathers tipped in flame, a lion body with ember cracks along the flanks, molted feathers drifting as sparks, glowing orange eyes. (Water Griffin): sleek blue-silver feathers beaded with spray, a lion body sheened with flowing water, wingbeats flinging droplets, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Griffin): white-silver feathers streaming into visible wind currents at the wingtips, a body trailing gust-lines, bright white glowing eyes. 5. (Earth Griffin): feathers of layered slate shards, a lion body plated with granite and moss, talons of chipped stone, glowing emerald eyes. 6. (Lightning Griffin): indigo feathers with arcs leaping between the wingtips, a static-bristled lion body, electric-blue glowing eyes.
+
+================================================================================
+
+129. Single Prompt for All 6 Elemental Hydras (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct monstrous toon hydras, arranged in two rows of three, isolated on a solid green background. Each hydra is a heavy serpentine beast with three snapping snake heads on long necks, a squat powerful body, and a thick coiled tail. All six share a thick black outline around the character and around any floating or detached elements (embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, all heads raised, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Hydra): swamp-green scales, pale belly plates, three pairs of slit yellow eyes. (Fire Hydra): obsidian scales with lava glowing between the neck segments, each head exhaling small flame puffs, glowing orange eyes. (Water Hydra): translucent deep-blue scales like flowing water, each head trailing streams and droplets as it moves, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Hydra): pale mist-grey scales, the three necks half-dissolving into ribbons of swirling vapor, bright white glowing eyes. 5. (Earth Hydra): scales of stacked boulder plates with moss and vines between the necks, heads like carved stone idols, glowing emerald eyes. 6. (Lightning Hydra): indigo scales, arcs leaping head-to-head between the three mouths, static crackling down the necks, electric-blue glowing eyes.
+
+================================================================================
+
+130. Single Prompt for All 6 Elemental Krakens (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct monstrous toon krakens, arranged in two rows of three, isolated on a solid green background. Each kraken is a bulbous-headed cephalopod beast with a cluster of thick curling tentacles for a lower body, two huge staring eyes, and a beaked maw. All six share a thick black outline around the character and around any floating or detached elements (tentacle tips, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, tentacles raised, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Kraken): deep purple-red rubbery skin, pale suckers, huge amber eyes. (Fire Kraken): charcoal skin with magma glowing between the tentacle segments, tentacle tips smoldering like torches, glowing orange eyes. (Water Kraken): translucent deep-blue body like living seawater, foam and bubbles streaming off every tentacle, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Kraken): pale cloud-grey body, tentacles trailing off into curling wind spirals, small clouds orbiting its head, bright white glowing eyes. 5. (Earth Kraken): body of barnacled boulder plates, tentacles like segmented stone columns with moss, glowing emerald eyes. 6. (Lightning Kraken): indigo body flickering with internal arcs, sparks snapping between tentacle tips, electric-blue glowing eyes.
+
+================================================================================
+
+131. Single Prompt for All 6 Elemental Cave Trolls (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct hulking toon cave trolls, arranged in two rows of three, isolated on a solid green background. Each cave troll is a massive stooped brute with a tiny head on huge shoulders, knuckles dragging near the ground, a heavy stone slab strapped to one arm as a shield, and pale eyes adapted to darkness. All six share a thick black outline around the character and around any floating or detached elements (stone slabs, embers, droplets, falling pebbles, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Cave Troll): pallid grey hide, cave-lichen patches, small milky amber eyes. (Fire Cave Troll): coal-black hide with glowing magma veins up the arms, its stone shield red-hot at the edges, glowing orange eyes. (Water Cave Troll): slick cave-pool blue hide dripping steadily, blind-fish pale belly, water pouring off its shield, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Cave Troll): dusty pale hide wreathed in cold cave-draft mist, breath visible as swirling vapor, bright white glowing eyes. 5. (Earth Cave Troll): hide indistinguishable from raw bedrock, stalactite spurs on its shoulders, moss and crystal clusters in the cracks, glowing emerald eyes. 6. (Lightning Cave Troll): indigo hide flickering with arcs between its dragging knuckles, crystal growths on its back glowing with charge, electric-blue glowing eyes.
+
+================================================================================
+
+132. Single Prompt for All 6 Elemental Bugbears (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct hulking toon bugbears, arranged in two rows of three, isolated on a solid green background. Each bugbear is a big shaggy goblinoid ambusher with long arms, a spiked wooden morningstar, a low sloped brow, and a hunched sneaking posture despite its size. All six share a thick black outline around the character and around any floating or detached elements (morningstars, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Bugbear): matted brown-grey fur, cruel amber eyes. (Fire Bugbear): singed black fur smoldering at the tips, ember cracks across its knuckles, a morningstar with red-hot spikes, glowing orange eyes. (Water Bugbear): slicked-down deep-blue fur streaming water, a morningstar studded with coral spikes, droplets flying with each step, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Bugbear): pale grey fur rippling in a constant wind, its outline blurring into gust-lines when it moves, bright white glowing eyes. 5. (Earth Bugbear): fur matted with soil and moss, granite plates grown over the shoulders, a morningstar of jagged rock, glowing emerald eyes. 6. (Lightning Bugbear): indigo fur bristling with static, arcs crawling along the morningstar spikes, electric-blue glowing eyes.
+
+================================================================================
+
+133. Single Prompt for All 6 Elemental Gnolls (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct feral toon gnolls, arranged in two rows of three, isolated on a solid green background. Each gnoll is a hyena-headed humanoid raider with spotted fur, a manic grin, a jagged bone-handled cleaver, and a necklace of small bones. All six share a thick black outline around the character and around any floating or detached elements (cleavers, bone necklaces, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Gnoll): mangy spotted tan fur, a dark bristled mane, wild amber eyes. (Fire Gnoll): sooty fur with glowing ember spots, a mane of flickering flame, a cleaver with a smoldering edge, glowing orange eyes. (Water Gnoll): sleek blue-grey fur with darker wave-pattern spots, a dripping kelp-strung mane, a cleaver of sharpened coral, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Gnoll): pale dusty fur streaming sideways in a constant wind, its cackle sending visible gust-ripples, bright white glowing eyes. 5. (Earth Gnoll): brown fur crusted with dried mud, stone plates along the forearms, a flint cleaver, glowing emerald eyes. 6. (Lightning Gnoll): indigo fur with white spark-spots, a static-flared mane, a cleaver crackling with arcs, electric-blue glowing eyes.
+
+================================================================================
+
+134. Single Prompt for All 6 Elemental Imps (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct mischievous toon imps, arranged in two rows of three, isolated on a solid green background. Each imp is a small winged demon with tiny curled horns, leathery bat wings, a barbed tail, a wicked grin, and a small ball of magic held in one claw. All six share a thick black outline around the character and around any floating or detached elements (magic orbs, wing tips, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, wings spread, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Imp): glossy red-black skin, a purple magic orb, gleeful yellow eyes. (Fire Imp): coal-black skin with ember-glow cracks, flame licking along its horns and tail barb, a fireball in its claw, glowing orange eyes. (Water Imp): slick teal skin, fin-ridged wings, a wobbling sphere of water in its claw, droplets orbiting its horns, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Imp): pale cloud-grey skin, wings trailing wisps of vapor, a spinning miniature whirlwind in its claw, bright white glowing eyes. 5. (Earth Imp): pebbly stone-brown skin with moss patches, heavy slate wings, a floating chunk of rock in its claw, glowing emerald eyes. 6. (Lightning Imp): indigo skin crawling with tiny arcs, static-charged wing membranes, a crackling ball of sparks in its claw, electric-blue glowing eyes.
+
+================================================================================
+
+135. Single Prompt for All 6 Elemental Demons (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct hulking toon demons, arranged in two rows of three, isolated on a solid green background. Each demon is a muscular horned fiend with large curved horns, a broad chest crossed by chains, clawed hands, cloven hooves, and a heavy jagged greatsword. All six share a thick black outline around the character and around any floating or detached elements (greatswords, chains, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Demon): deep crimson hide, black horns, furious yellow eyes. (Fire Demon): obsidian hide with rivers of magma in the cracks, horns wreathed in flame, a greatsword of burning slag, glowing orange eyes. (Water Demon): abyssal blue-black hide sheened with water, horns of dark coral, a greatsword trailing a curtain of brine, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Demon): storm-grey hide half-wreathed in coiling mist, horns wrapped in spiral wind-lines, a greatsword swung trailing visible gusts, bright white glowing eyes. 5. (Earth Demon): hide of cracked volcanic rock with moss in the seams, horns of jagged obsidian, a greatsword of chiseled stone, glowing emerald eyes. 6. (Lightning Demon): indigo hide webbed with branching arcs, horns crackling like tesla coils, a greatsword snapping with sparks, electric-blue glowing eyes.
+
+================================================================================
+
+136. Single Prompt for All 6 Elemental Hellhounds (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct snarling toon hellhounds, arranged in two rows of three, isolated on a solid green background. Each hellhound is a muscular demonic dog with bared dripping fangs, a spiked collar, a ridged spine, and a low predatory stalking stance. All six share a thick black outline around the character and around any floating or detached elements (spiked collars, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready stance (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Hellhound): jet-black short fur, a rust-red muzzle, burning red eyes. (Fire Hellhound): charcoal hide with ember cracks along the flanks, a mane of licking flames, smoke trailing from its jaws, glowing orange eyes. (Water Hellhound): sleek blue-black hide streaming water, a mane of churning foam, drool of dripping brine, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Hellhound): pale smoke-grey hide, a mane streaming into wind wisps, its howl sending visible gust-rings, bright white glowing eyes. 5. (Earth Hellhound): hide of cracked dark stone with magma-warm moss seams, a ridge of rock spikes down its spine, glowing emerald eyes. 6. (Lightning Hellhound): indigo hide with arcs racing along its spine ridge, a mane of crackling static strands, sparks in its bite, electric-blue glowing eyes.
+
+================================================================================
+
+137. Single Prompt for All 6 Elemental Gargoyles (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct crouched toon gargoyles, arranged in two rows of three, isolated on a solid green background. Each gargoyle is a living carved statue with bat-like wings, curved horns, a snarling fanged face, and clawed hands gripping like a perch — its whole body is sculpted material, not flesh or fur. All six share a thick black outline around the character and around any floating or detached elements (wing edges, chipped fragments, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, wings spread, in a combat-ready crouch (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Gargoyle): weathered grey granite body with a cracked patina, faint amber glowing eyes. (Fire Gargoyle): a body of scorched volcanic basalt with magma glowing in every crack, wings like cooling lava sheets, glowing orange eyes. (Water Gargoyle): a body of smooth sea-worn blue stone, water endlessly pouring from its mouth like a fountain spout, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Gargoyle): a body of pale weathered sandstone worn full of wind-holes that whistle, wisps of cloud streaming through the gaps, bright white glowing eyes. 5. (Earth Gargoyle): a body of rough mossy fieldstone with ivy wrapped around its horns and ferns in its joints, glowing emerald eyes. 6. (Lightning Gargoyle): a body of dark storm-slate with copper veins, arcs crawling across its wings like a lightning rod, electric-blue glowing eyes.
+
+================================================================================
+
+138. Single Prompt for All 6 Elemental Stone Golems (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct hulking toon stone golems, arranged in two rows of three, isolated on a solid green background. Each golem is a blocky humanoid construct of fitted rock slabs with heavy fists, a small head set low between huge shoulders, and a glowing rune carved in its chest — animated stone, not flesh. All six share a thick black outline around the character and around any floating or detached elements (floating rock fragments, chest runes, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Stone Golem): grey granite slabs with mortar seams, a pale amber chest rune. (Fire Stone Golem): blackened basalt slabs with magma glowing between every joint, heat-shimmer rising from its shoulders, a molten orange chest rune. (Water Stone Golem): smooth river-stone slabs with water flowing through its seams and cascading off its fists, a glowing sapphire chest rune.
+Bottom Row (Elements 4-6):
+4. (Air Stone Golem): lighter pumice slabs hovering slightly apart, wind visibly swirling through the gaps between its floating segments, a glowing white chest rune. 5. (Earth Stone Golem): rich brown bedrock slabs veined with crystal, moss, ivy and small flowers growing across its back, a glowing emerald chest rune. 6. (Lightning Stone Golem): dark slate slabs with copper seams, arcs jumping between its separated joints, a crackling electric-blue chest rune.
+
+================================================================================
+
+139. Single Prompt for All 6 Elemental Iron Golems (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct towering toon iron golems, arranged in two rows of three, isolated on a solid green background. Each golem is a heavy humanoid construct of riveted metal plates with massive fists, a blank faceplate with a single glowing eye-slit, and steam venting from its joints — animated metal, not flesh. All six share a thick black outline around the character and around any floating or detached elements (steam puffs, rivets, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Iron Golem): gunmetal-grey riveted plates, a faint amber eye-slit. (Fire Iron Golem): scorched black plates glowing red-hot at the joints, a furnace door in its chest leaking flame, a burning orange eye-slit. (Water Iron Golem): rust-streaked blue-green plates dripping seawater, barnacles on the shoulders, water jetting from its vents, a sapphire eye-slit.
+Bottom Row (Elements 4-6):
+4. (Air Iron Golem): polished silver plates with turbine vents in the chest spinning visible wind spirals, a bright white eye-slit. 5. (Earth Iron Golem): plates overgrown with rust, moss and clinging vines, soil packed in the joints, a glowing emerald eye-slit. 6. (Lightning Iron Golem): dark blued-steel plates with copper coils on the shoulders, arcs snapping between its fists, a crackling electric-blue eye-slit.
+
+================================================================================
+
+140. Single Prompt for All 6 Elemental Clay Golems (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct lumpy toon clay golems, arranged in two rows of three, isolated on a solid green background. Each golem is a crude half-finished humanoid of molded clay with stubby limbs, visible sculptor's fingerprints, an inscribed rune-tablet embedded in its chest, and a blank obedient face — soft molded clay, not flesh or stone. All six share a thick black outline around the character and around any floating or detached elements (clay drips, rune-tablets, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Clay Golem): wet reddish-brown clay, a pale glowing rune-tablet, simple amber eye-dents. (Fire Clay Golem): kiln-fired terracotta cracking at the joints with ember light inside, smoke rising from its seams, a glowing orange rune-tablet. (Water Clay Golem): soft slick blue-grey clay constantly oozing and re-forming, water seeping from its surface, a glowing sapphire rune-tablet.
+Bottom Row (Elements 4-6):
+4. (Air Clay Golem): pale dry porcelain-clay body pitted with wind-holes, dust streaming off it in visible currents, a glowing white rune-tablet. 5. (Earth Clay Golem): dark loamy clay studded with pebbles, sprouting grass and small mushrooms across the shoulders, a glowing emerald rune-tablet. 6. (Lightning Clay Golem): grey clay shot through with copper wire veins, arcs crawling over its damp surface, a crackling electric-blue rune-tablet.
+
+================================================================================
+
+141. Single Prompt for All 6 Elemental Treants (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct ancient toon treants, arranged in two rows of three, isolated on a solid green background. Each treant is a walking tree with a gnarled trunk torso, a face formed in the bark, long branch arms, and thick root legs — living wood and foliage, not flesh. All six share a thick black outline around the character and around any floating or detached elements (falling leaves, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Treant): weathered oak bark, a full green leaf canopy, deep amber knot-hole eyes. (Fire Treant): charred black bark with embers glowing in every crack, a canopy of burning orange leaves shedding drifting sparks, glowing orange eyes. (Water Treant): drift-smooth blue-grey bark like a mangrove, a canopy of dripping kelp and water-weed, streams running down the trunk, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Treant): pale silvery birch bark, a canopy of leaves permanently swirling around it in a wind spiral as if mid-autumn-gust, bright white glowing eyes. 5. (Earth Treant): bark fused with boulders and crystal veins, a canopy of dense moss and ferns, small stones orbiting its crown, glowing emerald eyes. 6. (Lightning Treant): lightning-struck blackened bark split by glowing scars, a canopy of crackling static-charged leaves, arcs jumping between branches, electric-blue glowing eyes.
+
+================================================================================
+
+142. Single Prompt for All 6 Elemental Dryads (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct wild toon dryads, arranged in two rows of three, isolated on a solid green background. Each dryad is a slender plant-spirit woman with bark-textured skin, hair of leaves and blossoms, vine-wrapped limbs, and thorned fingertips raised to strike — living plant matter, not flesh or fur. All six share a thick black outline around the character and around any floating or detached elements (drifting petals, leaves, embers, droplets, motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Dryad): warm brown bark-skin, hair of green leaves and white blossoms, calm amber eyes. (Fire Dryad): charred bark-skin with ember veins, hair of autumn-red leaves that smolder at the tips, drifting spark-petals, glowing orange eyes. (Water Dryad): smooth pale driftwood skin, hair of trailing water-lilies and dripping kelp, droplets beading down her arms, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Dryad): pale silver-birch skin, hair of dandelion seeds and petals permanently swirling around her in a gentle cyclone, bright white glowing eyes. 5. (Earth Dryad): rich dark bark-skin veined with crystal, hair of thick moss, ferns and small mushrooms, pebbles orbiting her hands, glowing emerald eyes. 6. (Lightning Dryad): storm-blackened bark-skin with glowing scars, hair of static-charged seed-wisps standing on end, arcs between her thorned fingers, electric-blue glowing eyes.
+
+================================================================================
+
+143. Single Prompt for All 6 Elemental Death Knights (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct armored toon death knights, arranged in two rows of three, isolated on a solid green background. Each death knight is an undead warrior in full spiked plate armor with a horned great-helm, an empty glowing void where a face should be, a tattered cape, and a massive two-handed runeblade — haunted armor and dark energy, no fur or flesh visible. All six share a thick black outline around the character and around any floating or detached elements (runeblades, cape scraps, orbiting runes, embers, droplets, motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Death Knight): blackened plate with silver trim, a runeblade glowing faint violet, cold pale eyes in the helm. (Fire Death Knight): scorched plate glowing red at every seam, a runeblade wreathed in dark flame, embers rising off the cape, glowing orange eyes. (Water Death Knight): barnacle-crusted plate of a drowned champion, seawater pouring endlessly from the helm visor, a runeblade weeping brine, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Death Knight): wind-scoured pale plate, the cape and helm plume streaming in a perpetual gale, its lower legs trailing into mist, glowing white eyes. 5. (Earth Death Knight): plate fused with tomb-stone slabs and creeping moss, a runeblade of chiseled granite, small stones orbiting the helm, glowing emerald eyes. 6. (Lightning Death Knight): storm-dark plate humming with arcs across the pauldrons, a runeblade holding a captive lightning bolt, glowing electric-blue eyes.
+
+================================================================================
+
+144. Single Prompt for All 6 Elemental Dark Knights (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct sinister toon dark knights, arranged in two rows of three, isolated on a solid green background. Each dark knight is a living armored warrior in sleek black full plate with a closed visor, a long dark cape, a kite shield, and a cruel longsword — polished armor and cloth, no fur or scales. All six share a thick black outline around the character and around any floating or detached elements (swords, shields, cape edges, embers, droplets, motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Dark Knight): matte black plate with dull silver edging, a red-eyed visor slit. (Fire Dark Knight): black plate with glowing ember filigree, a sword edge like a bar of molten metal, a cape smoldering at the hem, glowing orange visor. (Water Dark Knight): blue-black plate sheened like wet lacquer, a sword trailing a ribbon of water, a cape flowing like liquid, sapphire glowing visor.
+Bottom Row (Elements 4-6):
+4. (Air Dark Knight): storm-grey plate etched with swirling wind lines, a cape streaming weightlessly, a sword swing trailing visible gusts, white glowing visor. 5. (Earth Dark Knight): black plate reinforced with granite slabs and moss-filled engravings, a sword of dark chiseled stone, emerald glowing visor. 6. (Lightning Dark Knight): blued-steel plate with copper inlay, arcs crawling across the shield face, a sword crackling with sparks, electric-blue glowing visor.
+
+================================================================================
+
+145. Single Prompt for All 6 Elemental Bandits (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct rough toon bandits, arranged in two rows of three, isolated on a solid green background. Each bandit is a human thug in a patched leather jerkin, a cloth mask over the lower face, a low hood, a battered shortsword and buckler. All six share a thick black outline around the character and around any floating or detached elements (swords, bucklers, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Bandit): dusty brown leathers, a grey cloth mask, narrowed dark eyes. (Fire Bandit): singed black leathers with ember-glowing stitching, a scarf smoldering like a fuse, a sword with a red-hot edge, glowing orange eyes. (Water Bandit): slick oil-blue leathers beaded with rain, a soaked dripping hood, a sword trailing water, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Bandit): pale grey leathers with a scarf and hood streaming in a constant wind, movements blurred by gust-lines, bright white glowing eyes. 5. (Earth Bandit): mud-caked leathers reinforced with slate shards, moss on the shoulders, a flint-edged sword, glowing emerald eyes. 6. (Lightning Bandit): indigo-dyed leathers with copper studs, static lifting the edge of the hood, a sword crackling with arcs, electric-blue glowing eyes.
+
+================================================================================
+
+146. Single Prompt for All 6 Elemental Cultists (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct hooded toon cultists, arranged in two rows of three, isolated on a solid green background. Each cultist is a robed fanatic with a deep hood, a featureless cloth mask with glowing eye-slits, a curved ritual dagger raised overhead, and occult symbols stitched into the robe. All six share a thick black outline around the character and around any floating or detached elements (daggers, orbiting rune symbols, embers, droplets, motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Cultist): a tattered dark-purple robe with silver symbols, pale glowing eye-slits. (Fire Cultist): a charred crimson robe with ember-glowing sigils, small flames orbiting the raised dagger, glowing orange eye-slits. (Water Cultist): a deep-sea blue robe that flows and drips like it is underwater, a ring of floating droplets around the dagger, sapphire eye-slits.
+Bottom Row (Elements 4-6):
+4. (Air Cultist): a pale grey robe billowing weightlessly, hood and sleeves streaming upward, wind sigils spiraling around the dagger, white glowing eye-slits. 5. (Earth Cultist): a moss-green robe crusted with dried mud and stone talismans, small rocks orbiting the dagger, emerald glowing eye-slits. 6. (Lightning Cultist): a storm-grey robe with copper-thread sigils, arcs leaping from the dagger to the hood, electric-blue glowing eye-slits.
+
+================================================================================
+
+147. Single Prompt for All 6 Elemental Witches (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct wicked toon witches, arranged in two rows of three, isolated on a solid green background. Each witch is a robed spellcaster with a wide-brimmed pointed hat, a hooked nose, a gnarled staff or broom, and a glowing spell swirling in her free hand. All six share a thick black outline around the character and around any floating or detached elements (hats, staffs, spell orbs, orbiting sigils, embers, droplets, motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready spellcasting pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Witch): a midnight-purple dress and hat, a green spell orb, sly amber eyes. (Fire Witch): a charred red-black dress with ember-trimmed hat brim, a fireball spiraling above her palm, singed hair, glowing orange eyes. (Water Witch): a flowing sea-blue dress that ripples like water, a hat dripping at the brim, an orb of swirling brine in her palm, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Witch): a pale silver dress streaming weightlessly, her hat spinning slowly above her head on a wind current, a miniature cyclone in her palm, white glowing eyes. 5. (Earth Witch): a moss-green dress woven with vines and mushrooms, a living-root staff, a floating geode in her palm, emerald glowing eyes. 6. (Lightning Witch): an indigo dress crackling with static, hair standing on end beneath the hat, a ball of arcing sparks in her palm, electric-blue glowing eyes.
+
+================================================================================
+
+148. Single Prompt for All 6 Elemental Hags (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct withered toon hags, arranged in two rows of three, isolated on a solid green background. Each hag is a hunched crooked crone with sagging warty skin, long tangled hair, layered rag clothing, a gnarled walking staff, and a wicked gap-toothed cackle. All six share a thick black outline around the character and around any floating or detached elements (staffs, charm trinkets, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Hag): sallow moss-green warty skin, grey tangled hair, cunning yellow eyes. (Fire Hag): soot-black wrinkled skin with ember-glow wrinck lines, hair of grey smoke rising from her scalp, a staff tipped with a burning coal, glowing orange eyes. (Water Hag): clammy blue-grey skin dripping swamp water, hair of tangled wet river-weed, a staff hung with dripping shells, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Hag): papery pale skin, wild white hair streaming straight up in a wind column, her cackle sending visible gust-ripples, white glowing eyes. 5. (Earth Hag): bark-brown wrinkled skin with lichen patches, hair strung with twigs, pebbles and mushrooms, a living-root staff, emerald glowing eyes. 6. (Lightning Hag): livid indigo skin, hair of frazzled static-charged strands, arcs snapping between her crooked fingers, electric-blue glowing eyes.
+
+================================================================================
+
+149. Single Prompt for All 6 Elemental Nagas (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct regal toon nagas, arranged in two rows of three, isolated on a solid green background. Each naga is a serpent-folk warrior with a scaled humanoid upper body, a long powerful snake tail instead of legs, a hooded cobra-like neck frill, and a curved scimitar in each hand. All six share a thick black outline around the character and around any floating or detached elements (scimitars, embers, droplets, drifting motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, coiled upright in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Naga): emerald-green scales with a gold-patterned hood frill, piercing amber eyes. (Fire Naga): obsidian scales with lava seams spiraling down the tail, a hood frill glowing like heated metal, scimitars trailing flame, glowing orange eyes. (Water Naga): iridescent blue scales sheened with flowing water, a hood frill of translucent fins, scimitars flinging droplets, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Naga): pearl-white scales fading to vapor at the tail tip, a hood frill rippling in a constant wind, scimitars trailing gust-lines, bright white glowing eyes. 5. (Earth Naga): scales of layered jade and slate with moss between the coils, a hood frill of carved stone, flint scimitars, glowing emerald eyes. 6. (Lightning Naga): indigo scales flickering with arcs down the tail ridge, a static-flared hood frill, scimitars crackling with sparks, electric-blue glowing eyes.
+
+================================================================================
+
+150. Single Prompt for All 6 Elemental Sphinxes (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct regal toon sphinxes, arranged in two rows of three, isolated on a solid green background. Each sphinx is a majestic lion-bodied creature with a wise humanoid face, an ornate headdress, folded feathered wings, and an unblinking riddling stare. All six share a thick black outline around the character and around any floating or detached elements (headdress jewels, loose feathers, embers, droplets, motes), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a poised combat-ready stance (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Sphinx): a sandy-gold lion body, a lapis-striped headdress, calm amber eyes. (Fire Sphinx): a charcoal lion body with ember cracks along the flanks, a headdress of flame-orange plates, wings tipped with fire, glowing orange eyes. (Water Sphinx): a blue-grey lion body sheened with flowing water, a headdress of pearl and shell, wings of layered translucent fins, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Sphinx): a pale ivory lion body trailing wind-lines, a headdress with streaming silk ribbons, wings half-dissolved into cloud wisps, bright white glowing eyes. 5. (Earth Sphinx): a lion body of carved sandstone blocks with moss in the seams, a headdress of jade slabs, wings of layered slate feathers, glowing emerald eyes. 6. (Lightning Sphinx): an indigo lion body with arcs racing along the spine, a headdress of copper and crystal, wings crackling with static, electric-blue glowing eyes.
+
+================================================================================
+
+151. Single Prompt for All 6 Elemental Scrap Drones (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier scrap drones, arranged in two rows of three, isolated on a solid green background. Each scrap drone is a tiny hovering machine cobbled together from mismatched junk plates, one wobbly rotor, a single cracked lens eye, and loose wires dangling beneath it — compact, dented and weak-looking, an early-game enemy, not a war machine. All six share a thick black outline around the character and around any floating or detached elements (rotors, dangling wires, loose bolts, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Scrap Drone): rusty mismatched grey-brown plates, an amber lens eye. (Fire Scrap Drone): scorched soot-black plates, a sputtering exhaust flame beneath it instead of a rotor, embers popping from its seams, a glowing orange lens. (Water Scrap Drone): corroded blue-green plates streaked with rust-drips, a leaking coolant tank strapped to its back, droplets raining from its wires, a sapphire lens.
+Bottom Row (Elements 4-6):
+4. (Air Scrap Drone): faded sky-grey plates, an oversized double rotor whipping visible wind spirals, streamers fluttering from its frame, a bright white lens. 5. (Earth Scrap Drone): plates caked in dried mud with moss growing in the vents, small pebbles orbiting in its rotor wash, an emerald lens. 6. (Lightning Scrap Drone): indigo plates with exposed sparking wires, arcs jumping between its antennae, a flickering electric-blue lens.
+
+================================================================================
+
+152. Single Prompt for All 6 Elemental Recon Drones (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier recon drones, arranged in two rows of three, isolated on a solid green background. Each recon drone is a sleek palm-sized quadcopter with four small rotors on thin arms, a swiveling camera pod slung underneath, and a blinking signal light — compact and fragile-looking, an early-game scout, not a gunship. All six share a thick black outline around the character and around any floating or detached elements (rotors, camera pods, antennae, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Recon Drone): matte grey shell with hazard stripes, an amber camera lens. (Fire Recon Drone): heat-scorched black shell, rotors trailing thin ember spirals, a thermal camera glowing like a coal, an orange lens. (Water Recon Drone): glossy deep-blue shell beaded with condensation, mist trailing from the rotor tips, a bubble-domed camera, a sapphire lens.
+Bottom Row (Elements 4-6):
+4. (Air Recon Drone): pale white shell, oversized rotors spinning visible wind rings, wisps of cloud clinging to its arms, a bright white lens. 5. (Earth Recon Drone): a shell of fitted stone-look plating with lichen patches, dust swirling in its rotor wash, an emerald lens. 6. (Lightning Recon Drone): an indigo shell with a whip antenna crackling with arcs, static jumping between the four rotors, an electric-blue lens.
+
+================================================================================
+
+153. Single Prompt for All 6 Elemental Sentry Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier sentry bots, arranged in two rows of three, isolated on a solid green background. Each sentry bot is a squat boxy robot on two stubby legs, with a single wide lens eye, a small shoulder-mounted blaster, and a dented chest plate — knee-high, clunky and weak-looking, an early-game guard, not a heavy walker. All six share a thick black outline around the character and around any floating or detached elements (shoulder blasters, antennae, sparks, drips, steam puffs), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Sentry Bot): olive-drab plating with chipped warning stripes, an amber lens eye. (Fire Sentry Bot): scorched black plating with a glowing furnace grille in its chest, a blaster with a smoldering muzzle, an orange lens eye. (Water Sentry Bot): navy plating with a bolted-on coolant tank, water dribbling from its joints, a blaster that drips between shots, a sapphire lens eye.
+Bottom Row (Elements 4-6):
+4. (Air Sentry Bot): pale grey plating with small intake fans spinning in its chest, wind spiraling around its blaster barrel, a white lens eye. 5. (Earth Sentry Bot): plating of bolted stone slabs with moss in the seams, heavy mud-caked feet, an emerald lens eye. 6. (Lightning Sentry Bot): indigo plating with a copper coil around the blaster barrel, arcs snapping between its leg joints, an electric-blue lens eye.
+
+================================================================================
+
+154. Single Prompt for All 6 Elemental Patrol Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier patrol bots, arranged in two rows of three, isolated on a solid green background. Each patrol bot is a slim upright robot on a single gyro-wheel, with a rotating warning light on its head, a stubby stun-baton arm, and a chest screen showing a simple angry face — light, tippy and weak-looking, an early-game enforcer, not a riot machine. All six share a thick black outline around the character and around any floating or detached elements (stun batons, warning lights, antennae, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Patrol Bot): white-and-black plating like a toy police car, an amber warning light. (Fire Patrol Bot): scorched plating with a flickering flame inside its warning light, a baton tip glowing red-hot, an orange chest-screen face. (Water Patrol Bot): rain-slicked blue plating, a warning light like a spinning water globe, a baton dripping steadily, a sapphire chest-screen face.
+Bottom Row (Elements 4-6):
+4. (Air Patrol Bot): pale plating with a small siren fan whistling wind rings, its wheel kicking up a visible dust spiral, a white chest-screen face. 5. (Earth Patrol Bot): plating painted in mossy camouflage with dried mud up the wheel, a stone-headed baton, an emerald chest-screen face. 6. (Lightning Patrol Bot): indigo plating, a warning light bursting with tiny arcs, a stun baton crackling between two prongs, an electric-blue chest-screen face.
+
+================================================================================
+
+155. Single Prompt for All 6 Elemental Scout Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier scout bots, arranged in two rows of three, isolated on a solid green background. Each scout bot is a lightweight four-legged robot the size of a small dog, with a periscope head, oversized binocular lens eyes, and thin spring-loaded legs built for running away — skittish and fragile-looking, an early-game scout, not a war walker. All six share a thick black outline around the character and around any floating or detached elements (periscope heads, antennae, sparks, drips, dust puffs), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Scout Bot): sandy tan plating with scuffed knee joints, amber binocular lenses. (Fire Scout Bot): heat-blackened plating, small exhaust flames puffing from its leg pistons as it moves, orange binocular lenses. (Water Scout Bot): sea-blue plating with webbed splay-feet, a snorkel periscope dripping water, sapphire binocular lenses.
+Bottom Row (Elements 4-6):
+4. (Air Scout Bot): pale featherweight plating, small glider fins on its back catching visible wind streams, white binocular lenses. 5. (Earth Scout Bot): stone-grey plating with moss camouflage netting, feet leaving little pebble trails, emerald binocular lenses. 6. (Lightning Scout Bot): indigo plating, a whip antenna sparking as it runs, arcs flickering across its spring legs, electric-blue binocular lenses.
+
+================================================================================
+
+156. Single Prompt for All 6 Elemental Mini Turrets (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier mini turrets, arranged in two rows of three, isolated on a solid green background. Each mini turret is a knee-high stationary gun pod on a folding tripod, with a single small barrel, an ammo drum, and a swiveling sensor eye — undersized and flimsy-looking, an early-game emplacement, not an artillery piece. All six share a thick black outline around the character and around any floating or detached elements (barrels, sensor eyes, spent casings, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a deployed combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Mini Turret): grey-green plating with a yellow hazard ring, an amber sensor eye. (Fire Mini Turret): scorched plating with a glowing heat-vented barrel, a pilot flame flickering at the muzzle, an orange sensor eye. (Water Mini Turret): navy plating with a water-tank drum, its barrel a nozzle dripping between pressurized shots, a sapphire sensor eye.
+Bottom Row (Elements 4-6):
+4. (Air Mini Turret): pale plating with a compressed-air tank, the barrel ringed by a visible suction spiral, a white sensor eye. 5. (Earth Mini Turret): plating clad in stacked stone slabs with moss, a barrel that lobs small rocks, pebbles piled in its ammo drum, an emerald sensor eye. 6. (Lightning Mini Turret): indigo plating, a tesla-coil barrel with arcs climbing it, sparks dripping from the tripod feet, an electric-blue sensor eye.
+
+================================================================================
+
+157. Single Prompt for All 6 Elemental Repair Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier repair bots, arranged in two rows of three, isolated on a solid green background. Each repair bot is a round-bodied little robot with a tool-belt torso, one wrench arm and one welding-tip arm, stubby treads, and a worried single-lens face — a harmless-looking maintenance unit turned hostile, an early-game enemy. All six share a thick black outline around the character and around any floating or detached elements (wrenches, welding tips, tool-belt items, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Repair Bot): worn yellow plating with grease stains, an amber lens face. (Fire Repair Bot): soot-covered plating, its welding arm burning with an oversized cutting flame, embers bouncing off its chest, an orange lens face. (Water Repair Bot): blue plating with a pressure-washer arm spraying a constant drizzle, a plunger tool on its belt, a sapphire lens face.
+Bottom Row (Elements 4-6):
+4. (Air Repair Bot): pale plating with a leaf-blower arm blasting a visible wind cone, loose screws swirling around it, a white lens face. 5. (Earth Repair Bot): plating patched with stone slabs and moss, a cement-trowel arm, gravel spilling from its tool belt, an emerald lens face. 6. (Lightning Repair Bot): indigo plating, a sparking arc-welder arm, jumper cables dangling and snapping with electricity, an electric-blue lens face.
+
+================================================================================
+
+158. Single Prompt for All 6 Elemental Salvage Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier salvage bots, arranged in two rows of three, isolated on a solid green background. Each salvage bot is a hunched scavenger robot with a magnet-claw arm, a junk basket welded to its back overflowing with scrap, mismatched replacement legs, and a greedy single-lens stare — patchwork and rickety, an early-game scavenger. All six share a thick black outline around the character and around any floating or detached elements (magnet claws, junk pieces, baskets, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Salvage Bot): rust-brown mismatched plating, an amber lens. (Fire Salvage Bot): fire-blackened plating, its junk basket full of smoldering scrap shedding embers, a red-hot magnet claw, an orange lens. (Water Salvage Bot): barnacle-crusted plating dripping seawater, a basket of soggy salvage trailing kelp, a sapphire lens.
+Bottom Row (Elements 4-6):
+4. (Air Salvage Bot): wind-scoured pale plating, lightweight junk swirling in a small cyclone above its basket, a white lens. 5. (Earth Salvage Bot): mud-caked plating with moss, a basket loaded with rocks and crystal chunks, a stone-crusher claw, an emerald lens. 6. (Lightning Salvage Bot): indigo plating, its magnet claw crackling with arcs, stray bolts and screws orbiting the magnetized basket, an electric-blue lens.
+
+================================================================================
+
+159. Single Prompt for All 6 Elemental Welder Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier welder bots, arranged in two rows of three, isolated on a solid green background. Each welder bot is a stocky little robot with a flip-down welding visor face, a torch arm, a gas canister backpack, and heat-scorched gloves — squat and slow-looking, an early-game workshop unit gone rogue. All six share a thick black outline around the character and around any floating or detached elements (torch arms, visors, canisters, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Welder Bot): scuffed orange safety plating, an amber glow behind the visor. (Fire Welder Bot): charred plating, a torch arm roaring with an oversized flame, its visor lit furnace-orange, embers showering off its gloves. (Water Welder Bot): teal plating, a hydro-cutter arm firing a thin pressurized water jet, condensation dripping off its visor, a sapphire visor glow.
+Bottom Row (Elements 4-6):
+4. (Air Welder Bot): pale plating, a plasma torch whipping sideways in its own wind stream, gust-lines curling off the flame, a white visor glow. 5. (Earth Welder Bot): stone-plated body with moss, a thermite lance welded from rock and rebar, gravel dust puffing with each step, an emerald visor glow. 6. (Lightning Welder Bot): indigo plating, an arc-welder torch snapping bright branching sparks, cables crackling across its backpack, an electric-blue visor glow.
+
+================================================================================
+
+160. Single Prompt for All 6 Elemental Cleaner Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier cleaner bots, arranged in two rows of three, isolated on a solid green background. Each cleaner bot is a round flat robot like an oversized robot vacuum with stubby bumper arms, a spinning brush underneath, a pop-up sensor eye on a stalk, and an angry beeping expression — harmless-looking and weak, an early-game nuisance enemy. All six share a thick black outline around the character and around any floating or detached elements (sensor stalks, brushes, dust puffs, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Cleaner Bot): dusty white plating with grey bumpers, an amber sensor eye. (Fire Cleaner Bot): scorched plating, its spinning brush replaced by a ring of small flames, singe marks trailing behind it, an orange sensor eye. (Water Cleaner Bot): glossy blue plating, a mop attachment sloshing a puddle around itself, soap bubbles floating above it, a sapphire sensor eye.
+Bottom Row (Elements 4-6):
+4. (Air Cleaner Bot): pale plating, an upturned vacuum fan blasting a visible column of wind and swirling dust, a white sensor eye. 5. (Earth Cleaner Bot): mud-splattered plating with moss on the bumpers, a brush flinging pebbles and soil, an emerald sensor eye. 6. (Lightning Cleaner Bot): indigo plating, a static-charged duster brush crackling with arcs, sparks skittering across the floor around it, an electric-blue sensor eye.
+
+================================================================================
+
+161. Single Prompt for All 6 Elemental Maintenance Drones (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier maintenance drones, arranged in two rows of three, isolated on a solid green background. Each maintenance drone is a hovering egg-shaped pod with two spindly folding tool-arms, a ring of small thrusters around its middle, and a tired single-lens face — dinged-up and fragile, an early-game utility unit gone hostile. All six share a thick black outline around the character and around any floating or detached elements (tool arms, thruster rings, sparks, drips, steam puffs), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Maintenance Drone): dull silver pod with inspection stickers, an amber lens. (Fire Maintenance Drone): soot-streaked pod with its thruster ring burning visible orange jets, a soldering arm glowing hot, an orange lens. (Water Maintenance Drone): blue pod with a leaking pipe patch, one arm ending in a dripping valve wrench, mist venting from its ring, a sapphire lens.
+Bottom Row (Elements 4-6):
+4. (Air Maintenance Drone): pale pod held up by a spinning fan ring that stirs visible wind spirals, its tool arms streaming ribbons of air, a white lens. 5. (Earth Maintenance Drone): a pod plated in stone tiles with moss between them, one arm a small jackhammer dropping pebbles, an emerald lens. 6. (Lightning Maintenance Drone): an indigo pod trailing a live sparking cable, arcs jumping between its two tool arms, an electric-blue lens.
+
+================================================================================
+
+162. Single Prompt for All 6 Elemental Camera Drones (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier camera drones, arranged in two rows of three, isolated on a solid green background. Each camera drone is a floating eyeball-like machine — one big camera lens for a face, a ring of tiny indicator lights, two small stabilizer fins, and a blinking recording light — small and defenseless-looking, an early-game spy unit. All six share a thick black outline around the character and around any floating or detached elements (fins, indicator lights, antennae, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Camera Drone): matte black casing, a big amber lens with a red recording light. (Fire Camera Drone): heat-warped casing, a lens glowing like a peephole into a furnace, thin smoke trailing from its vents, an orange lens. (Water Camera Drone): a casing like a diving bell with rivets, its lens behind a water-filled dome with a tiny fish silhouette, drips falling from its fins, a sapphire lens.
+Bottom Row (Elements 4-6):
+4. (Air Camera Drone): a pale casing suspended under a small spinning propeller, wisps of cloud drifting across its lens, a white lens. 5. (Earth Camera Drone): a casing disguised as a mossy rock with the lens peeking through lichen, pebbles orbiting it slowly, an emerald lens. 6. (Lightning Camera Drone): an indigo casing with a sparking antenna, its lens strobing with arc-light flashes, an electric-blue lens.
+
+================================================================================
+
+163. Single Prompt for All 6 Elemental Spider Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier spider bots, arranged in two rows of three, isolated on a solid green background. Each spider bot is a fist-sized robot with a round central body, eight thin articulated legs, a cluster of four tiny lens eyes, and a needle-like probe mouth — skittery and fragile, an early-game crawler. All six share a thick black outline around the character and around any floating or detached elements (leg tips, probe needles, antennae, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Spider Bot): gunmetal body with hazard-striped leg joints, four amber lens eyes. (Fire Spider Bot): a scorched body with a glowing heat-core visible through vents, leg tips leaving tiny smoldering pinprick marks, four orange lenses. (Water Spider Bot): a glossy blue body with a water-filled dome core, condensation dripping from every leg joint, four sapphire lenses.
+Bottom Row (Elements 4-6):
+4. (Air Spider Bot): a pale body dangling from a silk-like stream of visible wind, legs trailing tiny vapor threads, four white lenses. 5. (Earth Spider Bot): a body disguised as a mossy pebble, legs of jointed stone chips, a trail of dust behind it, four emerald lenses. 6. (Lightning Spider Bot): an indigo body with a tesla-coil abdomen, arcs webbing between its eight leg tips like an electric net, four electric-blue lenses.
+
+================================================================================
+
+164. Single Prompt for All 6 Elemental Roach Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier roach bots, arranged in two rows of three, isolated on a solid green background. Each roach bot is a palm-sized skittering robot with a low armored shell, six scuttling legs, two long whip antennae, and a pair of beady lens eyes peeking from under the shell rim — tiny and squashable-looking, an early-game pest. All six share a thick black outline around the character and around any floating or detached elements (antennae, shell plates, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Roach Bot): a greasy brown metal shell with scratches, amber lens eyes. (Fire Roach Bot): a heat-blistered black shell with ember light leaking from under the rim, tiny scorch footprints, orange lens eyes. (Water Roach Bot): a slick blue shell beaded with condensation, a thin trail of drips behind it, sapphire lens eyes.
+Bottom Row (Elements 4-6):
+4. (Air Roach Bot): a pale lightweight shell that flutters half-open like wing cases, gusts swirling beneath it as it skitters, white lens eyes. 5. (Earth Roach Bot): a shell of fitted pebble plates with moss flecks, kicking up little puffs of soil, emerald lens eyes. 6. (Lightning Roach Bot): an indigo shell with arcs skittering along its antennae, leaving a faint spark trail, electric-blue lens eyes.
+
+================================================================================
+
+165. Single Prompt for All 6 Elemental Beetle Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier beetle bots, arranged in two rows of three, isolated on a solid green background. Each beetle bot is a rounded dome-shelled robot the size of a helmet, with a hinged shell that cracks open to show a small engine, six stubby legs, and a little horn on its front plate — slow, chunky and weak-looking, an early-game tank-pest. All six share a thick black outline around the character and around any floating or detached elements (shell halves, horns, sparks, drips, exhaust puffs), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Beetle Bot): a polished green-black dome shell, an amber lens under the horn. (Fire Beetle Bot): a charcoal shell cracked open to vent a glowing ember engine, exhaust flames puffing from twin rear pipes, an orange lens. (Water Beetle Bot): a deep-blue shell with a porthole showing sloshing water inside, a horn that drips like a spout, a sapphire lens.
+Bottom Row (Elements 4-6):
+4. (Air Beetle Bot): a pale shell popped open with two small fan-wings spinning visible wind rings, hovering just off the ground, a white lens. 5. (Earth Beetle Bot): a shell of a single mossy river stone, a flint horn, small pebbles rolling off its back as it trundles, an emerald lens. 6. (Lightning Beetle Bot): an indigo shell with copper trim, arcs crawling over the dome like a plasma ball, a sparking horn, an electric-blue lens.
+
+================================================================================
+
+166. Single Prompt for All 6 Elemental Wheel Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier wheel bots, arranged in two rows of three, isolated on a solid green background. Each wheel bot is a single big rubber wheel with a robot core in the hub — two little gripper arms sticking out the sides, a lens eye in the center, and balance flaps — wobbly and small, an early-game rusher. All six share a thick black outline around the character and around any floating or detached elements (gripper arms, balance flaps, sparks, drips, dust puffs), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Wheel Bot): a scuffed black tire with a grey hub, an amber center lens. (Fire Wheel Bot): a smoldering tire leaving a thin flame streak behind it, ember chunks flying from the tread, an orange center lens. (Water Wheel Bot): a paddle-tread tire flinging arcs of water, a hub like a porthole with water sloshing inside, a sapphire center lens.
+Bottom Row (Elements 4-6):
+4. (Air Wheel Bot): a slim pale tire spinning so fast it whips a visible wind ring around itself, gust-lines trailing behind, a white center lens. 5. (Earth Wheel Bot): a tire of segmented stone treads caked in mud, pebbles spraying from the tread, an emerald center lens. 6. (Lightning Wheel Bot): an indigo tire with copper tread strips, arcs grounding off the wheel in little sparks as it rolls, an electric-blue center lens.
+
+================================================================================
+
+167. Single Prompt for All 6 Elemental Hover Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier hover bots, arranged in two rows of three, isolated on a solid green background. Each hover bot is a floating saucer-shaped robot with a domed head, two noodly dangling arms ending in pincer clamps, and a glowing ring on its underside keeping it aloft — small, bobbing and weak-looking, an early-game floater. All six share a thick black outline around the character and around any floating or detached elements (dangling arms, hover rings, antennae, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Hover Bot): a silver saucer with a tinted dome, an amber underside ring. (Fire Hover Bot): a heat-scorched saucer riding a cushion of small flames, its pincers glowing warm, an orange underside ring. (Water Hover Bot): a blue saucer floating on a fountain of upward-spraying water, drips raining from its arms, a sapphire underside ring.
+Bottom Row (Elements 4-6):
+4. (Air Hover Bot): a pale saucer balanced on a visible column of swirling wind, its arms streaming like ribbons, a white underside ring. 5. (Earth Hover Bot): a saucer of stacked stone discs with moss trim, small rocks orbiting its rim like moons, an emerald underside ring. 6. (Lightning Hover Bot): an indigo saucer riding a crackling arc of electricity to the ground, sparks jumping between its pincers, an electric-blue underside ring.
+
+================================================================================
+
+168. Single Prompt for All 6 Elemental Probe Droids (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier probe droids, arranged in two rows of three, isolated on a solid green background. Each probe droid is a floating sphere studded with sensor nubs, one large central eye, three dangling articulated probe-tentacles, and a small dish antenna on top — round, small and fragile, an early-game prober. All six share a thick black outline around the character and around any floating or detached elements (probe tentacles, dish antennae, sensor nubs, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Probe Droid): a dull chrome sphere, an amber central eye. (Fire Probe Droid): a heat-tarnished sphere venting thin jets of flame from its sensor nubs, probe tips glowing like soldering irons, an orange eye. (Water Probe Droid): a deep-blue sphere sweating condensation, probe-tentacles trailing streams of droplets, a sapphire eye.
+Bottom Row (Elements 4-6):
+4. (Air Probe Droid): a pale sphere wrapped in a slow-spinning ring of visible wind, tentacles fluttering like streamers, a white eye. 5. (Earth Probe Droid): a sphere of fitted stone panels with moss between them, probe-tentacles tipped with crystal drills, an emerald eye. 6. (Lightning Probe Droid): an indigo sphere with arcs dancing between its sensor nubs, tentacles snapping with sparks, an electric-blue eye.
+
+================================================================================
+
+169. Single Prompt for All 6 Elemental Nano Swarms (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier nano swarms, arranged in two rows of three, isolated on a solid green background. Each nano swarm is a loose cloud of hundreds of tiny drone-specks flying in the rough shape of a small hostile creature, with two brighter clusters forming eyes and a denser core in the chest — thin, scattered and weak-looking, an early-game swarm. All six share a thick black outline around the overall swarm silhouette and around any detached drifting specks and particles, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Nano Swarm): grey metallic specks in a smoky cloud shape, two amber eye-clusters. (Fire Nano Swarm): glowing ember-specks swirling like a campfire spark column, trailing thin smoke, two orange eye-clusters. (Water Nano Swarm): blue droplet-specks flowing like a school of tiny fish, misting at the edges, two sapphire eye-clusters.
+Bottom Row (Elements 4-6):
+4. (Air Nano Swarm): near-white specks stretched into streaking wind-lines, the whole swarm swirling like a dust devil, two white eye-clusters. 5. (Earth Nano Swarm): specks of grit, pebbles and moss flecks tumbling in a slow landslide shape, two emerald eye-clusters. 6. (Lightning Nano Swarm): indigo spark-specks with tiny arcs jumping speck-to-speck across the swarm, two electric-blue eye-clusters.
+
+================================================================================
+
+170. Single Prompt for All 6 Elemental Micro Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier micro bots, arranged in two rows of three, isolated on a solid green background. Each micro bot is a thumb-sized boxy robot with a comically big head unit, tiny pincher hands, stubby telescoping legs, and a single blinking lens — the weakest, smallest machine on the field, an early-game fodder enemy. All six share a thick black outline around the character and around any floating or detached elements (pincers, antennae, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Micro Bot): bare aluminum plating with a hand-painted number, an amber lens. (Fire Micro Bot): a soot-smudged body with a match-sized flame sputtering from its head vent, an orange lens. (Water Micro Bot): a blue body with a fishbowl-dome head sloshing with water, drips at every joint, a sapphire lens.
+Bottom Row (Elements 4-6):
+4. (Air Micro Bot): a pale body with a beanie-propeller on its head spinning a tiny visible whirlwind, a white lens. 5. (Earth Micro Bot): a body built from stacked pebbles with a moss cap, tiny stone fists, an emerald lens. 6. (Lightning Micro Bot): an indigo body with a single frizzed antenna popping tiny sparks, arcs between its pincers, an electric-blue lens.
+
+================================================================================
+
+171. Single Prompt for All 6 Elemental Circuit Wisps (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier circuit wisps, arranged in two rows of three, isolated on a solid green background. Each circuit wisp is a floating ball of living energy with visible circuit-trace patterns glowing across its surface, two simple dot eyes, and a trailing tail of fading pixel-fragments — it is pure energy in a wisp shape, no metal shell, no fur, no solid body; small, flickering and weak-looking, an early-game spark. All six share a thick black outline around the character and around any detached pixel-fragments and drifting motes, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Circuit Wisp): a soft green energy ball with darker circuit-line patterns, calm amber dot eyes. (Fire Circuit Wisp): an orange-red energy ball with circuit traces glowing like heated filament, ember-pixels flaking off its tail, orange dot eyes. (Water Circuit Wisp): a translucent blue energy ball with rippling circuit lines, droplet-pixels dripping from its underside, sapphire dot eyes.
+Bottom Row (Elements 4-6):
+4. (Air Circuit Wisp): a pale white energy ball stretched by its own speed, circuit lines streaming into wind-trails, white dot eyes. 5. (Earth Circuit Wisp): a deep green-brown energy ball with circuit traces like glowing root patterns, tiny stone-pixels orbiting it, emerald dot eyes. 6. (Lightning Circuit Wisp): an indigo energy ball with circuit lines strobing white-yellow, arc-pixels snapping off in every direction, electric-blue dot eyes.
+
+================================================================================
+
+172. Single Prompt for All 6 Elemental Data Wraiths (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier data wraiths, arranged in two rows of three, isolated on a solid green background. Each data wraith is a hooded ghost-shape made of cascading glowing code-glyphs and pixel-static, with long streaming digital sleeves, two bright eyes in the hood, and a lower body that dissolves into falling character-fragments — it is a hologram-like digital spirit, no solid body, no fur, no metal; faint, flickering and weak-looking, an early-game phantom. All six share a thick black outline around the character and around any detached glyphs and drifting pixel-fragments, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a floating combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Data Wraith): a body of pale green cascading glyphs on a dark translucent form, amber glowing eyes. (Fire Data Wraith): a body of orange-red glyphs flickering like burning text, char-pixel embers falling from its sleeves, orange glowing eyes. (Water Data Wraith): a body of blue glyphs flowing downward like a waterfall of characters, droplet-glyphs pooling beneath it, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Data Wraith): a body of white glyphs scattered and streaming sideways as if windblown, its hood billowing, white glowing eyes. 5. (Earth Data Wraith): a body of green-brown glyphs stacked dense like sediment layers, moss-colored static at the hem, emerald glowing eyes. 6. (Lightning Data Wraith): a body of indigo glyphs strobing with white arc-lines, glyph-sparks bursting from its sleeves, electric-blue glowing eyes.
+
+================================================================================
+
+173. Single Prompt for All 6 Elemental Glitch Sprites (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier glitch sprites, arranged in two rows of three, isolated on a solid green background. Each glitch sprite is a tiny mischievous imp-shape rendered as a broken video-game graphic — parts of its body misaligned in shifted blocks, scan-line tears across its middle, a jittery double-image edge, and a pixelated grin — pure corrupted graphics, no fur, flesh, or metal; small, twitchy and weak-looking, an early-game gremlin. All six share a thick black outline around the character and around any detached misplaced pixel-blocks, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Glitch Sprite): a magenta-and-cyan corrupted imp with checkerboard missing-texture patches, amber pixel eyes. (Fire Glitch Sprite): an imp of shifted orange-red blocks with flame sprites duplicated wrongly around its head, ember-pixels stuttering in place, orange pixel eyes. (Water Glitch Sprite): an imp of rippling blue blocks with a water texture that scrolls visibly wrong, droplet-pixels frozen mid-fall, sapphire pixel eyes.
+Bottom Row (Elements 4-6):
+4. (Air Glitch Sprite): an imp of pale semi-transparent blocks smeared sideways like a dragged window, motion-blur ghosts trailing it, white pixel eyes. 5. (Earth Glitch Sprite): an imp of brown-green blocks with a repeating rock texture tiling across its body, floating misplace-pixel pebbles, emerald pixel eyes. 6. (Lightning Glitch Sprite): an imp of indigo blocks flickering between two frames, jagged arc-pixels stabbing out at random, electric-blue pixel eyes.
+
+================================================================================
+
+174. Single Prompt for All 6 Elemental Static Imps (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier static imps, arranged in two rows of three, isolated on a solid green background. Each static imp is a tiny gremlin made of television static — a fuzzy noise-grain body in an imp silhouette with stubby horns, a wide flickering grin, and little grasping hands — pure signal-noise, no fur, flesh, or metal; small, fuzzy and weak-looking, an early-game pest. All six share a thick black outline around the character and around any detached bursts of static and drifting noise-flecks, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Static Imp): a grey-white noise-grain body flickering softly, amber glowing eyes. (Fire Static Imp): a body of hot orange-red static like a heat-damaged screen, singed noise-flecks drifting upward, orange glowing eyes. (Water Static Imp): a body of cool blue static that ripples in horizontal waves, drip-shaped noise runs bleeding downward, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Static Imp): a body of thin pale static half-blown apart, noise-flecks streaming sideways in a wind pattern, white glowing eyes. 5. (Earth Static Imp): a body of dense brown-green static packed like gravel, heavy noise-clumps crumbling off its shoulders, emerald glowing eyes. 6. (Lightning Static Imp): a body of violent indigo static spiking with white interference bars, arcs snapping between its horns, electric-blue glowing eyes.
+
+================================================================================
+
+175. Single Prompt for All 6 Elemental Malware Sprites (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier malware sprites, arranged in two rows of three, isolated on a solid green background. Each malware sprite is a sinister little floating creature shaped like a corrupted file icon come alive — a folded-corner rectangle body with a skull watermark, two stubby arms, a jagged grinning mouth, and warning-popup wings — a living hostile program, no fur, flesh, or metal; small, flat and weak-looking, an early-game infection. All six share a thick black outline around the character and around any detached popup-wings and drifting glyph-fragments, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Malware Sprite): a sickly green file-body with a black skull watermark, amber glowing eyes. (Fire Malware Sprite): a red file-body with burnt curling corners, its skull watermark smoldering, ember-glyphs rising off it, orange glowing eyes. (Water Malware Sprite): a blue file-body that sags and drips like a soaked document, its skull watermark running like wet ink, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Malware Sprite): a pale file-body fluttering like a loose page in the wind, popup-wings flapping, glyphs scattering off it, white glowing eyes. 5. (Earth Malware Sprite): a brown-green file-body textured like moss-eaten parchment, pebble-glyphs crumbling from its corners, emerald glowing eyes. 6. (Lightning Malware Sprite): an indigo file-body strobing with error-flash arcs, its skull watermark crackling with sparks, electric-blue glowing eyes.
+
+================================================================================
+
+176. Single Prompt for All 6 Elemental Firewall Guardians (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier firewall guardians, arranged in two rows of three, isolated on a solid green background. Each firewall guardian is a stubby digital knight made of translucent hard-light panels — a hexagon-tiled shield-wall body, a blocky helmet head with a visor slit, and one arm that is a small tower-shield of glowing tiles — a living security program, no fur, flesh, or metal; short, squat and weak-looking, an early-game blocker. All six share a thick black outline around the character and around any detached floating shield-tiles and glyph-fragments, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready guard pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Firewall Guardian): translucent green hard-light tiles, an amber visor slit. (Fire Firewall Guardian): tiles of glowing orange-red hard-light like heated glass, stray tiles smoldering as they orbit the shield, an orange visor slit. (Water Firewall Guardian): tiles of rippling blue hard-light with bubbles suspended inside, drips condensing off the shield edge, a sapphire visor slit.
+Bottom Row (Elements 4-6):
+4. (Air Firewall Guardian): tiles of pale near-invisible hard-light drifting slightly apart, wind visibly passing through the gaps, a white visor slit. 5. (Earth Firewall Guardian): tiles of dense moss-green hard-light textured like stone blocks, pebble-glyphs orbiting the shield, an emerald visor slit. 6. (Lightning Firewall Guardian): tiles of indigo hard-light with arcs jumping tile-to-tile across the shield wall, an electric-blue visor slit.
+
+================================================================================
+
+177. Single Prompt for All 6 Elemental Byte Beasts (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier byte beasts, arranged in two rows of three, isolated on a solid green background. Each byte beast is a tiny four-legged digital critter built from chunky voxel cubes — a blocky dog-like body, a big cube head with a pixel-fanged mouth, a stubby antenna tail — a living data creature of stacked cubes, no fur, flesh, or metal; small, blocky and weak-looking, an early-game critter. All six share a thick black outline around the character and around any detached floating voxel-cubes, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Byte Beast): grey-green voxel cubes with a darker pixel grid, amber pixel eyes. (Fire Byte Beast): orange-red voxels with the hottest cubes glowing white, single ember-cubes floating off its back, orange pixel eyes. (Water Byte Beast): translucent blue voxels with bubble-cubes drifting inside its body, drip-cubes falling from its jaw, sapphire pixel eyes.
+Bottom Row (Elements 4-6):
+4. (Air Byte Beast): pale white voxels spaced loosely apart, trailing cubes streaming behind it like a wind wake, white pixel eyes. 5. (Earth Byte Beast): brown-green voxels textured like dirt and grass blocks, small stone-cubes orbiting its head, emerald pixel eyes. 6. (Lightning Byte Beast): indigo voxels with arcs zig-zagging cube-to-cube along its spine, spark-cubes popping off its tail, electric-blue pixel eyes.
+
+================================================================================
+
+178. Single Prompt for All 6 Elemental Signal Ghosts (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier signal ghosts, arranged in two rows of three, isolated on a solid green background. Each signal ghost is a cute round-headed toon ghost made of broadcast waves — a soft bell-shaped body ending in a wavy signal-line tail instead of feet, two simple oval eyes, small stubby arms, and concentric transmission rings rippling off its head — a floating translucent spirit of pure signal, no fur, flesh, or metal; small, faint and weak-looking, an early-game spook. All six share a thick black outline around the character and around any detached transmission rings and drifting wave-fragments, flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a floating combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Signal Ghost): a pale grey-white translucent body with soft static freckles, amber oval eyes. (Fire Signal Ghost): a warm orange translucent body, its transmission rings flickering like heat shimmer, ember-dots rising through it, orange oval eyes. (Water Signal Ghost): a cool blue translucent body with sonar-ping rings rippling outward, droplets condensing on its tail, sapphire oval eyes.
+Bottom Row (Elements 4-6):
+4. (Air Signal Ghost): a nearly invisible white body stretched by a breeze, its rings blown into oval gusts trailing sideways, white oval eyes. 5. (Earth Signal Ghost): a moss-green translucent body with slow heavy rings like seismic pulses, tiny pebbles vibrating around its tail, emerald oval eyes. 6. (Lightning Signal Ghost): an indigo body strobing bright with each pulse, its rings jagged with arc-spikes, sparks popping at its fingertips, electric-blue oval eyes.
+
+================================================================================
+
+179. Single Prompt for All 6 Elemental Cyber Rats (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier cyber rats, arranged in two rows of three, isolated on a solid green background. Each cyber rat is a scruffy toon rat retrofitted with cheap cybernetics — one glowing implant eye, a metal-plated shoulder, a segmented cable tail with a plug on the end, and oversized buck teeth — a small vermin enemy, part fur and part bolted-on scrap; weak-looking, an early-game pest. All six share a thick black outline around the character and around any floating or detached elements (cable tails, plug tips, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Cyber Rat): mangy grey fur with a dull steel implant eye and plate, amber natural eye. (Fire Cyber Rat): singed black fur, a glowing heat-sink spine implant venting little flames, a soldering-iron tail tip, an orange implant eye. (Water Cyber Rat): slicked blue-grey fur, a coolant tube looping along its side and dripping, a hose-nozzle tail tip, a sapphire implant eye.
+Bottom Row (Elements 4-6):
+4. (Air Cyber Rat): pale wind-ruffled fur, a tiny turbine implant in its chest spinning visible air rings, a streamer-like tail, a white implant eye. 5. (Earth Cyber Rat): dusty brown fur with a stone-slab back plate sprouting moss, a drill-bit tail tip, an emerald implant eye. 6. (Lightning Cyber Rat): static-frizzed indigo fur, a spark plug jutting from its back arcing steadily, a live-wire tail snapping sparks, an electric-blue implant eye.
+
+================================================================================
+
+180. Single Prompt for All 6 Elemental Cyber Roaches (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier cyber roaches, arranged in two rows of three, isolated on a solid green background. Each cyber roach is a toon cockroach upgraded with junk-tier implants — a riveted metal patch on its shell, one telescopic lens eye, tiny piston-assisted legs, and antennae replaced with bent wires — a fingernail-sized pest, part chitin and part scrap; weak-looking, an early-game vermin. All six share a thick black outline around the character and around any floating or detached elements (wire antennae, shell patches, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Cyber Roach): a greasy brown shell with a dull steel patch, an amber lens eye. (Fire Cyber Roach): a heat-blistered shell with a glowing ember core under the metal patch, scorch-print footsteps, an orange lens eye. (Water Cyber Roach): a slick blue shell with a tiny coolant bubble-dome patch, a drip trail behind it, a sapphire lens eye.
+Bottom Row (Elements 4-6):
+4. (Air Cyber Roach): a pale shell with wing cases propped open by tiny fans spinning visible gusts, a white lens eye. 5. (Earth Cyber Roach): a shell patched with a chip of mossy stone, kicking up tiny soil puffs, an emerald lens eye. 6. (Lightning Cyber Roach): an indigo shell with wire antennae arcing to each other, a spark trail behind its piston legs, an electric-blue lens eye.
+
+================================================================================
+
+181. Single Prompt for All 6 Elemental Servo Pups (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier servo pups, arranged in two rows of three, isolated on a solid green background. Each servo pup is a puppy-sized robot dog with a boxy body, floppy rubber-flap ears, a wagging antenna tail, visible servo joints, and an eager snapping muzzle full of blunt metal teeth — small, yappy and weak-looking, an early-game attack pet. All six share a thick black outline around the character and around any floating or detached elements (antenna tails, ear flaps, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Servo Pup): scuffed white-and-grey plating with a red collar, amber lens eyes. (Fire Servo Pup): heat-scorched plating, small exhaust flames puffing from its rear vents when it barks, a collar tag glowing like an ember, orange lens eyes. (Water Servo Pup): glossy blue plating, a lolling hose-nozzle tongue that drips, a fire-hydrant-shaped collar tag, sapphire lens eyes.
+Bottom Row (Elements 4-6):
+4. (Air Servo Pup): pale plating with oversized ear-flaps that catch the wind, its bark sending out visible gust rings, white lens eyes. 5. (Earth Servo Pup): stone-plated body with moss patches, burying a rock like a bone at its feet, an emerald-tag collar, emerald lens eyes. 6. (Lightning Servo Pup): indigo plating, a static-charged fur ruff of frayed wires at its neck, its antenna tail sparking as it wags, electric-blue lens eyes.
+
+================================================================================
+
+182. Single Prompt for All 6 Elemental Toy Soldier Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier toy soldier bots, arranged in two rows of three, isolated on a solid green background. Each toy soldier bot is a stiff-jointed robot styled like a tin toy soldier — a tall painted helmet, a fixed grimace, a shouldered pop-cork rifle, glossy enamel paint chipping at the edges, and a wind-up key slowly turning in its back — small, stiff and weak-looking, an early-game trooper. All six share a thick black outline around the character and around any floating or detached elements (rifles, wind-up keys, paint chips, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready march pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Toy Soldier Bot): chipped red-and-navy enamel with brass buttons, painted amber eyes. (Fire Toy Soldier Bot): scorched enamel with a smoking pop-cork rifle, its helmet plume replaced by a candle flame, glowing orange eyes. (Water Toy Soldier Bot): a sailor-striped enamel scheme, a water-pistol rifle dribbling steadily, a puddle ring at its boots, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Toy Soldier Bot): sky-grey enamel, a pinwheel bayonet spinning in the wind, its helmet plume streaming sideways, white glowing eyes. 5. (Earth Toy Soldier Bot): moss-green enamel textured like painted stone, a slingshot rifle loaded with a pebble, emerald glowing eyes. 6. (Lightning Toy Soldier Bot): indigo enamel with copper buttons, its wind-up key arcing with sparks each turn, a rifle crackling at the muzzle, electric-blue glowing eyes.
+
+================================================================================
+
+183. Single Prompt for All 6 Elemental Wind-Up Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier wind-up bots, arranged in two rows of three, isolated on a solid green background. Each wind-up bot is a round-bellied tin robot with a huge turning wind-up key in its back, mitten hands, flat shuffle feet, a mouth like a speaker grille, and rivets down its belly — waddling, clumsy and weak-looking, an early-game clockwork enemy. All six share a thick black outline around the character and around any floating or detached elements (wind-up keys, loose cogs, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Wind-Up Bot): dented tin plating with a candy-striped key, amber button eyes. (Fire Wind-Up Bot): soot-blackened tin, a glowing coal furnace behind its belly rivets, its key hot-orange at the tips, orange button eyes. (Water Wind-Up Bot): tin painted with waves, a goldfish-bowl porthole belly sloshing water, drips from its mitten seams, sapphire button eyes.
+Bottom Row (Elements 4-6):
+4. (Air Wind-Up Bot): pale tin, a key shaped like a propeller spinning gusts behind it, its speaker mouth whistling visible wind notes, white button eyes. 5. (Earth Wind-Up Bot): tin overgrown with moss and rust, a key fuzzed with lichen, gravel rattling inside its belly, emerald button eyes. 6. (Lightning Wind-Up Bot): indigo tin, its turning key throwing off arc sparks with each click, static crackling across its speaker grille, electric-blue button eyes.
+
+================================================================================
+
+184. Single Prompt for All 6 Elemental Vacuum Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier vacuum bots, arranged in two rows of three, isolated on a solid green background. Each vacuum bot is a squat hostile robot vacuum with an extendable hose arm ending in a suction nozzle, a bulging dust-bag hump on its back, stubby treads, and narrowed angry lens eyes — a household machine turned mean, small and weak-looking, an early-game nuisance. All six share a thick black outline around the character and around any floating or detached elements (hose arms, nozzles, dust puffs, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Vacuum Bot): faded beige plating with a grey dust-bag, amber lens eyes. (Fire Vacuum Bot): scorched plating, its dust-bag glowing like a bellows full of coals, the nozzle exhaling a thin flame, orange lens eyes. (Water Vacuum Bot): blue plating, a wet-vac tank sloshing on its back, the nozzle dribbling a puddle trail, sapphire lens eyes.
+Bottom Row (Elements 4-6):
+4. (Air Vacuum Bot): pale plating, its nozzle roaring with a visible suction vortex, loose debris spiraling toward it, white lens eyes. 5. (Earth Vacuum Bot): mud-caked plating with moss on the dust-bag, gravel rattling up the hose, an emerald lens glow. 6. (Lightning Vacuum Bot): indigo plating, static crackling across the over-full dust-bag, arcs snapping from the nozzle tip, electric-blue lens eyes.
+
+================================================================================
+
+185. Single Prompt for All 6 Elemental Lawnmower Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier lawnmower bots, arranged in two rows of three, isolated on a solid green background. Each lawnmower bot is a low aggressive robot mower with a grinning blade-grille mouth, exposed spinning cutter discs under its chin, chunky wheels, and a pull-cord dangling from its back — small, loud and weak-looking, an early-game charger. All six share a thick black outline around the character and around any floating or detached elements (cutter discs, pull-cords, grass clippings, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Lawnmower Bot): grass-stained red plating, clippings stuck in its grille grin, amber lens eyes. (Fire Lawnmower Bot): charred plating, cutter discs glowing red-hot and spitting sparks, a smoke plume from its exhaust cord, orange lens eyes. (Water Lawnmower Bot): blue plating, its cutters replaced by high-pressure water jets, a sprinkler arc spraying above it, sapphire lens eyes.
+Bottom Row (Elements 4-6):
+4. (Air Lawnmower Bot): pale plating, cutter discs spinning a visible cyclone of clippings around it, white lens eyes. 5. (Earth Lawnmower Bot): plating overgrown with sod and moss, stone cutter discs churning up pebbles and soil, emerald lens eyes. 6. (Lightning Lawnmower Bot): indigo plating, cutter discs arcing against each other like grinding flints, a sparking pull-cord whipping behind it, electric-blue lens eyes.
+
+================================================================================
+
+186. Single Prompt for All 6 Elemental Delivery Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier delivery bots, arranged in two rows of three, isolated on a solid green background. Each delivery bot is a cooler-sized box robot on six little wheels with a locked cargo lid, a periscope camera stalk, a flag antenna, and a polite screen face turned angry — rounded, bumbling and weak-looking, an early-game courier gone rogue. All six share a thick black outline around the character and around any floating or detached elements (camera stalks, flag antennae, parcels, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Delivery Bot): white plating with a parcel-logo decal, an amber screen face. (Fire Delivery Bot): scorched plating, its cargo lid rattling with smoke leaking out, a flag antenna burning like a small torch, an orange screen face. (Water Delivery Bot): blue plating beaded with rain, a soggy parcel dripping on its lid, a tiny umbrella antenna, a sapphire screen face.
+Bottom Row (Elements 4-6):
+4. (Air Delivery Bot): pale plating, its lid popped open with parcels swirling above it in a mini cyclone, a windsock antenna streaming, a white screen face. 5. (Earth Delivery Bot): mud-splattered plating with moss on the bumper, hauling a cargo bed of rocks, an emerald screen face. 6. (Lightning Delivery Bot): indigo plating, a static-charged flag antenna arcing to its lid latch, sparks under its six wheels, an electric-blue screen face.
+
+================================================================================
+
+187. Single Prompt for All 6 Elemental Mail Drones (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier mail drones, arranged in two rows of three, isolated on a solid green background. Each mail drone is a hovering postal robot — a mailbox-shaped body with a hinged mouth-slot, four small rotors on stubby arms, a satchel of letters slung underneath, and squinting lens eyes — small, overloaded and weak-looking, an early-game courier. All six share a thick black outline around the character and around any floating or detached elements (rotors, satchels, loose letters, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Mail Drone): postal-red plating with a white stripe, amber lens eyes. (Fire Mail Drone): scorched plating, singed letters fluttering from its slot trailing embers, rotor tips glowing warm, orange lens eyes. (Water Mail Drone): rain-slicked blue plating, soggy envelopes dripping from its satchel, mist trailing from the rotors, sapphire lens eyes.
+Bottom Row (Elements 4-6):
+4. (Air Mail Drone): pale plating, a flurry of letters swirling around it in a wind spiral, oversized rotors ringing it with gusts, white lens eyes. 5. (Earth Mail Drone): plating painted like a stone letterbox with moss at the base, parcels of wrapped rocks in its satchel, emerald lens eyes. 6. (Lightning Mail Drone): indigo plating, its mouth-slot snapping with arcs like a spark gap, statically-charged letters stuck to its body, electric-blue lens eyes.
+
+================================================================================
+
+188. Single Prompt for All 6 Elemental Mining Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier mining bots, arranged in two rows of three, isolated on a solid green background. Each mining bot is a stocky robot miner with a lantern-helmet head, one pickaxe arm and one shovel arm, a small ore cart hitched behind it, and coal smudges on its plating — squat, tired and weak-looking, an early-game digger. All six share a thick black outline around the character and around any floating or detached elements (pickaxes, shovels, ore chunks, lantern light, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Mining Bot): dusty yellow plating with a soft amber helmet lantern. (Fire Mining Bot): soot-blackened plating, a helmet lantern burning with an open flame, its ore cart full of glowing coals, an orange lantern glow. (Water Mining Bot): rust-streaked blue plating dripping from every joint, a cart sloshing with water and glinting pearls, a sapphire lantern glow.
+Bottom Row (Elements 4-6):
+4. (Air Mining Bot): pale dust-coated plating, its pickaxe swing trailing visible gusts, a cart of drifting feather-light pumice, a white lantern glow. 5. (Earth Mining Bot): plating armored with raw stone chunks and moss, a cart heaped with crystal ore, pebbles spilling with each step, an emerald lantern glow. 6. (Lightning Mining Bot): indigo plating, a drill-pick arcing at the tip, a cart of crackling charged crystals, an electric-blue lantern glow.
+
+================================================================================
+
+189. Single Prompt for All 6 Elemental Drill Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier drill bots, arranged in two rows of three, isolated on a solid green background. Each drill bot is a cone-nosed burrowing robot — a big spiral drill for a nose, a compact segmented body with fold-out digger claws, stubby tracks, and two lens eyes set behind the drill guard — small, dirt-caked and weak-looking, an early-game burrower. All six share a thick black outline around the character and around any floating or detached elements (drill noses, digger claws, dirt clods, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Drill Bot): scratched steel with a bronze drill nose, amber lens eyes. (Fire Drill Bot): heat-blackened plating, its drill glowing friction-red at the tip and shedding sparks, orange lens eyes. (Water Drill Bot): blue plating, a water-jet drill spraying a fine mist as it spins, drips running off its tracks, sapphire lens eyes.
+Bottom Row (Elements 4-6):
+4. (Air Drill Bot): pale plating, its drill spinning a visible auger of wind that kicks dust rings outward, white lens eyes. 5. (Earth Drill Bot): plating caked in layered mud and moss, a drill of chipped granite, dirt clods orbiting the spinning tip, emerald lens eyes. 6. (Lightning Drill Bot): indigo plating, arcs corkscrewing down the drill grooves like a coiled bolt, sparks bouncing off its tracks, electric-blue lens eyes.
+
+================================================================================
+
+190. Single Prompt for All 6 Elemental Cutter Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier cutter bots, arranged in two rows of three, isolated on a solid green background. Each cutter bot is a lean scissor-armed robot — two long blade arms that shear past each other, a narrow wedge head with a targeting monocle, bird-like reverse-joint legs, and a spool of cutting wire on its back — thin, snippy and weak-looking, an early-game slicer. All six share a thick black outline around the character and around any floating or detached elements (blade arms, wire spools, clipped fragments, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Cutter Bot): brushed steel with safety-orange blade edges, an amber monocle. (Fire Cutter Bot): scorched plating, blade arms glowing like heated shears and leaving ember trails as they snip, an orange monocle. (Water Cutter Bot): teal plating, blades of pressurized water-jet edges flinging droplets with each shear, a sapphire monocle.
+Bottom Row (Elements 4-6):
+4. (Air Cutter Bot): pale plating, blades whistling visible slicing gust-arcs with each snip, a white monocle. 5. (Earth Cutter Bot): stone-clad plating with moss at the joints, obsidian-flake blades chipping sparks of rock, an emerald monocle. 6. (Lightning Cutter Bot): indigo plating, an arc leaping between the two blade tips like a plasma scissor, sparks along the wire spool, an electric-blue monocle.
+
+================================================================================
+
+191. Single Prompt for All 6 Elemental Welding Spiders (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier welding spiders, arranged in two rows of three, isolated on a solid green background. Each welding spider is a six-legged workshop robot the size of a kettle — a round body with a tank of gas strapped on top, one leg raised holding a small welding torch, a flip-down visor over its lens cluster, and magnetized feet — small, scuttling and weak-looking, an early-game workshop pest. All six share a thick black outline around the character and around any floating or detached elements (torches, gas tanks, visors, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Welding Spider): scuffed orange plating, an amber lens cluster behind the visor. (Fire Welding Spider): soot-black plating, its torch roaring an oversized blue-orange flame, embers bouncing off its raised visor, orange lenses. (Water Welding Spider): teal plating, a hydro-torch cutting with a needle of water, condensation fog around its tank, sapphire lenses.
+Bottom Row (Elements 4-6):
+4. (Air Welding Spider): pale plating, its torch flame whipped sideways by self-generated wind, gust-lines swirling between its six legs, white lenses. 5. (Earth Welding Spider): stone-shelled plating with moss, a thermite torch spitting molten rock droplets, gravel stuck to its magnet feet, emerald lenses. 6. (Lightning Welding Spider): indigo plating, an arc-welder leg crackling with a bright branching spark, static webbing between its legs, electric-blue lenses.
+
+================================================================================
+
+192. Single Prompt for All 6 Elemental Battery Crawlers (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier battery crawlers, arranged in two rows of three, isolated on a solid green background. Each battery crawler is a walking battery cell — a cylindrical battery body with a charge-level window on its front, four insect legs, two terminal posts on its head like little horns, and a worried charge-percentage face — small, tippy and weak-looking, an early-game walking power cell. All six share a thick black outline around the character and around any floating or detached elements (terminal horns, charge windows, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Battery Crawler): a green-and-gold battery casing, an amber charge window at half full. (Fire Battery Crawler): a scorched swollen casing venting steam, its charge window glowing overheated red-orange, embers popping off the terminals, an orange face. (Water Battery Crawler): a corroded blue casing with crusty leak stains, its charge window a bubbling liquid cell, drips at its leg joints, a sapphire face.
+Bottom Row (Elements 4-6):
+4. (Air Battery Crawler): a pale lightweight casing with cooling fins whistling in the wind, its charge window swirling with vapor, a white face. 5. (Earth Battery Crawler): a casing crusted in mineral deposits and moss like an old buried cell, its charge window glowing through dirt, an emerald face. 6. (Lightning Battery Crawler): an indigo casing at maximum charge, a constant arc snapping between its two terminal horns, sparks raining from its legs, an electric-blue face.
+
+================================================================================
+
+193. Single Prompt for All 6 Elemental Fuse Imps (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier fuse imps, arranged in two rows of three, isolated on a solid green background. Each fuse imp is a mischievous gremlin whose body is a stubby fuse cylinder — a glass-window torso showing its glowing filament heart, little grabby hands, bandy legs, a grinning face on the metal cap, and a burnt wick sticking from its head — small, jittery and weak-looking, an early-game saboteur. All six share a thick black outline around the character and around any floating or detached elements (wicks, filament glows, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Fuse Imp): a brass-capped glass body with a soft amber filament heart. (Fire Fuse Imp): a soot-smoked glass body, its head-wick lit and fizzing with sparks, the filament heart burning bright orange. (Water Fuse Imp): a fogged glass body half-filled with sloshing water, its wick soggy and dripping, a sapphire filament heart.
+Bottom Row (Elements 4-6):
+4. (Air Fuse Imp): a clear glass body swirling with visible captured wind, its wick streaming sideways, a white filament heart. 5. (Earth Fuse Imp): a glass body packed with soil, pebbles and a sprouting seedling, moss on the brass caps, an emerald filament heart. 6. (Lightning Fuse Imp): a glass body crawling with contained arcs, its blown wick smoking, sparks leaping cap to cap, an electric-blue filament heart.
+
+================================================================================
+
+194. Single Prompt for All 6 Elemental Wire Wisps (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier wire wisps, arranged in two rows of three, isolated on a solid green background. Each wire wisp is a floating tangle of animated cable come alive — a bird-nest ball of coiling wires with two glowing eyes peeking from the tangle, frayed plug-ended tendrils reaching outward, and stripped copper glinting at the breaks — a small living knot of cabling, no fur or flesh; weak-looking, an early-game tangle. All six share a thick black outline around the character and around any floating or detached elements (plug tendrils, frayed strands, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Wire Wisp): a tangle of grey and black cables with copper glints, amber glowing eyes. (Fire Wire Wisp): a tangle of melted rubber-scorched cables with glowing hot copper cores, thin smoke rising from the knot, orange glowing eyes. (Water Wire Wisp): a tangle of blue coolant tubes leaking drips at every joint, condensation fog in the middle of the knot, sapphire glowing eyes.
+Bottom Row (Elements 4-6):
+4. (Air Wire Wisp): a loose airy tangle of pale ribbon-cables streaming and fluttering in self-made wind, white glowing eyes. 5. (Earth Wire Wisp): a tangle of vine-wrapped cables sprouting leaves, soil and moss packed in the knot's heart, emerald glowing eyes. 6. (Lightning Wire Wisp): a live tangle of sparking cables with arcs jumping strand to strand, plug tendrils snapping with charge, electric-blue glowing eyes.
+
+================================================================================
+
+195. Single Prompt for All 6 Elemental Antenna Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier antenna bots, arranged in two rows of three, isolated on a solid green background. Each antenna bot is a spindly walking relay tower — a lattice-mast body with a blinking beacon on top, a small dish mounted like a face with two lens eyes, four splayed strut legs, and guy-wires twanging as it moves — tall for its size but flimsy and weak-looking, an early-game relay unit. All six share a thick black outline around the character and around any floating or detached elements (dishes, beacons, guy-wires, signal rings, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Antenna Bot): a red-and-white striped mast, an amber beacon. (Fire Antenna Bot): a heat-warped blackened mast, its beacon burning like a signal flare, embers drifting from the dish rim, an orange beacon glow. (Water Antenna Bot): a rust-streaked mast beaded with rain, its dish collecting a pool that spills over, sonar rings rippling from the beacon, a sapphire beacon glow.
+Bottom Row (Elements 4-6):
+4. (Air Antenna Bot): a pale whistling mast with a windsock and spinning anemometer cups, visible gusts threading the lattice, a white beacon glow. 5. (Earth Antenna Bot): a mast of lashed stone and timber with moss up the legs, its dish a carved granite bowl, an emerald beacon glow. 6. (Lightning Antenna Bot): an indigo mast acting as a lightning rod, a constant arc crawling up the lattice to the crackling beacon, an electric-blue beacon glow.
+
+================================================================================
+
+196. Single Prompt for All 6 Elemental Satellite Drones (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier satellite drones, arranged in two rows of three, isolated on a solid green background. Each satellite drone is a hovering mini-satellite — a boxy bus body with two unfolded solar-panel wings, a dish antenna face with one lens eye, and little attitude thrusters puffing to keep it level — small, wobbly and weak-looking, an early-game orbiter brought low. All six share a thick black outline around the character and around any floating or detached elements (solar wings, dishes, thruster puffs, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a hovering combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Satellite Drone): gold-foil wrapped body with dark blue solar wings, an amber lens. (Fire Satellite Drone): re-entry-scorched foil peeling at the edges, its heat shield glowing cherry-red underneath, thrusters burning visible flames, an orange lens. (Water Satellite Drone): a body beaded with condensation, solar wings dripping like window panes in rain, a sapphire lens.
+Bottom Row (Elements 4-6):
+4. (Air Satellite Drone): a pale body with solar wings angled like a glider catching visible wind currents, streamers trailing from the dish, a white lens. 5. (Earth Satellite Drone): a body crusted with meteor-dust and moss, solar wings of layered slate tiles, small pebbles orbiting it like tiny moons, an emerald lens. 6. (Lightning Satellite Drone): an indigo body with solar wings crackling from overcharge, arcs jumping panel to panel, an electric-blue lens.
+
+================================================================================
+
+197. Single Prompt for All 6 Elemental Rover Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier rover bots, arranged in two rows of three, isolated on a solid green background. Each rover bot is a six-wheeled exploration buggy the size of a wagon toy — a flat chassis with a camera mast neck, a scoop arm folded at the front, chunky independent-suspension wheels, and mission stickers on its side — plucky, slow and weak-looking, an early-game explorer gone hostile. All six share a thick black outline around the character and around any floating or detached elements (camera masts, scoop arms, kicked-up debris, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Rover Bot): dusty white chassis with gold trim, an amber camera lens. (Fire Rover Bot): a heat-scorched chassis, wheels leaving faint molten tracks, its scoop carrying a glowing coal sample, an orange camera lens. (Water Rover Bot): a blue chassis with paddle-tread wheels flinging water, its scoop bailing a small wave ahead of it, a sapphire camera lens.
+Bottom Row (Elements 4-6):
+4. (Air Rover Bot): a pale chassis with a sail mounted on the mast, dust devils spiraling off its six wheels, a white camera lens. 5. (Earth Rover Bot): a chassis caked in rich soil with moss on the solar deck, its scoop heaped with crystals and pebbles, an emerald camera lens. 6. (Lightning Rover Bot): an indigo chassis with a sparking dynamo hub in each wheel, arcs flickering up the camera mast, an electric-blue camera lens.
+
+================================================================================
+
+198. Single Prompt for All 6 Elemental Pod Crabs (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier pod crabs, arranged in two rows of three, isolated on a solid green background. Each pod crab is a robot hermit crab wearing an escape-pod shell — a small crab machine with six jointed legs, two mismatched pincer arms, stalk-mounted lens eyes, hauling a dented one-person escape pod on its back as a shell — small, scuttling and weak-looking, an early-game scavenger. All six share a thick black outline around the character and around any floating or detached elements (eye stalks, pincers, pod shells, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Pod Crab): a gunmetal crab body under a scuffed white pod shell, amber stalk eyes. (Fire Pod Crab): a soot-blackened crab under a re-entry-scorched pod glowing at the rim, small flames flickering in the pod's broken window, orange stalk eyes. (Water Pod Crab): a barnacled blue crab under a pod shell streaming seawater from its hatch, bubbles rising from the vents, sapphire stalk eyes.
+Bottom Row (Elements 4-6):
+4. (Air Pod Crab): a pale crab under a pod with a torn parachute still attached, the chute billowing in a constant wind above it, white stalk eyes. 5. (Earth Pod Crab): a stone-plated crab under a pod overgrown with moss and embedded crystals, pebbles rattling inside the shell, emerald stalk eyes. 6. (Lightning Pod Crab): an indigo crab under a pod with a bent antenna arcing steadily, sparks skittering between its pincers, electric-blue stalk eyes.
+
+================================================================================
+
+199. Single Prompt for All 6 Elemental Broken Androids (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier broken androids, arranged in two rows of three, isolated on a solid green background. Each broken android is a damaged human-shaped robot lurching like a machine zombie — a cracked faceplate hanging half off to reveal circuitry, one arm dangling by cables, exposed ribs of chassis frame, a torn synthetic-skin patch, and a limping stance — busted, sparking and weak-looking, an early-game shambler. All six share a thick black outline around the character and around any floating or detached elements (dangling arms, hanging faceplates, loose cables, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready lurch (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Broken Android): off-white plating with grime stains, one flickering amber eye. (Fire Broken Android): fire-gutted blackened plating, a small flame still burning inside its exposed chest cavity, melted faceplate edges, one orange eye. (Water Broken Android): water-damaged corroded plating, rusty water weeping from its eye socket and joints, algae in the chassis ribs, one sapphire eye.
+Bottom Row (Elements 4-6):
+4. (Air Broken Android): sand-blasted pale plating full of whistling holes, torn synthetic skin flapping in a constant wind, one white eye. 5. (Earth Broken Android): half-buried-looking plating caked in soil, moss and small mushrooms growing from its chest cavity, one emerald eye. 6. (Lightning Broken Android): indigo plating with a short-circuiting chest that pulses with arcs, its dangling arm twitching with each spark, one electric-blue eye.
+
+================================================================================
+
+200. Single Prompt for All 6 Elemental Test Dummy Bots (Pixel Art Sprite Sheet)
+A high-resolution pixel art sprite sheet displaying six distinct small low-tier test dummy bots, arranged in two rows of three, isolated on a solid green background. Each test dummy bot is a crash-test dummy come alive — a segmented mannequin body with yellow-and-black calibration discs on its joints and head, a blank face with simple printed features, visible seam lines, and stiff mechanical movements — expendable, patched-up and weak-looking, an early-game punching bag that hits back. All six share a thick black outline around the character and around any floating or detached elements (calibration discs, loose padding, sparks, drips), flat cel-shaded colors, high contrast, and a chunky toon fantasy video game character art style. Each is full body, head to toe, in a combat-ready pose (front view or slight angle), centered within its space.
+Top Row (Elements 1-3):
+(Normal Test Dummy Bot): matte beige segments with yellow-black target discs, printed amber eyes. (Fire Test Dummy Bot): scorch-tested segments charred down one side, foam padding smoldering at the seams, discs glowing like embers, printed orange eyes. (Water Test Dummy Bot): a waterlogged dummy dripping from every seam, swollen soggy padding, discs like little portholes, printed sapphire eyes.
+Bottom Row (Elements 4-6):
+4. (Air Test Dummy Bot): a wind-tunnel dummy with streamer ribbons taped to its segments all streaming sideways, visible airflow lines wrapping its body, printed white eyes. 5. (Earth Test Dummy Bot): a drop-tested dummy caked in dirt with gravel embedded in its padding, moss on the shoulder discs, printed emerald eyes. 6. (Lightning Test Dummy Bot): a shock-tested dummy with electrode discs arcing to each other, hair-like wires standing on end from its head, printed electric-blue eyes.
+
+================================================================================
+

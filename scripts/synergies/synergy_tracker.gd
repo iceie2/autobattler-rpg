@@ -5,8 +5,11 @@ class_name SynergyTracker
 # active and what tier each is at. Used both to render the SET BONUSES panel and
 # to compute the combat stat bonuses applied at battle start.
 
-# Each active entry: { type:"element"/"trait", key:int, name:String, count:int,
-#   tier:1/2, stat:String, val:float, desc:String, color:Color }
+# Each entry: { type:"element"/"trait", key:int, name:String, count:int,
+#   tier:0/1/2, stat:String, val:float, desc:String, color:Color, next_need:int }
+# tier 0 means "below the first threshold" — still listed (2026-07-06 user
+# request: a single matching hero should show progress, not vanish entirely)
+# but contributes no stat bonus (see team_bonuses).
 var active: Array = []
 var element_counts: Dictionary = {}
 var trait_counts: Dictionary = {}
@@ -26,19 +29,23 @@ func update_from_team(units: Array) -> void:
 		_consider("trait", t, trait_counts.get(t, 0), SynergyData.TRAIT_SYN[t], SynergyData.trait_color(t))
 
 func _consider(type: String, key: int, count: int, data: Dictionary, col: Color) -> void:
+	if count <= 0:
+		return
 	var need: Array = data["need"]
 	var tier := 0
 	if count >= int(need[1]):
 		tier = 2
 	elif count >= int(need[0]):
 		tier = 1
-	if tier == 0:
-		return
+	# Below tier 1, there's no bonus yet — preview what t1 will grant so the
+	# progress row still reads as "here's what you're working toward".
 	var val: float = float(data["t2"]) if tier == 2 else float(data["t1"])
+	var next_need: int = int(need[1]) if tier == 1 else int(need[0])
 	active.append({
 		"type": type, "key": key, "name": data["name"], "count": count,
 		"tier": tier, "stat": data["stat"], "val": val,
 		"desc": SynergyData.bonus_desc(data["stat"], val), "color": col,
+		"next_need": next_need,
 	})
 
 # Accumulated team stat bonuses from all active synergies. Multipliers combine
@@ -49,6 +56,8 @@ func team_bonuses() -> Dictionary:
 		"max_hp": 1.0, "attack_speed": 1.0, "range_add": 0,
 	}
 	for s in active:
+		if s["tier"] == 0:
+			continue
 		var stat: String = s["stat"]
 		if stat == "range_add":
 			b["range_add"] += int(s["val"])

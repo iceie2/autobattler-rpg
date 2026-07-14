@@ -120,6 +120,7 @@ func _init_unit_timers() -> void:
 		unit.current_shield = 0
 		# Roster-expansion status fields
 		unit.burn_time = 0.0; unit.burn_dps = 0.0; unit.burn_accum = 0.0; unit.burn_source = null
+		unit.bleed_time = 0.0; unit.bleed_dps = 0.0; unit.bleed_accum = 0.0; unit.bleed_source = null
 		unit.slow_time = 0.0; unit.slow_pct = 0.0
 		unit.root_time = 0.0
 		unit.taunt_time = 0.0; unit.taunt_source = null
@@ -426,6 +427,9 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 	match unit.unit_class:
 		UnitBase.UnitClass.ANT_HILL:
 			_ant_hill_spawn_tick(unit, allies, dt)
+
+		UnitBase.UnitClass.HYDRA:
+			_hydra_regrow_tick(unit, dt)
 
 		UnitBase.UnitClass.BLOODHOUND:
 			# Blood Frenzy: below 45% HP
@@ -992,14 +996,33 @@ func _headhunter_rapid_fire(caster: UnitBase) -> void:
 func _shauna_kite(caster: UnitBase, opponents: Array) -> void:
 	var nearest := find_nearest_enemy(caster, opponents)
 	if nearest:
-		var dx: int = sign(caster.grid_position.x - nearest.grid_position.x)
-		var dy: int = sign(caster.grid_position.y - nearest.grid_position.y)
-		if dx == 0 and dy == 0:
-			dy = 1  # fallback: move south if same cell
-		var dest := caster.grid_position + Vector2i(dx, dy)
-		if battle_grid.is_valid_position(dest) and not battle_grid.is_cell_occupied(dest):
+		var dest := _best_retreat_cell(caster, nearest)
+		if dest != Vector2i(-1, -1):
 			start_unit_movement(caster, caster.grid_position, dest)
 	caster.next_attack_boosted = true   # next auto hits for +50%
+
+# Best open adjacent cell to retreat to, away from `threat`. Tries the exact
+# "directly away" diagonal first (highest distance gain), but falls back to
+# whichever other open neighbor still increases distance if that one is blocked
+# or off the grid — e.g. hugging a wall (2026-07-06 user report: Kite would
+# silently no-op near a wall, applying the attack-speed buff but never moving,
+# because the old code only ever tried that single exact cell).
+func _best_retreat_cell(unit: UnitBase, threat: UnitBase) -> Vector2i:
+	var cur: Vector2i = unit.grid_position
+	var cur_dist: float = cur.distance_to(threat.grid_position)
+	var dirs: Array[Vector2i] = [Vector2i(1,0),Vector2i(-1,0),Vector2i(0,1),Vector2i(0,-1),
+				Vector2i(1,1),Vector2i(-1,1),Vector2i(1,-1),Vector2i(-1,-1)]
+	var best := Vector2i(-1, -1)
+	var best_gain := 0.0
+	for d in dirs:
+		var c: Vector2i = cur + d
+		if not battle_grid.is_valid_position(c) or battle_grid.is_cell_occupied(c):
+			continue
+		var gain: float = c.distance_to(threat.grid_position) - cur_dist
+		if gain > best_gain:
+			best_gain = gain
+			best = c
+	return best
 
 # ── Nemi active: Tide — a chain that bounces between the two teams ─────────────
 # Rules:
@@ -1054,6 +1077,35 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 			caster.damage_dealt += bdm
 			tar.stun_time = maxf(tar.stun_time, 1.0)
 			_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, tar.global_position, 30.0)
+		"windup_punch":
+			# Wind-Up Punch: hit + 1s stun, damage scaling with the bot's own
+			# elemental affinity (2026-07-07 user request — every mob skill's
+			# damage should be tied to affinity, same pattern as bear_swipe/
+			# troll_enrage below rather than a flat multiplier like brute_crush).
+			if not tar: return
+			var wu_aff: float = 1.0 + caster.offensive_affinity.get(caster.current_element, 0.0) / 100.0
+			var wudm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier * wu_aff)
+			tar.take_damage(wudm, caster.current_element, caster)
+			caster.damage_dealt += wudm
+			tar.stun_time = maxf(tar.stun_time, 1.0)
+			_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, tar.global_position, 26.0)
+		"hydra_strike":
+			# Serpent Strike: each head bites a DIFFERENT nearby target at once —
+			# head count grows over time (see _hydra_regrow_tick), so this hits
+			# more targets the longer the fight drags on. Damage scales with the
+			# Hydra's own elemental affinity, same convention as every other mob
+			# skill (bear_swipe/windup_punch above).
+			var heads: int = int(caster.get_meta("hydra_heads", 1))
+			var hy_aff: float = 1.0 + caster.offensive_affinity.get(caster.current_element, 0.0) / 100.0
+			var hy_targets: Array = opponents.filter(func(o): return o and is_instance_valid(o))
+			hy_targets.sort_custom(func(a, b): return caster.grid_position.distance_to(a.grid_position) < caster.grid_position.distance_to(b.grid_position))
+			var hy_hit_count: int = mini(heads, hy_targets.size())
+			for i in range(hy_hit_count):
+				var hy_tar: UnitBase = hy_targets[i]
+				var hydm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier * hy_aff)
+				hy_tar.take_damage(hydm, caster.current_element, caster)
+				caster.damage_dealt += hydm
+				_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, hy_tar.global_position, 26.0)
 		"slime_goo":
 			# Corrosive Goo: weaken the target's outgoing damage.
 			if not tar: return
@@ -1075,6 +1127,51 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 			caster.damage_dealt += rdm
 			apply_burn(tar, float(caster.attack_damage) * 0.35, 3.0, caster)
 			_spawn_skill_effect_sized(SkillEffect.Type.BURN, tar.global_position, 20.0)
+		"lizard_snipe":
+			# Precision Shot: the lizard barely moves, so this high-multiplier
+			# cooldown-gated snipe (not its auto-attack) is its real threat.
+			if not tar: return
+			var lzdm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+			tar.take_damage(lzdm, caster.current_element, caster)
+			caster.damage_dealt += lzdm
+			_spawn_skill_effect_sized(SkillEffect.Type.ARROW_RAIN, tar.global_position, 24.0)
+		"bear_swipe":
+			# Rending Swipe: modest hit (the Bear's whole identity is tanking, not
+			# damage) that opens a bleed — the bleed tick rate DOUBLES on any
+			# second the target is moving (see _tick_statuses/BLEED_MOVE_MULT), so
+			# a bled target that keeps chasing/kiting bleeds out much faster than
+			# one that just stands and fights. Both the hit and the bleed scale
+			# with the Bear's own offensive affinity in its own element (2026-07-06
+			# user request — an Ice Bear's swipe hits harder because it's more
+			# affined with ice, not because of any target-element matchup).
+			if not tar: return
+			var bear_aff: float = 1.0 + caster.offensive_affinity.get(caster.current_element, 0.0) / 100.0
+			var bswp: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier * bear_aff)
+			tar.take_damage(bswp, caster.current_element, caster)
+			caster.damage_dealt += bswp
+			apply_bleed(tar, float(caster.attack_damage) * 0.3 * bear_aff, 4.0, caster)
+			_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, tar.global_position, 30.0)
+		"troll_enrage":
+			# Enrage: picks a RANDOM friendly target in range — itself counts as
+			# an eligible pick alongside its allies (2026-07-07 user correction;
+			# an earlier version picked the highest-ATK ally, which wasn't
+			# specified — targeting choices like this need direction, not
+			# invention). The attack-speed RATIO scales with the Troll's own
+			# offensive affinity in its own element; the 10s duration itself does
+			# not scale, only the magnitude. 10s duration / 5s cooldown (see
+			# skill_cooldown_max in EnemyFactory) is intentional: a Troll can keep
+			# the buff rolling on 2 targets at once (itself + one other).
+			var troll_aff: float = 1.0 + caster.offensive_affinity.get(caster.current_element, 0.0) / 100.0
+			var enrage_pct: float = 0.35 * troll_aff
+			var enrage_pool: Array = [caster]
+			for a in _allies:
+				if a and is_instance_valid(a) and a != caster \
+						and caster.grid_position.distance_to(a.grid_position) <= float(caster.skill_range):
+					enrage_pool.append(a)
+			var enrage_tar: UnitBase = enrage_pool[randi() % enrage_pool.size()]
+			enrage_tar.bonus_aspd_pct = maxf(enrage_tar.bonus_aspd_pct, enrage_pct)
+			enrage_tar.bonus_aspd_time = maxf(enrage_tar.bonus_aspd_time, 10.0)
+			_spawn_skill_effect_sized(SkillEffect.Type.CHI_BURST, enrage_tar.global_position, 32.0)
 
 func _nemi_tide(caster: UnitBase, opponents: Array, allies: Array) -> void:
 	var first := find_nearest_enemy(caster, opponents)
@@ -1302,23 +1399,29 @@ func start_khagan_possession(khagan: UnitBase) -> void:
 	enemy_units.append(chosen)
 	chosen.is_player_unit = false
 	chosen.set_meta("khagan_puppet", true)
+	if chosen.has_method("show_possession_icon"):
+		chosen.show_possession_icon(load("res://assets/using/khagan_phase2.png"))
 	action_logged.emit("Khagan's spirit seizes control of %s!" % chosen.unit_name, false)
 	_spawn_skill_effect_sized(SkillEffect.Type.SHADOW_STRIKE, chosen.global_position, 56.0)
 
 # Called from UnitBase/VisualUnit.die() the instant the possessed hero's HP
-# would hit 0 — breaks the control, returns it to the player's side, and ends
-# the fight in victory (defeating the puppet IS defeating Khagan; nothing else
-# on the field needs to die too). Deferred so the current per-unit tick loop
-# finishes cleanly before the battle-end signal cascade runs.
+# would hit 0 — breaks the control, returns it to the player's side at exactly
+# 1 HP (no partial-heal floor — 2026-07-08 user spec), and ends the fight in
+# victory (defeating the puppet IS defeating Khagan; nothing else on the field
+# needs to die too). home_position is never touched during possession, so the
+# normal between-round row heal tops this unit up like any other survivor once
+# the battle-end flow runs. Deferred so the current per-unit tick loop finishes
+# cleanly before the battle-end signal cascade runs.
 func end_khagan_possession(unit: UnitBase) -> void:
 	if not unit.has_meta("khagan_puppet"):
 		return
 	unit.remove_meta("khagan_puppet")
+	if unit.has_method("hide_possession_icon"):
+		unit.hide_possession_icon()
 	enemy_units.erase(unit)
 	if unit not in player_units:
 		player_units.append(unit)
 	unit.is_player_unit = true
-	unit.current_hp = maxi(unit.current_hp, int(unit.max_hp * 0.15))
 	action_logged.emit("%s breaks free of Khagan's control!" % unit.unit_name, true)
 	call_deferred("end_battle", true)
 
@@ -1488,6 +1591,33 @@ func _ant_hill_spawn_tick(hill: UnitBase, allies: Array, dt: float) -> void:
 	if alive_ants >= ANT_HILL_MAX_ANTS:
 		return   # swarm is already at its cap — try again next interval
 	_spawn_ant(hill)
+
+# ── Hydra: time-based head regrowth (the wave-30 boss's whole identity) ──────
+# Every HYDRA_REGROW_INTERVAL seconds survived, the Hydra grows another head,
+# up to HYDRA_MAX_HEADS — its "Serpent Strike" skill (see the "hydra_strike"
+# case in _use_mob_skill above) then bites that many DIFFERENT targets at once,
+# and its own attack_damage rises a bit too. A slow fight snowballs into being
+# hit from several sides simultaneously — the pressure is time, not HP.
+const HYDRA_REGROW_INTERVAL := 20.0
+const HYDRA_MAX_HEADS := 4
+const HYDRA_ATK_PER_HEAD := 0.10   # +10% attack_damage per extra head beyond the first
+
+func _hydra_regrow_tick(unit: UnitBase, dt: float) -> void:
+	var heads: int = int(unit.get_meta("hydra_heads", 1))
+	if heads >= HYDRA_MAX_HEADS:
+		return
+	var accum: float = float(unit.get_meta("hydra_regrow_accum", 0.0)) + dt
+	if accum < HYDRA_REGROW_INTERVAL:
+		unit.set_meta("hydra_regrow_accum", accum)
+		return
+	heads += 1
+	unit.set_meta("hydra_heads", heads)
+	unit.set_meta("hydra_regrow_accum", 0.0)
+	unit.attack_damage = int(round(float(unit.attack_damage) * (1.0 + HYDRA_ATK_PER_HEAD)))
+	var elem_name: String = EnemyFactory.HYDRA_ELEMENT_NAMES.get(unit.current_element, "")
+	unit.unit_name = "%s Hydra (%d Heads)" % [elem_name, heads]
+	action_logged.emit("Another head grows from the Hydra! (%d heads now)" % heads, false)
+	_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, unit.global_position, 40.0)
 
 # Like _spawn_summon, but for the Ant Hill specifically: uses the real ant.png
 # art (via sprite_folder meta) instead of the generic Zombie/Bat shape-fallback,
@@ -1734,6 +1864,26 @@ func _tick_statuses(unit: UnitBase, dt: float) -> void:
 	if not is_instance_valid(unit):
 		return
 
+	# Bleed damage-over-time — Bear's Rending Swipe. Moving while bled reopens
+	# the wound: the tick rate doubles for any tick where the unit is_moving,
+	# so standing still to fight is the way to mitigate it (2026-07-06 user request).
+	if unit.bleed_time > 0.0:
+		unit.bleed_time -= dt
+		var bleed_rate: float = unit.bleed_dps * (BLEED_MOVE_MULT if unit.is_moving else 1.0)
+		unit.bleed_accum += bleed_rate * dt
+		if unit.bleed_accum >= 1.0:
+			var bwhole: int = int(unit.bleed_accum)
+			unit.bleed_accum -= float(bwhole)
+			var blsrc = unit.bleed_source
+			unit.take_damage(bwhole, UnitBase.Element.NORMAL, blsrc, true)
+			if blsrc and is_instance_valid(blsrc):
+				blsrc.damage_dealt += bwhole
+		if unit.bleed_time <= 0.0:
+			unit.bleed_dps = 0.0
+			unit.bleed_accum = 0.0
+	if not is_instance_valid(unit):
+		return
+
 	# Stat Stealer drain-over-time: 10%/sec of the cast-time snapshot, transferred
 	# live onto drain_source's matching stat. Once drain_time runs out the theft
 	# is NOT reverted here — it stays stolen until drain_source dies (see
@@ -1826,6 +1976,13 @@ func apply_burn(target: UnitBase, dps: float, dur: float, source) -> void:
 	target.burn_dps = maxf(target.burn_dps, dps)
 	target.burn_time = maxf(target.burn_time, dur)
 	target.burn_source = source
+
+const BLEED_MOVE_MULT := 2.0   # bleed tick rate while is_moving — see _tick_statuses
+func apply_bleed(target: UnitBase, dps: float, dur: float, source) -> void:
+	if not (target and is_instance_valid(target)): return
+	target.bleed_dps = maxf(target.bleed_dps, dps)
+	target.bleed_time = maxf(target.bleed_time, dur)
+	target.bleed_source = source
 
 func apply_slow(target: UnitBase, pct: float, dur: float) -> void:
 	if not (target and is_instance_valid(target)): return
@@ -2143,7 +2300,7 @@ func _june_root(caster: UnitBase, opponents: Array) -> void:
 func _cross_absolution(caster: UnitBase, allies: Array) -> void:
 	var tar := _lowest_hp_ally(caster, allies, float(caster.skill_range), true)
 	if not tar: return
-	tar.slow_time = 0.0; tar.burn_time = 0.0; tar.root_time = 0.0
+	tar.slow_time = 0.0; tar.burn_time = 0.0; tar.bleed_time = 0.0; tar.root_time = 0.0
 	tar.taunt_time = 0.0; tar.taunt_source = null
 	var h: int = int(float(caster.max_hp) * 0.12 + float(caster.resistance) * 6.0)
 	tar.heal(h)
@@ -2234,7 +2391,7 @@ func _static_tripwire(caster: UnitBase, opponents: Array) -> void:
 func _reed_cleanse(caster: UnitBase, allies: Array) -> void:
 	var tar := _lowest_hp_ally(caster, allies, float(caster.skill_range), true)
 	if not tar: return
-	tar.slow_time = 0.0; tar.burn_time = 0.0; tar.root_time = 0.0
+	tar.slow_time = 0.0; tar.burn_time = 0.0; tar.bleed_time = 0.0; tar.root_time = 0.0
 	tar.taunt_time = 0.0; tar.taunt_source = null
 	var h: int = int(float(caster.magic_power) * 1.4 * UnitFactory.natural_aspect(caster))
 	tar.heal(h)
@@ -2260,7 +2417,11 @@ func _spore_bloom(caster: UnitBase, opponents: Array) -> void:
 # ══════════════════════════════════════════════════════════════════════════════
 
 func _doc_field_surgery(caster: UnitBase, allies: Array) -> void:
-	# Once per battle: revive a fallen ally as a battle-duration unit at 30% HP.
+	# Once per battle: revive a fallen ally at 30% HP. If they survive the
+	# rest of the round, they graduate into a normal permanent roster member
+	# instead of being cleared like a real summon (see
+	# main_game._despawn_summons()'s survivor check) — dying again before the
+	# round ends is still a real death, same as any other unit.
 	if caster.revive_used or fallen_allies.is_empty():
 		# Fallback: emergency team heal.
 		for a in allies:
@@ -2281,9 +2442,11 @@ func _doc_field_surgery(caster: UnitBase, allies: Array) -> void:
 	if int(snap["level"]) > 1:
 		revived.set_level(int(snap["level"]))
 	revived.is_summoned = true
+	revived.is_doc_revival = true
 	revived.summon_owner = caster
 	revived.is_player_unit = caster.is_player_unit
 	revived.grid_position = cell
+	revived.home_position = cell   # so a survivor slots back in here next round instead of the generic zero-position fallback
 	revived.current_hp = int(float(revived.max_hp) * 0.30)
 	if battle_grid.place_unit(revived, cell):
 		if revived.is_player_unit: player_units.append(revived)

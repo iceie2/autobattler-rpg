@@ -3,6 +3,7 @@ class_name DamageText
 
 var damage_amount: int = 0
 var element_color: Color = Color.WHITE
+var is_heal: bool = false
 var velocity: Vector2 = Vector2(0, -70)
 var lifetime: float = 1.2
 var elapsed: float = 0.0
@@ -14,6 +15,7 @@ var scale_mult: float = 1.0  # Animates from 0.8 → 1.1 → 1.0
 @export var font_size: int = 36
 @export var outline_width: int = 2
 @export var head_offset: Vector2 = Vector2(0, -16)
+const HEAL_COLOR := Color(0.25, 0.95, 0.35)   # green — always this color, regardless of element
 
 func _ready():
 	pass
@@ -21,10 +23,23 @@ func _ready():
 func setup(damage: int, element: UnitBase.Element, start_pos: Vector2):
 	damage_amount = damage
 	element_color = get_element_color(element)
+	is_heal = false
 	_fpos = (start_pos + head_offset).round()
 	global_position = _fpos
 	velocity = Vector2(randf_range(-3, 3), randf_range(-70, -55))
 	z_index = 100  # Higher than your sprite's z_index
+	queue_redraw()
+
+# Same shape as setup(), but always green with a "+" prefix — used whenever a
+# unit heals any HP at all (see UnitBase.heal()'s spawn_heal_text() call).
+func setup_heal(amount: int, start_pos: Vector2):
+	damage_amount = amount
+	element_color = HEAL_COLOR
+	is_heal = true
+	_fpos = (start_pos + head_offset).round()
+	global_position = _fpos
+	velocity = Vector2(randf_range(-3, 3), randf_range(-70, -55))
+	z_index = 100
 	queue_redraw()
 
 func _process(delta: float):
@@ -54,7 +69,7 @@ func _draw():
 	if damage_amount <= 0:
 		return
 
-	var text = str(damage_amount)
+	var text = ("+" + str(damage_amount)) if is_heal else str(damage_amount)
 	var alpha = 1.0 - (elapsed / lifetime)
 
 	var color = Color(element_color.r, element_color.g, element_color.b, alpha)

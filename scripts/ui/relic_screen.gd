@@ -92,7 +92,7 @@ func _make_card(relic: Dictionary) -> Button:
 	var desc := Label.new()
 	desc.position             = Vector2(24, 182)
 	desc.size                 = Vector2(CARD_W - 48, 140)
-	desc.add_theme_font_size_override("font_size", 14)
+	desc.add_theme_font_size_override("font_size", 20)
 	desc.add_theme_color_override("font_color", Color(0.82, 0.82, 0.92))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.vertical_alignment   = VERTICAL_ALIGNMENT_TOP

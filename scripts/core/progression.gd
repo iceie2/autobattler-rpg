@@ -20,19 +20,98 @@ const UPGRADES: Array = [
 		"effect": "Starting Gold +%d", "max_level": 20, "effect_per_level": 1,
 	},
 	{
+		# 2026-07-10 user correction: was +50/level, now +10/level.
 		"key": "team_hp", "name": "Fortified",
-		"desc": "+50 max HP to all heroes at the start of every run per level.",
-		"effect": "Team HP +%d", "max_level": 20, "effect_per_level": 50,
+		"desc": "+10 max HP to all heroes at the start of every run per level.",
+		"effect": "Team HP +%d", "max_level": 20, "effect_per_level": 10,
 	},
 	{
 		"key": "hero_slots", "name": "Roster Expansion",
-		"desc": "+1 hero you can field per level (max 10 total).",
+		"desc": "+1 hero you can field per level (stacks with your player level).",
 		"effect": "Hero Slots: %d", "max_level": 5, "effect_per_level": 1,
+	},
+	{
+		# Warm Bench (2026-07-10): grows the sideboard — heroes bought past the
+		# field cap wait here (see main_game's bench system, base size in
+		# Balance.BENCH_BASE_SLOTS).
+		"key": "bench_slots", "name": "Warm Bench",
+		"desc": "+1 bench slot to store extra heroes per level.",
+		"effect": "Bench Slots +%d", "max_level": 4, "effect_per_level": 1,
 	},
 	{
 		"key": "crystal_drop", "name": "Crystal Surge",
 		"desc": "+1 crystal dropped by every enemy per level.",
 		"effect": "Crystal Drop +%d", "max_level": 10, "effect_per_level": 1,
+	},
+	{
+		# 2026-07-10: the 4 core root-branch upgrades are starting_gold/team_hp/
+		# hero_slots/bonus_xp — crystal_drop above stays in the catalogue as a
+		# regular (non-core) branch instead of being removed.
+		"key": "bonus_xp", "name": "Quick Learner",
+		"desc": "+25% XP earned by every hero from kills, per level.",
+		"effect": "Bonus XP +%d%%", "max_level": 20, "effect_per_level": 25,
+	},
+	# ── Stat tree (2026-07-10) — one flat/percent bonus applied to every hero
+	# at recruit time, same mechanism as team_hp above (see
+	# main_game._apply_progression_bonuses). Numbers are a first pass, freely
+	# invented per convention — tune after playtesting.
+	{
+		"key": "mana_well", "name": "Mana Well",
+		"desc": "+10 max mana to all heroes per level.",
+		"effect": "Max Mana +%d", "max_level": 20, "effect_per_level": 10,
+	},
+	{
+		"key": "spellpower", "name": "Spellpower",
+		"desc": "+2 magic power to all heroes per level.",
+		"effect": "Magic Power +%d", "max_level": 20, "effect_per_level": 2,
+	},
+	{
+		"key": "might", "name": "Might",
+		"desc": "+2 attack damage to all heroes per level.",
+		"effect": "Attack Damage +%d", "max_level": 20, "effect_per_level": 2,
+	},
+	{
+		"key": "warding", "name": "Warding",
+		"desc": "+2 resistance to all heroes per level.",
+		"effect": "Resistance +%d", "max_level": 20, "effect_per_level": 2,
+	},
+	{
+		"key": "fleetfoot", "name": "Fleetfoot",
+		"desc": "+0.02 attack speed to all heroes per level.",
+		"effect": "Attack Speed +%.2f", "max_level": 20, "effect_per_level": 0.02, "is_float": true,
+	},
+	{
+		"key": "vitality_flow", "name": "Vitality Flow",
+		"desc": "+0.1 HP regen to all heroes per level.",
+		"effect": "HP Regen +%.1f", "max_level": 20, "effect_per_level": 0.1, "is_float": true,
+	},
+	{
+		"key": "mana_flow", "name": "Mana Flow",
+		"desc": "+0.1 mana regen to all heroes per level.",
+		"effect": "Mana Regen +%.1f", "max_level": 20, "effect_per_level": 0.1, "is_float": true,
+	},
+	{
+		"key": "swiftness", "name": "Swiftness",
+		"desc": "+1 movement speed to all heroes per level.",
+		"effect": "Movement Speed +%d", "max_level": 5, "effect_per_level": 1,
+	},
+	{
+		# Stored as whole percentage points (2 = 2%), divided by 100 wherever it's
+		# actually applied to unit.crit_chance — keeps the shop display a plain
+		# int like elemental_attunement below instead of a raw 0.02 fraction.
+		"key": "lethality", "name": "Lethality",
+		"desc": "+2% crit chance to all heroes per level.",
+		"effect": "Crit Chance +%d%%", "max_level": 20, "effect_per_level": 2,
+	},
+	{
+		"key": "killing_blow", "name": "Killing Blow",
+		"desc": "+5% crit damage to all heroes per level.",
+		"effect": "Crit Damage +%d%%", "max_level": 20, "effect_per_level": 5,
+	},
+	{
+		"key": "elemental_attunement", "name": "Elemental Attunement",
+		"desc": "+1% natural-aspect kit bonus per level (base bonus is 15%).",
+		"effect": "Aspect Bonus +%d%%", "max_level": 20, "effect_per_level": 1,
 	},
 ]
 
@@ -72,12 +151,24 @@ func add_crystals(amount: int) -> void:
 	crystals += amount
 	save_data()
 
-# Returns the total bonus value for an upgrade (level × per_level)
+# Returns the total bonus value for an upgrade (level × per_level), as an int.
+# Only use this for int-typed stats — for anything marked "is_float": true in
+# the catalogue (attack_speed/regen/crit/etc.), use get_bonus_float() instead,
+# since this truncates to int.
 func get_bonus(key: String) -> int:
 	var upgrade := _find(key)
 	if upgrade.is_empty():
 		return 0
 	return get_level(key) * int(upgrade["effect_per_level"])
+
+# Float-precision version for small per-level increments (attack_speed,
+# hp_regen/mana_regen, crit_chance/crit_damage) where int() truncation would
+# zero out a sub-1.0 effect_per_level.
+func get_bonus_float(key: String) -> float:
+	var upgrade := _find(key)
+	if upgrade.is_empty():
+		return 0.0
+	return float(get_level(key)) * float(upgrade["effect_per_level"])
 
 # Convenience helpers used by main_game.gd
 func starting_gold_bonus() -> int:

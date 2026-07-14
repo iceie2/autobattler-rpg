@@ -54,7 +54,9 @@ enum UnitClass {
 	ANT,
 	# ── Elites (enemy-only, not recruitable) ──
 	STAT_STEALER,
-	ANT_HILL
+	ANT_HILL,
+	# ── Bosses (enemy-only, not recruitable) ──
+	HYDRA
 }
 
 # Trait classes for synergies (Tank, Mage, Fighter, Ranged, Healer, Summoner)
@@ -172,8 +174,15 @@ func stat_growth(stat_key: String) -> float:
 var current_shield: int = 0   # absorbs damage before HP; resets at round end
 
 # ── Summon system (Necro) ─────────────────────────────────────────────────────
-var is_summoned: bool     = false   # true for Zombie / Bat summons
+var is_summoned: bool     = false   # true for Zombie / Bat summons AND Doc's revived hero
 var summon_owner: UnitBase = null   # Necro reference (for passive heal)
+# Doc's Field Surgery revives a real fallen hero, not a conjured summon — it's
+# still flagged is_summoned (needed so _on_ally_died's "don't let a summon get
+# re-snapshotted as revivable" guard applies to it too), but if it SURVIVES the
+# round it should graduate into a normal permanent roster member instead of
+# being deleted by main_game._despawn_summons() like a real summon would be.
+# See _despawn_summons()'s survivor check.
+var is_doc_revival: bool = false
 
 # ── Lordee mechanics ──────────────────────────────────────────────────────────
 var lordee_aura_timer:      float   = 0.0
@@ -227,6 +236,11 @@ var burn_time: float = 0.0         # >0 = burning; deals burn_dps per second
 var burn_dps: float = 0.0
 var burn_accum: float = 0.0        # fractional burn carried between frames
 var burn_source = null             # who lit the burn (for damage credit)
+
+var bleed_time: float = 0.0        # >0 = bleeding; deals bleed_dps per second,
+var bleed_dps: float = 0.0         # doubled (BLEED_MOVE_MULT in auto_battle_manager)
+var bleed_accum: float = 0.0       # for any tick where the unit is_moving — Bear's
+var bleed_source = null            # Rending Swipe (2026-07-06): reopens the wound.
 
 var slow_time: float = 0.0         # >0 = slowed; slow_pct cuts attack & move speed
 var slow_pct: float = 0.0
@@ -369,7 +383,7 @@ signal shield_changed(current: int)        # shield value changed (absorbed dama
 func _ready():
 	update_visuals()
 
-func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null, true_damage: bool = false) -> void:
+func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null, true_damage: bool = false, bonus_true_damage: int = 0) -> void:
 	# Evasion: chance to dodge the hit entirely (only applies to direct hits, not DoT/true damage)
 	if not true_damage and amount > 0:
 		var ev: float = equipment_passives.get("Evasion", 0.0)
@@ -378,12 +392,25 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 
 	var modified_damage := calculate_damage_with_element(amount, element)
 	if not true_damage:
-		modified_damage = max(1, modified_damage - resistance)
+		# League-style diminishing-returns curve (2026-07-10, replaces flat
+		# subtraction): 100 resistance = 50% reduction, 200 = 66.7%, asymptotic —
+		# never reaches 100%. Flat subtraction let any resistance value fully
+		# negate small/incremental hits (DoTs, stacking bite mechanics) once it
+		# exceeded their damage, flooring them at 1 dmg forever regardless of how
+		# much they scaled — see the Ant Hill bite-stack bug fixed just above.
+		modified_damage = int(modified_damage * (100.0 / (100.0 + float(resistance))))
 		modified_damage = int(modified_damage * get_defense_multiplier(element))
 	# Relic: fragile-but-deadly picks (e.g. Glass Cannon) raise incoming damage.
 	if relic_dmg_taken_mult != 1.0:
 		modified_damage = int(round(modified_damage * relic_dmg_taken_mult))
 	modified_damage = max(1, modified_damage)
+	# Ant Hill swarm bite stacks: added AFTER the flat resistance subtraction and
+	# max(1,...) floor above, as true damage. Bite stacks are a snowballing DPS
+	# check (each bite makes every future ant bite hit harder) — computed as a
+	# pre-mitigation bonus, they got fully eaten by resistance's flat subtraction
+	# and every ant hit floored to 1 dmg forever, no matter how many stacks piled
+	# up (2026-07-10 bug report: fights stalling out with neither side progressing).
+	modified_damage += bonus_true_damage
 
 	# Shield absorbs damage before HP
 	if current_shield > 0:
@@ -430,8 +457,12 @@ func calculate_damage_with_element(base_damage: int, attacker_element: Element) 
 	return int(base_damage * modifier)
 
 func heal(amount: int) -> void:
+	var before: int = current_hp
 	current_hp = min(max_hp, current_hp + amount)
 	health_changed.emit(current_hp, max_hp)
+	var healed: int = current_hp - before
+	if healed > 0:
+		spawn_heal_text(healed)
 
 func restore_mana(amount: int) -> void:
 	current_mana = min(max_mana, current_mana + amount)
@@ -495,9 +526,13 @@ func attack(target) -> void:
 		damage = int(damage * relic_vs_boss_mult)
 	# Ant Hill swarm: every bite adds the victim's CURRENT stack count as bonus
 	# damage (read before this hit's stack increment in _apply_on_hit_passives),
-	# so the 1st bite is normal, the 2nd is +1, the 3rd is +2, etc.
+	# so the 1st bite is normal, the 2nd is +1, the 3rd is +2, etc. Passed to
+	# take_damage() as unmitigated bonus_true_damage (2026-07-10 fix) — added to
+	# `damage` here it was flat-resistance'd away and floored to 1 dmg forever,
+	# since resistance is a flat subtraction, not a percentage.
+	var ant_bonus_dmg: int = 0
 	if unit_class == UnitClass.ANT and target is UnitBase:
-		damage += target.ant_bite_stacks
+		ant_bonus_dmg = target.ant_bite_stacks
 
 	hit_counter += 1
 	# Generic crit roll (separate from the Headhunter/Shauna hit-counter flavor
@@ -525,7 +560,7 @@ func attack(target) -> void:
 	else:
 		var pre_hp: int = target.current_hp
 		var was_alive: bool = pre_hp > 0
-		target.take_damage(damage, current_element, self, is_true_dmg)
+		target.take_damage(damage, current_element, self, is_true_dmg, ant_bonus_dmg)
 		var actual: int = max(0, pre_hp - target.current_hp)
 		damage_dealt += actual
 		pending_attack_log_damage += actual
@@ -580,8 +615,13 @@ func spawn_projectile(target, damage: int) -> void:
 		battle_manager.add_projectile(projectile)
 
 func die() -> void:
-	# Khagan's mind-controlled puppet: a lethal hit clamps to 1 HP and breaks the
-	# possession instead of really dying (mirrors the VisualUnit.die() override).
+	# Khagan's mind-controlled puppet: a lethal hit clamps to 1 HP and STAYS
+	# there (no partial-heal floor — 2026-07-08 user spec) instead of really
+	# dying — the player fights their own hero down to exactly 1 HP to end the
+	# encounter. The normal between-round row heal
+	# (main_game._grant_between_round_bonuses) tops it up afterward same as any
+	# other survivor, since home_position was never touched (mirrors the
+	# VisualUnit.die() override).
 	if has_meta("khagan_puppet") and current_hp <= 0:
 		current_hp = 1
 		current_shield = 0
@@ -698,6 +738,8 @@ func get_class_name_string() -> String:
 			return "Zombie"
 		UnitClass.BAT:
 			return "Bat"
+		UnitClass.HYDRA:
+			return "Hydra"
 		_:
 			return "Unknown"
 
@@ -728,9 +770,21 @@ func get_distance_to(target_pos: Vector2i) -> float:
 func spawn_damage_text(damage: int, element: Element) -> void:
 	if not damage_text_container:
 		return
-	
+
 	var damage_text = DamageText.new()
 	# Spawn slightly above the unit
 	var spawn_pos = global_position + Vector2(0, -20)
 	damage_text.setup(damage, element, spawn_pos)
 	damage_text_container.add_child(damage_text)
+
+# Green "+N" floating text — fires whenever heal() actually restores any HP,
+# regardless of source (skills, lifesteal, auras, relics — anything routed
+# through heal()), matching spawn_damage_text's shape above.
+func spawn_heal_text(amount: int) -> void:
+	if not damage_text_container:
+		return
+
+	var heal_text = DamageText.new()
+	var spawn_pos = global_position + Vector2(0, -20)
+	heal_text.setup_heal(amount, spawn_pos)
+	damage_text_container.add_child(heal_text)

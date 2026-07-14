@@ -144,7 +144,7 @@ func _panel(parent: Node, rect: Rect2) -> Panel:
 func _btn(text: String, rect: Rect2) -> Button:
 	var b := Button.new()
 	b.text = text; b.position = rect.position; b.size = rect.size
-	b.add_theme_font_size_override("font_size", 15)
+	b.add_theme_font_size_override("font_size", 26)
 	b.add_theme_color_override("font_color", Color(0.9, 0.9, 1.0))
 	b.add_theme_stylebox_override("normal",  _flat(Color(0.18, 0.18, 0.28), Color(0.45, 0.45, 0.6), 1, 4))
 	b.add_theme_stylebox_override("hover",   _flat(Color(0.25, 0.25, 0.38), Color(0.6, 0.6, 0.8),  1, 4))

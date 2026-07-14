@@ -115,9 +115,19 @@ static func generate_item(round: int = 1, max_rarity: int = EquipmentItem.Rarity
 		if stat in FLOAT_STATS:
 			item.stat_bonus[stat] += _roll_float_stat_value(rarity, round)
 		else:
-			item.stat_bonus[stat] += _roll_stat_value(rarity, round)
+			var value: int = _roll_stat_value(rarity, round)
+			# HP/mana rolls read as flat pools, not per-hit damage — a raw roll
+			# feels negligible next to units with hundreds/thousands of HP, so
+			# these two get a straight 10x on top of everything else (2026-07-09
+			# user request).
+			if stat in BIG_STATS:
+				value *= BIG_STATS_MULT
+			item.stat_bonus[stat] += value
 
 	return item
+
+const BIG_STATS: Array[String] = ["hp", "mana"]
+const BIG_STATS_MULT := 10
 
 static func _roll_rarity(round: int, max_rarity: int = EquipmentItem.Rarity.RARE) -> int:
 	var roll = randf()

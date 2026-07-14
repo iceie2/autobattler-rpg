@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dic2cc0a1f1lc"
-path="res://.godot/imported/Bat.png-30d294ac8e3688f6115ee3c69b7d6f0b.ctex"
+uid="uid://b7fp4dw6llt4n"
+path="res://.godot/imported/troll_fire.png-601cd77d402542c6765924ea50fff7d8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/using/Bat.png"
-dest_files=["res://.godot/imported/Bat.png-30d294ac8e3688f6115ee3c69b7d6f0b.ctex"]
+source_file="res://assets/using/troll_fire.png"
+dest_files=["res://.godot/imported/troll_fire.png-601cd77d402542c6765924ea50fff7d8.ctex"]
 
 [params]
 

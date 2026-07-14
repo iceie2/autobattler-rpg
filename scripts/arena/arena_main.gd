@@ -14,7 +14,7 @@ extends Node
 #   Simulate battles:
 #     godot --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=sim \
 #       --team=SABLE:3,NEMI:3,RIOT:3 --enemy=wave:12 --runs=10 --seed=42
-#   Enemy can be an explicit list too:  --enemy=goblin:3,orc_brute:5,hill_giant:4
+#   Enemy can be an explicit list too:  --enemy=goblin:3,orc_earth:5,hill_giant:4
 #   Optional: --out=user://arena_result.json  --max-sim-seconds=120
 #             --difficulty=easy|normal|hard (wave enemies only)
 #             --element=FIRE (team-wide hero element, default NORMAL)
@@ -76,14 +76,59 @@ const EXPECTED_SILENT := {
 	# Basic mobs: kit = one signature skill (2026-07-03), no passive by design.
 	"goblin": {"passive": "kit is Shank; no passive by design"},
 	"goblin_archer": {"passive": "kit is Crippling Arrow; no passive by design"},
-	"goblin_shaman": {"passive": "kit is Mend; no passive by design"},
-	"orc_brute": {"passive": "kit is Crushing Blow; no passive by design"},
-	"slime": {"passive": "kit is Corrosive Goo; no passive by design"},
+	"goblin_shaman_normal": {"passive": "kit is Mend; no passive by design"},
+	"goblin_shaman_fire": {"passive": "kit is Mend; no passive by design"},
+	"goblin_shaman_water": {"passive": "kit is Mend; no passive by design"},
+	"goblin_shaman_earth": {"passive": "kit is Mend; no passive by design"},
+	"goblin_shaman_air": {"passive": "kit is Mend; no passive by design"},
+	"goblin_shaman_lightning": {"passive": "kit is Mend; no passive by design"},
+	"orc_normal": {"passive": "kit is Crushing Blow; no passive by design"},
+	"orc_fire": {"passive": "kit is Crushing Blow; no passive by design"},
+	"orc_water": {"passive": "kit is Crushing Blow; no passive by design"},
+	"orc_earth": {"passive": "kit is Crushing Blow; no passive by design"},
+	"orc_air": {"passive": "kit is Crushing Blow; no passive by design"},
+	"orc_lightning": {"passive": "kit is Crushing Blow; no passive by design"},
+	"slime_normal": {"passive": "kit is Corrosive Goo; no passive by design"},
+	"slime_fire": {"passive": "kit is Corrosive Goo; no passive by design"},
+	"slime_water": {"passive": "kit is Corrosive Goo; no passive by design"},
+	"slime_earth": {"passive": "kit is Corrosive Goo; no passive by design"},
+	"slime_air": {"passive": "kit is Corrosive Goo; no passive by design"},
+	"slime_lightning": {"passive": "kit is Corrosive Goo; no passive by design"},
+	"lizard_normal": {"passive": "kit is Precision Shot; no passive by design"},
+	"lizard_fire": {"passive": "kit is Precision Shot; no passive by design"},
+	"lizard_water": {"passive": "kit is Precision Shot; no passive by design"},
+	"lizard_earth": {"passive": "kit is Precision Shot; no passive by design"},
+	"lizard_air": {"passive": "kit is Precision Shot; no passive by design"},
+	"lizard_lightning": {"passive": "kit is Precision Shot; no passive by design"},
+	"bear_normal": {"passive": "kit is Rending Swipe; no passive by design"},
+	"bear_fire": {"passive": "kit is Rending Swipe; no passive by design"},
+	"bear_water": {"passive": "kit is Rending Swipe; no passive by design"},
+	"bear_earth": {"passive": "kit is Rending Swipe; no passive by design"},
+	"bear_air": {"passive": "kit is Rending Swipe; no passive by design"},
+	"bear_lightning": {"passive": "kit is Rending Swipe; no passive by design"},
+	"troll_normal": {"passive": "kit is Enrage; no passive by design"},
+	"troll_fire": {"passive": "kit is Enrage; no passive by design"},
+	"troll_water": {"passive": "kit is Enrage; no passive by design"},
+	"troll_earth": {"passive": "kit is Enrage; no passive by design"},
+	"troll_air": {"passive": "kit is Enrage; no passive by design"},
+	"troll_lightning": {"passive": "kit is Enrage; no passive by design"},
+	"windup_bot_normal": {"passive": "kit is Wind-Up Punch; no passive by design"},
+	"windup_bot_fire": {"passive": "kit is Wind-Up Punch; no passive by design"},
+	"windup_bot_water": {"passive": "kit is Wind-Up Punch; no passive by design"},
+	"windup_bot_earth": {"passive": "kit is Wind-Up Punch; no passive by design"},
+	"windup_bot_air": {"passive": "kit is Wind-Up Punch; no passive by design"},
+	"windup_bot_lightning": {"passive": "kit is Wind-Up Punch; no passive by design"},
 	"skeleton": {"passive": "kit is Bone Shield; no passive by design"},
 	"rat": {"passive": "kit is Infected Bite; no passive by design"},
 	"hill_giant": {"passive": "no passive by design"},
 	"triarch": {"passive": "phase mechanics live in die(), not passives"},
 	"khagan": {"passive": "phase mechanics live in die(), not passives"},
+	"hydra_normal": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
+	"hydra_fire": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
+	"hydra_water": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
+	"hydra_earth": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
+	"hydra_air": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
+	"hydra_lightning": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
 	"stat_stealer": {"passive": "kit is skill+ult only"},
 }
 
@@ -233,7 +278,7 @@ func _spawn_team(spec: String, element: int) -> Array:
 		out.append(u)
 	return out
 
-# "wave:12[:difficulty]" or "goblin:3,orc_brute:5" → enemy units (unplaced).
+# "wave:12[:difficulty]" or "goblin:3,orc_earth:5" → enemy units (unplaced).
 func _spawn_enemies(spec: String, difficulty: int) -> Array:
 	var out: Array = []
 	if spec.begins_with("wave:"):
@@ -355,7 +400,7 @@ func _unit_stats(units: Array) -> Array:
 # the anchor ALONE loses most runs: a support's real value then shows up as
 # win-rate lift over that baseline, not as damage (which undersells supports).
 const SWEEP_SOLO_ENEMY := "goblin:4,goblin:4,goblin_archer:3"
-const SWEEP_PAIR_ENEMY := "goblin:5,goblin:5,goblin_archer:4,goblin_shaman:4"
+const SWEEP_PAIR_ENEMY := "goblin:5,goblin:5,goblin_archer:4,goblin_shaman_fire:4"
 const SWEEP_ANCHOR := "RIOT"
 
 func _run_sweep(args: Dictionary) -> Dictionary:
@@ -666,7 +711,9 @@ var _sand_enemy_edit: LineEdit
 var _sand_diff_opt: OptionButton
 var _sand_status: Label
 var _sand_fight_btn: Button
+var _sand_menu_btn: Button
 var _sand_busy := false
+var _sand_leaving := false
 
 func _build_sandbox() -> void:
 	# Camera centers the 9x9 board (990px, centered at 495,495) in the space
@@ -705,7 +752,7 @@ func _build_sandbox() -> void:
 	_sand_element_edit.text = "NORMAL"
 	vb.add_child(_sand_element_edit)
 
-	vb.add_child(_sand_lbl("Enemy — wave:N  or  goblin:2,orc_brute:3", 13, UITheme.TEXT_BODY))
+	vb.add_child(_sand_lbl("Enemy — wave:N  or  goblin:2,orc_earth:3", 13, UITheme.TEXT_BODY))
 	_sand_enemy_edit = LineEdit.new()
 	_sand_enemy_edit.text = "wave:5"
 	vb.add_child(_sand_enemy_edit)
@@ -727,11 +774,28 @@ func _build_sandbox() -> void:
 	_sand_status.custom_minimum_size = Vector2(300, 0)
 	vb.add_child(_sand_status)
 
-	var menu_btn := Button.new()
-	menu_btn.text = "Back to Menu"
-	UITheme.style_button(menu_btn)
-	menu_btn.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/main_menu.tscn"))
-	vb.add_child(menu_btn)
+	_sand_menu_btn = Button.new()
+	_sand_menu_btn.text = "Back to Menu"
+	UITheme.style_button(_sand_menu_btn)
+	_sand_menu_btn.pressed.connect(_on_sandbox_menu_pressed)
+	vb.add_child(_sand_menu_btn)
+
+# A fight may still be mid-flight (_sandbox_fight's loop awaits up to 300s of
+# process_frame ticks). Freeing this scene out from under that coroutine — via
+# an immediate change_scene_to_file — resumes it next frame against freed
+# nodes (mgr, _sand_status, ...) and crashes the engine. Signal the loop to
+# stop and wait for it to actually exit before tearing down / changing scenes.
+func _on_sandbox_menu_pressed() -> void:
+	if _sand_leaving:
+		return
+	_sand_leaving = true
+	_sand_menu_btn.disabled = true
+	if mgr and is_instance_valid(mgr):
+		mgr.battle_active = false
+	while _sand_busy:
+		await get_tree().process_frame
+	await _teardown_env()
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 
 func _sand_lbl(text: String, size: int, col: Color) -> Label:
 	var l := Label.new()

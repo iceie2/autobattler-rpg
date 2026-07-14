@@ -97,27 +97,27 @@ class RadarChart extends Control:
 # ── Perk definitions ──────────────────────────────────────────────────────────
 # weights keys match TraitClass enum: 0=TANK,1=MAGE,2=FIGHTER,3=RANGED,4=HEALER,5=SUMMONER
 const PERKS: Array[Dictionary] = [
-	{id="atk",   label="ATK",   stat="attack_damage", value=8,
+	{id="atk",   label="ATK",   stat="attack_damage", value=2,
 	 desc="Increases physical attack damage.",
 	 color=Color(0.88, 0.28, 0.18),
 	 weights={0:2, 1:1, 2:4, 3:1, 4:1, 5:1}},
-	{id="aspd",  label="AS",    stat="attack_speed",  value=0.15,
+	{id="aspd",  label="AS",    stat="attack_speed",  value=0.1,
 	 desc="Increases attacks per second.",
 	 color=Color(0.22, 0.78, 0.38),
 	 weights={0:1, 1:1, 2:2, 3:4, 4:1, 5:2}},
-	{id="magic", label="MAG",   stat="magic_power",   value=8,
+	{id="magic", label="MAG",   stat="magic_power",   value=2,
 	 desc="Amplifies magic damage and healing output.",
 	 color=Color(0.28, 0.52, 0.95),
 	 weights={0:1, 1:4, 2:1, 3:1, 4:3, 5:3}},
-	{id="hp",    label="HP",    stat="max_hp",         value=60,
+	{id="hp",    label="HP",    stat="max_hp",         value=40,
 	 desc="Increases maximum HP.",
 	 color=Color(0.88, 0.18, 0.28),
 	 weights={0:4, 1:1, 2:2, 3:1, 4:2, 5:2}},
-	{id="res",   label="RES",   stat="resistance",     value=7,
+	{id="res",   label="RES",   stat="resistance",     value=1,
 	 desc="Reduces all incoming physical and magic damage.",
 	 color=Color(0.55, 0.38, 0.90),
 	 weights={0:4, 1:2, 2:2, 3:1, 4:3, 5:2}},
-	{id="regen", label="REGEN", stat="regen",          value=0,
+	{id="regen", label="REGEN", stat="regen",          value=0.1,
 	 desc="Boosts HP and mana regeneration each second.",
 	 color=Color(0.95, 0.72, 0.18),
 	 weights={0:2, 1:2, 2:1, 3:1, 4:4, 5:3}},
@@ -483,7 +483,7 @@ func _make_card(perk: Dictionary, pos: Vector2) -> Button:
 	var desc := Label.new()
 	desc.position             = Vector2(16, desc_y)
 	desc.size                 = Vector2(CARD_W - 32, DESC_H)
-	desc.add_theme_font_size_override("font_size", 14)
+	desc.add_theme_font_size_override("font_size", 28)
 	desc.add_theme_color_override("font_color", Color(0.72, 0.70, 0.82))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.vertical_alignment   = VERTICAL_ALIGNMENT_TOP

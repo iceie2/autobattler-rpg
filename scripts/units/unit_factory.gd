@@ -126,7 +126,10 @@ const NATURAL_ASPECT = {
 # 1.0 normally; matched natural aspect grants +15% kit magnitude (no off-aspect penalty).
 static func natural_aspect(unit: UnitBase) -> float:
 	if NATURAL_ASPECT.get(unit.unit_class, UnitBase.Element.NORMAL) == unit.current_element:
-		return 1.15
+		# Base +15%, plus the Elemental Attunement meta-upgrade (read live, not
+		# applied at recruit time, since this is a multiplier recomputed on
+		# every call rather than a stored base stat — 2026-07-10).
+		return 1.15 + float(Progression.get_bonus("elemental_attunement")) / 100.0
 	return 1.0
 
 # Base stats for each class at level 1 (TFT-style independent stats)
@@ -139,7 +142,7 @@ const CLASS_BASE_STATS = {
 	UnitBase.UnitClass.WHITE_MAGE: { "hp":750,"mana":750, "atk":10,"magic":17,"res":12,"aspd":0.66,"hpregen":0.55,"manaregen":5.33, "move":2,"range":5, "off_affinity":35.0,"def_affinity":30.0 },
 	UnitBase.UnitClass.RED_MAGE: { "hp":850,"mana":650, "atk":15,"magic":17,"res":10,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":2,"range":5, "off_affinity":45.0,"def_affinity":20.0 },
 	UnitBase.UnitClass.BLOODHOUND: { "hp":1100,"mana":400, "atk":20,"magic":10,"res":14,"aspd":0.74,"hpregen":0.5,"manaregen":2.0, "move":3,"range":1, "off_affinity":35.0,"def_affinity":25.0 },
-	UnitBase.UnitClass.BOUNCER: { "hp":1300,"mana":600, "atk":11,"magic":18,"res":16,"aspd":0.62,"hpregen":0.5,"manaregen":4.67, "move":2,"range":1, "off_affinity":30.0,"def_affinity":35.0 },
+	UnitBase.UnitClass.BOUNCER: { "hp":1300,"mana":600, "atk":11,"magic":18,"res":16,"aspd":0.62,"hpregen":0.5,"manaregen":4.67, "move":2,"range":0, "off_affinity":30.0,"def_affinity":35.0 },
 	# Balance 2026-07-03: HEADHUNTER atk 24→23, SABLE atk 21→20, RUSH atk 24→22,
 	# NEMI magic 19→21 — arena sweep + user playtests: the first three top the
 	# damage board (their base stats over-fit their kits), Nemi underperforms
@@ -168,7 +171,7 @@ const CLASS_BASE_STATS = {
 	UnitBase.UnitClass.STATIC: { "hp":820,"mana":700, "atk":12,"magic":18,"res":10,"aspd":0.72,"hpregen":0.47,"manaregen":4.67, "move":2,"range":3, "off_affinity":45.0,"def_affinity":18.0 },
 	UnitBase.UnitClass.REED: { "hp":860,"mana":780, "atk":10,"magic":16,"res":11,"aspd":0.66,"hpregen":0.6,"manaregen":5.5, "move":2,"range":4, "off_affinity":30.0,"def_affinity":25.0 },
 	UnitBase.UnitClass.VAIL: { "hp":820,"mana":780, "atk":11,"magic":16,"res":9,"aspd":0.7,"hpregen":0.6,"manaregen":5.5, "move":3,"range":4, "off_affinity":30.0,"def_affinity":18.0 },
-	UnitBase.UnitClass.SPORE: { "hp":780,"mana":820, "atk":9,"magic":20,"res":9,"aspd":0.68,"hpregen":0.47,"manaregen":5.5, "move":2,"range":4, "off_affinity":50.0,"def_affinity":18.0 },
+	UnitBase.UnitClass.SPORE: { "hp":780,"mana":820, "atk":9,"magic":20,"res":9,"aspd":0.68,"hpregen":0.47,"manaregen":5.5, "move":2,"range":2, "off_affinity":50.0,"def_affinity":18.0 },
 	UnitBase.UnitClass.ZOMBIE: { "hp":110,"mana":0, "atk":10,"magic":2,"res":5,"aspd":0.58,"hpregen":0.17,"manaregen":0.33, "move":2,"range":1, "off_affinity":20.0,"def_affinity":10.0 },
 	UnitBase.UnitClass.BAT: { "hp":70,"mana":0, "atk":9,"magic":2,"res":3,"aspd":0.7,"hpregen":0.12,"manaregen":0.33, "move":4,"range":1, "off_affinity":20.0,"def_affinity":5.0 },
 	UnitBase.UnitClass.ANT: { "hp":25,"mana":0, "atk":4,"magic":0,"res":1,"aspd":0.9,"hpregen":0.0,"manaregen":0.0, "move":4,"range":1, "off_affinity":15.0,"def_affinity":5.0 },
@@ -179,41 +182,41 @@ const CLASS_BASE_STATS = {
 # their personalized growth_bonus rolled at recruit — see apply_recruit_rolls).
 const CLASS_GROWTH_PER_LEVEL = {
 	UnitBase.UnitClass.WARRIOR: {"hp":25,"mana":0,"atk":3,"magic":0,"res":2,"aspd":0.02,"hpregen":0.1,"manaregen":0.167},
-	UnitBase.UnitClass.RANGER: {"hp":15,"mana":0,"atk":3,"magic":0,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
+	UnitBase.UnitClass.RANGER: {"hp":15,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
 	UnitBase.UnitClass.MONK: {"hp":20,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.THIEF: {"hp":12,"mana":0,"atk":3,"magic":0,"res":0,"aspd":0.02,"hpregen":0.05,"manaregen":0.167},
-	UnitBase.UnitClass.BLACK_MAGE: {"hp":10,"mana":20,"atk":0,"magic":4,"res":0,"aspd":0.02,"hpregen":0.025,"manaregen":0.833},
+	UnitBase.UnitClass.THIEF: {"hp":12,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.05,"manaregen":0.167},
+	UnitBase.UnitClass.BLACK_MAGE: {"hp":10,"mana":20,"atk":0,"magic":4,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.833},
 	UnitBase.UnitClass.WHITE_MAGE: {"hp":12,"mana":18,"atk":0,"magic":3,"res":2,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.RED_MAGE: {"hp":15,"mana":15,"atk":2,"magic":2,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":0.5},
+	UnitBase.UnitClass.RED_MAGE: {"hp":15,"mana":15,"atk":2,"magic":2,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.5},
 	UnitBase.UnitClass.BLOODHOUND: {"hp":22,"mana":0,"atk":2,"magic":0,"res":2,"aspd":0.02,"hpregen":0.1,"manaregen":0.333},
 	UnitBase.UnitClass.BOUNCER: {"hp":28,"mana":0,"atk":0,"magic":2,"res":2,"aspd":0.02,"hpregen":0.05,"manaregen":0.667},
-	UnitBase.UnitClass.HEADHUNTER: {"hp":10,"mana":0,"atk":2,"magic":0,"res":0,"aspd":0.02,"hpregen":0.05,"manaregen":0.167},
-	UnitBase.UnitClass.SHAUNA: {"hp":12,"mana":0,"atk":2,"magic":0,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":0.333},
-	UnitBase.UnitClass.NEMI: {"hp":14,"mana":20,"atk":0,"magic":3,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":1.0},
+	UnitBase.UnitClass.HEADHUNTER: {"hp":10,"mana":0,"atk":2,"magic":0,"res":1,"aspd":0.02,"hpregen":0.05,"manaregen":0.167},
+	UnitBase.UnitClass.SHAUNA: {"hp":12,"mana":0,"atk":2,"magic":0,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.333},
+	UnitBase.UnitClass.NEMI: {"hp":14,"mana":20,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":1.0},
 	UnitBase.UnitClass.SHEILDOR: {"hp":18,"mana":15,"atk":0,"magic":2,"res":2,"aspd":0.02,"hpregen":0.075,"manaregen":0.833},
 	UnitBase.UnitClass.LORDEE: {"hp":22,"mana":12,"atk":0,"magic":3,"res":2,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.NECRO: {"hp":10,"mana":25,"atk":0,"magic":4,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":1.167},
-	UnitBase.UnitClass.DOC: {"hp":14,"mana":20,"atk":0,"magic":3,"res":0,"aspd":0.02,"hpregen":0.1,"manaregen":1.167},
+	UnitBase.UnitClass.NECRO: {"hp":10,"mana":25,"atk":0,"magic":4,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":1.167},
+	UnitBase.UnitClass.DOC: {"hp":14,"mana":20,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.1,"manaregen":1.167},
 	UnitBase.UnitClass.RIOT: {"hp":30,"mana":0,"atk":2,"magic":0,"res":3,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.PASTOR: {"hp":14,"mana":18,"atk":0,"magic":3,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":1.0},
-	UnitBase.UnitClass.SABLE: {"hp":11,"mana":0,"atk":3,"magic":0,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.RUSH: {"hp":14,"mana":0,"atk":3,"magic":0,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.STITCH: {"hp":13,"mana":18,"atk":0,"magic":3,"res":0,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
+	UnitBase.UnitClass.PASTOR: {"hp":14,"mana":18,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":1.0},
+	UnitBase.UnitClass.SABLE: {"hp":11,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
+	UnitBase.UnitClass.RUSH: {"hp":14,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
+	UnitBase.UnitClass.STITCH: {"hp":13,"mana":18,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
 	UnitBase.UnitClass.COAL: {"hp":22,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.1,"manaregen":0.167},
-	UnitBase.UnitClass.JUNE: {"hp":16,"mana":18,"atk":0,"magic":2,"res":0,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
+	UnitBase.UnitClass.JUNE: {"hp":16,"mana":18,"atk":0,"magic":2,"res":1,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
 	UnitBase.UnitClass.CROSS: {"hp":30,"mana":0,"atk":2,"magic":0,"res":3,"aspd":0.02,"hpregen":0.1,"manaregen":0.333},
-	UnitBase.UnitClass.SEAR: {"hp":16,"mana":16,"atk":2,"magic":3,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":0.667},
-	UnitBase.UnitClass.EMBER: {"hp":11,"mana":0,"atk":1,"magic":2,"res":0,"aspd":0.02,"hpregen":0.025,"manaregen":0.5},
+	UnitBase.UnitClass.SEAR: {"hp":16,"mana":16,"atk":2,"magic":3,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.667},
+	UnitBase.UnitClass.EMBER: {"hp":11,"mana":0,"atk":1,"magic":2,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.5},
 	UnitBase.UnitClass.RIFT: {"hp":17,"mana":16,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.ZOLT: {"hp":10,"mana":24,"atk":0,"magic":4,"res":0,"aspd":0.02,"hpregen":0.075,"manaregen":1.167},
-	UnitBase.UnitClass.LUMEN: {"hp":10,"mana":22,"atk":0,"magic":4,"res":0,"aspd":0.02,"hpregen":0.025,"manaregen":0.833},
-	UnitBase.UnitClass.STATIC: {"hp":13,"mana":18,"atk":0,"magic":3,"res":0,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.REED: {"hp":15,"mana":20,"atk":0,"magic":2,"res":0,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
-	UnitBase.UnitClass.VAIL: {"hp":14,"mana":20,"atk":0,"magic":2,"res":0,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
-	UnitBase.UnitClass.SPORE: {"hp":12,"mana":22,"atk":0,"magic":4,"res":0,"aspd":0.02,"hpregen":0.05,"manaregen":1.0},	# Summons don'''t level, but give them a small fallback so set_level() never crashes.
-	UnitBase.UnitClass.ZOMBIE: {"hp":5,"mana":0,"atk":1,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
-	UnitBase.UnitClass.BAT:    {"hp":3,"mana":0,"atk":1,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
-	UnitBase.UnitClass.ANT:    {"hp":2,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.ZOLT: {"hp":10,"mana":24,"atk":0,"magic":4,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":1.167},
+	UnitBase.UnitClass.LUMEN: {"hp":10,"mana":22,"atk":0,"magic":4,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.833},
+	UnitBase.UnitClass.STATIC: {"hp":13,"mana":18,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
+	UnitBase.UnitClass.REED: {"hp":15,"mana":20,"atk":0,"magic":2,"res":1,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
+	UnitBase.UnitClass.VAIL: {"hp":14,"mana":20,"atk":0,"magic":2,"res":1,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
+	UnitBase.UnitClass.SPORE: {"hp":12,"mana":22,"atk":0,"magic":4,"res":1,"aspd":0.02,"hpregen":0.05,"manaregen":1.0},	# Summons don'''t level, but give them a small fallback so set_level() never crashes.
+	UnitBase.UnitClass.ZOMBIE: {"hp":5,"mana":0,"atk":1,"magic":0,"res":1,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.BAT:    {"hp":3,"mana":0,"atk":1,"magic":0,"res":1,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.ANT:    {"hp":2,"mana":0,"atk":0,"magic":0,"res":1,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
 }
 
 static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Element = UnitBase.Element.NORMAL, is_player: bool = true) -> VisualUnit:
@@ -550,7 +553,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 6
 			unit.skill_cooldown_max  = 6
 			unit.skill_mana_cost     = 90
-			unit.skill_description   = "Summon a storm hazard that pulses 50% MAG lightning damage to nearby enemies every second. · 90 MP · 6s CD"
+			unit.skill_description   = "Summon a drifting storm: its own tile takes 50% MAG lightning damage and a 0.5s stun, the 8 tiles around it take half that damage. · 90 MP · 6s CD"
 			unit.ultimate_name       = "Thunderhammer"
 			unit.ultimate_damage_mult = 4.5
 			unit.ultimate_range      = 99

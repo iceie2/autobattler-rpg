@@ -32,10 +32,22 @@ var crystals: int = 0
 # main_game.gd derives max_player_units from player_level (see _team_size_for_level),
 # replacing the old flat cap — team size now grows WITH you instead of being
 # available in full from turn one.
+#
+# Curve re-tuned 2026-07-09 (user spec): level 2 before round 5 starts, level 3
+# before round 10 starts, on EASY with full clears — hand-derived from
+# WaveData's round 1-9 fodder + the round-5 elite/round-10 boss formations
+# (~1030 cumulative player XP — at PLAYER_XP_SHARE=0.5 — by end of round 8,
+# ~1390 by end of round 9). 300 crosses during round 4 (level 2 locked in
+# before round 5); 300+960=1260 crosses during round 9 (level 3 locked in
+# before round 10). Growth then keeps compounding hard on purpose — level 4+
+# via kills alone is meant to take a long time; further growth past level 3
+# is meant to come from other systems (roguelite/roguelike meta-upgrades),
+# not this base curve. Hand-derived, not simulated — needs a real playtest
+# pass to confirm (see balance_journal convention).
 var player_level: int = 1
 var player_xp: float = 0.0
-var player_xp_to_level: float = 90.0
-const PLAYER_XP_TO_LEVEL_GROWTH := 1.35
+var player_xp_to_level: float = 300.0
+const PLAYER_XP_TO_LEVEL_GROWTH := 3.2
 
 signal player_leveled_up(new_level: int)
 
@@ -101,7 +113,7 @@ func spend_crystals(amount: int) -> bool:
 func reset_player_level() -> void:
 	player_level = 1
 	player_xp = 0.0
-	player_xp_to_level = 90.0
+	player_xp_to_level = 300.0
 
 # Called with a SHARE of each kill's hero XP (see main_game._on_unit_died) —
 # a single account-wide pool, not divided per-hero like combat XP is.
