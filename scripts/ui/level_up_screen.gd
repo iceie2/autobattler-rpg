@@ -113,8 +113,8 @@ const PERKS: Array[Dictionary] = [
 	 desc="Increases maximum HP.",
 	 color=Color(0.88, 0.18, 0.28),
 	 weights={0:4, 1:1, 2:2, 3:1, 4:2, 5:2}},
-	{id="res",   label="RES",   stat="resistance",     value=1,
-	 desc="Reduces all incoming physical and magic damage.",
+	{id="res",   label="DEF",   stat="resistance",     value=1,
+	 desc="+1 armor and +1 magic armor — reduces all incoming damage.",
 	 color=Color(0.55, 0.38, 0.90),
 	 weights={0:4, 1:2, 2:2, 3:1, 4:3, 5:2}},
 	{id="regen", label="REGEN", stat="regen",          value=0.1,
@@ -384,7 +384,11 @@ static func apply_perk_to_unit(unit: UnitBase, perk: Dictionary) -> void:
 		"max_hp":
 			unit.max_hp     += int(v)
 			unit.current_hp  = mini(unit.current_hp + int(v), unit.max_hp)
-		"resistance":    unit.resistance    += int(v)
+		"resistance":
+			# The perk promises "physical AND magic damage" — with the 2026-07-16
+			# defense split that means both armor stats.
+			unit.resistance   += int(v)
+			unit.magic_resist += int(v)
 		"regen":
 			unit.hp_regen   += v
 			unit.mana_regen += v * 2.0

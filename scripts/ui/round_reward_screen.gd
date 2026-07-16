@@ -90,12 +90,32 @@ func _make_unit_card(unit: UnitBase) -> Button:
 	var bonus_value: float = _chosen_perk.get("rolled_value", _chosen_perk.get("value", 0))
 	var upgraded_value: float = current_value + bonus_value
 
+	# Stat icon + value, centered as a row (2026-07-16: cards now use the real
+	# stat icons instead of a bare text abbreviation).
+	var icon_key: String = PERK_STAT_ICON.get(perk_id, "")
+	if icon_key != "":
+		var srow := HBoxContainer.new()
+		srow.position = Vector2(4, 130)
+		srow.size = Vector2(132, 22)
+		srow.alignment = BoxContainer.ALIGNMENT_CENTER
+		srow.add_theme_constant_override("separation", 5)
+		srow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		btn.add_child(srow)
+		var sicon := TextureRect.new()
+		sicon.custom_minimum_size = Vector2(18, 18)
+		sicon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		sicon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		sicon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		sicon.texture = load(UnitFactory.STAT_ICONS[icon_key]) as Texture2D
+		sicon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		srow.add_child(sicon)
+
 	var stat_lbl := _lbl(
 		btn,
 		_format_idle_stat(perk_id, current_value),
 		13,
 		Color(0.72, 0.78, 0.92),
-		Vector2(4, 132),
+		Vector2(4, 148),
 		Vector2(132, 20),
 		true
 	)
@@ -128,22 +148,22 @@ func _on_unit_chosen(unit: UnitBase) -> void:
 
 
 # ── Hover preview helpers ─────────────────────────────────────────────────────
-func _get_unit_stat_value(unit: UnitBase, perk_id: String) -> float:
-	match perk_id:
-		"speed":
-			return unit.speed
-		"aspd":
-			return unit.attack_speed
-		"regen":
-			return unit.hp_regen
-		"damage":
-			return unit.damage
-		"armor":
-			return unit.armor
-		"health":
-			return unit.max_health
-		_:
-			return 0.0
+# Reads the perk's actual `stat` property off the unit (2026-07-16 fix: this
+# used to match a stale id list — "speed"/"armor"/"health" — that no perk uses,
+# so every card showed "0" as the current value).
+func _get_unit_stat_value(unit: UnitBase, _perk_id: String) -> float:
+	var stat: String = _chosen_perk.get("stat", "")
+	if stat == "regen":
+		return unit.hp_regen   # the regen perk boosts hp+mana regen; preview shows HP/s
+	if stat != "" and stat in unit:
+		return float(unit.get(stat))
+	return 0.0
+
+# Perk id -> UnitFactory.STAT_ICONS key, so reward cards show the real icons.
+const PERK_STAT_ICON := {
+	"atk": "atk", "aspd": "aspd", "magic": "magic", "hp": "hp",
+	"res": "res", "regen": "hpregen", "spd": "move",
+}
 
 
 func _format_idle_stat(perk_id: String, value: float) -> String:

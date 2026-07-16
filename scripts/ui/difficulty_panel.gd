@@ -317,7 +317,7 @@ func _on_reward_icon_hover() -> void:
 		c.free()
 	const STAT_NAMES := {
 		"hp": "HP", "mana": "Mana", "atk": "ATK", "magic": "Magic Power",
-		"res": "Defense", "aspd": "Attack Speed", "hpregen": "HP Regen", "manaregen": "MP Regen",
+		"res": "Armor", "aspd": "Attack Speed", "hpregen": "HP Regen", "manaregen": "MP Regen",
 	}
 	const FLOAT_STATS := ["aspd", "hpregen", "manaregen"]
 	for stat in ["hp", "mana", "atk", "magic", "res", "aspd", "hpregen", "manaregen"]:

@@ -294,7 +294,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 		["mana",      "MP",       "mana",      false],
 		["atk",       "ATK",      "atk",       false],
 		["magic",     "MAG",      "magic",     false],
-		["res",       "RES",      "res",       false],
+		["res",       "ARM/MR",   "res",       false],   # "res" growth feeds BOTH armor stats (2026-07-16 split)
 		["aspd",      "AS",       "aspd",      true],
 		["hpregen",   "HPREGEN",  "hpregen",   true],
 		["manaregen", "MPREGEN",  "manaregen", true],

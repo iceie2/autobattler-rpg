@@ -186,10 +186,10 @@ func _refresh() -> void:
 	_mp_lbl.text = "%d / %d" % [u.current_mana, u.max_mana]
 
 	_stat_lbl.text = (
-		"ATK: %-5d   MAG: %-5d   DEF: %-5d\n" +
+		"ATK: %-5d   MAG: %-5d   ARM: %-4d   MR: %d\n" +
 		"AS: %-4.2f   HP/s: %-4.2f   MP/s: %-4.2f\n" +
 		"Speed: %-4d   Range: %d"
-	) % [u.attack_damage, u.magic_power, u.resistance,
+	) % [u.attack_damage, u.magic_power, u.resistance, u.magic_resist,
 		 u.attack_speed, u.hp_regen, u.mana_regen,
 		 u.movement_speed, u.attack_range]
 
