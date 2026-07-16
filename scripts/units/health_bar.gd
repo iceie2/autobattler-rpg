@@ -19,7 +19,18 @@ enum BarPlacement { TOP, BOTTOM }
 # 100-HP "body" segment, and a right cap. Max HP determines how many body
 # segments exist (so a boss's bar is literally longer, not just a differently
 # colored percentage), current HP determines how much of that shape is filled.
+# Big pools tick in 500s instead (2026-07-15): a 12k-HP elite at 100/segment
+# is 120 sub-pixel slivers — mush, not segments.
 const SEGMENT_HP := 100.0
+const SEGMENT_HP_BIG := 500.0
+const BIG_POOL_THRESHOLD := 2000.0
+# Drawn-width clamps (2026-07-15): natural tile width still grows with max HP,
+# but small pools floor at 0.8× bar_width (an 83-HP goblin's bar used to be a
+# ~25px nub narrower than its own MP strip AND its own HP number) and big
+# pools cap at bar_width + 40 ≈ the unit's own cell footprint, so late-game
+# bars stop invading the neighbors' space.
+const MIN_WIDTH_FACTOR := 0.8
+const MAX_WIDTH_EXTRA := 40.0
 # Tuning knobs (2026-07-06 user request): both axes scale independently off
 # bar_height so the width/height ratio can be dialed in without touching the
 # tile-cropping math. 1.0 = no change from the base bar_height.
@@ -46,6 +57,23 @@ static func _content_rect(tex: Texture2D) -> Rect2:
 	var r: Rect2 = Rect2(tex.get_image().get_used_rect())
 	_content_rect_cache[tex] = r
 	return r
+
+# Enemy bars fill RED (2026-07-15): placement alone stops reading as a side
+# cue once units scrum together. A plain red modulate over the green tiles
+# would come out muddy olive, so we hue-mirror the fill art by swapping the
+# R/G channels once and caching the result (tiles are 13×20 — trivial).
+static var _enemy_tex_cache: Dictionary = {}
+static func _enemy_variant(tex: Texture2D) -> Texture2D:
+	if _enemy_tex_cache.has(tex):
+		return _enemy_tex_cache[tex]
+	var img: Image = tex.get_image().duplicate()
+	for y in range(img.get_height()):
+		for x in range(img.get_width()):
+			var c: Color = img.get_pixel(x, y)
+			img.set_pixel(x, y, Color(c.g, c.r, c.b, c.a))
+	var out := ImageTexture.create_from_image(img)
+	_enemy_tex_cache[tex] = out
+	return out
 
 @export var placement: BarPlacement = BarPlacement.TOP
 
@@ -110,12 +138,6 @@ func update_shield(current: float, hp_max_ref: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	var sub_x: float = -bar_width / 2.0
-
-	var mp_pct: float  = clamp(mp_current  / max(mp_max,  1.0), 0.0, 1.0)
-	var ult_pct: float = clamp(ult_current / max(ult_max, 1.0), 0.0, 1.0)
-	var ult_fill: StyleBoxTexture = _sb_ult_ready if ult_current >= ult_max else _sb_ult
-
 	var hp_h: float = _hp_h()
 	var hp_width: float = _draw_hp_tiles(hp_h)
 	# Shield overlay on HP bar (cyan, semi-transparent, caps at the tiled width)
@@ -123,8 +145,20 @@ func _draw() -> void:
 		var sh_pct: float = clamp(shield_current / max(hp_max, 1.0), 0.0, 1.0)
 		draw_rect(Rect2(-hp_width / 2.0, 0.0, hp_width * sh_pct, hp_h), Color(0.20, 0.90, 1.0, 0.72))
 	_draw_hp_number(hp_width, hp_h)
-	_draw_bar(sub_x, hp_h + gap,                    sub_height, mp_pct,  _sb_mp)
-	_draw_bar(sub_x, hp_h + gap + sub_height + gap, sub_height, ult_pct, ult_fill)
+
+	# MP/ult strips match the HP bar's drawn width (a fixed 70px used to stick
+	# out past small units' HP bars) and vanish entirely for units without the
+	# stat — no more permanently-empty black tracks under manaless/ultless mobs.
+	var sub_x: float = -hp_width / 2.0
+	var sub_y: float = hp_h + gap
+	if mp_max > 0.0:
+		var mp_pct: float = clamp(mp_current / mp_max, 0.0, 1.0)
+		_draw_bar(sub_x, sub_y, sub_height, mp_pct, _sb_mp, hp_width)
+		sub_y += sub_height + gap
+	if ult_max > 0.0:
+		var ult_pct: float = clamp(ult_current / ult_max, 0.0, 1.0)
+		var ult_fill: StyleBoxTexture = _sb_ult_ready if ult_current >= ult_max else _sb_ult
+		_draw_bar(sub_x, sub_y, sub_height, ult_pct, ult_fill, hp_width)
 
 # Tiled HP bar: a fixed-width left/right cap sandwiching (hp_max / SEGMENT_HP)
 # repeating body segments (fractional segments render at partial width, e.g.
@@ -139,6 +173,13 @@ func _draw_hp_tiles(hp_h: float) -> float:
 	var right_full_src:  Rect2 = _content_rect(TEX_FULL_RIGHT)
 	var right_empty_src: Rect2 = _content_rect(TEX_EMPTY_RIGHT)
 
+	# Enemy bars (TOP placement) fill red — see _enemy_variant. Empty/track
+	# tiles stay shared so both sides keep the identical dark track.
+	var is_enemy: bool = placement == BarPlacement.TOP
+	var full_left:  Texture2D = _enemy_variant(TEX_FULL_LEFT)  if is_enemy else TEX_FULL_LEFT
+	var full_mid:   Texture2D = _enemy_variant(TEX_FULL_MID)   if is_enemy else TEX_FULL_MID
+	var full_right: Texture2D = _enemy_variant(TEX_FULL_RIGHT) if is_enemy else TEX_FULL_RIGHT
+
 	# Vertical scale keeps the sprite's pixel-art proportions (derived from the
 	# mid tile's content height), then HP_WIDTH_SCALE narrows the result
 	# horizontally (2026-07-06 user report: bar read 2x too wide at this height).
@@ -146,18 +187,26 @@ func _draw_hp_tiles(hp_h: float) -> float:
 	var cap_w: float = maxf(left_empty_src.size.x, right_empty_src.size.x) * scale * HP_WIDTH_SCALE
 	var mid_w: float = mid_empty_src.size.x * scale * HP_WIDTH_SCALE
 
-	var mid_units: float = max(1.0, hp_max / SEGMENT_HP)
+	var seg_hp: float = SEGMENT_HP_BIG if hp_max > BIG_POOL_THRESHOLD else SEGMENT_HP
+	var mid_units: float = max(1.0, hp_max / seg_hp)
+	# Clamp the drawn width (see the constants' note), stretching/squeezing the
+	# body segments to fit — caps keep their art proportions.
+	var natural_width: float = cap_w * 2.0 + mid_w * mid_units
+	var clamped_width: float = clampf(natural_width, bar_width * MIN_WIDTH_FACTOR, bar_width + MAX_WIDTH_EXTRA)
+	if not is_equal_approx(natural_width, clamped_width):
+		mid_w = (clamped_width - cap_w * 2.0) / mid_units
+
 	var full_tiles: int = int(floor(mid_units + 0.0001))
 	var frac: float = mid_units - full_tiles
 	if frac < 0.001:
 		frac = 0.0
 	var rendered_tiles: int = full_tiles + (1 if frac > 0.0 else 0)
 	var total_width: float = cap_w * 2.0 + mid_w * mid_units
-	var filled_units: float = clamp(hp_current / SEGMENT_HP, 0.0, mid_units)
+	var filled_units: float = clamp(hp_current / seg_hp, 0.0, mid_units)
 
 	var x_cursor: float = -total_width / 2.0
 
-	var left_tex: Texture2D = TEX_FULL_LEFT if hp_current > 0.0 else TEX_EMPTY_LEFT
+	var left_tex: Texture2D = full_left if hp_current > 0.0 else TEX_EMPTY_LEFT
 	var left_src: Rect2 = left_full_src if hp_current > 0.0 else left_empty_src
 	draw_texture_rect_region(left_tex, Rect2(x_cursor, 0.0, cap_w, hp_h), left_src)
 	x_cursor += cap_w
@@ -172,10 +221,10 @@ func _draw_hp_tiles(hp_h: float) -> float:
 		draw_texture_rect_region(TEX_EMPTY_MID, Rect2(x_cursor, 0.0, seg_w, hp_h), empty_src)
 		if fill_frac > 0.0:
 			var fill_src := Rect2(mid_full_src.position, Vector2(mid_full_src.size.x * width_units * fill_frac, mid_full_src.size.y))
-			draw_texture_rect_region(TEX_FULL_MID, Rect2(x_cursor, 0.0, seg_w * fill_frac, hp_h), fill_src)
+			draw_texture_rect_region(full_mid, Rect2(x_cursor, 0.0, seg_w * fill_frac, hp_h), fill_src)
 		x_cursor += seg_w
 
-	var right_tex: Texture2D = TEX_FULL_RIGHT if hp_current >= hp_max else TEX_EMPTY_RIGHT
+	var right_tex: Texture2D = full_right if hp_current >= hp_max else TEX_EMPTY_RIGHT
 	var right_src: Rect2 = right_full_src if hp_current >= hp_max else right_empty_src
 	draw_texture_rect_region(right_tex, Rect2(x_cursor, 0.0, cap_w, hp_h), right_src)
 
@@ -196,9 +245,10 @@ func _draw_hp_number(hp_width: float, hp_h: float) -> void:
 	draw_string_outline(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, 3, Color(0, 0, 0, 0.9))
 	draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, Color(1, 1, 1, 0.95))
 
-func _draw_bar(x: float, y: float, h: float, pct: float, fill: StyleBoxTexture) -> void:
+func _draw_bar(x: float, y: float, h: float, pct: float, fill: StyleBoxTexture, w: float = -1.0) -> void:
 	# Dark track + beveled strip fill — drawn with the SAME styleboxes the
 	# sidebar's ProgressBars use, so the two render identically.
-	_sb_bg.draw(get_canvas_item(), Rect2(x, y, bar_width, h))
+	var bw: float = w if w > 0.0 else bar_width
+	_sb_bg.draw(get_canvas_item(), Rect2(x, y, bw, h))
 	if pct > 0.0:
-		fill.draw(get_canvas_item(), Rect2(x, y, bar_width * pct, h))
+		fill.draw(get_canvas_item(), Rect2(x, y, bw * pct, h))

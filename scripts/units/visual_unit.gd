@@ -263,7 +263,9 @@ func _ready():
 	_setup_skill_icon()
 	health_bar.update_hp(current_hp, max_hp)
 	health_bar.update_mp(current_mana, max_mana)
-	health_bar.update_ult(ultimate_charge, max(ultimate_charge_max, 1))
+	# Pass the REAL max — 0 means "this unit has no ultimate" and the bar hides
+	# the strip entirely instead of drawing a forever-empty track.
+	health_bar.update_ult(ultimate_charge, ultimate_charge_max)
 
 	health_changed.connect(_on_health_changed)
 	mana_changed.connect(_on_mana_changed)

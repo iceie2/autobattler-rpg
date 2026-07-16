@@ -910,7 +910,7 @@ static func advance_triarch_phase(unit: VisualUnit) -> bool:
 	if unit.health_bar:
 		unit.health_bar.update_hp(unit.current_hp, unit.max_hp)
 		unit.health_bar.update_mp(unit.current_mana, unit.max_mana)
-		unit.health_bar.update_ult(0, 1)
+		unit.health_bar.update_ult(0, unit.ultimate_charge_max)
 		unit.health_bar.update_shield(0, unit.max_hp)
 	if unit.has_method("rebuild_sprite"):
 		unit.rebuild_sprite()
@@ -1139,7 +1139,7 @@ static func advance_khagan_phase(unit: VisualUnit) -> bool:
 			unit.health_bar.offset_y  = 60.0 + (unit.cell_size - 1) * 35.0
 			unit.health_bar.update_hp(unit.current_hp, unit.max_hp)
 			unit.health_bar.update_mp(unit.current_mana, unit.max_mana)
-			unit.health_bar.update_ult(0, 1)
+			unit.health_bar.update_ult(0, unit.ultimate_charge_max)
 			unit.health_bar.update_shield(0, unit.max_hp)
 		if unit.has_method("rebuild_sprite"):
 			unit.rebuild_sprite()
