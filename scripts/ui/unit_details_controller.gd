@@ -289,11 +289,13 @@ func _refresh() -> void:
 	portrait_frame.visible = ptex != null
 	unit_name_lbl.text = unit.unit_name
 	class_lbl.text = unit.get_class_name_string()
+	class_lbl.add_theme_font_size_override("font_size", 24)
 	element_lbl.text = unit.get_element_name_string()
 	element_lbl.add_theme_color_override("font_color", Color(element_color_hex(unit.current_element)))
 	element_lbl.add_theme_font_size_override("font_size", 28)
 	element_icon.texture = load(UnitFactory.ELEMENT_ICONS.get(unit.current_element, "")) as Texture2D
 	level_lbl.text = "Lv %d" % unit.level
+	level_lbl.add_theme_font_size_override("font_size", 28)
 
 	var eq := _sum_equipment_stats(unit)
 	var shop := _shop_bonuses(unit)

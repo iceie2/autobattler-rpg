@@ -2196,8 +2196,26 @@ func _update_row_tooltip() -> void:
 
 	var mouse: Vector2 = get_viewport().get_mouse_position()
 	var local: Vector2 = mouse - Vector2(battle_grid_node.position)
-	var cx: int = int(local.x / battle_grid.cell_size)
-	var cy: int = int(local.y / battle_grid.cell_size)
+	# floori, not int(): int() truncates toward zero, so hovering just LEFT of
+	# the grid (-0.4 cells) used to alias to column 0.
+	var cx: int = floori(local.x / battle_grid.cell_size)
+	var cy: int = floori(local.y / battle_grid.cell_size)
+
+	# Hovering a unit: show who it is instead of the row bonuses (2026-07-16
+	# user request). Works for both sides; rebuilt every frame (no row cache)
+	# so a unit stepping into/out of the hovered cell can't show stale info.
+	var cell := Vector2i(cx, cy)
+	if battle_grid.is_valid_position(cell) and battle_grid.is_cell_occupied(cell):
+		var hover_unit = battle_grid.get_unit_at(cell)
+		if hover_unit and hover_unit is UnitBase:
+			_row_tip_title.text = hover_unit.unit_name
+			_row_tip_heal.text = "Level %d" % hover_unit.level
+			_row_tip_xp.text = ""
+			_row_tip.size.y = 56   # two lines, not the three-line row layout
+			_row_tip_last = -1   # force a row-bonus rebuild once we leave the unit
+			_row_tip.visible = true
+			_reposition_tooltip(mouse)
+			return
 
 	# Player zone: bottom 4 rows (y = grid_height-4 to grid_height-1)
 	var py_front: int = battle_grid.grid_height - 4   # = 5, closest to middle
@@ -2227,6 +2245,7 @@ func _update_row_tooltip() -> void:
 		_: row_name = "Row %d" % row_num
 
 	_row_tip_title.text = row_name
+	_row_tip.size.y = 76   # restore the three-line height after unit-hover mode
 
 	_row_tip_heal.text  = "Heal  %d%%  per round" % heal_pct
 	_row_tip_xp.text    = "XP  +%d%%  bonus" % xp_bonus
