@@ -101,12 +101,12 @@ func _zap() -> void:
 		var dx: int = abs(opp.grid_position.x - grid_pos.x)
 		var dy: int = abs(opp.grid_position.y - grid_pos.y)
 		if dx == 0 and dy == 0:
-			opp.take_damage(damage, UnitBase.Element.LIGHTNING, caster)
+			opp.take_magic_damage(damage, UnitBase.Element.LIGHTNING, caster)
 			opp.stun_time = maxf(opp.stun_time, CENTER_STUN)
 			if caster and is_instance_valid(caster):
 				caster.damage_dealt += damage
 		elif maxi(dx, dy) <= ZAP_RADIUS:
-			opp.take_damage(ring_damage, UnitBase.Element.LIGHTNING, caster)
+			opp.take_magic_damage(ring_damage, UnitBase.Element.LIGHTNING, caster)
 			if caster and is_instance_valid(caster):
 				caster.damage_dealt += ring_damage
 

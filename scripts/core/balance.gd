@@ -71,6 +71,13 @@ const ELITE_ROUNDS: Array[int] = [5, 15, 25]           # elite mob rounds
 const RELIC_WAVES: Array[int] = [1, 11, 21]            # forced pick-1-of-3 relic screens
 
 # ── Elite mob knobs ───────────────────────────────────────────────────────────
+# ── Elemental affinity rework (2026-07-16, user spec) ─────────────────────────
+# Every unit (ally, enemy, any element incl. Normal) gets these deltas applied
+# on top of its class-base affinity RATINGS (100 = neutral):
+const AFFINITY_OWN_OFF_BONUS       := 50.0   # own element: hit that element harder
+const AFFINITY_OWN_DEF_BONUS       := 25.0   # own element: block that element better
+const AFFINITY_OFFELEM_DEF_PENALTY := 15.0   # every other element: defended worse
+
 const ANT_HILL_SPAWN_INTERVAL := 1.0   # seconds between ant spawns (3.5 → 1.0
 	# in the 2026-07-15 elite rebalance: at 3.5s the swarm never outpaced a
 	# round-15 team's kill rate — every ant died on arrival, all 7 heroes

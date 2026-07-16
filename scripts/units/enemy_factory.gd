@@ -47,6 +47,15 @@ const CODE_TO_TYPE := {
 # set_level() afterwards (matches main_game's flow — never level inside the
 # factory, phase-boss snapshots depend on external leveling; see Triarch notes).
 static func create_by_type(type: String) -> VisualUnit:
+	var u := _create_by_type_dispatch(type)
+	if u:
+		# Affinity rework (2026-07-16): every enemy gets the neutral 100/100
+		# base plus the shared own-element ±deltas (Balance.AFFINITY_*). Must
+		# run AFTER the factory func so current_element is already set.
+		u.set_affinity_profile(100.0, 100.0)
+	return u
+
+static func _create_by_type_dispatch(type: String) -> VisualUnit:
 	match type:
 		"goblin":        return create_goblin()
 		"goblin_archer": return create_goblin_archer()
@@ -125,6 +134,7 @@ static func create_goblin(lvl: int = 1) -> VisualUnit:
 	u.attack_damage   = 21
 	u.magic_power     = 8
 	u.resistance      = 1
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.68
 	u.hp_regen        = 0.42
 	u.mana_regen      = 0.5
@@ -160,6 +170,7 @@ static func create_goblin_archer(lvl: int = 1) -> VisualUnit:
 	u.attack_damage   = 37
 	u.magic_power     = 9
 	u.resistance      = 3
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 1.2
 	u.hp_regen        = 0.5
 	u.mana_regen      = 0.5
@@ -217,6 +228,7 @@ static func _create_goblin_shaman(element: UnitBase.Element, lvl: int = 1) -> Vi
 	u.attack_damage   = 9
 	u.magic_power     = 19
 	u.resistance      = 8
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.66
 	u.hp_regen        = 0.12
 	u.mana_regen      = 3.0
@@ -282,6 +294,7 @@ static func _create_orc(element: UnitBase.Element, lvl: int = 1) -> VisualUnit:
 	u.attack_damage   = 31
 	u.magic_power     = 11
 	u.resistance      = 10
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.64
 	u.hp_regen        = 0.7
 	u.mana_regen      = 0.5
@@ -346,6 +359,7 @@ static func _create_slime(element: UnitBase.Element, lvl: int = 1) -> VisualUnit
 	u.attack_damage   = 14
 	u.magic_power     = 4
 	u.resistance      = 2        # naturally tough, hits weak
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.58
 	u.hp_regen        = 0.3
 	u.mana_regen      = 0.17
@@ -413,6 +427,7 @@ static func _create_lizard(element: UnitBase.Element, lvl: int = 1) -> VisualUni
 	u.attack_damage   = 60
 	u.magic_power     = 6
 	u.resistance      = 10
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 2.0
 	u.hp_regen        = 0.35
 	u.mana_regen      = 0.17
@@ -441,17 +456,11 @@ static func create_lizard_air(lvl: int = 1) -> VisualUnit:       return _create_
 static func create_lizard_lightning(lvl: int = 1) -> VisualUnit: return _create_lizard(UnitBase.Element.LIGHTNING, lvl)
 
 # ── Bear (beefy tank, low damage) — 6 elemental variants ─────────────────────
-# Brand new mob (2026-07-06). Its signature move (Rending Swipe) is the first
-# mob skill to read offensive_affinity: every mob so far spawned with it at
-# the UnitBase default (0.0 for every element, since EnemyFactory never calls
-# UnitFactory.create_unit()'s affinity setup), so a Bear explicitly gets a
-# bonus set ONLY on its own element's entry — an Ice Bear's swipe hits harder
-# specifically because it's more affined with ice, not any other element (see
-# ELEMENTAL_SELF_AFFINITY below and _use_mob_skill's "bear_swipe" case, which
-# reads caster.offensive_affinity[caster.current_element] directly rather than
-# the generic get_attack_multiplier() — that helper is keyed by the TARGET's
-# element, a different matchup-style semantic this isn't asking for).
-const ELEMENTAL_SELF_AFFINITY := 50.0
+# Brand new mob (2026-07-06). Its signature move (Rending Swipe) reads the
+# caster's own-element offensive affinity — since the 2026-07-16 affinity
+# rework every unit gets its own-element +50 rating from set_affinity_profile
+# (applied in create_by_type), so the old per-bear ELEMENTAL_SELF_AFFINITY
+# assignment is gone; the swipe's element scaling now rides the shared system.
 
 const BEAR_ELEMENT_NAMES := {
 	UnitBase.Element.NORMAL:    "Normal",
@@ -484,6 +493,7 @@ static func _create_bear(element: UnitBase.Element, lvl: int = 1) -> VisualUnit:
 	u.attack_damage   = 18           # deliberately low — the whole point is the tank, not the hit
 	u.magic_power     = 5
 	u.resistance      = 26
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.5
 	u.hp_regen        = 0.9
 	u.mana_regen      = 0.0
@@ -494,7 +504,7 @@ static func _create_bear(element: UnitBase.Element, lvl: int = 1) -> VisualUnit:
 	u.xp_reward       = 110
 	u.sprite_variant  = randi() % 3
 	u.set_meta("sprite_folder", BEAR_SPRITE_FOLDERS[element])
-	u.offensive_affinity[element] = ELEMENTAL_SELF_AFFINITY
+	# (own-element affinity now comes from set_affinity_profile — 2026-07-16)
 	u.skill_name = "Rending Swipe"
 	u.skill_damage_multiplier = 1.3
 	u.skill_range = 1
@@ -550,6 +560,7 @@ static func _create_troll(element: UnitBase.Element, lvl: int = 1) -> VisualUnit
 	u.attack_damage   = 30
 	u.magic_power     = 10
 	u.resistance      = 10
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.62
 	u.hp_regen        = 0.5
 	u.mana_regen      = 0.0
@@ -560,7 +571,7 @@ static func _create_troll(element: UnitBase.Element, lvl: int = 1) -> VisualUnit
 	u.xp_reward       = 80
 	u.sprite_variant  = randi() % 3
 	u.set_meta("sprite_folder", TROLL_SPRITE_FOLDERS[element])
-	u.offensive_affinity[element] = ELEMENTAL_SELF_AFFINITY
+	# (own-element affinity now comes from set_affinity_profile — 2026-07-16)
 	u.skill_name = "Enrage"
 	u.skill_damage_multiplier = 0.0   # utility skill, no direct damage
 	u.skill_range = 6
@@ -615,6 +626,7 @@ static func _create_windup_bot(element: UnitBase.Element, lvl: int = 1) -> Visua
 	u.attack_damage   = 60
 	u.magic_power     = 15
 	u.resistance      = 6
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.85          # quick clockwork striker — faster than the Orc, lighter than the Bear
 	u.hp_regen        = 0.3
 	u.mana_regen      = 0.0
@@ -625,7 +637,7 @@ static func _create_windup_bot(element: UnitBase.Element, lvl: int = 1) -> Visua
 	u.xp_reward       = 85
 	u.sprite_variant  = randi() % 3
 	u.set_meta("sprite_folder", WINDUP_BOT_SPRITE_FOLDERS[element])
-	u.offensive_affinity[element] = ELEMENTAL_SELF_AFFINITY
+	# (own-element affinity now comes from set_affinity_profile — 2026-07-16)
 	u.skill_name = "Wind-Up Punch"
 	u.skill_damage_multiplier = 1.5
 	u.skill_range = 1
@@ -658,6 +670,7 @@ static func create_skeleton(lvl: int = 1) -> VisualUnit:
 	u.attack_damage   = 28
 	u.magic_power     = 8
 	u.resistance      = 4           # brittle bones — low res
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.74
 	u.hp_regen        = 0.55
 	u.mana_regen      = 0.33
@@ -693,6 +706,7 @@ static func create_rat(lvl: int = 1) -> VisualUnit:
 	u.attack_damage   = 24
 	u.magic_power     = 4
 	u.resistance      = 3
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 1.06        # fast attacker
 	u.hp_regen        = 0.25
 	u.mana_regen      = 0.17
@@ -734,9 +748,13 @@ static func create_hill_giant(lvl: int = 1) -> VisualUnit:
 	u.current_hp      = 3800
 	u.max_mana        = 100
 	u.current_mana    = 100
-	u.attack_damage   = 150
+	# 150 → 115 (2026-07-16): the affinity rework dropped off-element defense
+	# to 68 (×1.32 taken), which turned the giant's 150 atk into an 8/8 wipe
+	# of average round-5 comps. 115 restores a real-but-beatable spike.
+	u.attack_damage   = 115
 	u.magic_power     = 9
 	u.resistance      = 15
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.6
 	u.hp_regen        = 0.55
 	u.mana_regen      = 0.5
@@ -815,6 +833,7 @@ static func create_triarch(lvl: int = 1) -> VisualUnit:
 	u.attack_damage   = 40
 	u.magic_power     = 16
 	u.resistance      = 20
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.62
 	u.hp_regen        = 0.6
 	u.mana_regen      = 1.0
@@ -940,6 +959,7 @@ static func create_stat_stealer(lvl: int = 1) -> VisualUnit:
 	u.attack_damage   = 80
 	u.magic_power     = 45
 	u.resistance      = 20
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 1.0
 	u.hp_regen        = 0.6
 	u.mana_regen      = 1.5
@@ -991,6 +1011,7 @@ static func create_ant_hill(lvl: int = 1) -> VisualUnit:
 	u.attack_damage   = 8          # minor — the ants are the real threat
 	u.magic_power     = 0
 	u.resistance      = 24         # tanky: rewards focusing it down, punishes ignoring it
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.3
 	u.hp_regen        = 1.2
 	u.mana_regen      = 0.0
@@ -1048,6 +1069,7 @@ static func create_khagan(lvl: int = 1) -> VisualUnit:
 	u.attack_damage   = 50
 	u.magic_power     = 10
 	u.resistance      = 22
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.55
 	u.hp_regen        = 1.0
 	u.mana_regen      = 0.5
@@ -1113,6 +1135,7 @@ static func advance_khagan_phase(unit: VisualUnit) -> bool:
 		unit.attack_damage = maxi(1, int(round(float(base["atk"]) * float(cfg["atk_mult"]))))
 		unit.magic_power   = maxi(0, int(round(float(base["magic"]) * float(cfg["magic_mult"]))))
 		unit.resistance    = maxi(0, int(round(float(base["res"]) * float(cfg["res_mult"]))))
+		unit.magic_resist  = unit.resistance   # defense split: phases keep the stats equal
 		unit.attack_speed  = float(base["aspd"]) * float(cfg["aspd_mult"])
 		unit.hp_regen      = float(base["hpregen"]) * float(cfg["hpregen_mult"])
 		unit.mana_regen    = float(base["manaregen"]) * float(cfg["manaregen_mult"])
@@ -1199,6 +1222,7 @@ static func _create_hydra(element: UnitBase.Element, lvl: int = 1) -> VisualUnit
 	u.attack_damage   = 48
 	u.magic_power     = 16
 	u.resistance      = 24
+	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.55
 	u.hp_regen        = 1.0
 	u.mana_regen      = 0.0
@@ -1210,7 +1234,7 @@ static func _create_hydra(element: UnitBase.Element, lvl: int = 1) -> VisualUnit
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", HYDRA_SPRITE_FOLDERS[element])
 	u.is_boss         = true
-	u.offensive_affinity[element] = ELEMENTAL_SELF_AFFINITY
+	# (own-element affinity now comes from set_affinity_profile — 2026-07-16)
 
 	u.skill_name = "Serpent Strike"
 	u.skill_damage_multiplier = 1.2

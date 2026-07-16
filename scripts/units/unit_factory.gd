@@ -11,6 +11,7 @@ const STAT_ICONS: Dictionary = {
 	"atk":       "res://assets/icons/stat_icons/attack_power.png",
 	"magic":     "res://assets/icons/stat_icons/magic_dmg.png",
 	"res":       "res://assets/icons/stat_icons/defense.png",
+	"mres":      "res://assets/icons/stat_icons/defense.png",   # shared art until a magic-armor icon lands
 	"aspd":      "res://assets/icons/stat_icons/attack_speed.png",
 	"hpregen":   "res://assets/icons/stat_icons/hp_regen.png",
 	"manaregen": "res://assets/icons/stat_icons/mp_regen.png",
@@ -27,7 +28,8 @@ const STAT_NAMES: Dictionary = {
 	"mana":      "Max Mana",
 	"atk":       "Attack Damage",
 	"magic":     "Magic Power",
-	"res":       "Defense",
+	"res":       "Armor",
+	"mres":      "Magic Armor",
 	"aspd":      "Attack Speed",
 	"hpregen":   "HP Regen",
 	"manaregen": "MP Regen",
@@ -134,49 +136,49 @@ static func natural_aspect(unit: UnitBase) -> float:
 
 # Base stats for each class at level 1 (TFT-style independent stats)
 const CLASS_BASE_STATS = {
-	UnitBase.UnitClass.WARRIOR: { "hp":1200,"mana":300, "atk":19,"magic":9,"res":12,"aspd":0.66,"hpregen":0.5,"manaregen":1.67, "move":2,"range":1, "off_affinity":30.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.RANGER: { "hp":900,"mana":400, "atk":18,"magic":11,"res":7,"aspd":0.82,"hpregen":0.42,"manaregen":2.5, "move":3,"range":4, "off_affinity":40.0,"def_affinity":10.0 },
-	UnitBase.UnitClass.MONK: { "hp":1000,"mana":500, "atk":18,"magic":13,"res":10,"aspd":0.74,"hpregen":0.6,"manaregen":3.67, "move":3,"range":1, "off_affinity":25.0,"def_affinity":25.0 },
-	UnitBase.UnitClass.THIEF: { "hp":800,"mana":350, "atk":17,"magic":12,"res":6,"aspd":0.86,"hpregen":0.3,"manaregen":2.33, "move":5,"range":1, "off_affinity":50.0,"def_affinity":5.0 },
-	UnitBase.UnitClass.BLACK_MAGE: { "hp":700,"mana":800, "atk":8,"magic":19,"res":8,"aspd":0.64,"hpregen":0.47,"manaregen":5.33, "move":2,"range":5, "off_affinity":60.0,"def_affinity":15.0 },
-	UnitBase.UnitClass.WHITE_MAGE: { "hp":750,"mana":750, "atk":10,"magic":17,"res":12,"aspd":0.66,"hpregen":0.55,"manaregen":5.33, "move":2,"range":5, "off_affinity":35.0,"def_affinity":30.0 },
-	UnitBase.UnitClass.RED_MAGE: { "hp":850,"mana":650, "atk":15,"magic":17,"res":10,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":2,"range":5, "off_affinity":45.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.BLOODHOUND: { "hp":1100,"mana":400, "atk":20,"magic":10,"res":14,"aspd":0.74,"hpregen":0.5,"manaregen":2.0, "move":3,"range":1, "off_affinity":35.0,"def_affinity":25.0 },
-	UnitBase.UnitClass.BOUNCER: { "hp":1300,"mana":600, "atk":11,"magic":18,"res":16,"aspd":0.62,"hpregen":0.5,"manaregen":4.67, "move":2,"range":0, "off_affinity":30.0,"def_affinity":35.0 },
+	UnitBase.UnitClass.WARRIOR: { "hp":1200,"mana":300, "atk":19,"magic":9,"res":12,"aspd":0.66,"hpregen":0.5,"manaregen":1.67, "move":2,"range":1, "off_affinity":130.0,"def_affinity":83.0 },
+	UnitBase.UnitClass.RANGER: { "hp":900,"mana":400, "atk":18,"magic":11,"res":7,"aspd":0.82,"hpregen":0.42,"manaregen":2.5, "move":3,"range":4, "off_affinity":140.0,"def_affinity":91.0 },
+	UnitBase.UnitClass.MONK: { "hp":1000,"mana":500, "atk":18,"magic":13,"res":10,"aspd":0.74,"hpregen":0.6,"manaregen":3.67, "move":3,"range":1, "off_affinity":125.0,"def_affinity":80.0 },
+	UnitBase.UnitClass.THIEF: { "hp":800,"mana":350, "atk":17,"magic":12,"res":6,"aspd":0.86,"hpregen":0.3,"manaregen":2.33, "move":5,"range":1, "off_affinity":150.0,"def_affinity":95.0 },
+	UnitBase.UnitClass.BLACK_MAGE: { "hp":700,"mana":800, "atk":8,"magic":19,"res":8,"aspd":0.64,"hpregen":0.47,"manaregen":5.33, "move":2,"range":5, "off_affinity":160.0,"def_affinity":87.0 },
+	UnitBase.UnitClass.WHITE_MAGE: { "hp":750,"mana":750, "atk":10,"magic":17,"res":12,"aspd":0.66,"hpregen":0.55,"manaregen":5.33, "move":2,"range":5, "off_affinity":135.0,"def_affinity":77.0 },
+	UnitBase.UnitClass.RED_MAGE: { "hp":850,"mana":650, "atk":15,"magic":17,"res":10,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":2,"range":5, "off_affinity":145.0,"def_affinity":83.0 },
+	UnitBase.UnitClass.BLOODHOUND: { "hp":1100,"mana":400, "atk":20,"magic":10,"res":14,"aspd":0.74,"hpregen":0.5,"manaregen":2.0, "move":3,"range":1, "off_affinity":135.0,"def_affinity":80.0 },
+	UnitBase.UnitClass.BOUNCER: { "hp":1300,"mana":600, "atk":11,"magic":18,"res":16,"aspd":0.62,"hpregen":0.5,"manaregen":4.67, "move":2,"range":0, "off_affinity":130.0,"def_affinity":74.0 },
 	# Balance 2026-07-03: HEADHUNTER atk 24→23, SABLE atk 21→20, RUSH atk 24→22,
 	# NEMI magic 19→21 — arena sweep + user playtests: the first three top the
 	# damage board (their base stats over-fit their kits), Nemi underperforms
 	# even for a support. ZOMBIE/BAT summon stats buffed (melted instantly,
 	# making Necro's whole kit weak: 183 solo dmg, worst-3 in roster).
-	UnitBase.UnitClass.HEADHUNTER: { "hp":600,"mana":350, "atk":23,"magic":16,"res":5,"aspd":0.9,"hpregen":0.47,"manaregen":2.83, "move":3,"range":6, "off_affinity":55.0,"def_affinity":8.0 },
-	UnitBase.UnitClass.SHAUNA: { "hp":700,"mana":400, "atk":22,"magic":11,"res":6,"aspd":0.9,"hpregen":0.45,"manaregen":2.33, "move":3,"range":5, "off_affinity":50.0,"def_affinity":8.0 },
-	UnitBase.UnitClass.NEMI: { "hp":750,"mana":600, "atk":11,"magic":21,"res":10,"aspd":0.7,"hpregen":0.6,"manaregen":6.0, "move":2,"range":4, "off_affinity":35.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.SHEILDOR: { "hp":1400,"mana":700, "atk":14,"magic":17,"res":18,"aspd":0.66,"hpregen":0.6,"manaregen":4.67, "move":2,"range":1, "off_affinity":20.0,"def_affinity":40.0 },
-	UnitBase.UnitClass.LORDEE: { "hp":950,"mana":500, "atk":23,"magic":14,"res":10,"aspd":0.78,"hpregen":0.6,"manaregen":3.0, "move":3,"range":1, "off_affinity":45.0,"def_affinity":15.0 },
-	UnitBase.UnitClass.NECRO: { "hp":800,"mana":900, "atk":8,"magic":21,"res":8,"aspd":0.64,"hpregen":0.53,"manaregen":6.0, "move":2,"range":4, "off_affinity":30.0,"def_affinity":15.0 },
-	UnitBase.UnitClass.DOC: { "hp":850,"mana":750, "atk":10,"magic":17,"res":9,"aspd":0.68,"hpregen":0.6,"manaregen":5.67, "move":3,"range":3, "off_affinity":30.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.RIOT: { "hp":1500,"mana":500, "atk":14,"magic":11,"res":20,"aspd":0.64,"hpregen":0.47,"manaregen":2.67, "move":2,"range":1, "off_affinity":20.0,"def_affinity":40.0 },
-	UnitBase.UnitClass.PASTOR: { "hp":900,"mana":650, "atk":12,"magic":17,"res":11,"aspd":0.68,"hpregen":0.53,"manaregen":4.67, "move":2,"range":3, "off_affinity":40.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.SABLE: { "hp":650,"mana":350, "atk":20,"magic":12,"res":6,"aspd":0.88,"hpregen":0.45,"manaregen":2.5, "move":3,"range":6, "off_affinity":55.0,"def_affinity":8.0 },
-	UnitBase.UnitClass.RUSH: { "hp":820,"mana":300, "atk":22,"magic":11,"res":8,"aspd":0.86,"hpregen":0.53,"manaregen":2.17, "move":15,"range":1, "off_affinity":45.0,"def_affinity":10.0 },
-	UnitBase.UnitClass.STITCH: { "hp":780,"mana":700, "atk":13,"magic":18,"res":9,"aspd":0.74,"hpregen":0.47,"manaregen":4.67, "move":2,"range":2, "off_affinity":40.0,"def_affinity":15.0 },
-	UnitBase.UnitClass.COAL: { "hp":1150,"mana":350, "atk":22,"magic":13,"res":13,"aspd":0.72,"hpregen":0.57,"manaregen":2.33, "move":3,"range":1, "off_affinity":45.0,"def_affinity":20.0 },
-	UnitBase.UnitClass.JUNE: { "hp":880,"mana":700, "atk":10,"magic":15,"res":10,"aspd":0.68,"hpregen":0.57,"manaregen":5.17, "move":2,"range":3, "off_affinity":30.0,"def_affinity":22.0 },
-	UnitBase.UnitClass.CROSS: { "hp":1450,"mana":550, "atk":15,"magic":13,"res":18,"aspd":0.64,"hpregen":0.6,"manaregen":3.67, "move":2,"range":1, "off_affinity":25.0,"def_affinity":38.0 },
-	UnitBase.UnitClass.SEAR: { "hp":900,"mana":600, "atk":18,"magic":19,"res":10,"aspd":0.7,"hpregen":0.55,"manaregen":4.17, "move":3,"range":2, "off_affinity":50.0,"def_affinity":15.0 },
-	UnitBase.UnitClass.EMBER: { "hp":640,"mana":400, "atk":19,"magic":16,"res":6,"aspd":0.86,"hpregen":0.42,"manaregen":3.33, "move":3,"range":5, "off_affinity":55.0,"def_affinity":8.0 },
-	UnitBase.UnitClass.RIFT: { "hp":950,"mana":650, "atk":17,"magic":19,"res":12,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":3,"range":2, "off_affinity":45.0,"def_affinity":22.0 },
-	UnitBase.UnitClass.ZOLT: { "hp":720,"mana":850, "atk":9,"magic":21,"res":8,"aspd":0.68,"hpregen":0.5,"manaregen":5.83, "move":2,"range":5, "off_affinity":60.0,"def_affinity":12.0 },
-	UnitBase.UnitClass.LUMEN: { "hp":700,"mana":800, "atk":10,"magic":20,"res":7,"aspd":0.72,"hpregen":0.45,"manaregen":5.33, "move":2,"range":5, "off_affinity":58.0,"def_affinity":10.0 },
-	UnitBase.UnitClass.STATIC: { "hp":820,"mana":700, "atk":12,"magic":18,"res":10,"aspd":0.72,"hpregen":0.47,"manaregen":4.67, "move":2,"range":3, "off_affinity":45.0,"def_affinity":18.0 },
-	UnitBase.UnitClass.REED: { "hp":860,"mana":780, "atk":10,"magic":16,"res":11,"aspd":0.66,"hpregen":0.6,"manaregen":5.5, "move":2,"range":4, "off_affinity":30.0,"def_affinity":25.0 },
-	UnitBase.UnitClass.VAIL: { "hp":820,"mana":780, "atk":11,"magic":16,"res":9,"aspd":0.7,"hpregen":0.6,"manaregen":5.5, "move":3,"range":4, "off_affinity":30.0,"def_affinity":18.0 },
-	UnitBase.UnitClass.SPORE: { "hp":780,"mana":820, "atk":9,"magic":20,"res":9,"aspd":0.68,"hpregen":0.47,"manaregen":5.5, "move":2,"range":2, "off_affinity":50.0,"def_affinity":18.0 },
-	UnitBase.UnitClass.ZOMBIE: { "hp":110,"mana":0, "atk":10,"magic":2,"res":5,"aspd":0.58,"hpregen":0.17,"manaregen":0.33, "move":2,"range":1, "off_affinity":20.0,"def_affinity":10.0 },
-	UnitBase.UnitClass.BAT: { "hp":70,"mana":0, "atk":9,"magic":2,"res":3,"aspd":0.7,"hpregen":0.12,"manaregen":0.33, "move":4,"range":1, "off_affinity":20.0,"def_affinity":5.0 },
+	UnitBase.UnitClass.HEADHUNTER: { "hp":600,"mana":350, "atk":23,"magic":16,"res":5,"aspd":0.9,"hpregen":0.47,"manaregen":2.83, "move":3,"range":6, "off_affinity":155.0,"def_affinity":93.0 },
+	UnitBase.UnitClass.SHAUNA: { "hp":700,"mana":400, "atk":22,"magic":11,"res":6,"aspd":0.9,"hpregen":0.45,"manaregen":2.33, "move":3,"range":5, "off_affinity":150.0,"def_affinity":93.0 },
+	UnitBase.UnitClass.NEMI: { "hp":750,"mana":600, "atk":11,"magic":21,"res":10,"aspd":0.7,"hpregen":0.6,"manaregen":6.0, "move":2,"range":4, "off_affinity":135.0,"def_affinity":83.0 },
+	UnitBase.UnitClass.SHEILDOR: { "hp":1400,"mana":700, "atk":14,"magic":17,"res":18,"aspd":0.66,"hpregen":0.6,"manaregen":4.67, "move":2,"range":1, "off_affinity":120.0,"def_affinity":71.0 },
+	UnitBase.UnitClass.LORDEE: { "hp":950,"mana":500, "atk":23,"magic":14,"res":10,"aspd":0.78,"hpregen":0.6,"manaregen":3.0, "move":3,"range":1, "off_affinity":145.0,"def_affinity":87.0 },
+	UnitBase.UnitClass.NECRO: { "hp":800,"mana":900, "atk":8,"magic":21,"res":8,"aspd":0.64,"hpregen":0.53,"manaregen":6.0, "move":2,"range":4, "off_affinity":130.0,"def_affinity":87.0 },
+	UnitBase.UnitClass.DOC: { "hp":850,"mana":750, "atk":10,"magic":17,"res":9,"aspd":0.68,"hpregen":0.6,"manaregen":5.67, "move":3,"range":3, "off_affinity":130.0,"def_affinity":83.0 },
+	UnitBase.UnitClass.RIOT: { "hp":1500,"mana":500, "atk":14,"magic":11,"res":20,"aspd":0.64,"hpregen":0.47,"manaregen":2.67, "move":2,"range":1, "off_affinity":120.0,"def_affinity":71.0 },
+	UnitBase.UnitClass.PASTOR: { "hp":900,"mana":650, "atk":12,"magic":17,"res":11,"aspd":0.68,"hpregen":0.53,"manaregen":4.67, "move":2,"range":3, "off_affinity":140.0,"def_affinity":83.0 },
+	UnitBase.UnitClass.SABLE: { "hp":650,"mana":350, "atk":20,"magic":12,"res":6,"aspd":0.88,"hpregen":0.45,"manaregen":2.5, "move":3,"range":6, "off_affinity":155.0,"def_affinity":93.0 },
+	UnitBase.UnitClass.RUSH: { "hp":820,"mana":300, "atk":22,"magic":11,"res":8,"aspd":0.86,"hpregen":0.53,"manaregen":2.17, "move":15,"range":1, "off_affinity":145.0,"def_affinity":91.0 },
+	UnitBase.UnitClass.STITCH: { "hp":780,"mana":700, "atk":13,"magic":18,"res":9,"aspd":0.74,"hpregen":0.47,"manaregen":4.67, "move":2,"range":2, "off_affinity":140.0,"def_affinity":87.0 },
+	UnitBase.UnitClass.COAL: { "hp":1150,"mana":350, "atk":22,"magic":13,"res":13,"aspd":0.72,"hpregen":0.57,"manaregen":2.33, "move":3,"range":1, "off_affinity":145.0,"def_affinity":83.0 },
+	UnitBase.UnitClass.JUNE: { "hp":880,"mana":700, "atk":10,"magic":15,"res":10,"aspd":0.68,"hpregen":0.57,"manaregen":5.17, "move":2,"range":3, "off_affinity":130.0,"def_affinity":82.0 },
+	UnitBase.UnitClass.CROSS: { "hp":1450,"mana":550, "atk":15,"magic":13,"res":18,"aspd":0.64,"hpregen":0.6,"manaregen":3.67, "move":2,"range":1, "off_affinity":125.0,"def_affinity":72.0 },
+	UnitBase.UnitClass.SEAR: { "hp":900,"mana":600, "atk":18,"magic":19,"res":10,"aspd":0.7,"hpregen":0.55,"manaregen":4.17, "move":3,"range":2, "off_affinity":150.0,"def_affinity":87.0 },
+	UnitBase.UnitClass.EMBER: { "hp":640,"mana":400, "atk":19,"magic":16,"res":6,"aspd":0.86,"hpregen":0.42,"manaregen":3.33, "move":3,"range":5, "off_affinity":155.0,"def_affinity":93.0 },
+	UnitBase.UnitClass.RIFT: { "hp":950,"mana":650, "atk":17,"magic":19,"res":12,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":3,"range":2, "off_affinity":145.0,"def_affinity":82.0 },
+	UnitBase.UnitClass.ZOLT: { "hp":720,"mana":850, "atk":9,"magic":21,"res":8,"aspd":0.68,"hpregen":0.5,"manaregen":5.83, "move":2,"range":5, "off_affinity":160.0,"def_affinity":89.0 },
+	UnitBase.UnitClass.LUMEN: { "hp":700,"mana":800, "atk":10,"magic":20,"res":7,"aspd":0.72,"hpregen":0.45,"manaregen":5.33, "move":2,"range":5, "off_affinity":158.0,"def_affinity":91.0 },
+	UnitBase.UnitClass.STATIC: { "hp":820,"mana":700, "atk":12,"magic":18,"res":10,"aspd":0.72,"hpregen":0.47,"manaregen":4.67, "move":2,"range":3, "off_affinity":145.0,"def_affinity":85.0 },
+	UnitBase.UnitClass.REED: { "hp":860,"mana":780, "atk":10,"magic":16,"res":11,"aspd":0.66,"hpregen":0.6,"manaregen":5.5, "move":2,"range":4, "off_affinity":130.0,"def_affinity":80.0 },
+	UnitBase.UnitClass.VAIL: { "hp":820,"mana":780, "atk":11,"magic":16,"res":9,"aspd":0.7,"hpregen":0.6,"manaregen":5.5, "move":3,"range":4, "off_affinity":130.0,"def_affinity":85.0 },
+	UnitBase.UnitClass.SPORE: { "hp":780,"mana":820, "atk":9,"magic":20,"res":9,"aspd":0.68,"hpregen":0.47,"manaregen":5.5, "move":2,"range":2, "off_affinity":150.0,"def_affinity":85.0 },
+	UnitBase.UnitClass.ZOMBIE: { "hp":110,"mana":0, "atk":10,"magic":2,"res":5,"aspd":0.58,"hpregen":0.17,"manaregen":0.33, "move":2,"range":1, "off_affinity":120.0,"def_affinity":91.0 },
+	UnitBase.UnitClass.BAT: { "hp":70,"mana":0, "atk":9,"magic":2,"res":3,"aspd":0.7,"hpregen":0.12,"manaregen":0.33, "move":4,"range":1, "off_affinity":120.0,"def_affinity":95.0 },
 	# Ant (2026-07-15): only the round-15 Ant Hill spawns these (always level 1,
 	# no set_level — see _spawn_ant), so this base row IS the round-15 statline.
-	UnitBase.UnitClass.ANT: { "hp":400,"mana":0, "atk":50,"magic":0,"res":1,"aspd":0.9,"hpregen":0.0,"manaregen":0.0, "move":6,"range":1, "off_affinity":15.0,"def_affinity":5.0 },
+	UnitBase.UnitClass.ANT: { "hp":400,"mana":0, "atk":50,"magic":0,"res":1,"aspd":0.9,"hpregen":0.0,"manaregen":0.0, "move":6,"range":1, "off_affinity":115.0,"def_affinity":95.0 },
 }
 
 # Deterministic per-level growth, same for every unit of a class (the "base
@@ -237,6 +239,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 	unit.attack_damage = stats["atk"]
 	unit.magic_power = stats["magic"]
 	unit.resistance = stats["res"]
+	unit.magic_resist = stats["res"]   # defense split 2026-07-16: start equal, tune later
 	unit.attack_speed = stats["aspd"]
 	unit.hp_regen = stats["hpregen"]
 	unit.mana_regen = stats["manaregen"]
@@ -258,11 +261,9 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 	# this much per level, regardless of recruit rolls (enemies included).
 	unit.growth_base = CLASS_GROWTH_PER_LEVEL.get(unit_class, {}).duplicate()
 
-	var base_off = stats["off_affinity"]
-	var base_def = stats["def_affinity"]
-	for elem in UnitBase.Element.values():
-		unit.offensive_affinity[elem] = base_off
-		unit.defensive_affinity[elem] = base_def
+	# Affinity ratings (2026-07-16 rework): class base everywhere, then the
+	# unit's own element gets +50 off / +25 def and all others −15 def.
+	unit.set_affinity_profile(stats["off_affinity"], stats["def_affinity"])
 
 	unit.unit_name = unit.get_element_name_string() + " " + unit.get_class_name_string()
 

@@ -6,6 +6,7 @@ var target_pos: Vector2
 var speed: float = 600.0
 var damage: int = 0
 var element: UnitBase.Element = UnitBase.Element.NORMAL
+var is_magic: bool = false   # magic-scaled payloads are mitigated by magic armor
 var target_unit = null
 var caster = null          # tracks who fired this for damage_dealt attribution
 var traveled_distance: float = 0.0
@@ -55,7 +56,7 @@ func on_reach_target():
 	if target_unit and is_instance_valid(target_unit) and target_unit.has_method("take_damage"):
 		var pre_hp: int = target_unit.current_hp
 		var was_alive: bool = pre_hp > 0
-		target_unit.take_damage(damage, element, caster)
+		target_unit.take_damage(damage, element, caster, false, 0, is_magic)
 		var actual: int = max(0, pre_hp - target_unit.current_hp)
 		# Credit the damage back to whoever fired this projectile
 		if caster and is_instance_valid(caster) and "damage_dealt" in caster:

@@ -37,6 +37,7 @@ const NODE_ICONS := {
 	"spellpower":           "spellpower.png",
 	"might":                "might.png",
 	"warding":              "warding.png",
+	"bulwark":              "warding.png",   # shared art until a dedicated armor icon lands
 	"fleetfoot":            "fleetfoot.png",
 	"vitality_flow":        "vitality_flow.png",
 	"mana_flow":            "mana_flow.png",
@@ -66,9 +67,9 @@ const NODE_LAYOUT := {
 	"bonus_xp":   {"tier": 1, "angle": 270.0, "parent": ""},
 	"hero_slots": {"tier": 1, "angle": 180.0, "parent": ""},
 
-	"might":       {"tier": 2, "angle": 46.0,  "parent": "team_hp"},
-	"warding":     {"tier": 2, "angle": 101.0, "parent": "team_hp"},
-	"mana_well":   {"tier": 2, "angle": 145.0, "parent": "team_hp"},
+	"might":       {"tier": 2, "angle": 42.0,  "parent": "team_hp"},
+	"warding":     {"tier": 2, "angle": 100.0, "parent": "team_hp"},
+	"mana_well":   {"tier": 2, "angle": 148.0, "parent": "team_hp"},
 	"bench_slots": {"tier": 2, "angle": 180.0, "parent": "hero_slots"},
 
 	"starting_gold":     {"tier": 2, "offset": Vector2(-135, 170), "parent": "bonus_xp"},
@@ -76,14 +77,17 @@ const NODE_LAYOUT := {
 	"crystal_per_round": {"tier": 2, "offset": Vector2(135, 170),  "parent": "bonus_xp"},
 	"crystal_drop":      {"tier": 3, "offset": Vector2(270, 170),  "parent": "crystal_per_round"},
 
-	"killing_blow":         {"tier": 3, "angle": 13.0,  "parent": "might"},
-	"lethality":            {"tier": 3, "angle": 35.0,  "parent": "might"},
-	"fleetfoot":            {"tier": 3, "angle": 57.0,  "parent": "might"},
-	"spellpower":           {"tier": 3, "angle": 79.0,  "parent": "might"},
-	"vitality_flow":        {"tier": 3, "angle": 101.0, "parent": "warding"},
-	"mana_flow":            {"tier": 3, "angle": 123.0, "parent": "mana_well"},
-	"swiftness":            {"tier": 3, "angle": 145.0, "parent": "mana_well"},
-	"elemental_attunement": {"tier": 3, "angle": 167.0, "parent": "mana_well"},
+	# 9 tier-3 nodes spread evenly 13°..167° (19.25° apart) — re-spaced
+	# 2026-07-16 when Bulwark joined the defense branch.
+	"killing_blow":         {"tier": 3, "angle": 13.0,   "parent": "might"},
+	"lethality":            {"tier": 3, "angle": 32.25,  "parent": "might"},
+	"fleetfoot":            {"tier": 3, "angle": 51.5,   "parent": "might"},
+	"spellpower":           {"tier": 3, "angle": 70.75,  "parent": "might"},
+	"bulwark":              {"tier": 3, "angle": 90.0,   "parent": "warding"},
+	"vitality_flow":        {"tier": 3, "angle": 109.25, "parent": "warding"},
+	"mana_flow":            {"tier": 3, "angle": 128.5,  "parent": "mana_well"},
+	"swiftness":            {"tier": 3, "angle": 147.75, "parent": "mana_well"},
+	"elemental_attunement": {"tier": 3, "angle": 167.0,  "parent": "mana_well"},
 }
 
 # Light-on-dark palette for everything floating over the dimmed game screen.

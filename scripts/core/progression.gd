@@ -89,9 +89,16 @@ const UPGRADES: Array = [
 		"effect": "Attack Damage +%d", "max_level": 20, "effect_per_level": 2,
 	},
 	{
+		# 2026-07-16 defense split: Warding is the MAGIC armor node now (the
+		# flavor fits); Bulwark below covers physical armor. Key kept for saves.
 		"key": "warding", "name": "Warding",
-		"desc": "+2 resistance to all heroes per level.",
-		"effect": "Resistance +%d", "max_level": 20, "effect_per_level": 2,
+		"desc": "+2 magic armor to all heroes per level.",
+		"effect": "Magic Armor +%d", "max_level": 20, "effect_per_level": 2,
+	},
+	{
+		"key": "bulwark", "name": "Bulwark",
+		"desc": "+2 armor to all heroes per level.",
+		"effect": "Armor +%d", "max_level": 20, "effect_per_level": 2,
 	},
 	{
 		"key": "fleetfoot", "name": "Fleetfoot",

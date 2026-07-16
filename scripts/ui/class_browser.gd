@@ -506,7 +506,8 @@ signal closed()
 # Stat grid rows: key in UnitFactory.STAT_ICONS/CLASS_BASE_STATS + int/float format.
 const _STAT_ROWS := [
 	["hp", false], ["mana", false], ["atk", false], ["magic", false], ["res", false],
-	["aspd", true], ["hpregen", true], ["manaregen", true], ["move", false], ["range", false],
+	["mres", false], ["aspd", true], ["hpregen", true], ["manaregen", true],
+	["move", false], ["range", false],
 ]
 # Kit paragraph tags → color ([PASSIVE]/[ACTIVE]/[ULTIMATE] prefixes in skill_desc).
 const _TAG_COLORS := {
@@ -719,7 +720,10 @@ func _refresh() -> void:
 		var key: String = row[0]
 		var is_float: bool = row[1]
 		var lbl: Label = _stat_cells[key]
-		lbl.text = ("%.2f" % float(s.get(key, 0.0))) if is_float else ("%d" % int(s.get(key, 0)))
+		# Class tables don't carry "mres" — magic armor starts equal to armor
+		# (defense split 2026-07-16), so display falls back to the res value.
+		var raw: float = float(s.get("res", 0)) if (key == "mres" and not s.has("mres")) else float(s.get(key, 0.0))
+		lbl.text = ("%.2f" % raw) if is_float else ("%d" % int(raw))
 
 	_skill_name_lbl.text = c["skill"]
 	_skill_name_lbl.add_theme_color_override("font_color", c["skill_color"])

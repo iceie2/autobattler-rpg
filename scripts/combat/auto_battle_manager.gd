@@ -684,7 +684,7 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 						if battle_grid.place_unit(opp, open_cell):
 							opp.grid_position = open_cell
 							opp.position = _world_pos_for(opp, open_cell)
-					opp.take_damage(dmg, caster.current_element)
+					opp.take_magic_damage(dmg, caster.current_element)
 					caster.damage_dealt += dmg
 
 		UnitBase.UnitClass.HEADHUNTER:
@@ -729,7 +729,7 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 				if not (opp and is_instance_valid(opp)):
 					continue
 				if caster.grid_position.distance_to(opp.grid_position) <= 4:
-					opp.take_damage(dmg_r, caster.current_element)
+					opp.take_magic_damage(dmg_r, caster.current_element)
 					caster.damage_dealt += dmg_r
 					_spawn_skill_effect_sized(SkillEffect.Type.CHAOS_BOLT, opp.global_position, 36.0)
 
@@ -963,7 +963,7 @@ func _bouncer_slam(caster: UnitBase, opponents: Array) -> void:
 	var dmg := int(caster.magic_power * caster.skill_damage_multiplier)
 	var bonus: float = caster.get_meta("presence_bonus") if caster.has_meta("presence_bonus") else 0.0
 	dmg = int(dmg * (1.0 + bonus))
-	target.take_damage(dmg, caster.current_element)
+	target.take_magic_damage(dmg, caster.current_element)
 	target.stun_time = 1.5
 	caster.damage_dealt += dmg
 	_spawn_sprite_sheet_effect(
@@ -980,7 +980,7 @@ func _nemi_tidal_wave(caster: UnitBase, opponents: Array) -> void:
 		if not (opp and is_instance_valid(opp)):
 			continue
 		if abs(opp.grid_position.x - cx) <= 1:
-			opp.take_damage(dmg, caster.current_element)
+			opp.take_magic_damage(dmg, caster.current_element)
 			caster.damage_dealt += dmg
 			_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, opp.global_position, 24.0)
 			# Pushback: move 2 cells away from Nemi (in y direction)
@@ -1088,7 +1088,7 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 			# damage should be tied to affinity, same pattern as bear_swipe/
 			# troll_enrage below rather than a flat multiplier like brute_crush).
 			if not tar: return
-			var wu_aff: float = 1.0 + caster.offensive_affinity.get(caster.current_element, 0.0) / 100.0
+			var wu_aff: float = caster.get_attack_multiplier(caster.current_element)
 			var wudm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier * wu_aff)
 			tar.take_damage(wudm, caster.current_element, caster)
 			caster.damage_dealt += wudm
@@ -1101,7 +1101,7 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 			# Hydra's own elemental affinity, same convention as every other mob
 			# skill (bear_swipe/windup_punch above).
 			var heads: int = int(caster.get_meta("hydra_heads", 1))
-			var hy_aff: float = 1.0 + caster.offensive_affinity.get(caster.current_element, 0.0) / 100.0
+			var hy_aff: float = caster.get_attack_multiplier(caster.current_element)
 			var hy_targets: Array = opponents.filter(func(o): return o and is_instance_valid(o))
 			hy_targets.sort_custom(func(a, b): return caster.grid_position.distance_to(a.grid_position) < caster.grid_position.distance_to(b.grid_position))
 			var hy_hit_count: int = mini(heads, hy_targets.size())
@@ -1150,7 +1150,7 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 			# user request — an Ice Bear's swipe hits harder because it's more
 			# affined with ice, not because of any target-element matchup).
 			if not tar: return
-			var bear_aff: float = 1.0 + caster.offensive_affinity.get(caster.current_element, 0.0) / 100.0
+			var bear_aff: float = caster.get_attack_multiplier(caster.current_element)
 			var bswp: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier * bear_aff)
 			tar.take_damage(bswp, caster.current_element, caster)
 			caster.damage_dealt += bswp
@@ -1197,7 +1197,7 @@ func _nemi_tide(caster: UnitBase, opponents: Array, allies: Array) -> void:
 
 		# Apply the effect for whichever team `current` belongs to.
 		if current_is_enemy:
-			current.take_damage(dmg, caster.current_element, caster)
+			current.take_magic_damage(dmg, caster.current_element, caster)
 			caster.damage_dealt += dmg
 			_spawn_skill_effect_sized(SkillEffect.Type.TIDE_WAVE, current.global_position, 32.0)
 		else:
@@ -1315,7 +1315,7 @@ func _inferno(caster: UnitBase, opponents: Array) -> void:
 			continue
 		if center.grid_position.distance_to(opp.grid_position) <= 2.0:
 			var dmg := int(caster.magic_power * caster.skill_damage_multiplier)
-			opp.take_damage(dmg, caster.current_element)
+			opp.take_magic_damage(dmg, caster.current_element)
 
 # White Mage: heals all allies
 func _holy_light(caster: UnitBase) -> void:
@@ -1338,7 +1338,7 @@ func _chaos_bolt(caster: UnitBase, opponents: Array) -> void:
 	for i in range(count):
 		var target: UnitBase = sorted[i]
 		var dmg := int((caster.attack_damage + caster.magic_power) * 0.5 * caster.skill_damage_multiplier)
-		caster.spawn_projectile(target, dmg)
+		caster.spawn_projectile(target, dmg, true)   # hybrid spellblade bolt — magic-typed
 		_spawn_skill_effect(SkillEffect.Type.CHAOS_BOLT, target.global_position)
 
 # ── New hero helpers ──────────────────────────────────────────────────────────
@@ -1538,7 +1538,7 @@ func _necro_bat_swarm(caster: UnitBase, opponents: Array) -> void:
 		if not (opp and is_instance_valid(opp)):
 			continue
 		if caster.grid_position.distance_to(opp.grid_position) <= float(caster.ultimate_range):
-			opp.take_damage(dmg, caster.current_element)
+			opp.take_magic_damage(dmg, caster.current_element)
 			caster.damage_dealt += dmg
 	for _i in range(3):
 		_spawn_summon(caster, UnitBase.UnitClass.BAT)
@@ -2021,7 +2021,7 @@ func _explosion(caster: UnitBase, center_cell: Vector2i, dmg: int, opponents: Ar
 func _chain_lightning(caster: UnitBase, first: UnitBase, opponents: Array, radius: float, dmg: int) -> void:
 	for opp in opponents:
 		if opp and is_instance_valid(opp) and first.grid_position.distance_to(opp.grid_position) <= radius:
-			opp.take_damage(dmg, UnitBase.Element.LIGHTNING, caster)
+			opp.take_magic_damage(dmg, UnitBase.Element.LIGHTNING, caster)
 			caster.damage_dealt += dmg
 			_spawn_skill_effect_sized(SkillEffect.Type.LIGHTNING, opp.global_position, 22.0)
 
@@ -2269,7 +2269,7 @@ func _june_root(caster: UnitBase, opponents: Array) -> void:
 	tar.root_time = maxf(tar.root_time, 3.0)
 	var dmg: int = int(float(caster.magic_power) * caster.skill_damage_multiplier)
 	if dmg > 0:
-		tar.take_damage(dmg, caster.current_element, caster)
+		tar.take_magic_damage(dmg, caster.current_element, caster)
 		caster.damage_dealt += dmg
 	_spawn_skill_effect_sized(SkillEffect.Type.NATURE, tar.global_position, 38.0)
 
@@ -2287,7 +2287,7 @@ func _sear_ignite(caster: UnitBase, opponents: Array) -> void:
 	var tar := find_nearest_enemy(caster, opponents)
 	if not tar: return
 	var dmg: int = int(float(caster.magic_power) * caster.skill_damage_multiplier)
-	tar.take_damage(dmg, caster.current_element, caster)
+	tar.take_magic_damage(dmg, caster.current_element, caster)
 	caster.damage_dealt += dmg
 	apply_burn(tar, float(caster.magic_power) * 0.25 * UnitFactory.natural_aspect(caster), 5.0, caster)
 	_spawn_skill_effect_sized(SkillEffect.Type.BURN, tar.global_position, 40.0)
@@ -2307,7 +2307,7 @@ func _rift_tear(caster: UnitBase, opponents: Array) -> void:
 	var tar := find_nearest_enemy(caster, opponents)
 	if not tar: return
 	var dmg: int = int(float(caster.magic_power) * caster.skill_damage_multiplier)
-	tar.take_damage(dmg, caster.current_element, caster)
+	tar.take_magic_damage(dmg, caster.current_element, caster)
 	caster.damage_dealt += dmg
 	# Banish to the far edge away from the caster.
 	var far_y: int = 0 if caster.is_player_unit else battle_grid.grid_height - 1
@@ -2342,7 +2342,7 @@ func _lumen_refract(caster: UnitBase, opponents: Array) -> void:
 	for i in range(5):
 		if not (current and is_instance_valid(current)): break
 		visited[current] = true
-		current.take_damage(dmg, caster.current_element, caster)
+		current.take_magic_damage(dmg, caster.current_element, caster)
 		caster.damage_dealt += dmg
 		_spawn_skill_effect_sized(SkillEffect.Type.CHAOS_BOLT, current.global_position, 24.0)
 		var nxt: UnitBase = null
@@ -2360,7 +2360,7 @@ func _static_tripwire(caster: UnitBase, opponents: Array) -> void:
 	if not tar: return
 	tar.stun_time = maxf(tar.stun_time, 3.0)
 	var dmg: int = int(float(caster.magic_power) * 0.6)
-	tar.take_damage(dmg, UnitBase.Element.LIGHTNING, caster)
+	tar.take_magic_damage(dmg, UnitBase.Element.LIGHTNING, caster)
 	caster.damage_dealt += dmg
 	_spawn_skill_effect_sized(SkillEffect.Type.LIGHTNING, tar.global_position, 34.0)
 

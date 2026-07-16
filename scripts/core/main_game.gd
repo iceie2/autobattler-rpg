@@ -1191,7 +1191,8 @@ func _apply_progression_bonuses(unit: VisualUnit) -> void:
 		unit.current_mana += mana_bonus
 	unit.magic_power    += Progression.get_bonus("spellpower")
 	unit.attack_damage   += Progression.get_bonus("might")
-	unit.resistance       += Progression.get_bonus("warding")
+	unit.resistance       += Progression.get_bonus("bulwark")   # defense split 2026-07-16
+	unit.magic_resist     += Progression.get_bonus("warding")
 	unit.attack_speed     += Progression.get_bonus_float("fleetfoot")
 	unit.hp_regen         += Progression.get_bonus_float("vitality_flow")
 	unit.mana_regen       += Progression.get_bonus_float("mana_flow")

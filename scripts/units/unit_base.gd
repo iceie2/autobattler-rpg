@@ -110,7 +110,14 @@ enum TraitClass {
 # recruit roll + flat level-up perk picks. Nothing here is derived from anything else.
 @export var attack_damage: int = 15
 @export var magic_power: int = 10
-@export var resistance: int = 10     # flat armor — mitigates all incoming damage
+# Defense split (2026-07-16 rework): `resistance` is now ARMOR (physical
+# mitigation only); magic_resist mitigates magic-typed damage. Damage is
+# typed by the stat it scales from — attack_damage sources are physical,
+# magic_power sources go through take_magic_damage(). DoTs stay true damage.
+# Both start equal everywhere (copied at the factory choke points) so the
+# split itself is balance-neutral until an archetype tuning pass.
+@export var resistance: int = 10     # flat ARMOR — mitigates physical damage
+@export var magic_resist: int = 10   # flat MAGIC ARMOR — mitigates magic damage
 @export var attack_speed: float = 0.7   # base attacks per second (before speed_modifier())
 @export var hp_regen: float = 0.5    # HP restored per second
 @export var mana_regen: float = 1.0  # mana restored per second
@@ -132,24 +139,45 @@ var move_target_pos: Vector2 = Vector2.ZERO
 var move_progress: float = 0.0
 var target_grid_pos: Vector2i = Vector2i.ZERO
 
-# Elemental Affinity - per element dictionaries
+# Elemental Affinity RATINGS (2026-07-16 rework): 100 = neutral.
+# - Offensive rating R vs a target element multiplies damage by R/100.
+# - Defensive rating D vs an incoming element: below 100 the shortfall is
+#   ADDED to damage taken (75 → ×1.25); at or above 100 damage HALVES per
+#   +100 (200 → ×0.5, 300 → ×0.25) — user-specified curve.
+# Populated by set_affinity_profile(): every element gets the base rating,
+# then the unit's OWN element gets +50 offense / +25 defense and every OTHER
+# element's defense takes −15 (Balance.AFFINITY_* knobs).
 var offensive_affinity: Dictionary = {
-	Element.NORMAL: 0.0,
-	Element.FIRE: 0.0,
-	Element.WATER: 0.0,
-	Element.EARTH: 0.0,
-	Element.AIR: 0.0,
-	Element.LIGHTNING: 0.0
+	Element.NORMAL: 100.0,
+	Element.FIRE: 100.0,
+	Element.WATER: 100.0,
+	Element.EARTH: 100.0,
+	Element.AIR: 100.0,
+	Element.LIGHTNING: 100.0
 }
 
 var defensive_affinity: Dictionary = {
-	Element.NORMAL: 0.0,
-	Element.FIRE: 0.0,
-	Element.WATER: 0.0,
-	Element.EARTH: 0.0,
-	Element.AIR: 0.0,
-	Element.LIGHTNING: 0.0
+	Element.NORMAL: 100.0,
+	Element.FIRE: 100.0,
+	Element.WATER: 100.0,
+	Element.EARTH: 100.0,
+	Element.AIR: 100.0,
+	Element.LIGHTNING: 100.0
 }
+
+# Class-base ratings, kept so the element deltas can be reapplied cleanly
+# whenever the unit's element changes mid-run (see change_element()).
+var base_off_affinity: float = 100.0
+var base_def_affinity: float = 100.0
+
+func set_affinity_profile(off_base: float, def_base: float) -> void:
+	base_off_affinity = off_base
+	base_def_affinity = def_base
+	for e in Element.values():
+		offensive_affinity[e] = off_base
+		defensive_affinity[e] = def_base - Balance.AFFINITY_OFFELEM_DEF_PENALTY
+	offensive_affinity[current_element] = off_base + Balance.AFFINITY_OWN_OFF_BONUS
+	defensive_affinity[current_element] = def_base + Balance.AFFINITY_OWN_DEF_BONUS
 
 # Equipment slots
 var equipped_weapon = null
@@ -385,14 +413,18 @@ func outgoing_damage_multiplier() -> float:
 	return m
 
 func get_defense_multiplier(attacking_element: Element = Element.NORMAL) -> float:
-	# damage_taken = base_damage * (1.0 - (defense_value / (defense_value + 100)))
-	var def_value = defensive_affinity.get(attacking_element, 0.0)
-	return 1.0 - (def_value / (def_value + 100.0))
+	# Rating-based (2026-07-16): below 100 the shortfall is added to damage
+	# taken linearly (75 → ×1.25); at/above 100 damage halves per +100
+	# (200 → ×0.5, 300 → ×0.25). Clamped so nothing becomes fully immune or
+	# takes more than 2.5×.
+	var d: float = defensive_affinity.get(attacking_element, 100.0)
+	if d >= 100.0:
+		return maxf(pow(0.5, (d - 100.0) / 100.0), 0.1)
+	return clampf(2.0 - d / 100.0, 1.0, 2.5)
 
 func get_attack_multiplier(target_element: Element = Element.NORMAL) -> float:
-	# Returns multiplier based on offensive affinity against target element
-	var off_value = offensive_affinity.get(target_element, 0.0)
-	return 1.0 + (off_value / 100.0)
+	# Offensive rating / 100 (140 rating = ×1.4, matching the displayed %).
+	return offensive_affinity.get(target_element, 100.0) / 100.0
 
 # Signals
 signal health_changed(current: int, maximum: int)
@@ -407,22 +439,26 @@ signal shield_changed(current: int)        # shield value changed (absorbed dama
 func _ready():
 	update_visuals()
 
-func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null, true_damage: bool = false, bonus_true_damage: int = 0) -> void:
+# Magic-typed damage: identical pipeline, mitigated by magic_resist instead of
+# armor. Use this for any hit whose amount scales off the caster's magic_power.
+func take_magic_damage(amount: int, element: Element = Element.NORMAL, attacker = null) -> void:
+	take_damage(amount, element, attacker, false, 0, true)
+
+func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null, true_damage: bool = false, bonus_true_damage: int = 0, is_magic: bool = false) -> void:
 	# Evasion: chance to dodge the hit entirely (only applies to direct hits, not DoT/true damage)
 	if not true_damage and amount > 0:
 		var ev: float = equipment_passives.get("Evasion", 0.0)
 		if ev > 0.0 and randf() < ev:
 			return
 
-	var modified_damage := calculate_damage_with_element(amount, element)
+	var modified_damage := amount
 	if not true_damage:
 		# League-style diminishing-returns curve (2026-07-10, replaces flat
-		# subtraction): 100 resistance = 50% reduction, 200 = 66.7%, asymptotic —
-		# never reaches 100%. Flat subtraction let any resistance value fully
-		# negate small/incremental hits (DoTs, stacking bite mechanics) once it
-		# exceeded their damage, flooring them at 1 dmg forever regardless of how
-		# much they scaled — see the Ant Hill bite-stack bug fixed just above.
-		modified_damage = int(modified_damage * (100.0 / (100.0 + float(resistance))))
+		# subtraction): 100 armor = 50% reduction, 200 = 66.7%, asymptotic —
+		# never reaches 100%. Armor vs magic armor picked by the damage type
+		# (2026-07-16 defense split).
+		var armor: int = magic_resist if is_magic else resistance
+		modified_damage = int(modified_damage * (100.0 / (100.0 + float(armor))))
 		modified_damage = int(modified_damage * get_defense_multiplier(element))
 	# Relic: fragile-but-deadly picks (e.g. Glass Cannon) raise incoming damage.
 	if relic_dmg_taken_mult != 1.0:
@@ -463,21 +499,9 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 	if current_hp <= 0:
 		die()
 
-func calculate_damage_with_element(base_damage: int, attacker_element: Element) -> int:
-	# Elemental damage modifiers (simplified)
-	var modifier = 1.0
-	
-	# Example: Fire beats Earth, Water beats Fire, etc.
-	if attacker_element == Element.FIRE and current_element == Element.EARTH:
-		modifier = 1.5
-	elif attacker_element == Element.WATER and current_element == Element.FIRE:
-		modifier = 1.5
-	elif attacker_element == Element.EARTH and current_element == Element.LIGHTNING:
-		modifier = 1.5
-	elif attacker_element == Element.LIGHTNING and current_element == Element.WATER:
-		modifier = 1.5
-	
-	return int(base_damage * modifier)
+# (The old hardcoded 1.5x rock-paper-scissors matchup table lived here until
+# the 2026-07-16 affinity rework — elemental interaction is now entirely
+# "attacker's offensive rating vs target's defensive rating".)
 
 func heal(amount: int) -> void:
 	var before: int = current_hp
@@ -497,6 +521,8 @@ func spend_mana(amount: int) -> bool:
 
 func change_element(new_element: Element) -> void:
 	current_element = new_element
+	# Re-anchor the ±affinity deltas on the new element (2026-07-16 rework).
+	set_affinity_profile(base_off_affinity, base_def_affinity)
 	element_changed.emit(new_element)
 	update_visuals()
 
@@ -511,6 +537,9 @@ func apply_stat_growth() -> void:
 	attack_damage  = maxi(1, attack_damage  + int(stat_growth("atk")))
 	magic_power    = maxi(0, magic_power    + int(stat_growth("magic")))
 	resistance     = maxi(0, resistance     + int(stat_growth("res")))
+	# Magic armor rides the same "res" growth roll until it gets its own table
+	# entry (defense split 2026-07-16 — keeps leveling balance-neutral).
+	magic_resist   = maxi(0, magic_resist   + int(stat_growth("res")))
 	attack_speed   = maxf(0.05, attack_speed + stat_growth("aspd"))
 	hp_regen       = maxf(0.0,  hp_regen     + stat_growth("hpregen"))
 	mana_regen     = maxf(0.0,  mana_regen   + stat_growth("manaregen"))
@@ -620,7 +649,7 @@ func set_level(target_level: int) -> void:
 	while level < target_level:
 		level_up()
 
-func spawn_projectile(target, damage: int) -> void:
+func spawn_projectile(target, damage: int, is_magic: bool = false) -> void:
 	if not battle_manager:
 		return
 
@@ -629,6 +658,7 @@ func spawn_projectile(target, damage: int) -> void:
 	var end_pos:   Vector2 = target.global_position if target else global_position
 
 	projectile.setup(start_pos, end_pos, damage, current_element, target)
+	projectile.is_magic = is_magic
 	projectile.caster = self   # so on_reach_target can credit damage_dealt
 
 	if battle_manager.has_method("add_projectile"):

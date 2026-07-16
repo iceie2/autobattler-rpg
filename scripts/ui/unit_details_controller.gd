@@ -47,7 +47,7 @@ const SKILL_ICONS: Dictionary = {
 
 # Combat-stat grid cells (node name -> STAT_ICONS key) and affinity element order
 const _COMBAT_CELLS := [
-	["CellAtk", "atk"], ["CellDef", "res"], ["CellMag", "magic"], ["CellAspd", "aspd"],
+	["CellAtk", "atk"], ["CellDef", "res"], ["CellMagRes", "mres"], ["CellMag", "magic"], ["CellAspd", "aspd"],
 	["CellHpRegen", "hpregen"], ["CellMpRegen", "manaregen"], ["CellMove", "move"], ["CellRange", "range"],
 	["CellCritChance", "crit_chance"], ["CellCritDamage", "crit_damage"],
 ]
@@ -130,10 +130,11 @@ func _ensure_icons() -> void:
 	if _icons_ready:
 		return
 	_icons_ready = true
-	# Crit cells aren't in the .tscn (added after that scene was built) — create
-	# them at runtime, matching the existing CellAtk/etc. HBoxContainer+Icon+Value
-	# structure exactly, so _set_combat_cell's "%s/Value" lookup finds them too.
-	for crit_cell in ["CellCritChance", "CellCritDamage"]:
+	# Crit + magic-armor cells aren't in the .tscn (added after that scene was
+	# built) — create them at runtime, matching the existing CellAtk/etc.
+	# HBoxContainer+Icon+Value structure exactly, so _set_combat_cell's
+	# "%s/Value" lookup finds them too. CellMagRes is moved up beside CellDef.
+	for crit_cell in ["CellMagRes", "CellCritChance", "CellCritDamage"]:
 		if combat_grid.get_node_or_null(crit_cell):
 			continue
 		var cell := HBoxContainer.new()
@@ -153,6 +154,8 @@ func _ensure_icons() -> void:
 		val.text = "-"
 		cell.add_child(val)
 		combat_grid.add_child(cell)
+		if crit_cell == "CellMagRes":
+			combat_grid.move_child(cell, 2)   # sit right beside CellDef (armor)
 	for pair in _COMBAT_CELLS:
 		var stat_key: String = pair[1]
 		var path: String = UnitFactory.STAT_ICONS.get(stat_key, "")
@@ -258,7 +261,8 @@ func _shop_bonuses(unit: UnitBase) -> Dictionary:
 		"mana":        float(Progression.get_bonus("mana_well")),
 		"magic":       float(Progression.get_bonus("spellpower")),
 		"atk":         float(Progression.get_bonus("might")),
-		"res":         float(Progression.get_bonus("warding")),
+		"res":         float(Progression.get_bonus("bulwark")),
+		"mres":        float(Progression.get_bonus("warding")),
 		"aspd":        Progression.get_bonus_float("fleetfoot"),
 		"hpregen":     Progression.get_bonus_float("vitality_flow"),
 		"manaregen":   Progression.get_bonus_float("mana_flow"),
@@ -333,6 +337,7 @@ func _refresh() -> void:
 	# already baked into unit.<stat>, so base → boosted math is identical.
 	var atk := _combat_cell_values(unit, "attack_damage", eq.get("atk", 0.0) + shop.get("atk", 0.0))
 	var def := _combat_cell_values(unit, "resistance", eq.get("res", 0.0) + shop.get("res", 0.0))
+	var mres := _combat_cell_values(unit, "magic_resist", eq.get("mres", 0.0) + shop.get("mres", 0.0))
 	var mag := _combat_cell_values(unit, "magic_power", eq.get("magic", 0.0) + shop.get("magic", 0.0))
 	var aspd := _combat_cell_values(unit, "attack_speed", eq.get("aspd", 0.0) + shop.get("aspd", 0.0))
 	var hpreg_b: float = eq.get("hpregen", 0.0) + shop.get("hpregen", 0.0)
@@ -342,6 +347,7 @@ func _refresh() -> void:
 	var cd_b: float = shop.get("crit_damage", 0.0)
 	_set_combat_cell("CellAtk", _cell_int_text(int(round(atk[0])), atk[1]), atk[1] > 0)
 	_set_combat_cell("CellDef", _cell_int_text(int(round(def[0])), def[1]), def[1] > 0)
+	_set_combat_cell("CellMagRes", _cell_int_text(int(round(mres[0])), mres[1]), mres[1] > 0)
 	_set_combat_cell("CellMag", _cell_int_text(int(round(mag[0])), mag[1]), mag[1] > 0)
 	_set_combat_cell("CellAspd", _cell_float_text(aspd[0], aspd[1]), aspd[1] > 0)
 	_set_combat_cell("CellHpRegen", _cell_float_text(unit.hp_regen, hpreg_b), hpreg_b > 0)
@@ -423,14 +429,14 @@ func _refresh_affinity(unit: UnitBase) -> void:
 		var def_lbl := affinity_grid.get_node_or_null("Def%s" % suffix) as Label
 		if not (atk_lbl and def_lbl):
 			continue
-		var off_val: float = unit.offensive_affinity[element]
-		var def_val: float = unit.defensive_affinity[element]
-		var atk_pct := int(round(100.0 + off_val))
-		var def_pct := int(round(100.0 * 100.0 / (def_val + 100.0)))
+		# Affinity RATINGS (2026-07-16 rework): both rows display the rating
+		# directly and higher is better for both — 100 is neutral.
+		var atk_pct := int(round(float(unit.offensive_affinity.get(element, 100.0))))
+		var def_pct := int(round(float(unit.defensive_affinity.get(element, 100.0))))
 		atk_lbl.text = "%d%%" % atk_pct
 		def_lbl.text = "%d%%" % def_pct
 		atk_lbl.add_theme_color_override("font_color", _aff_color(atk_pct, true))
-		def_lbl.add_theme_color_override("font_color", _aff_color(def_pct, false))
+		def_lbl.add_theme_color_override("font_color", _aff_color(def_pct, true))
 
 # Neutral (100%) fades into the grid; otherwise green = favourable, red = weak.
 # higher_is_good is true for offensive %, false for defensive % (lower = tankier).
