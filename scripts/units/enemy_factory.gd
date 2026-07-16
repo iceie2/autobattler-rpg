@@ -406,14 +406,14 @@ static func _create_lizard(element: UnitBase.Element, lvl: int = 1) -> VisualUni
 	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
 	u.current_element = element
 	u.is_player_unit  = false
-	u.max_hp          = 140
-	u.current_hp      = 140
+	u.max_hp          = 200
+	u.current_hp      = 200
 	u.max_mana        = 0
 	u.current_mana    = 0
-	u.attack_damage   = 34
+	u.attack_damage   = 60
 	u.magic_power     = 6
-	u.resistance      = 5
-	u.attack_speed    = 1.5
+	u.resistance      = 10
+	u.attack_speed    = 2.0
 	u.hp_regen        = 0.35
 	u.mana_regen      = 0.17
 	u.movement_speed  = 1           # barely moves — leans entirely on its range
@@ -726,17 +726,22 @@ static func create_hill_giant(lvl: int = 1) -> VisualUnit:
 	u.current_element = UnitBase.Element.EARTH
 	u.is_player_unit  = false
 	u.cell_size       = 2          # occupies a 2×2 area
-	u.max_hp          = 2400
-	u.current_hp      = 2400
+	# 2026-07-15 rebalance: elites own ONE fixed round now (G = round 5, see
+	# WaveScaler.ELITE_BY_ROUND) so this statline is tuned against a ~4-hero
+	# level-3 team. Also compensates the collect_units dedup fix — the giant
+	# previously fought with 4× ticked cooldowns/regen and was tuned to that.
+	u.max_hp          = 3800
+	u.current_hp      = 3800
 	u.max_mana        = 100
 	u.current_mana    = 100
-	u.attack_damage   = 90
+	u.attack_damage   = 150
 	u.magic_power     = 9
-	u.resistance      = 5
-	u.attack_speed    = 0.48
+	u.resistance      = 15
+	u.attack_speed    = 0.6
 	u.hp_regen        = 0.55
 	u.mana_regen      = 0.5
-	u.movement_speed  = 1          # slow but mobile — lumbers toward the team
+	u.movement_speed  = 2          # arena sims: at move 1 ranged comps kite it
+								   # to death without taking a single hit
 	u.attack_range    = 2
 	u.gold_reward     = 0
 	u.crystal_reward  = 2
@@ -924,14 +929,18 @@ static func create_stat_stealer(lvl: int = 1) -> VisualUnit:
 	u.growth_base     = {"hp": 150, "mana": 15, "atk": 3, "magic": 3, "res": 1, "aspd": 0.01, "hpregen": 0.1, "manaregen": 0.1}
 	u.current_element = UnitBase.Element.NORMAL
 	u.is_player_unit  = false
-	u.max_hp          = 900
-	u.current_hp      = 900
+	# 2026-07-15 rebalance: SS owns round 25 (WaveScaler.ELITE_BY_ROUND) —
+	# tuned against a ~9-hero level-12 team, sitting just under the wave 24-26
+	# no-upgrade wall. Late-game mults (round 25: ~2.5× HP, ~2.05× dmg) apply
+	# on top of level 16 growth at spawn.
+	u.max_hp          = 2600
+	u.current_hp      = 2600
 	u.max_mana        = 250
 	u.current_mana    = 250
-	u.attack_damage   = 22
-	u.magic_power     = 20
-	u.resistance      = 5
-	u.attack_speed    = 0.65
+	u.attack_damage   = 80
+	u.magic_power     = 45
+	u.resistance      = 20
+	u.attack_speed    = 1.0
 	u.hp_regen        = 0.6
 	u.mana_regen      = 1.5
 	u.movement_speed  = 3
@@ -968,19 +977,22 @@ static func create_ant_hill(lvl: int = 1) -> VisualUnit:
 	u.unit_class      = UnitBase.UnitClass.ANT_HILL
 	# Elite-sized growth (2026-07-12) — see the Hill Giant note. HP/regen only:
 	# the hill's threat is its ant swarm, not its own damage.
-	u.growth_base     = {"hp": 300, "mana": 0, "atk": 1, "magic": 0, "res": 1, "aspd": 0.0, "hpregen": 0.4, "manaregen": 0.0}
+	u.growth_base     = {"hp": 300, "mana": 0, "atk": 1, "magic": 0, "res": 1, "aspd": 0.0, "hpregen": 0.2, "manaregen": 0.0}
 	u.current_element = UnitBase.Element.EARTH
 	u.is_player_unit  = false
 	u.cell_size       = 2          # a wide mound, not a single-tile creature
-	u.max_hp          = 2500
-	u.current_hp      = 2500
+	# 2026-07-15 rebalance: AH owns round 15 (WaveScaler.ELITE_BY_ROUND) — bulk
+	# tuned against a ~7-hero level-8 team so the DPS check is real; the ant
+	# statline itself lives in UnitFactory (ANT row), tuned for the same round.
+	u.max_hp          = 3400
+	u.current_hp      = 3400
 	u.max_mana        = 0
 	u.current_mana    = 0
 	u.attack_damage   = 8          # minor — the ants are the real threat
 	u.magic_power     = 0
-	u.resistance      = 25         # tanky: rewards focusing it down, punishes ignoring it
+	u.resistance      = 24         # tanky: rewards focusing it down, punishes ignoring it
 	u.attack_speed    = 0.3
-	u.hp_regen        = 2.0
+	u.hp_regen        = 1.2
 	u.mana_regen      = 0.0
 	u.movement_speed  = 0          # stationary — it's a hill, not a creature
 	u.attack_range    = 0

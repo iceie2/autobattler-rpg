@@ -174,7 +174,9 @@ const CLASS_BASE_STATS = {
 	UnitBase.UnitClass.SPORE: { "hp":780,"mana":820, "atk":9,"magic":20,"res":9,"aspd":0.68,"hpregen":0.47,"manaregen":5.5, "move":2,"range":2, "off_affinity":50.0,"def_affinity":18.0 },
 	UnitBase.UnitClass.ZOMBIE: { "hp":110,"mana":0, "atk":10,"magic":2,"res":5,"aspd":0.58,"hpregen":0.17,"manaregen":0.33, "move":2,"range":1, "off_affinity":20.0,"def_affinity":10.0 },
 	UnitBase.UnitClass.BAT: { "hp":70,"mana":0, "atk":9,"magic":2,"res":3,"aspd":0.7,"hpregen":0.12,"manaregen":0.33, "move":4,"range":1, "off_affinity":20.0,"def_affinity":5.0 },
-	UnitBase.UnitClass.ANT: { "hp":25,"mana":0, "atk":4,"magic":0,"res":1,"aspd":0.9,"hpregen":0.0,"manaregen":0.0, "move":4,"range":1, "off_affinity":15.0,"def_affinity":5.0 },
+	# Ant (2026-07-15): only the round-15 Ant Hill spawns these (always level 1,
+	# no set_level — see _spawn_ant), so this base row IS the round-15 statline.
+	UnitBase.UnitClass.ANT: { "hp":400,"mana":0, "atk":50,"magic":0,"res":1,"aspd":0.9,"hpregen":0.0,"manaregen":0.0, "move":6,"range":1, "off_affinity":15.0,"def_affinity":5.0 },
 }
 
 # Deterministic per-level growth, same for every unit of a class (the "base

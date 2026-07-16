@@ -76,11 +76,35 @@ enum TraitClass {
 @export var current_element: Element = Element.NORMAL
 @export var level: int = 1
 
-# Core stats
-@export var max_hp: int = 100
-@export var current_hp: int = 100
-@export var max_mana: int = 50
-@export var current_mana: int = 50
+# Core stats — HP and mana emit their changed-signal from property setters, so
+# EVERY write path (round-end heal, level-up growth, event effects, synergy
+# apply/revert, progression bonuses) updates the overhead bar and any open UI.
+# Before 2026-07-15 only take_damage()/heal() emitted manually, so direct
+# assignments left the in-world bar stale until the next round's first hit.
+@export var max_hp: int = 100:
+	set(value):
+		if value == max_hp:
+			return
+		max_hp = value
+		health_changed.emit(current_hp, max_hp)
+@export var current_hp: int = 100:
+	set(value):
+		if value == current_hp:
+			return
+		current_hp = value
+		health_changed.emit(current_hp, max_hp)
+@export var max_mana: int = 50:
+	set(value):
+		if value == max_mana:
+			return
+		max_mana = value
+		mana_changed.emit(current_mana, max_mana)
+@export var current_mana: int = 50:
+	set(value):
+		if value == current_mana:
+			return
+		current_mana = value
+		mana_changed.emit(current_mana, max_mana)
 
 # Combat stats — each fully independent (TFT-style), set by class base + one-time
 # recruit roll + flat level-up perk picks. Nothing here is derived from anything else.
@@ -424,8 +448,7 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 
 	spawn_damage_text(modified_damage, element)
 
-	current_hp = max(0, current_hp - modified_damage)
-	health_changed.emit(current_hp, max_hp)
+	current_hp = max(0, current_hp - modified_damage)   # setter emits health_changed
 	took_damage.emit(modified_damage, attacker)   # drives the hit reaction (flash + recoil)
 	_charge_ultimate(modified_damage)
 	# Track who dealt damage to us (for Bloodhound ultimate)
@@ -458,20 +481,17 @@ func calculate_damage_with_element(base_damage: int, attacker_element: Element) 
 
 func heal(amount: int) -> void:
 	var before: int = current_hp
-	current_hp = min(max_hp, current_hp + amount)
-	health_changed.emit(current_hp, max_hp)
+	current_hp = min(max_hp, current_hp + amount)   # setter emits health_changed
 	var healed: int = current_hp - before
 	if healed > 0:
 		spawn_heal_text(healed)
 
 func restore_mana(amount: int) -> void:
-	current_mana = min(max_mana, current_mana + amount)
-	mana_changed.emit(current_mana, max_mana)
+	current_mana = min(max_mana, current_mana + amount)   # setter emits mana_changed
 
 func spend_mana(amount: int) -> bool:
 	if current_mana >= amount:
 		current_mana -= amount
-		mana_changed.emit(current_mana, max_mana)
 		return true
 	return false
 
@@ -625,7 +645,6 @@ func die() -> void:
 	if has_meta("khagan_puppet") and current_hp <= 0:
 		current_hp = 1
 		current_shield = 0
-		health_changed.emit(current_hp, max_hp)
 		if battle_manager and battle_manager.has_method("end_khagan_possession"):
 			battle_manager.end_khagan_possession(self)
 		return
@@ -636,7 +655,6 @@ func die() -> void:
 		relic_revive_used = true
 		current_hp = maxi(1, int(round(max_hp * relic_revive_pct)))
 		current_shield = 0
-		health_changed.emit(current_hp, max_hp)
 		return
 	# Stat Stealer: return any stats it's currently holding stolen (mirrors the
 	# VisualUnit.die() override, which is what real game units actually use).

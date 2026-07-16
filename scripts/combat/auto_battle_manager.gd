@@ -164,12 +164,17 @@ func collect_units() -> void:
 	for grid_pos in battle_grid.occupied_cells:
 		var unit = battle_grid.get_unit_at(grid_pos)
 		if unit and unit is UnitBase:
+			# Multi-cell units (Hill Giant 2×2, future 3×3 bosses) appear once
+			# per occupied cell — without the has() dedup a giant entered the
+			# army list 4 times and got ticked 4× per frame: ~4× attack rate,
+			# 4× regen/DoT ticks, 4 movement decisions a frame (2026-07-15).
 			unit.battle_manager = self
 			if unit.is_player_unit:
-				player_units.append(unit)
+				if not player_units.has(unit):
+					player_units.append(unit)
 				if not unit.died.is_connected(_on_ally_died):
 					unit.died.connect(_on_ally_died.bind(unit))
-			else:
+			elif not enemy_units.has(unit):
 				enemy_units.append(unit)
 		else:
 			print("[Battle] Cell %s has non-unit or null: %s" % [grid_pos, unit])
@@ -348,10 +353,10 @@ func _tick_unit(unit: UnitBase, dt: float) -> void:
 				action_logged.emit("%s attacks %s for %d damage" % [unit.unit_name, target.unit_name, atk_dmg], unit.is_player_unit)
 	elif not unit.is_moving and unit.movement_speed > 0 and unit.root_time <= 0.0:
 		# Out of range: keep closing the distance (rooted units can't move).
-		if unit.cell_size > 1:
-			_move_2x2_unit(unit, target.grid_position)
-		else:
-			move_unit_towards_with_pathfinding(unit, target.grid_position)
+		# Large units go through the same A* as everyone else — find_path is
+		# footprint-aware when the mover is passed (2026-07-15 Hill Giant
+		# left/right oscillation fix; the old greedy _move_2x2_unit is gone).
+		move_unit_towards_with_pathfinding(unit, target.grid_position)
 
 # Smoothly accrue HP/MP over time. Fractional amounts carry between frames so even
 # slow regen ticks up correctly at any time scale.
@@ -1357,7 +1362,9 @@ func _stat_steal_drain(caster: UnitBase, opponents: Array) -> void:
 	var snapshot: float = float(target.get(stat))
 	target.drain_time = 10.0
 	target.drain_stat = stat
-	target.drain_per_sec = snapshot * 0.10
+	# 0.10 → 0.15/sec (2026-07-15 elite rebalance): SS owns round 25 now and a
+	# 9-hero level-12 board shrugged off the slower drain.
+	target.drain_per_sec = snapshot * 0.15
 	target.drain_source = caster
 	target.drain_stolen = 0.0
 	_spawn_skill_effect(SkillEffect.Type.CHAOS_BOLT, target.global_position)
@@ -1692,7 +1699,7 @@ func move_unit_towards_with_pathfinding(unit: UnitBase, target_pos: Vector2i) ->
 				needs_new_path = true
 	
 	if needs_new_path:
-		var new_path = Pathfinding.find_path(current_pos, target_pos, battle_grid)
+		var new_path = Pathfinding.find_path(current_pos, target_pos, battle_grid, 500, unit)
 		if new_path.is_empty():
 			# PERF (2026-07-04): these [Path] prints fired EVERY FRAME for every
 			# blocked/boxed-in unit on a crowded board — console I/O + string
@@ -1710,8 +1717,7 @@ func move_unit_towards_with_pathfinding(unit: UnitBase, target_pos: Vector2i) ->
 		return
 
 	var next_pos = path[0]
-	var occupied = battle_grid.is_cell_occupied(next_pos)
-	if not battle_grid.is_valid_position(next_pos) or occupied:
+	if not Pathfinding.is_origin_free(next_pos, battle_grid, unit):
 		# Local collision avoidance (2026-07-04 user report — Ant Hill swarm
 		# units "got stuck" and zig-zagged): previously a blocked next step
 		# just dropped the whole cached path and did nothing this tick, then
@@ -1722,13 +1728,13 @@ func move_unit_towards_with_pathfinding(unit: UnitBase, target_pos: Vector2i) ->
 		# first: any free neighbor that's at least as close to the real target
 		# as staying put. Real forward progress instead of a frame of nothing,
 		# and far fewer full recomputes since the unit isn't perpetually stuck.
-		var sidestep := _find_sidestep(current_pos, target_pos)
+		var sidestep := _find_sidestep(unit, current_pos, target_pos)
 		if sidestep != Vector2i(-1, -1):
 			unit_paths.erase(unit)   # cached route no longer matches from here — replan clean next tick
 			if not unit.is_moving:
 				start_unit_movement(unit, current_pos, sidestep)
 			return
-		if PATH_DEBUG: print("[Path] next_pos %s blocked (occupied=%s)" % [next_pos, occupied])
+		if PATH_DEBUG: print("[Path] next_pos %s blocked" % [next_pos])
 		unit_paths.erase(unit)
 		return
 
@@ -1738,49 +1744,19 @@ func move_unit_towards_with_pathfinding(unit: UnitBase, target_pos: Vector2i) ->
 # Picks the free neighbor of `current_pos` that gets closest to `target_pos`
 # (Chebyshev distance), but only if it's an actual improvement over staying
 # put — returns Vector2i(-1,-1) if every free neighbor is equal or farther
-# (better to wait one tick than wander away from the goal).
-func _find_sidestep(current_pos: Vector2i, target_pos: Vector2i) -> Vector2i:
+# (better to wait one tick than wander away from the goal). Footprint-aware:
+# a 2×2 unit only sidesteps to origins its whole body fits on.
+func _find_sidestep(unit: UnitBase, current_pos: Vector2i, target_pos: Vector2i) -> Vector2i:
 	var best_dist: int = _grid_dist(current_pos, target_pos)
 	var best: Vector2i = Vector2i(-1, -1)
 	for neighbor in Pathfinding.get_neighbors(current_pos, battle_grid):
-		if battle_grid.is_cell_occupied(neighbor):
+		if not Pathfinding.is_origin_free(neighbor, battle_grid, unit):
 			continue
 		var d: int = _grid_dist(neighbor, target_pos)
 		if d < best_dist:
 			best_dist = d
 			best = neighbor
 	return best
-
-func _move_2x2_unit(unit: UnitBase, target_pos: Vector2i) -> void:
-	# Simple cardinal + diagonal movement for large units.
-	# Picks the direction that gets closest to target and checks all 4 cells.
-	var pos := unit.grid_position
-	var dx: int = sign(target_pos.x - pos.x)
-	var dy: int = sign(target_pos.y - pos.y)
-
-	# Build candidate next positions in preference order
-	var candidates: Array[Vector2i] = []
-	if dx != 0 and dy != 0:
-		candidates = [pos + Vector2i(dx, dy), pos + Vector2i(dx, 0), pos + Vector2i(0, dy)]
-	elif dx != 0:
-		candidates = [pos + Vector2i(dx, 0), pos + Vector2i(0, 1), pos + Vector2i(0, -1)]
-	else:
-		candidates = [pos + Vector2i(0, dy), pos + Vector2i(1, 0), pos + Vector2i(-1, 0)]
-
-	for next_pos in candidates:
-		if _can_place_2x2(next_pos, unit):
-			start_unit_movement(unit, pos, next_pos)
-			return
-
-func _can_place_2x2(origin: Vector2i, exclude_unit: UnitBase) -> bool:
-	for dy in range(2):
-		for dx in range(2):
-			var p := origin + Vector2i(dx, dy)
-			if not battle_grid.is_valid_position(p):
-				return false
-			if battle_grid.is_cell_occupied(p) and battle_grid.get_unit_at(p) != exclude_unit:
-				return false
-	return true
 
 func add_projectile(projectile: Projectile) -> void:
 	if projectile_container:

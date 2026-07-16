@@ -40,7 +40,7 @@ const COIN_CHANCE_CAP := 0.75
 # ── Combat baselines ──────────────────────────────────────────────────────────
 const CRIT_CHANCE_BASE := 0.0      # nothing grants crit chance yet (future gear/relics)
 const CRIT_DAMAGE_BASE := 2.0      # crit = double damage
-const BASE_TIME_SCALE := 0.9       # all sim speed derives from this; UI speed buttons multiply on top
+const BASE_TIME_SCALE := 0.8       # all sim speed derives from this; UI speed buttons multiply on top
 
 # ── Late-game enemy scaling (2026-07-12, waves 11-30 pass) ────────────────────
 # Flat per-level growth alone can't make act 2/3 threatening: mobs share the
@@ -71,5 +71,8 @@ const ELITE_ROUNDS: Array[int] = [5, 15, 25]           # elite mob rounds
 const RELIC_WAVES: Array[int] = [1, 11, 21]            # forced pick-1-of-3 relic screens
 
 # ── Elite mob knobs ───────────────────────────────────────────────────────────
-const ANT_HILL_SPAWN_INTERVAL := 3.5   # seconds between ant spawns
+const ANT_HILL_SPAWN_INTERVAL := 1.0   # seconds between ant spawns (3.5 → 1.0
+	# in the 2026-07-15 elite rebalance: at 3.5s the swarm never outpaced a
+	# round-15 team's kill rate — every ant died on arrival, all 7 heroes
+	# finished at 100% HP — so the DPS check was toothless)
 const ANT_HILL_MAX_ANTS := 20          # alive-ant cap per hill

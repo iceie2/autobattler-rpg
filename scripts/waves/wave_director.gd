@@ -17,7 +17,6 @@ extends RefCounted
 # and without the lock each call re-rolled independently — the elite shown on
 # the grid could differ from the one that actually spawned. Instance state, so
 # a fresh WaveDirector (new scene/new run) naturally starts clean.
-var locked_elite_code_by_round: Dictionary = {}
 
 # Generate a wave specification (not instantiated units).
 # Returns an array of {"type": String, "level": int, "pos"?: Vector2i} entries.
@@ -44,11 +43,7 @@ func generate_wave_spec(round: int, difficulty: int, grid_width: int, chosen_ele
 
 	# ── Elite rounds (5 / 15 / 25): a mini-boss + light fodder support. ──
 	if WaveScaler.is_elite_round(round):
-		if not locked_elite_code_by_round.has(round):
-			locked_elite_code_by_round[round] = \
-					WaveScaler.ELITE_POOL[randi() % WaveScaler.ELITE_POOL.size()]
-		var elite_code: String = locked_elite_code_by_round[round]
-		var placed: Array = WaveScaler.build_elite_formation(round, difficulty, grid_width, elite_code)
+		var placed: Array = WaveScaler.build_elite_formation(round, difficulty, grid_width)
 		var elite_lvl: int = WaveScaler.elite_level(round)
 		for entry: Dictionary in placed:
 			var code: String = entry["code"]

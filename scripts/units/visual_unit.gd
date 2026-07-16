@@ -525,9 +525,8 @@ func die() -> void:
 	# between-round row heal tops it up afterward like any other survivor,
 	# since home_position was never touched.
 	if has_meta("khagan_puppet") and current_hp <= 0:
-		current_hp = 1
+		current_hp = 1   # setter emits health_changed
 		current_shield = 0
-		health_changed.emit(current_hp, max_hp)
 		if battle_manager and battle_manager.has_method("end_khagan_possession"):
 			battle_manager.end_khagan_possession(self)
 		return
@@ -548,9 +547,8 @@ func die() -> void:
 	# revive check must live here too).
 	if relic_revive_pct > 0.0 and not relic_revive_used and current_hp <= 0:
 		relic_revive_used = true
-		current_hp = maxi(1, int(round(max_hp * relic_revive_pct)))
+		current_hp = maxi(1, int(round(max_hp * relic_revive_pct)))   # setter emits health_changed
 		current_shield = 0
-		health_changed.emit(current_hp, max_hp)
 		return
 	_is_dying = true
 	can_be_dragged = false

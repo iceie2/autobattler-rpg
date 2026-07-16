@@ -409,6 +409,10 @@ static func build_boss_formation(round: int, difficulty: int, grid_width: int = 
 # than a full boss encounter, but a real step up from normal fodder.
 const ELITE_ROUNDS: Array[int] = Balance.ELITE_ROUNDS   # tune in balance.gd
 const ELITE_POOL: Array[String] = ["G", "SS", "AH"]   # Hill Giant, Stat Stealer, Ant Hill
+# Fixed assignment (2026-07-15 user decision, replaces the random pool pick):
+# each elite owns ONE round so its stats can be balanced against that round's
+# team power instead of having to work at three different power levels.
+const ELITE_BY_ROUND := {5: "G", 15: "AH", 25: "SS"}
 
 static func is_elite_round(round: int) -> bool:
 	return round in ELITE_ROUNDS
@@ -453,13 +457,11 @@ static func elite_level(round: int) -> int:
 		1:  return 9    # round 15 — fodder is lvl 7-9
 		_:  return 16   # round 25 — fodder is lvl 15-17
 
-# forced_code lets the caller lock in one elite pick for the whole round (the
-# wave spec gets regenerated more than once per round — formation preview at
-# round start, then again when Ready is pressed — and without a forced code
-# each call re-rolled independently, so the elite shown before battle could
-# differ from the one that actually spawns; see main_game.gd's per-round cache).
-static func build_elite_formation(round: int, difficulty: int, grid_width: int = 9, forced_code: String = "") -> Array:
-	var code: String = forced_code if forced_code != "" else ELITE_POOL[randi() % ELITE_POOL.size()]
+# The elite for a round is fixed by ELITE_BY_ROUND, so regenerating the spec
+# (formation preview, then again on Ready) always yields the same pick — the
+# old random pool needed a per-round lock cache in wave_director for that.
+static func build_elite_formation(round: int, difficulty: int, grid_width: int = 9) -> Array:
+	var code: String = ELITE_BY_ROUND.get(round, "G")
 	var counts: Dictionary = {code: 1}
 	counts["M"] = 1 + difficulty   # light fodder support
 	return _auto_place(counts, grid_width)
