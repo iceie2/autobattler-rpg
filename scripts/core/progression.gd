@@ -13,11 +13,21 @@ var upgrade_levels: Dictionary = {}
 # effect_per_level is used by the game to query the bonus value.
 const UPGRADES: Array = [
 	{
-		# Economy v3 (2026-07-03): 5/level → 1/level — starting gold dropped
-		# 50 → 10 and heroes 30 → 10, so the old +100 max would buy 10 heroes.
+		# 2026-07-16 economy pair rework (user spec): converted from "+1 gold
+		# once at run start" to "+1 gold after every round" — the cheap half of
+		# the gold pair, with Bounty (per-kill) hard-gated behind it. Key stays
+		# "starting_gold" for save compatibility.
 		"key": "starting_gold", "name": "Head Start",
-		"desc": "+1 gold at the start of every run per level.",
-		"effect": "Starting Gold +%d", "max_level": 20, "effect_per_level": 1,
+		"desc": "+1 gold after every round per level.",
+		"effect": "Gold / Round +%d", "max_level": 10, "effect_per_level": 1,
+	},
+	{
+		# The expensive half of the gold pair: far more total income (kills per
+		# round beat rounds per round), locked until Head Start has a level.
+		"key": "gold_per_kill", "name": "Bounty",
+		"desc": "+1 gold dropped by every enemy kill per level.",
+		"effect": "Gold / Kill +%d", "max_level": 5, "effect_per_level": 1,
+		"cost_mult": 3.0, "requires": "starting_gold",
 	},
 	{
 		# 2026-07-10 user correction: was +50/level, now +10/level.
@@ -39,9 +49,17 @@ const UPGRADES: Array = [
 		"effect": "Bench Slots +%d", "max_level": 4, "effect_per_level": 1,
 	},
 	{
+		# Cheap half of the crystal pair (2026-07-16, mirrors Head Start/Bounty).
+		"key": "crystal_per_round", "name": "Crystal Tithe",
+		"desc": "+1 crystal after every round per level.",
+		"effect": "Crystals / Round +%d", "max_level": 10, "effect_per_level": 1,
+	},
+	{
+		# Expensive per-kill half, gated behind Crystal Tithe (2026-07-16).
 		"key": "crystal_drop", "name": "Crystal Surge",
 		"desc": "+1 crystal dropped by every enemy per level.",
 		"effect": "Crystal Drop +%d", "max_level": 10, "effect_per_level": 1,
+		"cost_mult": 3.0, "requires": "crystal_per_round",
 	},
 	{
 		# 2026-07-10: the 4 core root-branch upgrades are starting_gold/team_hp/
@@ -131,9 +149,18 @@ func next_cost(key: String) -> int:
 		return -1
 	# Exponential curve: base 10, multiplier 1.255, caps near 750 at level 19
 	# Lv0→1: 10c  |  Lv4→5: 25c  |  Lv9→10: 77c  |  Lv14→15: 240c  |  Lv19→20: 749c
-	return roundi(10.0 * pow(1.255, lvl))
+	# cost_mult scales the whole curve for premium nodes (per-kill economy pair).
+	return roundi(10.0 * pow(1.255, lvl) * float(upgrade.get("cost_mult", 1.0)))
+
+# Hard prerequisite gate (2026-07-16): an upgrade with a "requires" key can't
+# be bought until that prerequisite has at least 1 level.
+func is_locked(key: String) -> bool:
+	var req: String = _find(key).get("requires", "")
+	return req != "" and get_level(req) == 0
 
 func can_afford(key: String) -> bool:
+	if is_locked(key):
+		return false
 	var cost := next_cost(key)
 	return cost > 0 and crystals >= cost
 
@@ -169,10 +196,6 @@ func get_bonus_float(key: String) -> float:
 	if upgrade.is_empty():
 		return 0.0
 	return float(get_level(key)) * float(upgrade["effect_per_level"])
-
-# Convenience helpers used by main_game.gd
-func starting_gold_bonus() -> int:
-	return get_bonus("starting_gold")
 
 # ── Persistence ───────────────────────────────────────────────────────────────
 

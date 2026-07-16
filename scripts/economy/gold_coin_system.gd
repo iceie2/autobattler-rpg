@@ -13,9 +13,12 @@ signal coin_collected(value: int)
 # Set by main_game after construction — used to pick rain cells for bursts.
 var battle_grid: BattleGrid = null
 
-func spawn_coins(world_pos: Vector2, count: int) -> void:
+# coin_value lets meta-progression bonuses (Bounty: +gold per kill) drop ONE
+# richer coin instead of flooding the field with extra coin nodes.
+func spawn_coins(world_pos: Vector2, count: int, coin_value: int = 1) -> void:
 	for i in range(count):
 		var c := GoldCoin.new()
+		c.value = coin_value
 		c.position = world_pos + Vector2(randf_range(-16.0, 16.0), randf_range(-10.0, 8.0))
 		c.collected.connect(func(v: int): coin_collected.emit(v))
 		add_child(c)

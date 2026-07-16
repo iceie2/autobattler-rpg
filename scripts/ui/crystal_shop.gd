@@ -27,9 +27,11 @@ const CALL_TO_ARMS_ICON := ICON_DIR + "call_to_arms.png"
 const NODE_ICONS := {
 	"team_hp":              "fortified.png",
 	"starting_gold":        "head_start.png",
+	"gold_per_kill":        "head_start.png",     # shared art (user spec: 2 sprites, 4 nodes)
 	"bonus_xp":             "quick_learner.png",
 	"hero_slots":           "roster_expansion.png",
 	"bench_slots":          "warm_bench.png",
+	"crystal_per_round":    "crystal_surge.png",  # shared art
 	"crystal_drop":         "crystal_surge.png",
 	"mana_well":            "mana_well.png",
 	"spellpower":           "spellpower.png",
@@ -55,17 +57,24 @@ const NODE_SIZES := [140.0, 110.0, 96.0, 88.0]   # indexed by tier
 # parent "" = the Call to Arms center. Tier-3 nodes sit on one evenly-spaced
 # 22°-arc across the top so sibling groups never collide; each group's
 # gateway (tier-2) node sits at the mean angle of its children.
+# An "offset" (pixels from TREE_CENTER) overrides angle/radius placement —
+# used by the economy pairs, which chain HORIZONTALLY off the XP node
+# (2026-07-16 user spec: gold pair to XP's left, crystal pair to its right,
+# per-kill node of each pair outermost and gated behind the per-round one).
 const NODE_LAYOUT := {
-	"team_hp":       {"tier": 1, "angle": 90.0,  "parent": ""},
-	"starting_gold": {"tier": 1, "angle": 0.0,   "parent": ""},
-	"bonus_xp":      {"tier": 1, "angle": 270.0, "parent": ""},
-	"hero_slots":    {"tier": 1, "angle": 180.0, "parent": ""},
+	"team_hp":    {"tier": 1, "angle": 90.0,  "parent": ""},
+	"bonus_xp":   {"tier": 1, "angle": 270.0, "parent": ""},
+	"hero_slots": {"tier": 1, "angle": 180.0, "parent": ""},
 
-	"might":        {"tier": 2, "angle": 46.0,  "parent": "team_hp"},
-	"warding":      {"tier": 2, "angle": 101.0, "parent": "team_hp"},
-	"mana_well":    {"tier": 2, "angle": 145.0, "parent": "team_hp"},
-	"crystal_drop": {"tier": 2, "angle": 0.0,   "parent": "starting_gold"},
-	"bench_slots":  {"tier": 2, "angle": 180.0, "parent": "hero_slots"},
+	"might":       {"tier": 2, "angle": 46.0,  "parent": "team_hp"},
+	"warding":     {"tier": 2, "angle": 101.0, "parent": "team_hp"},
+	"mana_well":   {"tier": 2, "angle": 145.0, "parent": "team_hp"},
+	"bench_slots": {"tier": 2, "angle": 180.0, "parent": "hero_slots"},
+
+	"starting_gold":     {"tier": 2, "offset": Vector2(-135, 170), "parent": "bonus_xp"},
+	"gold_per_kill":     {"tier": 3, "offset": Vector2(-270, 170), "parent": "starting_gold"},
+	"crystal_per_round": {"tier": 2, "offset": Vector2(135, 170),  "parent": "bonus_xp"},
+	"crystal_drop":      {"tier": 3, "offset": Vector2(270, 170),  "parent": "crystal_per_round"},
 
 	"killing_blow":         {"tier": 3, "angle": 13.0,  "parent": "might"},
 	"lethality":            {"tier": 3, "angle": 35.0,  "parent": "might"},
@@ -86,6 +95,7 @@ const CONN_DIM     := Color(0.4, 0.32, 0.18, 0.55)
 const CONN_LIT     := Color(0.9, 0.7, 0.28, 0.95)
 const GLOW_GOLD    := Color(1.0, 0.84, 0.35, 0.3)
 const DIM_MODULATE := Color(0.5, 0.5, 0.58)
+const LOCKED_MODULATE := Color(0.28, 0.28, 0.34)   # darker than dim: "not buyable yet"
 
 # Progress ring drawn around each purchasable node: dark track, gold fill
 # proportional to level, brighter when maxed, outer halo when selected.
@@ -241,7 +251,8 @@ func _build_tree(canvas: Control) -> void:
 	var positions: Dictionary = {"": TREE_CENTER}
 	for key: String in NODE_LAYOUT:
 		var l: Dictionary = NODE_LAYOUT[key]
-		positions[key] = TREE_CENTER + _angle_offset(l["angle"], RADII[l["tier"]])
+		positions[key] = TREE_CENTER + (l["offset"] if l.has("offset")
+				else _angle_offset(l["angle"], RADII[l["tier"]]))
 
 	for key: String in NODE_LAYOUT:
 		var l: Dictionary = NODE_LAYOUT[key]
@@ -401,6 +412,7 @@ func _refresh_node(entry: Dictionary) -> void:
 	var max_lvl: int = int(upgrade["max_level"])
 	var maxed: bool = lvl >= max_lvl
 	var affordable: bool = Progression.can_afford(key)
+	var locked: bool = Progression.is_locked(key)
 
 	var ring: NodeRing = entry["ring"]
 	ring.progress = float(lvl) / float(max_lvl)
@@ -408,10 +420,18 @@ func _refresh_node(entry: Dictionary) -> void:
 	ring.selected = key == _selected_key
 	ring.queue_redraw()
 
-	(entry["icon"] as TextureRect).modulate = Color.WHITE if (lvl > 0 or affordable) else DIM_MODULATE
+	var icon_col: Color = Color.WHITE if (lvl > 0 or affordable) else DIM_MODULATE
+	if locked:
+		icon_col = LOCKED_MODULATE
+	(entry["icon"] as TextureRect).modulate = icon_col
 	(entry["glow"] as TextureRect).visible = affordable
 	(entry["badge"] as Label).visible = maxed
-	(entry["button"] as Button).tooltip_text = "%s — %d/%d" % [upgrade["name"], lvl, max_lvl]
+	if locked:
+		var req := Progression._find(String(upgrade.get("requires", "")))
+		(entry["button"] as Button).tooltip_text = "%s — locked (requires %s)" % [
+			upgrade["name"], req.get("name", "?")]
+	else:
+		(entry["button"] as Button).tooltip_text = "%s — %d/%d" % [upgrade["name"], lvl, max_lvl]
 
 func _refresh_detail() -> void:
 	var has_selection := _selected_key != ""
@@ -450,6 +470,11 @@ func _refresh_detail() -> void:
 	if cost < 0:
 		_detail_stats.text = "%s  (maxed out)" % cur_txt
 		_buy_btn.text = "MAXED"
+		_buy_btn.disabled = true
+	elif Progression.is_locked(_selected_key):
+		var req := Progression._find(String(upgrade.get("requires", "")))
+		_detail_stats.text = "Locked — buy a level of %s first." % req.get("name", "?")
+		_buy_btn.text = "LOCKED"
 		_buy_btn.disabled = true
 	else:
 		_detail_stats.text = "%s   →   %s" % [cur_txt, next_txt]

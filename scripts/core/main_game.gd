@@ -460,9 +460,9 @@ func start_new_game() -> void:
 	# economy moved to coin-drop scale (see GoldCoin / gold_drops_for_unit).
 	# 2026-07-10: Call to Arms (the crystal-shop tree's always-active root node)
 	# replaces the flat starting-gold baseline — every run now starts with 1
-	# free recruited hero instead. Progression.starting_gold_bonus() (the
-	# purchasable Head Start upgrade) still applies on top.
-	game_state.gold = Progression.starting_gold_bonus()
+	# free recruited hero instead of gold. Head Start pays after every ROUND
+	# now (2026-07-16 economy pair rework), so runs begin at 0 gold.
+	game_state.gold = 0
 	game_state.crystals = 0
 	_run_kills = 0
 	game_state.reset_player_level()
@@ -870,7 +870,13 @@ func _on_battle_ended(player_won: bool) -> void:
 		# the vacuum (below) actually pulls each coin into the counter.
 		const ROUND_WIN_GOLD := Balance.ROUND_WIN_GOLD
 		var relic_gold: int = _relic_inventory.gold_per_round() if _relic_inventory else 0
-		_spawn_coin_burst(ROUND_WIN_GOLD + relic_gold)
+		# Crystal-shop meta income (2026-07-16 pair rework): Head Start gold
+		# rains with the round-win coins; Crystal Tithe credits directly
+		# (crystals were never physical).
+		_spawn_coin_burst(ROUND_WIN_GOLD + relic_gold + Progression.get_bonus("starting_gold"))
+		var tithe: int = Progression.get_bonus("crystal_per_round")
+		if tithe > 0:
+			game_state.add_crystals(tithe)
 		var reward_gold := 0
 		if _pending_round_reward.get("type", RoundReward.Type.NOTHING) == RoundReward.Type.GOLD:
 			reward_gold = int(_pending_round_reward.get("gold", 0))
@@ -1921,6 +1927,11 @@ func _on_unit_died(unit) -> void:
 		# visible board (2026-07-04 user report).
 		_spawn_gold_coins(unit.position,
 				WaveScaler.gold_drops_for_unit(unit, game_state.battle_round))
+		# Bounty (crystal-shop meta): every kill drops ONE extra coin worth the
+		# full bonus, instead of `bonus` separate coin nodes.
+		var bounty: int = Progression.get_bonus("gold_per_kill")
+		if bounty > 0 and _coin_system:
+			_coin_system.spawn_coins(unit.position, 1, bounty)
 		var crystal_bonus: int = Progression.get_bonus("crystal_drop")
 		var crystals: int = WaveScaler.crystals_for_unit(unit) + crystal_bonus
 		if crystals > 0:
