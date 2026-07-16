@@ -503,6 +503,18 @@ const CLASSES := [
 var _idx := 0
 signal closed()
 
+# Stat grid rows: key in UnitFactory.STAT_ICONS/CLASS_BASE_STATS + int/float format.
+const _STAT_ROWS := [
+	["hp", false], ["mana", false], ["atk", false], ["magic", false], ["res", false],
+	["aspd", true], ["hpregen", true], ["manaregen", true], ["move", false], ["range", false],
+]
+# Kit paragraph tags → color ([PASSIVE]/[ACTIVE]/[ULTIMATE] prefixes in skill_desc).
+const _TAG_COLORS := {
+	"PASSIVE": Color(0.5, 0.85, 1.0),
+	"ACTIVE": Color(1.0, 0.85, 0.3),
+	"ULTIMATE": Color(1.0, 0.55, 0.85),
+}
+
 # UI refs
 var _panel: Panel
 var _portrait: TextureRect
@@ -510,9 +522,9 @@ var _class_idx_lbl: Label
 var _class_name_lbl: Label
 var _role_lbl: Label
 var _lore_lbl: Label
-var _stat_lbl: Label
+var _stat_cells: Dictionary = {}   # stat key -> value Label
 var _skill_name_lbl: Label
-var _skill_desc_lbl: Label
+var _kit_box: VBoxContainer
 
 func _ready() -> void:
 	_build_ui()
@@ -531,72 +543,134 @@ func _build_ui() -> void:
 	overlay.gui_input.connect(_on_overlay_input)
 	add_child(overlay)
 
-	# Main panel — wider to give room for lore + skill desc
+	# Main panel — parchment frame + dark backdrop (2026-07-16 redesign, same
+	# recipe as the event panel). Content lives in a ScrollContainer so long
+	# hero kits scroll instead of overflowing past the panel edge.
 	_panel = Panel.new()
-	_panel.size = Vector2(720, 600)
-	_panel.add_theme_stylebox_override("panel",
-		_flat(Color(0.09, 0.09, 0.15, 0.98), Color(0.4, 0.4, 0.65), 2, 10))
+	_panel.size = Vector2(760, 640)
+	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
 	overlay.add_child(_panel)
 
-	# Title
-	_lbl(_panel, "CLASS COMPENDIUM", 20, Color(0.8, 0.8, 1.0),
-		Vector2(0, 14), Vector2(720, 36), true)
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.offset_left = 6; backdrop.offset_top = 6
+	backdrop.offset_right = -6; backdrop.offset_bottom = -6
+	backdrop.color = Color(0.08, 0.08, 0.13, 0.97)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(backdrop)
+	_panel.move_child(backdrop, 0)
 
-	# Close button
-	var close_btn := _btn("✕", Rect2(678, 8, 34, 34))
+	_lbl(_panel, "CLASS COMPENDIUM", 20, Color(0.95, 0.82, 0.5),
+		Vector2(0, 14), Vector2(760, 36), true)
+	var close_btn := _btn("✕", Rect2(714, 10, 34, 34))
 	close_btn.pressed.connect(_close)
 	_panel.add_child(close_btn)
+	var _sep_top := _hsep(_panel, 54, 760)
 
-	var _sep_top := _hsep(_panel, 58, 720)
+	# ── Scrollable content ────────────────────────────────────────────────────
+	var scroll := ScrollContainer.new()
+	scroll.position = Vector2(16, 62)
+	scroll.size = Vector2(728, 508)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_panel.add_child(scroll)
 
-	# ── Portrait area (left column) ───────────────────────────────────────────
-	# Sprite sits directly on the panel — no intermediate background box
-	# (2026-07-04 user report: panel > box > sprite should just be panel >
-	# sprite). The element's color is already conveyed via _class_name_lbl's
-	# font color below, so nothing is lost by dropping the tinted backdrop.
+	var content := VBoxContainer.new()
+	content.custom_minimum_size = Vector2(704, 0)   # leave room for the scrollbar
+	content.add_theme_constant_override("separation", 10)
+	scroll.add_child(content)
+
+	# Header row: portrait + name/role/lore
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 18)
+	content.add_child(head)
+
+	var pcol := VBoxContainer.new()
+	head.add_child(pcol)
 	_portrait = TextureRect.new()
-	_portrait.position = Vector2(24, 72)
-	_portrait.size = Vector2(140, 140)
+	_portrait.custom_minimum_size = Vector2(150, 150)
 	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_panel.add_child(_portrait)
+	pcol.add_child(_portrait)
+	_class_idx_lbl = Label.new()
+	_class_idx_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_class_idx_lbl.add_theme_font_size_override("font_size", UITheme.body_font(11))
+	_class_idx_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.72))
+	pcol.add_child(_class_idx_lbl)
 
-	# Class number badge on portrait
-	_class_idx_lbl = _lbl(_panel, "", 13, Color(0, 0, 0, 0.85),
-		Vector2(24, 202), Vector2(140, 22), true)
-
-	# ── Name, role, lore (right of portrait) ─────────────────────────────────
-	_class_name_lbl = _lbl(_panel, "", 30, Color(1.0, 0.9, 0.6),
-		Vector2(180, 68), Vector2(480, 44))
-	_role_lbl = _lbl(_panel, "", 14, Color(0.65, 0.75, 0.95),
-		Vector2(180, 112), Vector2(480, 24))
-	_lore_lbl = _lbl(_panel, "", 12, Color(0.65, 0.65, 0.75),
-		Vector2(180, 140), Vector2(480, 68))
+	var ncol := VBoxContainer.new()
+	ncol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ncol.add_theme_constant_override("separation", 2)
+	head.add_child(ncol)
+	_class_name_lbl = Label.new()
+	_class_name_lbl.add_theme_font_size_override("font_size", UITheme.body_font(30))
+	ncol.add_child(_class_name_lbl)
+	_role_lbl = Label.new()
+	_role_lbl.add_theme_font_size_override("font_size", UITheme.body_font(14))
+	_role_lbl.add_theme_color_override("font_color", Color(0.65, 0.75, 0.95))
+	ncol.add_child(_role_lbl)
+	_lore_lbl = Label.new()
+	_lore_lbl.add_theme_font_size_override("font_size", UITheme.body_font(12))
+	_lore_lbl.add_theme_color_override("font_color", Color(0.65, 0.65, 0.75))
 	_lore_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ncol.add_child(_lore_lbl)
 
-	# ── Stats row ─────────────────────────────────────────────────────────────
-	var _sep_stat := _hsep(_panel, 228, 720)
-	_lbl(_panel, "BASE STATS", 12, Color(0.55, 0.6, 0.85),
-		Vector2(24, 238), Vector2(200, 20))
-	_stat_lbl = _lbl(_panel, "", 13, Color(0.82, 0.82, 0.95),
-		Vector2(24, 260), Vector2(672, 80))
+	content.add_child(HSeparator.new())
 
-	# ── Skill section ─────────────────────────────────────────────────────────
-	var _sep_skill := _hsep(_panel, 352, 720)
-	_lbl(_panel, "CLASS SKILL", 12, Color(0.55, 0.6, 0.85),
-		Vector2(24, 362), Vector2(200, 20))
-	_skill_name_lbl = _lbl(_panel, "", 20, Color(1.0, 0.85, 0.3),
-		Vector2(24, 384), Vector2(672, 30))
-	_skill_desc_lbl = _lbl(_panel, "", 12, Color(0.72, 0.72, 0.82),
-		Vector2(24, 418), Vector2(672, 130))
-	_skill_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# ── Stat grid: the real stat icons, 5 cells per row ──────────────────────
+	var stats_heading := Label.new()
+	stats_heading.text = "BASE STATS"
+	stats_heading.add_theme_font_size_override("font_size", UITheme.body_font(12))
+	stats_heading.add_theme_color_override("font_color", Color(0.55, 0.6, 0.85))
+	content.add_child(stats_heading)
 
-	# ── Navigation ────────────────────────────────────────────────────────────
-	var _sep_nav := _hsep(_panel, 560, 720)
-	var prev_btn := _btn("◀  Previous", Rect2(24, 570, 160, 22))
+	var grid := GridContainer.new()
+	grid.columns = 5
+	grid.add_theme_constant_override("h_separation", 26)
+	grid.add_theme_constant_override("v_separation", 8)
+	content.add_child(grid)
+	for row in _STAT_ROWS:
+		var key: String = row[0]
+		var cell := HBoxContainer.new()
+		cell.add_theme_constant_override("separation", 7)
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var icon := TextureRect.new()
+		icon.custom_minimum_size = Vector2(20, 20)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.texture = load(UnitFactory.STAT_ICONS[key]) as Texture2D
+		icon.tooltip_text = UnitFactory.STAT_NAMES.get(key, key)
+		icon.mouse_filter = Control.MOUSE_FILTER_STOP
+		cell.add_child(icon)
+		var val := Label.new()
+		val.add_theme_font_size_override("font_size", UITheme.body_font(13))
+		val.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95))
+		val.tooltip_text = icon.tooltip_text
+		cell.add_child(val)
+		grid.add_child(cell)
+		_stat_cells[key] = val
+
+	content.add_child(HSeparator.new())
+
+	# ── Kit section: skill name + one block per PASSIVE/ACTIVE/ULTIMATE ──────
+	var kit_heading := Label.new()
+	kit_heading.text = "CLASS SKILL"
+	kit_heading.add_theme_font_size_override("font_size", UITheme.body_font(12))
+	kit_heading.add_theme_color_override("font_color", Color(0.55, 0.6, 0.85))
+	content.add_child(kit_heading)
+	_skill_name_lbl = Label.new()
+	_skill_name_lbl.add_theme_font_size_override("font_size", UITheme.body_font(20))
+	content.add_child(_skill_name_lbl)
+	_kit_box = VBoxContainer.new()
+	_kit_box.add_theme_constant_override("separation", 10)
+	content.add_child(_kit_box)
+
+	# ── Navigation (fixed under the scroll region) ────────────────────────────
+	var _sep_nav := _hsep(_panel, 578, 760)
+	var prev_btn := _btn("◀  Previous", Rect2(24, 592, 160, 34))
 	prev_btn.pressed.connect(_prev)
 	_panel.add_child(prev_btn)
-	var next_btn := _btn("Next  ▶", Rect2(536, 570, 160, 22))
+	var next_btn := _btn("Next  ▶", Rect2(576, 592, 160, 34))
 	next_btn.pressed.connect(_next)
 	_panel.add_child(next_btn)
 
@@ -633,7 +707,7 @@ func _refresh() -> void:
 		else:
 			_portrait.texture = null
 
-	_class_idx_lbl.text  = "%s  (%d / %d)" % [c["name"], _idx + 1, CLASSES.size()]
+	_class_idx_lbl.text  = "%d / %d" % [_idx + 1, CLASSES.size()]
 	_class_name_lbl.text = c["name"]
 	_class_name_lbl.add_theme_color_override("font_color", c["color"])
 	_role_lbl.text  = c["role"]
@@ -641,17 +715,47 @@ func _refresh() -> void:
 
 	# Stats pulled live from the factory so they always match the real units.
 	var s: Dictionary = UnitFactory.CLASS_BASE_STATS.get(uc, {})
-	_stat_lbl.text = (
-		"HP: %-6d  Mana: %-6d  Move: %-3d  Range: %d\n" +
-		"Attack: %-4d  Magic: %-4d  Defense: %-4d\n" +
-		"Attack Speed: %-4.2f  HP/s: %-4.2f  MP/s: %.2f"
-	) % [s.get("hp", 0), s.get("mana", 0), s.get("move", 0), s.get("range", 0),
-		 s.get("atk", 0), s.get("magic", 0), s.get("res", 0),
-		 s.get("aspd", 0.0), s.get("hpregen", 0.0), s.get("manaregen", 0.0)]
+	for row in _STAT_ROWS:
+		var key: String = row[0]
+		var is_float: bool = row[1]
+		var lbl: Label = _stat_cells[key]
+		lbl.text = ("%.2f" % float(s.get(key, 0.0))) if is_float else ("%d" % int(s.get(key, 0)))
 
 	_skill_name_lbl.text = c["skill"]
 	_skill_name_lbl.add_theme_color_override("font_color", c["skill_color"])
-	_skill_desc_lbl.text = c["skill_desc"]
+
+	# Kit paragraphs: "[PASSIVE] Name — text" becomes a colored tag line above
+	# a body label, one block per move, instead of one overflowing wall of text.
+	for child in _kit_box.get_children():
+		child.queue_free()
+	for para in String(c["skill_desc"]).split("\n\n", false):
+		para = para.strip_edges()
+		if para == "":
+			continue
+		var tag := ""
+		var body := para
+		if para.begins_with("["):
+			var close := para.find("]")
+			if close > 0:
+				tag = para.substr(1, close - 1)
+				body = para.substr(close + 1).strip_edges()
+		var block := VBoxContainer.new()
+		block.add_theme_constant_override("separation", 1)
+		if tag != "":
+			var tag_lbl := Label.new()
+			tag_lbl.text = tag
+			tag_lbl.add_theme_font_size_override("font_size", UITheme.body_font(11))
+			var tag_key: String = tag.split(" ")[0].to_upper()   # "ACTIVE — 60 MP" -> ACTIVE
+			tag_lbl.add_theme_color_override("font_color",
+				_TAG_COLORS.get(tag_key, Color(0.7, 0.7, 0.8)))
+			block.add_child(tag_lbl)
+		var body_lbl := Label.new()
+		body_lbl.text = body
+		body_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		body_lbl.add_theme_font_size_override("font_size", UITheme.body_font(12))
+		body_lbl.add_theme_color_override("font_color", Color(0.78, 0.78, 0.86))
+		block.add_child(body_lbl)
+		_kit_box.add_child(block)
 
 func _prev() -> void:
 	_idx = (_idx - 1 + CLASSES.size()) % CLASSES.size()
