@@ -294,10 +294,10 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 		["mana",      "MP",       "mana",      false],
 		["atk",       "ATK",      "atk",       false],
 		["magic",     "MAG",      "magic",     false],
-		["res",       "ARM/MR",   "res",       false],   # "res" growth feeds BOTH armor stats (2026-07-16 split)
+		["res",       "ARM",      "res",       false],   # rendered as an ARM|MR column pair below
 		["aspd",      "AS",       "aspd",      true],
-		["hpregen",   "HPREGEN",  "hpregen",   true],
-		["manaregen", "MPREGEN",  "manaregen", true],
+		["hpregen",   "HP/S",     "hpregen",   true],
+		["manaregen", "MP/S",     "manaregen", true],
 	]
 
 	var class_growth: Dictionary = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(cls, {})
@@ -336,6 +336,23 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 		else:
 			base_str = "%d" % int(next_val)
 			growth_str = "%+d" % int(delta)
+
+		if roll_key == "res":
+			# Armor + Magic Armor side by side, SPD/RNG-style (2026-07-16 user
+			# request). Both stats ride the same "res" roll and growth today.
+			var res_col_w := CARD_W / 2.0 - 10.0
+			for pair2 in [["res", "ARM"], ["mres", "MR"]]:
+				var col2: int = 0 if pair2[0] == "res" else 1
+				var ox2 := 14.0 + col2 * (res_col_w + 16.0)
+				_add_stat_icon(btn, pair2[0], Vector2(ox2, row_y + 2), 18.0)
+				_clbl(btn, pair2[1], 10, Color(0.55, 0.55, 0.72),
+					Vector2(ox2 + 20, row_y), Vector2(34, ROW_H))
+				_clbl(btn, base_str, 12, Color(0.92, 0.92, 0.96),
+					Vector2(ox2 + 56, row_y), Vector2(40, ROW_H))
+				_clbl(btn, growth_str, 11, growth_col,
+					Vector2(ox2 + 96, row_y), Vector2(res_col_w - 96, ROW_H))
+			row_y += ROW_H
+			continue
 
 		_add_stat_icon(btn, roll_key, Vector2(14, row_y + 2), 18.0)
 		_clbl(btn, disp_name, 10, Color(0.55, 0.55, 0.72),
