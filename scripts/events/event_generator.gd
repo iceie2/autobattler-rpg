@@ -42,10 +42,12 @@ static func _create_gold_blessing(round: int) -> EventBlessing:
 		{"gold": gold_amount},
 		"You gain %dg" % gold_amount
 	)
+	# (2026-07-16 audit: text used to promise "+1 max hero level" — no level
+	# cap exists; the handler levels the current team up immediately.)
 	event.add_choice(
-		"Invest in training (+1 max hero level)",
+		"Invest in training",
 		{"max_level": 1},
-		"Increase hero level cap by 1"
+		"All current heroes gain +1 level"
 	)
 	return event
 
@@ -65,7 +67,6 @@ static func _create_extra_hero_blessing(round: int) -> EventBlessing:
 
 static func _create_stat_blessing(round: int) -> EventBlessing:
 	var event = EventBlessing.new("Mystical Enhancement", "A magical aura surrounds your team")
-	var dmg_boost = 10 + round * 5
 	event.add_choice(
 		"Boost damage",
 		{"team_dmg_mult": 1.15},

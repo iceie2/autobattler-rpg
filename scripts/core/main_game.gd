@@ -1349,9 +1349,13 @@ func _on_event_choice_made(choice_index: int) -> void:
 	if not _event_panel._current_event:
 		return
 	var choice = _event_panel._current_event.choices[choice_index]
-	var effects = choice.effects
+	_apply_event_effects(choice.effects)
+	update_ui()
+	game_state.player_ready_for_battle()
 
-	# Apply effects
+# Effect application, separated from the panel callback so the headless event
+# audit (2026-07-16) can exercise every choice without starting battles.
+func _apply_event_effects(effects: Dictionary) -> void:
 	if effects.has("gold"):
 		game_state.add_gold(effects["gold"])
 
@@ -1371,20 +1375,30 @@ func _on_event_choice_made(choice_index: int) -> void:
 			if unit and is_instance_valid(unit):
 				unit.current_hp = int(unit.current_hp * (1.0 - damage_ratio))
 
+	# 2026-07-16 event audit — these three now do what their choice text says:
+	# "damage" includes magic_power (mage teams got nothing), "act faster"
+	# includes attack_speed (movement alone int-truncated to a NO-OP for every
+	# unit at move 1-4), and "take less/more damage" scales incoming damage
+	# directly instead of nudging resistance by ~1%.
 	if effects.has("team_dmg_mult"):
 		for unit in player_units:
 			if unit and is_instance_valid(unit):
-				unit.attack_damage = int(unit.attack_damage * effects["team_dmg_mult"])
+				unit.attack_damage = roundi(unit.attack_damage * effects["team_dmg_mult"])
+				unit.magic_power = roundi(unit.magic_power * effects["team_dmg_mult"])
 
 	if effects.has("team_def_mult"):
+		# def_mult 1.15 = "take 15% less damage" → incoming-damage ×0.85; the
+		# 0.9 curse = ×1.1. Rides relic_dmg_taken_mult (take_damage already
+		# applies it; relics compose with *=, so events can too).
 		for unit in player_units:
 			if unit and is_instance_valid(unit):
-				unit.resistance = int(unit.resistance * effects["team_def_mult"])
+				unit.relic_dmg_taken_mult *= 2.0 - float(effects["team_def_mult"])
 
 	if effects.has("team_spd_mult"):
 		for unit in player_units:
 			if unit and is_instance_valid(unit):
-				unit.movement_speed = max(1, int(unit.movement_speed * effects["team_spd_mult"]))
+				unit.attack_speed = unit.attack_speed * float(effects["team_spd_mult"])
+				unit.movement_speed = max(1, roundi(unit.movement_speed * effects["team_spd_mult"]))
 
 	if effects.has("max_hp_mult"):
 		for unit in player_units:
@@ -1416,9 +1430,6 @@ func _on_event_choice_made(choice_index: int) -> void:
 			var lost := int(effects.get("gold_if_lose", 0))
 			game_state.add_gold(lost)   # lost is negative
 			info_label.text = "Gamble lost! %dg" % lost
-
-	update_ui()
-	game_state.player_ready_for_battle()
 
 func _on_ready_pressed() -> void:
 	if player_units.is_empty():

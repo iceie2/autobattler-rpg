@@ -70,19 +70,46 @@ func _refresh_display() -> void:
 
 	_choice_buttons.clear()
 
-	# Add choice buttons
+	# Add choice buttons — two lines each: the choice itself, then what it
+	# actually does (choice.description was authored for every event but never
+	# rendered anywhere until 2026-07-16 — "Take the gold" never said how much).
 	for i in range(_current_event.choices.size()):
 		var choice = _current_event.choices[i]
 		var btn = Button.new()
-		btn.text = choice.text
-		btn.add_theme_font_size_override("font_size", 16)
-		btn.add_theme_color_override("font_color", Color(0.85, 0.85, 1.0))
-		btn.custom_minimum_size = Vector2(600, 50)
-		btn.add_theme_stylebox_override("normal",
-			_flat(Color(0.12, 0.12, 0.20, 0.8), Color(0.4, 0.4, 0.55), 2, 6))
-		btn.add_theme_stylebox_override("hover",
-			_flat(Color(0.18, 0.18, 0.28, 0.8), Color(0.6, 0.6, 0.8), 2, 6))
+		btn.custom_minimum_size = Vector2(600, 64)
+		btn.focus_mode = Control.FOCUS_NONE
+		var boxes: Dictionary = UITheme.button_boxes()
+		btn.add_theme_stylebox_override("normal", boxes["normal"])
+		btn.add_theme_stylebox_override("hover", boxes["hover"])
+		btn.add_theme_stylebox_override("pressed", boxes["pressed"])
 		btn.pressed.connect(_on_choice_selected.bind(i))
+
+		var col := VBoxContainer.new()
+		col.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		col.offset_left = 18; col.offset_right = -18
+		col.offset_top = 7;  col.offset_bottom = -7
+		col.alignment = BoxContainer.ALIGNMENT_CENTER
+		col.add_theme_constant_override("separation", 0)
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		btn.add_child(col)
+
+		var title := Label.new()
+		title.text = choice.text
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.add_theme_font_size_override("font_size", UITheme.body_font(15))
+		title.add_theme_color_override("font_color", UITheme.TEXT_BTN)
+		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(title)
+
+		if choice.description != "":
+			var outcome := Label.new()
+			outcome.text = choice.description
+			outcome.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			outcome.add_theme_font_size_override("font_size", UITheme.body_font(11))
+			outcome.add_theme_color_override("font_color", Color(0.45, 0.32, 0.12, 0.9))
+			outcome.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			col.add_child(outcome)
+
 		choices_container.add_child(btn)
 		_choice_buttons.append(btn)
 
