@@ -245,6 +245,28 @@ func get_unit_held_items(unit: UnitBase) -> Array:
 		return game._equipment_inventory.get_hero_equipment(unit) if game._equipment_inventory else []
 	return unit.held_items
 
+# Crystal-shop stat-tree bonuses baked into every player hero at recruit time
+# (main_game._apply_progression_bonuses) — recovered from Progression here so
+# the panel can show them in the same base → boosted style as equipment and
+# synergies. Enemies never get these; neither do player-side SUMMONS (ants/
+# zombies/bats spawn through the battle manager, not the recruit flow).
+func _shop_bonuses(unit: UnitBase) -> Dictionary:
+	if not unit.is_player_unit or unit.get("is_summoned") == true:
+		return {}
+	return {
+		"hp":          float(Progression.get_bonus("team_hp")),
+		"mana":        float(Progression.get_bonus("mana_well")),
+		"magic":       float(Progression.get_bonus("spellpower")),
+		"atk":         float(Progression.get_bonus("might")),
+		"res":         float(Progression.get_bonus("warding")),
+		"aspd":        Progression.get_bonus_float("fleetfoot"),
+		"hpregen":     Progression.get_bonus_float("vitality_flow"),
+		"manaregen":   Progression.get_bonus_float("mana_flow"),
+		"move":        float(Progression.get_bonus("swiftness")),
+		"crit_chance": float(Progression.get_bonus("lethality")) / 100.0,
+		"crit_damage": float(Progression.get_bonus("killing_blow")) / 100.0,
+	}
+
 func _sum_equipment_stats(unit: UnitBase) -> Dictionary:
 	var totals: Dictionary = {}
 	for item in get_unit_held_items(unit):
@@ -273,14 +295,28 @@ func _refresh() -> void:
 	level_lbl.text = "Lv %d" % unit.level
 
 	var eq := _sum_equipment_stats(unit)
+	var shop := _shop_bonuses(unit)
 
-	# ── Vitals ──
+	# ── Vitals ── (crystal-shop HP/mana show as "cur / base → boosted", same
+	# green treatment as boosted combat cells)
+	var hp_shop: int = int(shop.get("hp", 0.0))
 	hp_bar.max_value = max(1, unit.max_hp)
 	hp_bar.value = unit.current_hp
-	hp_val.text = "HP  %d / %d" % [unit.current_hp, unit.max_hp]
+	if hp_shop > 0:
+		hp_val.text = "HP  %d / %d → %d" % [unit.current_hp, unit.max_hp - hp_shop, unit.max_hp]
+	else:
+		hp_val.text = "HP  %d / %d" % [unit.current_hp, unit.max_hp]
+	hp_val.add_theme_color_override("font_color",
+		Color(0.4, 0.95, 0.5) if hp_shop > 0 else Color(0.9, 0.9, 0.95))
+	var mana_shop: int = int(shop.get("mana", 0.0))
 	mp_bar.max_value = max(1, unit.max_mana)
 	mp_bar.value = unit.current_mana
-	mp_val.text = "MP  %d / %d" % [unit.current_mana, unit.max_mana]
+	if mana_shop > 0:
+		mp_val.text = "MP  %d / %d → %d" % [unit.current_mana, unit.max_mana - mana_shop, unit.max_mana]
+	else:
+		mp_val.text = "MP  %d / %d" % [unit.current_mana, unit.max_mana]
+	mp_val.add_theme_color_override("font_color",
+		Color(0.4, 0.95, 0.5) if mana_shop > 0 else Color(0.9, 0.9, 0.95))
 	xp_bar.max_value = max(1.0, unit.xp_to_level)
 	xp_bar.value = unit.current_xp
 	xp_val.text = "XP  %.0f / %.0f" % [unit.current_xp, unit.xp_to_level]
@@ -290,20 +326,33 @@ func _refresh() -> void:
 	# (see _apply_team_synergies) — outside of battle, _combat_cell_values previews
 	# the same amount so the base→boosted display never has to "wait for the round
 	# to start" to reflect a set bonus the player can already see in SET BONUSES.
-	var atk := _combat_cell_values(unit, "attack_damage", eq.get("atk", 0.0))
-	var def := _combat_cell_values(unit, "resistance", eq.get("res", 0.0))
-	var mag := _combat_cell_values(unit, "magic_power", eq.get("magic", 0.0))
-	var aspd := _combat_cell_values(unit, "attack_speed", eq.get("aspd", 0.0))
+	# Crystal-shop bonuses ride the same eq-bonus slot — both are flat amounts
+	# already baked into unit.<stat>, so base → boosted math is identical.
+	var atk := _combat_cell_values(unit, "attack_damage", eq.get("atk", 0.0) + shop.get("atk", 0.0))
+	var def := _combat_cell_values(unit, "resistance", eq.get("res", 0.0) + shop.get("res", 0.0))
+	var mag := _combat_cell_values(unit, "magic_power", eq.get("magic", 0.0) + shop.get("magic", 0.0))
+	var aspd := _combat_cell_values(unit, "attack_speed", eq.get("aspd", 0.0) + shop.get("aspd", 0.0))
+	var hpreg_b: float = eq.get("hpregen", 0.0) + shop.get("hpregen", 0.0)
+	var mpreg_b: float = eq.get("manaregen", 0.0) + shop.get("manaregen", 0.0)
+	var move_b: int = int(shop.get("move", 0.0))
+	var cc_b: float = shop.get("crit_chance", 0.0)
+	var cd_b: float = shop.get("crit_damage", 0.0)
 	_set_combat_cell("CellAtk", _cell_int_text(int(round(atk[0])), atk[1]), atk[1] > 0)
 	_set_combat_cell("CellDef", _cell_int_text(int(round(def[0])), def[1]), def[1] > 0)
 	_set_combat_cell("CellMag", _cell_int_text(int(round(mag[0])), mag[1]), mag[1] > 0)
 	_set_combat_cell("CellAspd", _cell_float_text(aspd[0], aspd[1]), aspd[1] > 0)
-	_set_combat_cell("CellHpRegen", _cell_float_text(unit.hp_regen, eq.get("hpregen", 0.0)), eq.get("hpregen", 0.0) > 0)
-	_set_combat_cell("CellMpRegen", _cell_float_text(unit.mana_regen, eq.get("manaregen", 0.0)), eq.get("manaregen", 0.0) > 0)
-	_set_combat_cell("CellMove", "%d" % unit.movement_speed, false)
+	_set_combat_cell("CellHpRegen", _cell_float_text(unit.hp_regen, hpreg_b), hpreg_b > 0)
+	_set_combat_cell("CellMpRegen", _cell_float_text(unit.mana_regen, mpreg_b), mpreg_b > 0)
+	_set_combat_cell("CellMove", _cell_int_text(unit.movement_speed, move_b), move_b > 0)
 	_set_combat_cell("CellRange", "%d" % unit.attack_range, false)
-	_set_combat_cell("CellCritChance", "%.0f%%" % (unit.crit_chance * 100.0), false)
-	_set_combat_cell("CellCritDamage", "x%.2f" % unit.crit_damage, false)
+	if cc_b > 0.0:
+		_set_combat_cell("CellCritChance", "%.0f%% → %.0f%%" % [(unit.crit_chance - cc_b) * 100.0, unit.crit_chance * 100.0], true)
+	else:
+		_set_combat_cell("CellCritChance", "%.0f%%" % (unit.crit_chance * 100.0), false)
+	if cd_b > 0.0:
+		_set_combat_cell("CellCritDamage", "x%.2f → x%.2f" % [unit.crit_damage - cd_b, unit.crit_damage], true)
+	else:
+		_set_combat_cell("CellCritDamage", "x%.2f" % unit.crit_damage, false)
 
 	# ── Growth per level (final — base class growth + this unit's personal roll) ──
 	for pair in _GROWTH_CELLS:
