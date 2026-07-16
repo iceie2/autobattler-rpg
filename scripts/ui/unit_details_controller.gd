@@ -291,6 +291,7 @@ func _refresh() -> void:
 	class_lbl.text = unit.get_class_name_string()
 	element_lbl.text = unit.get_element_name_string()
 	element_lbl.add_theme_color_override("font_color", Color(element_color_hex(unit.current_element)))
+	element_lbl.add_theme_font_size_override("font_size", 28)
 	element_icon.texture = load(UnitFactory.ELEMENT_ICONS.get(unit.current_element, "")) as Texture2D
 	level_lbl.text = "Lv %d" % unit.level
 
