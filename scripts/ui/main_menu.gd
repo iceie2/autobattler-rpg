@@ -55,6 +55,7 @@ func _build_main(canvas: CanvasLayer) -> void:
 		["CRYSTAL SHOP",  _on_crystal_shop],
 		["ARENA",         _on_arena],
 		["OPTIONS",       _on_options],
+		["QUIT",          _on_quit],
 	]
 	var by := 240.0
 	for b in btns:
@@ -115,6 +116,9 @@ func _on_arena() -> void:
 
 func _on_options() -> void:
 	_options_panel.visible = not _options_panel.visible
+
+func _on_quit() -> void:
+	get_tree().quit()
 
 func _on_window_mode(mode: WinMode) -> void:
 	_win_mode = mode

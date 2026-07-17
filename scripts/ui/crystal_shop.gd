@@ -138,6 +138,9 @@ var _canvas: Control          # everything tree-shaped lives here; pan = move it
 var _canvas_home := Vector2.ZERO
 var _dragging := false
 
+var _reset_btn: Button
+var _reset_armed := false
+
 var _detail_prompt: Label
 var _detail_icon: TextureRect
 var _detail_name: Label
@@ -211,6 +214,12 @@ func _build_ui() -> void:
 	var close_btn := _btn("✕  Close", Rect2((PANEL_SIZE.x - 200) / 2.0, PANEL_SIZE.y - 56, 200, 40))
 	close_btn.pressed.connect(_close)
 	panel.add_child(close_btn)
+
+	# Full respec (2026-07-17 user request) — two-click confirm so a stray
+	# click can't wipe the tree. Refunds every crystal spent.
+	_reset_btn = _btn("Reset Upgrades", Rect2(30, PANEL_SIZE.y - 56, 220, 40))
+	_reset_btn.pressed.connect(_on_reset_pressed)
+	panel.add_child(_reset_btn)
 
 	visible = false
 
@@ -492,6 +501,26 @@ func _select(key: String) -> void:
 func _on_buy() -> void:
 	if _selected_key != "" and Progression.buy(_selected_key):
 		_refresh()
+
+func _on_reset_pressed() -> void:
+	if not _reset_armed:
+		var spent: int = Progression.total_spent()
+		if spent <= 0:
+			return   # nothing to refund
+		_reset_armed = true
+		_reset_btn.text = "Refund %d — sure?" % spent
+		# Disarm automatically if they wander off.
+		get_tree().create_timer(4.0).timeout.connect(_disarm_reset)
+		return
+	var refund: int = Progression.reset_all()
+	_disarm_reset()
+	_selected_key = ""
+	_refresh()
+
+func _disarm_reset() -> void:
+	_reset_armed = false
+	if is_instance_valid(_reset_btn):
+		_reset_btn.text = "Reset Upgrades"
 
 func _close() -> void:
 	visible = false

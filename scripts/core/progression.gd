@@ -179,6 +179,25 @@ func buy(key: String) -> bool:
 	save_data()
 	return true
 
+# Total crystals ever spent on current upgrade levels — replays the exact
+# cost curve (incl. per-node cost_mult) so a reset refunds to the crystal.
+func total_spent() -> int:
+	var spent := 0
+	for u in UPGRADES:
+		var mult: float = float(u.get("cost_mult", 1.0))
+		for lvl in range(get_level(u["key"])):
+			spent += roundi(10.0 * pow(1.255, lvl) * mult)
+	return spent
+
+# Full respec (2026-07-17 user request): wipe every upgrade level and refund
+# every crystal spent. Returns the refund amount for UI feedback.
+func reset_all() -> int:
+	var refund := total_spent()
+	upgrade_levels.clear()
+	crystals += refund
+	save_data()
+	return refund
+
 func add_crystals(amount: int) -> void:
 	if amount <= 0:
 		return
