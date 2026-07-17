@@ -12,6 +12,7 @@ var _crystal_shop: CrystalShop
 
 func _ready() -> void:
 	_apply_window_mode(WinMode.WINDOWED)
+	_load_settings()   # overrides with the saved window mode, if any
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
 	_build_main(canvas)
@@ -49,14 +50,18 @@ func _build_main(canvas: CanvasLayer) -> void:
 	_lbl(root, "an autobattler rpg", 16, Color(0.5, 0.6, 0.85, 0.75),
 		Vector2(cx - 200, 162), Vector2(400, 30), true)
 
-	var btns := [
+	var btns := []
+	# A saved run gets top billing (2026-07-17 mid-run save).
+	if RunSave.exists():
+		btns.append(["CONTINUE RUN", _on_continue])
+	btns.append_array([
 		["START GAME",    _on_start],
 		["CLASSES",       _on_classes],
 		["CRYSTAL SHOP",  _on_crystal_shop],
 		["ARENA",         _on_arena],
 		["OPTIONS",       _on_options],
 		["QUIT",          _on_quit],
-	]
+	])
 	var by := 240.0
 	for b in btns:
 		var btn := _btn(b[0], Rect2(cx - 150, by, 300, 52))
@@ -99,6 +104,11 @@ func _build_options(canvas: CanvasLayer) -> void:
 
 # ── Handlers ──────────────────────────────────────────────────────────────────
 func _on_start() -> void:
+	RunSave.resume_on_start = false
+	get_tree().change_scene_to_file(GAME_SCENE)
+
+func _on_continue() -> void:
+	RunSave.resume_on_start = true
 	get_tree().change_scene_to_file(GAME_SCENE)
 
 func _on_classes() -> void:
@@ -120,9 +130,29 @@ func _on_options() -> void:
 func _on_quit() -> void:
 	get_tree().quit()
 
+# ── Settings persistence (2026-07-17): window mode survives restarts ──────────
+const SETTINGS_PATH := "user://settings.json"
+
+func _load_settings() -> void:
+	if not FileAccess.file_exists(SETTINGS_PATH):
+		return
+	var f := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
+	if not f:
+		return
+	var parsed = JSON.parse_string(f.get_as_text())
+	if parsed is Dictionary and parsed.has("win_mode"):
+		_win_mode = clampi(int(parsed["win_mode"]), 0, WinMode.size() - 1)
+		_apply_window_mode(_win_mode)
+
+func _save_settings() -> void:
+	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify({"win_mode": _win_mode}))
+
 func _on_window_mode(mode: WinMode) -> void:
 	_win_mode = mode
 	_apply_window_mode(mode)
+	_save_settings()
 
 func _apply_window_mode(mode: WinMode) -> void:
 	match mode:

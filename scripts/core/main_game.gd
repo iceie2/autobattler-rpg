@@ -209,7 +209,183 @@ func _ready():
 	_build_new_layout()
 	get_viewport().size_changed.connect(_position_sidebars)
 	_create_row_tooltip()
-	start_new_game()
+	_build_pause_menu()
+	if RunSave.resume_on_start and RunSave.exists():
+		RunSave.resume_on_start = false
+		_resume_run()
+	else:
+		start_new_game()
+
+# ══ Run save / resume (2026-07-17 user request) ═══════════════════════════════
+# Capture is prep-phase-shaped: heroes (field + bench) with their full stat
+# truth, the bag, relics, and run counters. Battle state is never saved —
+# resuming always restarts the current round's prep from its checkpoint.
+
+func save_run() -> void:
+	if game_state.battle_round < 1:
+		return
+	var heroes: Array = []
+	for u in player_units:
+		if u and is_instance_valid(u):
+			heroes.append(_hero_to_dict(u, false))
+	for u in bench_units:
+		if u and is_instance_valid(u):
+			heroes.append(_hero_to_dict(u, true))
+	var bag: Array = []
+	for it in _equipment_inventory.items:
+		bag.append(_item_to_dict(it))
+	RunSave.write_data({
+		"round": game_state.battle_round,
+		"gold": game_state.gold,
+		"crystals": game_state.crystals,
+		"player_level": game_state.player_level,
+		"player_xp": game_state.player_xp,
+		"player_xp_to_level": game_state.player_xp_to_level,
+		"run_kills": _run_kills,
+		"event_team_size": _event_team_size_bonus,
+		"relics": _relic_inventory.owned.duplicate(true),
+		"relic_waves_done": _relic_waves_done.duplicate(),
+		"hydra_element": _hydra_chosen_element,
+		"hydra_chosen": _hydra_element_chosen,
+		"call_pending": _call_to_arms_pending,
+		"bag": bag,
+		"heroes": heroes,
+	})
+
+func _resume_run() -> void:
+	var d := RunSave.read_data()
+	if d.is_empty():
+		start_new_game()
+		return
+	_run_kills = int(d.get("run_kills", 0))
+	_event_team_size_bonus = int(d.get("event_team_size", 0))
+	game_state.gold = int(d.get("gold", 0))
+	game_state.crystals = int(d.get("crystals", 0))
+	game_state.player_level = int(d.get("player_level", 1))
+	game_state.player_xp = float(d.get("player_xp", 0.0))
+	game_state.player_xp_to_level = float(d.get("player_xp_to_level", 300.0))
+	_relic_inventory = RelicInventory.new()
+	_relic_inventory.owned = d.get("relics", [])
+	_relic_inventory._next_acq = _relic_inventory.owned.size()
+	_relic_waves_done = d.get("relic_waves_done", {})
+	_hydra_chosen_element = int(d.get("hydra_element", -1))
+	_hydra_element_chosen = bool(d.get("hydra_chosen", false))
+	_call_to_arms_pending = bool(d.get("call_pending", false))
+	_rebuild_relic_bar()
+	for idict in d.get("bag", []):
+		_equipment_inventory.add_item(_item_from_dict(idict))
+	for hd in d.get("heroes", []):
+		_restore_hero(hd)
+	_recompute_max_player_units()
+	_rebuild_bench_bar()
+	_rebuild_synergy_display()
+	_rebuild_inventory_grid()
+	update_team_health_bars()
+	update_ui()
+	# Re-enter the saved round's prep phase fresh (wave preview, rewards, and
+	# any still-pending relic/hydra modals regenerate off the round number).
+	game_state.battle_round = int(d.get("round", 1)) - 1
+	game_state.start_battle_round()
+	if _call_to_arms_pending:
+		_maybe_open_call_to_arms_picker()
+	info_label.text = "Run resumed — round %d." % game_state.battle_round
+
+func _hero_to_dict(u: UnitBase, on_bench: bool) -> Dictionary:
+	var equipment: Array = []
+	for it in _equipment_inventory.get_hero_equipment(u):
+		equipment.append(_item_to_dict(it))
+	return {
+		"class": int(u.unit_class), "element": int(u.current_element),
+		"name": u.unit_name, "level": u.level, "variant": u.sprite_variant,
+		"grade": u.recruit_grade, "growth_bonus": u.growth_bonus.duplicate(),
+		"bench": on_bench, "pos": u.grid_position, "home": u.home_position,
+		"max_hp": u.max_hp, "current_hp": u.current_hp,
+		"max_mana": u.max_mana, "current_mana": u.current_mana,
+		"atk": u.attack_damage, "magic": u.magic_power,
+		"res": u.resistance, "mres": u.magic_resist,
+		"aspd": u.attack_speed, "hpregen": u.hp_regen, "manaregen": u.mana_regen,
+		"move": u.movement_speed, "range": u.attack_range,
+		"crit_chance": u.crit_chance, "crit_damage": u.crit_damage,
+		"xp": u.current_xp, "xp_to_level": u.xp_to_level,
+		"aff_off": u.base_off_affinity, "aff_def": u.base_def_affinity,
+		"r_dmg_taken": u.relic_dmg_taken_mult, "r_outgoing": u.relic_outgoing_mult,
+		"r_vs_boss": u.relic_vs_boss_mult, "r_double": u.relic_double_atk_chance,
+		"r_revive": u.relic_revive_pct,
+		"equipment": equipment,
+	}
+
+func _restore_hero(d: Dictionary) -> void:
+	var cls_i := int(d.get("class", 0))
+	if cls_i < 0 or cls_i >= UnitBase.UnitClass.size():
+		return
+	var u := UnitFactory.create_unit(cls_i, int(d.get("element", 0)), true)
+	u.growth_bonus = d.get("growth_bonus", {})
+	u.recruit_grade = str(d.get("grade", ""))
+	u.level = int(d.get("level", 1))
+	u.unit_name = str(d.get("name", u.unit_name))
+	u.sprite_variant = int(d.get("variant", 0))
+	# Re-register relics + equipment (rebuilds passives and the equipment map);
+	# the stat overwrite below is the final truth, so double-baking is harmless.
+	if _relic_inventory:
+		_relic_inventory.apply_all_to_unit(u)
+	for idict in d.get("equipment", []):
+		_equipment_inventory.apply_to_hero(_item_from_dict(idict), u)
+	u.max_hp = int(d["max_hp"]);        u.current_hp = int(d["current_hp"])
+	u.max_mana = int(d["max_mana"]);    u.current_mana = int(d["current_mana"])
+	u.attack_damage = int(d["atk"]);    u.magic_power = int(d["magic"])
+	u.resistance = int(d["res"]);       u.magic_resist = int(d["mres"])
+	u.attack_speed = float(d["aspd"])
+	u.hp_regen = float(d["hpregen"]);   u.mana_regen = float(d["manaregen"])
+	u.movement_speed = int(d["move"]);  u.attack_range = int(d["range"])
+	u.crit_chance = float(d["crit_chance"]); u.crit_damage = float(d["crit_damage"])
+	u.current_xp = float(d.get("xp", 0.0))
+	u.xp_to_level = float(d.get("xp_to_level", 100.0))
+	u.set_affinity_profile(float(d.get("aff_off", 100.0)), float(d.get("aff_def", 100.0)))
+	u.relic_dmg_taken_mult = float(d.get("r_dmg_taken", 1.0))
+	u.relic_outgoing_mult = float(d.get("r_outgoing", 1.0))
+	u.relic_vs_boss_mult = float(d.get("r_vs_boss", 1.0))
+	u.relic_double_atk_chance = float(d.get("r_double", 0.0))
+	u.relic_revive_pct = float(d.get("r_revive", 0.0))
+	u.died.connect(_on_unit_died.bind(u))
+	u.battle_manager = auto_battle_manager
+	u.damage_text_container = damage_text_container
+
+	if bool(d.get("bench", false)):
+		battle_grid_node.add_child(u)
+		u.visible = false
+		u.can_be_dragged = false
+		bench_units.append(u)
+		return
+	var pos: Vector2i = d.get("pos", Vector2i(-1, -1))
+	if not battle_grid.is_valid_position(pos) or battle_grid.is_cell_occupied(pos):
+		pos = find_empty_player_slot()
+	if pos == Vector2i(-1, -1):
+		u.queue_free()
+		return
+	u.grid_position = pos
+	u.position = battle_grid.grid_to_world(pos)
+	battle_grid_node.add_child(u)
+	battle_grid.place_unit(u, pos)
+	u.home_position = d.get("home", pos)
+	player_units.append(u)
+
+func _item_to_dict(it: EquipmentItem) -> Dictionary:
+	return {
+		"id": it.id, "name": it.name, "description": it.description,
+		"rarity": int(it.rarity), "stat_bonus": it.stat_bonus.duplicate(),
+		"passive_effect": it.passive_effect, "effect_value": it.effect_value,
+		"icon_color": it.icon_color,
+	}
+
+func _item_from_dict(d: Dictionary) -> EquipmentItem:
+	var it := EquipmentItem.new(str(d.get("name", "?")), int(d.get("rarity", 0)))
+	it.id = str(d.get("id", ""))
+	it.description = str(d.get("description", ""))
+	it.stat_bonus = d.get("stat_bonus", {})
+	it.passive_effect = str(d.get("passive_effect", ""))
+	it.effect_value = float(d.get("effect_value", 0.0))
+	it.icon_color = d.get("icon_color", Color.WHITE)
+	return it
 
 # Centre the board within the usable area between the two sidebars.
 func _center_battlefield() -> void:
@@ -606,6 +782,10 @@ func _on_battle_round_started(round_number: int) -> void:
 		_hydra_element_chosen = true
 		_hydra_element_screen.present()
 
+	# Run checkpoint at the start of every prep phase (2026-07-17): a crash or
+	# quit from here on costs at most this prep's purchases, never the run.
+	save_run()
+
 func _on_hydra_element_chosen(element: int) -> void:
 	_hydra_chosen_element = element
 	if difficulty_panel:
@@ -633,6 +813,7 @@ func _on_relic_chosen(relic: Dictionary) -> void:
 		_update_details_panel()
 	info_label.text = "Relic acquired: %s" % relic.get("name", "?")
 	_maybe_open_call_to_arms_picker()
+	save_run()   # checkpoint: relic picks are permanent
 
 # The relics picked this run, shown as grade-bordered icons in the left sidebar
 # (RELICS section, above the bag). Hover an icon for its name + effect.
@@ -856,6 +1037,7 @@ func _on_battle_ended(player_won: bool) -> void:
 		# Check if the player just cleared the final scripted wave
 		if game_state.battle_round >= VICTORY_ROUND:
 			Progression.add_crystals(game_state.crystals)
+			RunSave.clear()
 			var total_dmg := 0
 			for pu in player_units:
 				if pu and is_instance_valid(pu):
@@ -897,6 +1079,7 @@ func _on_battle_ended(player_won: bool) -> void:
 	else:
 		# Save crystals earned this run to the persistent wallet
 		Progression.add_crystals(game_state.crystals)
+		RunSave.clear()
 
 		var total_dmg := 0
 		for pu in player_units:
@@ -1214,6 +1397,7 @@ func _on_hero_chosen(unit_class: UnitBase.UnitClass, element: UnitBase.Element, 
 		game_state.add_gold(HeroShop.HERO_COST)   # refund
 		return
 	update_ui()
+	save_run()   # checkpoint: keep prep purchases if the player quits/crashes
 
 # Shared "create + apply bonuses/relics + place on the grid" recruit flow —
 # used by the paid hero-shop path above AND the free Call to Arms starting
@@ -2154,6 +2338,83 @@ func _close_top_menu() -> void:
 		_character_menu.visible = false
 	elif _equipment_panel and _equipment_panel.visible:
 		_equipment_panel.visible = false
+	elif _pause_menu and _pause_menu.visible:
+		_toggle_pause_menu(false)
+	else:
+		# Nothing open — ESC opens the pause menu (2026-07-17).
+		_toggle_pause_menu(true)
+
+# ══ Pause menu (2026-07-17 user request) ══════════════════════════════════════
+var _pause_menu: CanvasLayer
+var _pause_was_mgr_paused := false
+
+func _build_pause_menu() -> void:
+	_pause_menu = CanvasLayer.new()
+	_pause_menu.layer = 30
+	add_child(_pause_menu)
+	var overlay := ColorRect.new()
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.7)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_menu.add_child(overlay)
+
+	var panel := Panel.new()
+	panel.size = Vector2(360, 320)
+	panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+	panel.position = (get_viewport().get_visible_rect().size - panel.size) / 2.0
+	overlay.add_child(panel)
+
+	var title := Label.new()
+	title.text = "PAUSED"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.position = Vector2(0, 24); title.size = Vector2(360, 40)
+	title.add_theme_font_size_override("font_size", UITheme.body_font(24))
+	title.add_theme_color_override("font_color", Color(0.95, 0.82, 0.5))
+	panel.add_child(title)
+
+	var entries := [
+		["Resume", func(): _toggle_pause_menu(false)],
+		["Quit to Menu", _pause_quit_to_menu],
+		["Quit Game", _pause_quit_game],
+	]
+	var y := 90.0
+	for e in entries:
+		var b := Button.new()
+		b.text = e[0]; b.position = Vector2(60, y); b.size = Vector2(240, 52)
+		b.add_theme_font_size_override("font_size", 15)
+		UITheme.style_button(b)
+		b.pressed.connect(e[1])
+		panel.add_child(b)
+		y += 68
+	_pause_menu.visible = false
+
+func _toggle_pause_menu(show_it: bool) -> void:
+	if not _pause_menu:
+		return
+	_pause_menu.visible = show_it
+	# Freeze an in-progress battle while paused; restore the player's own
+	# pause-button state on resume.
+	if auto_battle_manager and auto_battle_manager.battle_active:
+		if show_it:
+			_pause_was_mgr_paused = auto_battle_manager.paused
+			auto_battle_manager.paused = true
+		else:
+			auto_battle_manager.paused = _pause_was_mgr_paused
+
+# Quitting mid-BATTLE keeps the last checkpoint (start of this round's prep) —
+# resuming replays the round. Quitting during prep saves right now, so shop
+# purchases made this prep are kept.
+func _save_if_in_prep() -> void:
+	if game_state.current_state == GameState.State.PLAYER_TURN:
+		save_run()
+
+func _pause_quit_to_menu() -> void:
+	_save_if_in_prep()
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+
+func _pause_quit_game() -> void:
+	_save_if_in_prep()
+	get_tree().quit()
 
 
 func _update_bag_drag() -> void:
