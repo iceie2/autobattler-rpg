@@ -38,24 +38,18 @@ const ITEM_TEMPLATES = {
 # Stats whose values are small floats rather than whole numbers.
 const FLOAT_STATS := ["aspd", "hpregen", "manaregen"]
 
-# ── Points-budget system (matches the D/C/B/A/S grade table) ──────────────────
-# Each rarity has a points budget. 1 stat roll = 1 point. A passive costs 2
-# points and is only possible at RARE (blue) and above — so e.g. a Rare item
-# (4 pts) is "4 stats" OR "2 stats + a passive".
-const RARITY_POINTS := {
-	EquipmentItem.Rarity.COMMON:    1,   # D
-	EquipmentItem.Rarity.UNCOMMON:  2,   # C
-	EquipmentItem.Rarity.RARE:      4,   # B
-	EquipmentItem.Rarity.EPIC:      8,   # A
-	EquipmentItem.Rarity.LEGENDARY: 10,  # S
-}
-const PASSIVE_COST := 2
-const PASSIVE_MIN_RARITY := EquipmentItem.Rarity.RARE   # blue+
-# Chance a RARE+ item spends 2 points on a passive (rises with rarity). Tunable.
-const PASSIVE_CHANCE := {
-	EquipmentItem.Rarity.RARE:      0.55,
-	EquipmentItem.Rarity.EPIC:      0.70,
-	EquipmentItem.Rarity.LEGENDARY: 0.85,
+# ── Equipment rework (2026-07-17 user spec) ───────────────────────────────────
+# DROPPED items are stat-sticks only: 1 roll for grey, 2 for green, 3 for blue
+# (rolls can repeat — "+attack speed ×2" is a legal green). Drops are 100%
+# COMMON unless the Lucky Find crystal-shop upgrade grants better odds.
+# PASSIVES exist ONLY on combined gear: fusing 3 same-rarity items yields the
+# next tier carrying ALL of their stats plus one fresh random passive.
+const RARITY_STAT_ROLLS := {
+	EquipmentItem.Rarity.COMMON:    1,
+	EquipmentItem.Rarity.UNCOMMON:  2,
+	EquipmentItem.Rarity.RARE:      3,
+	EquipmentItem.Rarity.EPIC:      4,
+	EquipmentItem.Rarity.LEGENDARY: 5,
 }
 
 const PASSIVE_EFFECTS = [
@@ -94,17 +88,9 @@ static func generate_item(round: int = 1, max_rarity: int = EquipmentItem.Rarity
 	var item = EquipmentItem.new(template["name"], rarity)
 	item.description = "%s %s" % [item.get_rarity_name(), template["name"]]
 
-	# Spend the rarity's points budget: 1 stat roll = 1 point; a passive (RARE+
-	# only) costs 2 points. So a Rare (4-pt) item is 4 stats OR 2 stats + passive.
-	var points: int = int(RARITY_POINTS.get(rarity, 1))
-
-	if rarity >= PASSIVE_MIN_RARITY and points > PASSIVE_COST \
-			and randf() < float(PASSIVE_CHANCE.get(rarity, 0.0)):
-		var passive = PASSIVE_EFFECTS[randi() % PASSIVE_EFFECTS.size()]
-		item.passive_effect = passive["name"]
-		item.description = passive["desc"]
-		item.effect_value = 0.15 + randf() * 0.15  # 0.15-0.30
-		points -= PASSIVE_COST
+	# Dropped items NEVER roll passives (2026-07-17 rework) — passives come
+	# exclusively from combining. Drops are pure stat sticks.
+	var points: int = int(RARITY_STAT_ROLLS.get(rarity, 1))
 
 	# First point always rolls the item's primary (identity) stat; the rest hit
 	# random stats.
@@ -129,33 +115,24 @@ static func generate_item(round: int = 1, max_rarity: int = EquipmentItem.Rarity
 const BIG_STATS: Array[String] = ["hp", "mana"]
 const BIG_STATS_MULT := 10
 
-static func _roll_rarity(round: int, max_rarity: int = EquipmentItem.Rarity.RARE) -> int:
-	var roll = randf()
-	var legendary_chance = 0.01 + (round * 0.01)
-	var epic_chance      = 0.10 + (round * 0.05)
-	var rare_chance      = 0.20 + (round * 0.06)
-	var uncommon_chance  = 0.30 + (round * 0.05)
-
-	# Clamp to the allowed ceiling (Legendary only from shops/events, never drops)
-	if max_rarity < EquipmentItem.Rarity.LEGENDARY:
-		legendary_chance = 0.0
-	if max_rarity < EquipmentItem.Rarity.EPIC:
-		epic_chance = 0.0
+# Drops are 100% COMMON out of the box (2026-07-17 rework). The Lucky Find
+# crystal-shop upgrade adds +3% uncommon / +1% rare per level (max 10 →
+# 30%/10%). Epic+ never drops — those tiers exist only through combining.
+static func _roll_rarity(_round: int, max_rarity: int = EquipmentItem.Rarity.RARE) -> int:
+	var lvl: int = Progression.get_level("loot_quality")
+	var rare_chance: float = 0.01 * lvl
+	var uncommon_chance: float = 0.03 * lvl
 	if max_rarity < EquipmentItem.Rarity.RARE:
 		rare_chance = 0.0
 	if max_rarity < EquipmentItem.Rarity.UNCOMMON:
 		uncommon_chance = 0.0
 
-	if roll < legendary_chance:
-		return EquipmentItem.Rarity.LEGENDARY
-	elif roll < legendary_chance + epic_chance:
-		return EquipmentItem.Rarity.EPIC
-	elif roll < legendary_chance + epic_chance + rare_chance:
+	var roll = randf()
+	if roll < rare_chance:
 		return EquipmentItem.Rarity.RARE
-	elif roll < legendary_chance + epic_chance + rare_chance + uncommon_chance:
+	elif roll < rare_chance + uncommon_chance:
 		return EquipmentItem.Rarity.UNCOMMON
-	else:
-		return EquipmentItem.Rarity.COMMON
+	return EquipmentItem.Rarity.COMMON
 
 static func _roll_stat_value(rarity: int, round: int) -> int:
 	var base_value = 3 + (round * 0.5)
@@ -190,15 +167,11 @@ static func combine_items(items: Array[EquipmentItem]) -> EquipmentItem:
 		for stat in item.stat_bonus:
 			combined.stat_bonus[stat] += item.stat_bonus[stat]
 
-	# Keep a passive: prefer the base's, else the first input that has one.
-	if base.passive_effect != "":
-		combined.passive_effect = base.passive_effect
-		combined.effect_value = base.effect_value
-	else:
-		for item in items:
-			if item.passive_effect != "":
-				combined.passive_effect = item.passive_effect
-				combined.effect_value = item.effect_value
-				break
+	# Combining is THE source of passives (2026-07-17 rework): every fusion
+	# rolls one fresh random passive, replacing whatever the inputs carried.
+	var passive = PASSIVE_EFFECTS[randi() % PASSIVE_EFFECTS.size()]
+	combined.passive_effect = passive["name"]
+	combined.description = passive["desc"]
+	combined.effect_value = 0.15 + randf() * 0.15  # 0.15-0.30
 
 	return combined

@@ -511,7 +511,7 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 				for opp in opponents:
 					if opp and is_instance_valid(opp):
 						if unit.grid_position.distance_to(opp.grid_position) <= 1.5:
-							opp.take_damage(aura_dmg, unit.current_element)
+							opp.take_damage(aura_dmg, unit.current_element, unit)
 							unit.damage_dealt += aura_dmg
 			# Chase timer — if target dies while chasing, lock in a small permanent bonus
 			if unit.lordee_chase_timer > 0.0:
@@ -651,7 +651,7 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 			if not target:
 				return
 			var dmg := int(caster.attack_damage * caster.ultimate_damage_mult)
-			target.take_damage(dmg, caster.current_element)
+			target.take_damage(dmg, caster.current_element, caster)
 			target.stun_time = 1.5
 			caster.damage_dealt += dmg
 			_spawn_skill_effect(SkillEffect.Type.SHADOW_STRIKE, caster.global_position)
@@ -684,7 +684,7 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 						if battle_grid.place_unit(opp, open_cell):
 							opp.grid_position = open_cell
 							opp.position = _world_pos_for(opp, open_cell)
-					opp.take_magic_damage(dmg, caster.current_element)
+					opp.take_magic_damage(dmg, caster.current_element, caster)
 					caster.damage_dealt += dmg
 
 		UnitBase.UnitClass.HEADHUNTER:
@@ -695,7 +695,7 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 			# Check line of fire for blockers
 			var actual_target := _check_line_of_fire(caster, target, opponents)
 			var dmg := int(caster.attack_damage * caster.ultimate_damage_mult)
-			actual_target.take_damage(dmg, caster.current_element)
+			actual_target.take_damage(dmg, caster.current_element, caster)
 			caster.damage_dealt += dmg
 			_spawn_skill_effect(SkillEffect.Type.ARROW_RAIN, actual_target.global_position)
 		UnitBase.UnitClass.SHEILDOR:
@@ -729,7 +729,7 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 				if not (opp and is_instance_valid(opp)):
 					continue
 				if caster.grid_position.distance_to(opp.grid_position) <= 4:
-					opp.take_magic_damage(dmg_r, caster.current_element)
+					opp.take_magic_damage(dmg_r, caster.current_element, caster)
 					caster.damage_dealt += dmg_r
 					_spawn_skill_effect_sized(SkillEffect.Type.CHAOS_BOLT, opp.global_position, 36.0)
 
@@ -951,7 +951,7 @@ func _bloodhound_bite(caster: UnitBase, opponents: Array) -> void:
 	if not target:
 		return
 	var dmg := int(caster.attack_damage * caster.skill_damage_multiplier)
-	target.take_damage(dmg, caster.current_element)
+	target.take_damage(dmg, caster.current_element, caster)
 	caster.damage_dealt += dmg
 	# Heal for 30% of damage dealt
 	caster.heal(int(dmg * 0.3))
@@ -963,7 +963,7 @@ func _bouncer_slam(caster: UnitBase, opponents: Array) -> void:
 	var dmg := int(caster.magic_power * caster.skill_damage_multiplier)
 	var bonus: float = caster.get_meta("presence_bonus") if caster.has_meta("presence_bonus") else 0.0
 	dmg = int(dmg * (1.0 + bonus))
-	target.take_magic_damage(dmg, caster.current_element)
+	target.take_magic_damage(dmg, caster.current_element, caster)
 	target.stun_time = 1.5
 	caster.damage_dealt += dmg
 	_spawn_sprite_sheet_effect(
@@ -980,7 +980,7 @@ func _nemi_tidal_wave(caster: UnitBase, opponents: Array) -> void:
 		if not (opp and is_instance_valid(opp)):
 			continue
 		if abs(opp.grid_position.x - cx) <= 1:
-			opp.take_magic_damage(dmg, caster.current_element)
+			opp.take_magic_damage(dmg, caster.current_element, caster)
 			caster.damage_dealt += dmg
 			_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, opp.global_position, 24.0)
 			# Pushback: move 2 cells away from Nemi (in y direction)
@@ -1088,8 +1088,9 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 			# damage should be tied to affinity, same pattern as bear_swipe/
 			# troll_enrage below rather than a flat multiplier like brute_crush).
 			if not tar: return
-			var wu_aff: float = caster.get_attack_multiplier(caster.current_element)
-			var wudm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier * wu_aff)
+			# (2026-07-17: own-element self-buff removed — take_damage now applies
+			# the attacker's off-affinity vs the target centrally, exactly once.)
+			var wudm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
 			tar.take_damage(wudm, caster.current_element, caster)
 			caster.damage_dealt += wudm
 			tar.stun_time = maxf(tar.stun_time, 1.0)
@@ -1101,13 +1102,13 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 			# Hydra's own elemental affinity, same convention as every other mob
 			# skill (bear_swipe/windup_punch above).
 			var heads: int = int(caster.get_meta("hydra_heads", 1))
-			var hy_aff: float = caster.get_attack_multiplier(caster.current_element)
+			# (self-buff removed — central affinity, see above)
 			var hy_targets: Array = opponents.filter(func(o): return o and is_instance_valid(o))
 			hy_targets.sort_custom(func(a, b): return caster.grid_position.distance_to(a.grid_position) < caster.grid_position.distance_to(b.grid_position))
 			var hy_hit_count: int = mini(heads, hy_targets.size())
 			for i in range(hy_hit_count):
 				var hy_tar: UnitBase = hy_targets[i]
-				var hydm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier * hy_aff)
+				var hydm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
 				hy_tar.take_damage(hydm, caster.current_element, caster)
 				caster.damage_dealt += hydm
 				_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, hy_tar.global_position, 26.0)
@@ -1150,11 +1151,12 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 			# user request — an Ice Bear's swipe hits harder because it's more
 			# affined with ice, not because of any target-element matchup).
 			if not tar: return
-			var bear_aff: float = caster.get_attack_multiplier(caster.current_element)
-			var bswp: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier * bear_aff)
+			# (self-buff removed — central affinity; the bleed loses its element
+			# scaling since DoTs are true damage and skip affinity by design.)
+			var bswp: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
 			tar.take_damage(bswp, caster.current_element, caster)
 			caster.damage_dealt += bswp
-			apply_bleed(tar, float(caster.attack_damage) * 0.3 * bear_aff, 4.0, caster)
+			apply_bleed(tar, float(caster.attack_damage) * 0.3, 4.0, caster)
 			_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, tar.global_position, 30.0)
 		"troll_enrage":
 			# Enrage: picks a RANDOM friendly target in range — itself counts as
@@ -1264,7 +1266,7 @@ func _whirlwind(caster: UnitBase, opponents: Array) -> void:
 			continue
 		if caster.grid_position.distance_to(opp.grid_position) <= 1.5:
 			var dmg := int(caster.attack_damage * caster.skill_damage_multiplier)
-			opp.take_damage(dmg, caster.current_element)
+			opp.take_damage(dmg, caster.current_element, caster)
 
 # Ranger: hits up to 3 nearest enemies with ranged shots
 func _arrow_rain(caster: UnitBase, opponents: Array) -> void:
@@ -1287,7 +1289,7 @@ func _chi_burst(caster: UnitBase, opponents: Array) -> void:
 			continue
 		if caster.grid_position.distance_to(opp.grid_position) <= caster.skill_range:
 			var dmg := int(caster.attack_damage * caster.skill_damage_multiplier)
-			opp.take_damage(dmg, caster.current_element)
+			opp.take_damage(dmg, caster.current_element, caster)
 	# Heal allies adjacent to caster
 	var allies := player_units if caster.is_player_unit else enemy_units
 	for ally in allies:
@@ -1301,7 +1303,7 @@ func _shadow_strike(caster: UnitBase, opponents: Array) -> void:
 	var target := find_nearest_enemy(caster, opponents)
 	if target and is_instance_valid(target):
 		var dmg := int(caster.attack_damage * caster.skill_damage_multiplier)
-		target.take_damage(dmg, caster.current_element)
+		target.take_damage(dmg, caster.current_element, caster)
 		_spawn_skill_effect(SkillEffect.Type.SHADOW_STRIKE, target.global_position)
 
 # Black Mage: large AOE explosion around nearest enemy
@@ -1315,7 +1317,7 @@ func _inferno(caster: UnitBase, opponents: Array) -> void:
 			continue
 		if center.grid_position.distance_to(opp.grid_position) <= 2.0:
 			var dmg := int(caster.magic_power * caster.skill_damage_multiplier)
-			opp.take_magic_damage(dmg, caster.current_element)
+			opp.take_magic_damage(dmg, caster.current_element, caster)
 
 # White Mage: heals all allies
 func _holy_light(caster: UnitBase) -> void:
@@ -1489,7 +1491,7 @@ func _lordee_ground_slam(caster: UnitBase, opponents: Array) -> void:
 		if not (opp and is_instance_valid(opp)):
 			continue
 		if center.grid_position.distance_to(opp.grid_position) <= 2.0:
-			opp.take_damage(dmg, caster.current_element)
+			opp.take_damage(dmg, caster.current_element, caster)
 			caster.damage_dealt += dmg
 
 # Lordee ultimate: Parasite Lunge — blink to target, steal ATK, set chase
@@ -1514,7 +1516,7 @@ func _lordee_parasite_lunge(caster: UnitBase, opponents: Array) -> void:
 			caster.position = _world_pos_for(caster, dest)
 	# Damage + steal 7% of target's attack_damage
 	var dmg: int = int(float(caster.attack_damage) * 1.5)
-	target.take_damage(dmg, caster.current_element)
+	target.take_damage(dmg, caster.current_element, caster)
 	caster.damage_dealt += dmg
 	var stolen_atk: int = int(float(target.attack_damage) * 0.07)
 	caster.attack_damage += stolen_atk
@@ -1538,7 +1540,7 @@ func _necro_bat_swarm(caster: UnitBase, opponents: Array) -> void:
 		if not (opp and is_instance_valid(opp)):
 			continue
 		if caster.grid_position.distance_to(opp.grid_position) <= float(caster.ultimate_range):
-			opp.take_magic_damage(dmg, caster.current_element)
+			opp.take_magic_damage(dmg, caster.current_element, caster)
 			caster.damage_dealt += dmg
 	for _i in range(3):
 		_spawn_summon(caster, UnitBase.UnitClass.BAT)
@@ -1549,7 +1551,7 @@ func _summon_basic_attack(caster: UnitBase, opponents: Array) -> void:
 	if not target:
 		return
 	var dmg := int(float(caster.attack_damage) * caster.skill_damage_multiplier)
-	target.take_damage(dmg, caster.current_element)
+	target.take_damage(dmg, caster.current_element, caster)
 	caster.damage_dealt += dmg
 
 # Spawn a summoned unit in front of the summoner
@@ -1569,6 +1571,11 @@ func _spawn_summon(summoner: UnitBase, summon_class: UnitBase.UnitClass) -> void
 	if spawn_cell == Vector2i(-1, -1):
 		return  # no room
 	var summon: VisualUnit = UnitFactory.create_unit(summon_class, summoner.current_element, summoner.is_player_unit)
+	# Summons ride their summoner's level (2026-07-17: zombies/bats spawned at
+	# level 1 forever, so Necro fell off a cliff late-game). Ant Hill's ants
+	# deliberately stay level 1 — they spawn via _spawn_ant, not here.
+	if summoner.level > 1:
+		summon.set_level(summoner.level)
 	summon.is_summoned = true
 	summon.summon_owner = summoner
 	summon.is_player_unit = summoner.is_player_unit

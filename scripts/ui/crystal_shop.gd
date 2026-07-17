@@ -31,6 +31,7 @@ const NODE_ICONS := {
 	"bonus_xp":             "quick_learner.png",
 	"hero_slots":           "roster_expansion.png",
 	"bench_slots":          "warm_bench.png",
+	"loot_quality":         "head_start.png",   # shared art until a loot icon lands
 	"crystal_per_round":    "crystal_surge.png",  # shared art
 	"crystal_drop":         "crystal_surge.png",
 	"mana_well":            "mana_well.png",
@@ -84,6 +85,7 @@ const NODE_LAYOUT := {
 	"fleetfoot":            {"tier": 3, "angle": 51.5,   "parent": "might"},
 	"spellpower":           {"tier": 3, "angle": 70.75,  "parent": "might"},
 	"bulwark":              {"tier": 3, "angle": 90.0,   "parent": "warding"},
+	"loot_quality":         {"tier": 3, "angle": 180.0,  "parent": "bench_slots"},
 	"vitality_flow":        {"tier": 3, "angle": 109.25, "parent": "warding"},
 	"mana_flow":            {"tier": 3, "angle": 128.5,  "parent": "mana_well"},
 	"swiftness":            {"tier": 3, "angle": 147.75, "parent": "mana_well"},

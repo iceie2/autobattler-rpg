@@ -49,6 +49,14 @@ const UPGRADES: Array = [
 		"effect": "Bench Slots +%d", "max_level": 4, "effect_per_level": 1,
 	},
 	{
+		# 2026-07-17 equipment rework: drops are 100% grey by default; this is
+		# the only way to see green/blue drops (which are stat-only — passives
+		# still require combining). Read by EquipmentManager._roll_rarity.
+		"key": "loot_quality", "name": "Lucky Find",
+		"desc": "+3% uncommon and +1% rare equipment drop chance per level.",
+		"effect": "Uncommon Drops +%d%%", "max_level": 10, "effect_per_level": 3,
+	},
+	{
 		# Cheap half of the crystal pair (2026-07-16, mirrors Head Start/Bounty).
 		"key": "crystal_per_round", "name": "Crystal Tithe",
 		"desc": "+1 crystal after every round per level.",

@@ -452,6 +452,10 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 			return
 
 	var modified_damage := amount
+	# Attacker's offensive affinity vs THIS unit's element — applied centrally
+	# (2026-07-17) so every non-true damage source scales the same way.
+	if not true_damage and attacker != null and attacker is UnitBase:
+		modified_damage = int(modified_damage * attacker.get_attack_multiplier(current_element))
 	if not true_damage:
 		# League-style diminishing-returns curve (2026-07-10, replaces flat
 		# subtraction): 100 armor = 50% reduction, 200 = 66.7%, asymptotic —
@@ -566,7 +570,10 @@ func attack(target) -> void:
 		return
 
 	var target_element: Element = target.current_element if target is UnitBase else Element.NORMAL
-	var damage := int(attack_damage * get_attack_multiplier(target_element))
+	# (2026-07-17: offensive affinity no longer applied here — take_damage()
+	# applies the attacker's multiplier centrally, so autos, skills, ultimates
+	# and projectiles all ride the same off-vs-def affinity rule exactly once.)
+	var damage := attack_damage
 	damage = int(damage * outgoing_damage_multiplier())
 	# Relic outgoing multipliers (Glass Cannon, element relics, Executioner vs bosses).
 	if relic_outgoing_mult != 1.0:

@@ -2368,7 +2368,7 @@ func _build_pause_menu() -> void:
 	title.text = "PAUSED"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.position = Vector2(0, 24); title.size = Vector2(360, 40)
-	title.add_theme_font_size_override("font_size", UITheme.body_font(24))
+	title.add_theme_font_size_override("font_size", UITheme.body_font(32))
 	title.add_theme_color_override("font_color", Color(0.95, 0.82, 0.5))
 	panel.add_child(title)
 
@@ -2381,7 +2381,7 @@ func _build_pause_menu() -> void:
 	for e in entries:
 		var b := Button.new()
 		b.text = e[0]; b.position = Vector2(60, y); b.size = Vector2(240, 52)
-		b.add_theme_font_size_override("font_size", 15)
+		b.add_theme_font_size_override("font_size", 28)
 		UITheme.style_button(b)
 		b.pressed.connect(e[1])
 		panel.add_child(b)
