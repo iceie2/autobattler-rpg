@@ -74,7 +74,7 @@ func _build_main(canvas: CanvasLayer) -> void:
 		root.add_child(btn)
 		by += 70
 
-	_lbl(root, "v0.1 – early development", 12, Color(0.3, 0.3, 0.4),
+	_lbl(root, "v0.2 – early development", 12, Color(0.3, 0.3, 0.4),
 		Vector2(cx - 150, by + 30), Vector2(300, 24), true)
 
 # ── Options panel ─────────────────────────────────────────────────────────────
