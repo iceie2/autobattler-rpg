@@ -22,6 +22,8 @@ class_name Balance
 # always-active root node) replaces it — every run now starts with 1 free
 # recruited hero instead (see main_game.start_new_game()).
 const HERO_COST := 10              # hero shop recruit price
+const REROLL_COST := 2             # gold to refresh the hero shop offers (2026-07-17)
+const SELL_REFUND := 5             # gold back when selling/dismissing a hero
 const BENCH_BASE_SLOTS := 4        # sideboard capacity before Warm Bench upgrades (2026-07-10)
 const ROUND_WIN_GOLD := 2          # flat coin burst on winning a round
 

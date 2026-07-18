@@ -511,6 +511,7 @@ func connect_signals() -> void:
 	var hs_scene := load("res://scenes/hero_shop.tscn") as PackedScene
 	_hero_shop = hs_scene.instantiate() as HeroShop
 	_hero_shop.hero_chosen.connect(_on_hero_chosen)
+	_hero_shop.reroll_requested.connect(_on_shop_reroll)
 	add_child(_hero_shop)
 
 	var lu_scene := load("res://scenes/level_up_screen.tscn") as PackedScene
@@ -891,9 +892,10 @@ func _rebuild_bench_bar() -> void:
 
 		if i < bench_units.size() and is_instance_valid(bench_units[i]):
 			var unit: VisualUnit = bench_units[i]
-			btn.tooltip_text = "%s  ·  Lv %d\n%d/%d HP\nClick to deploy (during prep)." % [
-				unit.unit_name, unit.level, unit.current_hp, unit.max_hp]
+			btn.tooltip_text = "%s  ·  Lv %d\n%d/%d HP\nClick to deploy · Right-click to sell (+%dg)" % [
+				unit.unit_name, unit.level, unit.current_hp, unit.max_hp, Balance.SELL_REFUND]
 			btn.pressed.connect(_deploy_bench_unit.bind(i))
+			btn.gui_input.connect(_on_bench_slot_input.bind(i))
 			var icon_path: String = VisualUnit.HERO_SPRITE_PATHS.get(unit.unit_class, "")
 			if icon_path != "" and ResourceLoader.exists(icon_path):
 				var tex := TextureRect.new()
@@ -1348,6 +1350,13 @@ func _on_unit_placed(placed_unit, grid_pos: Vector2i) -> void:
 
 
 # ── SHOP & HERO MANAGEMENT ─────────────────────────────────────────────────
+func _on_shop_reroll() -> void:
+	if game_state.spend_gold(Balance.REROLL_COST):
+		_hero_shop.reroll(game_state.gold)
+		update_ui()
+	else:
+		info_label.text = "Not enough gold to reroll."
+
 func _on_spawn_hero_pressed() -> void:
 	if not shop_open:
 		info_label.text = "Shop is closed!"
@@ -1465,6 +1474,31 @@ func _bench_unit(unit: VisualUnit) -> void:
 
 # Click a bench slot during prep → deploy that hero to the first free cell
 # (respects the level-driven field cap via find_empty_player_slot).
+# Right-click a benched hero to sell it for a partial refund (2026-07-17 economy
+# valve + fixes permanently-clogged rosters). Prep phase only.
+func _on_bench_slot_input(event: InputEvent, idx: int) -> void:
+	if not (event is InputEventMouseButton and event.pressed \
+			and event.button_index == MOUSE_BUTTON_RIGHT):
+		return
+	if game_state.current_state != GameState.State.PLAYER_TURN:
+		info_label.text = "You can only sell heroes between rounds."
+		return
+	if idx < 0 or idx >= bench_units.size():
+		return
+	var unit: VisualUnit = bench_units[idx]
+	bench_units.remove_at(idx)
+	if unit and is_instance_valid(unit):
+		if _equipment_inventory:
+			_equipment_inventory.return_all_from_hero(unit)   # loot goes back to the bag, not lost
+		var nm := unit.unit_name
+		unit.queue_free()
+		game_state.add_gold(Balance.SELL_REFUND)
+		info_label.text = "Sold %s for %dg." % [nm, Balance.SELL_REFUND]
+	_rebuild_bench_bar()
+	_rebuild_synergy_display()
+	update_ui()
+	save_run()
+
 func _deploy_bench_unit(idx: int) -> void:
 	if idx < 0 or idx >= bench_units.size():
 		return

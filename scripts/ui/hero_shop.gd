@@ -3,10 +3,12 @@ class_name HeroShop
 
 signal hero_chosen(unit_class: UnitBase.UnitClass, element: UnitBase.Element, rolls: Dictionary)
 signal cancelled()
+signal reroll_requested()
 
 # Economy v3 (2026-07-03): 30 → 10 — whole economy rescaled to coin-drop size
 # (10 starting gold, ~1g coin drops per kill). Tune in balance.gd.
 const HERO_COST := Balance.HERO_COST
+const REROLL_COST := Balance.REROLL_COST
 
 const SPRITE_FOLDERS := {
 	UnitBase.UnitClass.WARRIOR:    "warrior",
@@ -35,6 +37,7 @@ var _panel:     Panel
 var _title_lbl: Label
 var _sub_lbl:   Label
 var _cancel_btn: Button
+var _reroll_btn: Button
 var _slot_count: int = 3   # hero cards shown (raised by the Merchant's Ledger relic)
 var _free_mode:  bool = false  # Call to Arms starting-hero pick (2026-07-10): no cost, no cancel
 
@@ -62,6 +65,9 @@ func open(gold: int, slot_count: int = 3, free_mode: bool = false) -> void:
 			else "Each hero has unique stat rolls  ·  %dg each  ·  Roll again next round" % HERO_COST
 	if _cancel_btn:
 		_cancel_btn.visible = not _free_mode
+	if _reroll_btn:
+		_reroll_btn.visible = not _free_mode   # the free starting pick can't reroll
+		_reroll_btn.disabled = gold < REROLL_COST
 	visible = true
 
 # Widen the panel and re-center the header/cancel for the current card count so
@@ -72,7 +78,17 @@ func _layout_for_slots() -> void:
 	if _title_lbl: _title_lbl.size.x = panel_w
 	if _sub_lbl:   _sub_lbl.size.x = panel_w
 	if _cancel_btn: _cancel_btn.position.x = (panel_w - 200) / 2.0
+	if _reroll_btn: _reroll_btn.position.x = panel_w - SIDE_MARGIN - 190
 	_center_panel()
+
+# Refresh the offers in place (called by main_game after it charges the reroll).
+func reroll(gold: int) -> void:
+	_offers.clear()
+	_card_btns.clear()
+	_generate_offers()
+	_rebuild_all_cards(gold)
+	if _reroll_btn:
+		_reroll_btn.disabled = (not _free_mode) and gold < REROLL_COST
 
 func _generate_offers() -> void:
 	var classes  := UnitFactory.get_all_classes()
@@ -113,6 +129,11 @@ func _build_ui() -> void:
 	_cancel_btn = _btn("Cancel", Rect2((PANEL_W - 200) / 2.0, PANEL_H - 54, 200, 40))
 	_cancel_btn.pressed.connect(_on_cancel)
 	_panel.add_child(_cancel_btn)
+
+	# Reroll — refresh the offers for a small gold cost (2026-07-17 economy valve).
+	_reroll_btn = _btn("↻ Reroll (%dg)" % REROLL_COST, Rect2(0, PANEL_H - 54, 190, 40))
+	_reroll_btn.pressed.connect(func(): reroll_requested.emit())
+	_panel.add_child(_reroll_btn)
 
 	visible = false
 	_center_panel()

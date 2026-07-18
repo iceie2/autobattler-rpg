@@ -60,6 +60,18 @@ func remove_from_hero(item: EquipmentItem, unit: UnitBase) -> bool:
 
 	return false
 
+# Move every item a hero has equipped back to the bag (used when selling a
+# hero, 2026-07-17 — the loot isn't lost with the unit).
+func return_all_from_hero(unit: UnitBase) -> void:
+	var unit_id = unit.unit_name + "_" + str(unit.get_instance_id())
+	if not hero_equipment.has(unit_id):
+		return
+	for item in (hero_equipment[unit_id] as Array).duplicate():
+		items.append(item)
+	hero_equipment.erase(unit_id)
+	inventory_changed.emit()
+	hero_equipment_changed.emit(unit_id)
+
 func get_hero_equipment(unit: UnitBase) -> Array[EquipmentItem]:
 	var unit_id = unit.unit_name + "_" + str(unit.get_instance_id())
 	if hero_equipment.has(unit_id):
