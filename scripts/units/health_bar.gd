@@ -85,6 +85,13 @@ func _hp_h() -> float:
 
 var hp_current:     float = 1.0
 var hp_max:         float = 1.0
+# Recent-damage ghost (2026-07-17): when HP drops, a pale bar lingers at the
+# OLD level and drains down to the new one over ~0.5s, so burst damage reads
+# instead of the bar just teleporting shorter. _process self-disables when idle.
+var hp_ghost:       float = 1.0
+var _ghost_time:    float = 0.0
+const GHOST_HOLD  := 0.5    # total lifetime of a ghost flash
+const GHOST_DRAIN := 2.0    # bars-per-second the ghost catches down to real HP
 var mp_current:     float = 1.0
 var mp_max:         float = 1.0
 var ult_current:    float = 0.0
@@ -105,6 +112,7 @@ const ULT_GLOW := Color(1.25, 1.20, 0.85)   # warm brighten when ult is ready
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	set_process(false)   # only ticks while a damage ghost is draining
 	_sb_bg  = UITheme.stat_bar_bg()
 	_sb_mp  = UITheme.stat_bar_fill("mp")
 	_sb_ult = UITheme.stat_bar_fill("ult")
@@ -117,8 +125,26 @@ func _ready() -> void:
 		position.y = offset_y
 
 func update_hp(current: float, maximum: float) -> void:
+	if current < hp_current:
+		# Took damage — leave a ghost at the pre-hit level (or keep an even
+		# higher one still draining) and start the drain timer.
+		hp_ghost = maxf(hp_ghost, hp_current)
+		_ghost_time = GHOST_HOLD
+		set_process(true)
+	else:
+		hp_ghost = current   # healed or unchanged: no ghost
 	hp_current = current
 	hp_max     = maximum
+	queue_redraw()
+
+func _process(delta: float) -> void:
+	_ghost_time -= delta
+	# Hold briefly, then chase the ghost down to real HP.
+	if _ghost_time < GHOST_HOLD * 0.6:
+		hp_ghost = move_toward(hp_ghost, hp_current, hp_max * GHOST_DRAIN * delta)
+	if _ghost_time <= 0.0 or hp_ghost <= hp_current + 0.01:
+		hp_ghost = hp_current
+		set_process(false)
 	queue_redraw()
 
 func update_mp(current: float, maximum: float) -> void:
@@ -140,6 +166,15 @@ func update_shield(current: float, hp_max_ref: float) -> void:
 func _draw() -> void:
 	var hp_h: float = _hp_h()
 	var hp_width: float = _draw_hp_tiles(hp_h)
+	# Recent-damage ghost: pale segment from the current fill edge out to the
+	# lingering old level, fading as the flash ages.
+	if hp_ghost > hp_current + 0.01 and hp_max > 0.0:
+		var cur_pct: float = clampf(hp_current / hp_max, 0.0, 1.0)
+		var gho_pct: float = clampf(hp_ghost / hp_max, 0.0, 1.0)
+		var x0: float = -hp_width / 2.0 + hp_width * cur_pct
+		var gw: float = hp_width * (gho_pct - cur_pct)
+		var a: float = 0.6 * clampf(_ghost_time / GHOST_HOLD, 0.0, 1.0)
+		draw_rect(Rect2(x0, 0.0, gw, hp_h), Color(1.0, 0.95, 0.95, a))
 	# Shield overlay on HP bar (cyan, semi-transparent, caps at the tiled width)
 	if shield_current > 0.0:
 		var sh_pct: float = clamp(shield_current / max(hp_max, 1.0), 0.0, 1.0)
