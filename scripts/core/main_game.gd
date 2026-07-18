@@ -1047,6 +1047,7 @@ func _on_battle_ended(player_won: bool) -> void:
 			for pu in player_units:
 				if pu and is_instance_valid(pu):
 					total_dmg += pu.damage_dealt
+			RunHistory.record(true, game_state.battle_round, _run_kills, total_dmg, game_state.crystals)
 			_game_over_screen.show_victory(
 				game_state.crystals, game_state.battle_round, total_dmg, _run_kills)
 			return
@@ -1091,6 +1092,7 @@ func _on_battle_ended(player_won: bool) -> void:
 			if pu and is_instance_valid(pu):
 				total_dmg += pu.damage_dealt
 
+		RunHistory.record(false, game_state.battle_round, _run_kills, total_dmg, game_state.crystals)
 		_game_over_screen.show_defeat(
 			game_state.crystals,       # earned this run
 			game_state.battle_round,

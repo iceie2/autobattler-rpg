@@ -9,6 +9,7 @@ var _win_mode := WinMode.WINDOWED
 var _options_panel: Control
 var _class_browser: ClassBrowser
 var _crystal_shop: CrystalShop
+var _run_history: RunHistoryScreen
 
 func _ready() -> void:
 	_apply_window_mode(WinMode.WINDOWED)
@@ -25,6 +26,9 @@ func _ready() -> void:
 	var cs_scene := load("res://scenes/crystal_shop.tscn") as PackedScene
 	_crystal_shop = cs_scene.instantiate() as CrystalShop
 	add_child(_crystal_shop)
+
+	_run_history = RunHistoryScreen.new()
+	add_child(_run_history)
 
 func _draw() -> void:
 	var sz := get_viewport_rect().size
@@ -58,6 +62,7 @@ func _build_main(canvas: CanvasLayer) -> void:
 		["START GAME",    _on_start],
 		["CLASSES",       _on_classes],
 		["CRYSTAL SHOP",  _on_crystal_shop],
+		["RUN HISTORY",   _on_run_history],
 		["ARENA",         _on_arena],
 		["OPTIONS",       _on_options],
 		["QUIT",          _on_quit],
@@ -126,6 +131,10 @@ func _on_arena() -> void:
 
 func _on_options() -> void:
 	_options_panel.visible = not _options_panel.visible
+
+func _on_run_history() -> void:
+	_options_panel.visible = false
+	_run_history.open()
 
 func _on_quit() -> void:
 	get_tree().quit()
