@@ -530,6 +530,7 @@ func connect_signals() -> void:
 
 	_event_panel = EventPanel.new()
 	_event_panel.event_choice_made.connect(_on_event_choice_made)
+	_event_panel.resolved.connect(_on_event_resolved)
 	add_child(_event_panel)
 
 	_relic_inventory = RelicInventory.new()
@@ -1570,13 +1571,30 @@ func _on_event_choice_made(choice_index: int) -> void:
 	if not _event_panel._current_event:
 		return
 	var choice = _event_panel._current_event.choices[choice_index]
-	_apply_event_effects(choice.effects)
+	var gamble_txt: String = _apply_event_effects(choice.effects)
 	update_ui()
+	# Show the outcome in the panel for a beat, then it fires `resolved` →
+	# _on_event_resolved starts the battle. Gambles show their rolled result;
+	# fixed choices echo their own outcome line.
+	var is_win := gamble_txt.begins_with("★") or (gamble_txt == "" and _choice_is_gain(choice.effects))
+	var shown: String = gamble_txt if gamble_txt != "" else str(choice.description)
+	_event_panel.show_resolution(shown, is_win)
+
+func _choice_is_gain(effects: Dictionary) -> bool:
+	# Rough good/bad tint for the resolution beat on non-gamble choices.
+	if effects.has("hero_damage"): return false
+	if effects.has("gold") and int(effects["gold"]) < 0: return false
+	return true
+
+func _on_event_resolved() -> void:
 	game_state.player_ready_for_battle()
 
 # Effect application, separated from the panel callback so the headless event
 # audit (2026-07-16) can exercise every choice without starting battles.
-func _apply_event_effects(effects: Dictionary) -> void:
+func _apply_event_effects(effects: Dictionary) -> String:
+	# Returns the gamble outcome line (or "") so the event panel can show it as
+	# a resolution beat instead of flashing it in the info label (2026-07-17).
+	var gamble_result := ""
 	if effects.has("gold"):
 		game_state.add_gold(effects["gold"])
 
@@ -1646,11 +1664,13 @@ func _apply_event_effects(effects: Dictionary) -> void:
 		if randf() < 0.5:
 			var won := int(effects.get("gold_if_win", 0))
 			game_state.add_gold(won)
-			info_label.text = "Gamble won! +%dg" % won
+			gamble_result = "★ Gamble WON — +%dg!" % won
 		else:
 			var lost := int(effects.get("gold_if_lose", 0))
 			game_state.add_gold(lost)   # lost is negative
-			info_label.text = "Gamble lost! %dg" % lost
+			gamble_result = "✗ Gamble lost — %dg." % lost
+
+	return gamble_result
 
 func _on_ready_pressed() -> void:
 	if player_units.is_empty():

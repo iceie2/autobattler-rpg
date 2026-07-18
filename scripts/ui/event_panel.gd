@@ -12,6 +12,7 @@ class_name EventPanel
 #   art (see tools/sprite_pipeline/GEMINI_EVENT_PROMPTS.md) and it lights up —
 #   no code change needed.
 signal event_choice_made(choice_index: int)
+signal resolved   # fires after the outcome beat, when the panel closes itself
 
 const PANEL_W := 800.0
 const CONTENT_X := 20.0
@@ -46,6 +47,7 @@ var _title: Label
 var _desc: Label
 var _art: TextureRect
 var _choices_box: VBoxContainer
+var _resolution: Label
 var _current_event: EventBlessing = null
 var _choice_buttons: Array[Button] = []
 
@@ -87,10 +89,17 @@ func _build_ui() -> void:
 	_choices_box.add_theme_constant_override("separation", 12)
 	_panel.add_child(_choices_box)
 
+	_resolution = _lbl(_panel, "", 22, Color.WHITE, Vector2.ZERO, Vector2(CHOICE_W, 60), true)
+	_resolution.visible = false
+
 	visible = false
 
 func show_event(event: EventBlessing) -> void:
 	_current_event = event
+	if _resolution:
+		_resolution.visible = false   # clear any leftover outcome from last event
+	if _choices_box:
+		_choices_box.visible = true   # re-show choices (hidden after last resolution)
 	_refresh_display()
 	visible = true
 
@@ -208,8 +217,21 @@ func _outcome_color(effects: Dictionary) -> Color:
 	return OUT_NEUTRAL
 
 func _on_choice_selected(choice_index: int) -> void:
+	# Don't close yet — main_game applies the effect and calls show_resolution,
+	# which displays the outcome for a beat then closes + emits `resolved`.
 	event_choice_made.emit(choice_index)
+
+# Swap the choice buttons for the outcome line, hold ~1.4s, then close.
+func show_resolution(text: String, good: bool) -> void:
+	_choices_box.visible = false
+	_resolution.visible = true
+	_resolution.text = text
+	_resolution.add_theme_color_override("font_color",
+		Color(0.55, 1.0, 0.6) if good else Color(1.0, 0.55, 0.5))
+	_resolution.position = _choices_box.position + Vector2(0, 8)
+	await get_tree().create_timer(1.4).timeout
 	visible = false
+	resolved.emit()
 
 func _center_panel() -> void:
 	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
