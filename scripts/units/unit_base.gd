@@ -278,6 +278,10 @@ var skill_cd_time: float = 0.0     # time until the active skill can fire again
 var stun_time: float = 0.0         # >0 = stunned, no actions
 var rapid_fire_time: float = 0.0   # Headhunter active: +range & double-shot while >0
 var overdrive_time: float = 0.0    # Shauna ultimate: extra attack per swing while >0
+# Duration-based active ultimates (Rush afterimage, Shauna overdrive) set this
+# to their effect length. While it's >0 the unit can't gain ult charge, so it
+# can't re-ult mid-ult — Rush was ult-into-ult-into-ult chaining (2026-07-17).
+var ult_active_time: float = 0.0
 var hp_regen_accum: float = 0.0    # fractional HP regen carried between frames
 var mp_regen_accum: float = 0.0    # fractional MP regen carried between frames
 
@@ -636,7 +640,7 @@ func apply_relic_on_hit(target, actual: int, was_alive: bool) -> void:
 		attack_damage = maxi(1, int(round(attack_damage * (1.0 + relic_on_kill_atk))))
 
 func _charge_ultimate(amount: int) -> void:
-	if ultimate_charge_max <= 0 or ultimate_ready:
+	if ultimate_charge_max <= 0 or ultimate_ready or ult_active_time > 0.0:
 		return
 	if relic_ult_charge_mult != 1.0:
 		amount = int(round(amount * relic_ult_charge_mult))

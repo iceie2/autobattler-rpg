@@ -163,7 +163,7 @@ func _refresh_hero_equipment() -> void:
 func _add_inventory_item_button(parent: VBoxContainer, item: EquipmentItem) -> void:
 	var btn = Button.new()
 	btn.text = item.to_short_string()
-	btn.add_theme_font_size_override("font_size", 13)
+	btn.add_theme_font_size_override("font_size", 22)
 	btn.add_theme_color_override("font_color", item.icon_color)
 	var selected: bool = _combine_mode and item in _combine_sel
 	if selected:
@@ -250,7 +250,7 @@ func _fuse_selected() -> void:
 func _add_equipped_item_button(parent: VBoxContainer, item: EquipmentItem) -> void:
 	var btn = Button.new()
 	btn.text = "✕ " + item.to_short_string()
-	btn.add_theme_font_size_override("font_size", 13)
+	btn.add_theme_font_size_override("font_size", 22)
 	btn.add_theme_color_override("font_color", item.icon_color)
 	btn.add_theme_stylebox_override("normal",
 		_flat(Color(0.12, 0.12, 0.2, 0.8), Color(0.4, 0.4, 0.5), 1, 4))
@@ -291,7 +291,7 @@ func _btn(text: String, rect: Rect2) -> Button:
 	b.text = text
 	b.position = rect.position
 	b.size = rect.size
-	b.add_theme_font_size_override("font_size", 16)
+	b.add_theme_font_size_override("font_size", 28)
 	b.add_theme_color_override("font_color", Color(0.85, 0.85, 1.0))
 	b.add_theme_stylebox_override("normal",  _flat(Color(0.14, 0.14, 0.22), Color(0.4, 0.4, 0.55), 1, 6))
 	b.add_theme_stylebox_override("hover",   _flat(Color(0.22, 0.22, 0.33), Color(0.6, 0.6, 0.8), 1, 6))

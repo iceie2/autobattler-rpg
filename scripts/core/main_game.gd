@@ -2153,6 +2153,17 @@ func _on_unit_died(unit) -> void:
 	if unit and is_instance_valid(unit):
 		battle_grid.remove_unit(unit.grid_position)
 
+	# A player hero that dies is gone for good (only survivors are restored),
+	# so its gear would be lost with it — return every equipped item to the bag
+	# instead (2026-07-17 user request). Summons carry no bag equipment.
+	if not was_enemy and unit and is_instance_valid(unit) and not unit.is_summoned:
+		if _equipment_inventory:
+			var recovered: int = _equipment_inventory.get_hero_equipment(unit).size()
+			if recovered > 0:
+				_equipment_inventory.return_all_from_hero(unit)
+				info_label.text = "%s fell — recovered %d item(s) to your bag." % [unit.unit_name, recovered]
+				_rebuild_inventory_grid()
+
 	if was_enemy and unit and is_instance_valid(unit):
 		_run_kills += 1
 		# Economy v3: kills drop physical coins on the field (collected by the

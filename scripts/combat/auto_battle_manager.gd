@@ -113,6 +113,7 @@ func _init_unit_timers() -> void:
 		unit.stun_time = 0.0
 		unit.rapid_fire_time = 0.0
 		unit.overdrive_time = 0.0
+		unit.ult_active_time = 0.0
 		unit.hp_regen_accum = 0.0
 		unit.mp_regen_accum = 0.0
 		unit.lordee_aura_timer = 0.0
@@ -274,6 +275,7 @@ func _tick_unit(unit: UnitBase, dt: float) -> void:
 	if unit.attack_cooldown > 0.0: unit.attack_cooldown -= dt
 	if unit.rapid_fire_time > 0.0: unit.rapid_fire_time -= dt
 	if unit.overdrive_time > 0.0:  unit.overdrive_time -= dt
+	if unit.ult_active_time > 0.0: unit.ult_active_time -= dt
 
 	# Stunned or rooted-into-stun: no actions until it wears off.
 	if unit.stun_time > 0.0:
@@ -705,6 +707,7 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 		UnitBase.UnitClass.SHAUNA:
 			# Overdrive: 3 extra attack turns
 			caster.overdrive_time = 4.0
+			caster.ult_active_time = 4.0   # no ult-charge while overdrive runs
 			_spawn_skill_effect(SkillEffect.Type.OVERDRIVE, caster.global_position)
 
 		UnitBase.UnitClass.NECRO:
@@ -2471,6 +2474,7 @@ func _sable_headshot(caster: UnitBase, opponents: Array) -> void:
 func _rush_afterimage(caster: UnitBase, opponents: Array) -> void:
 	afterimage_actor = caster
 	afterimage_time = 3.0
+	caster.ult_active_time = 3.0   # no ult-charge (or re-ult) while afterimage runs
 	var dmg: int = int(float(caster.attack_damage) * caster.ultimate_damage_mult)
 	for opp in opponents:
 		if opp and is_instance_valid(opp):
