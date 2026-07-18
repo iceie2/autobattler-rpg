@@ -827,8 +827,9 @@ func spawn_damage_text(damage: int, element: Element) -> void:
 		return
 
 	var damage_text = DamageText.new()
-	# Spawn slightly above the unit
-	var spawn_pos = global_position + Vector2(0, -20)
+	# Spawn ABOVE the HP-bar zone with a little horizontal jitter so numbers
+	# clear the bar and don't stack on top of each other (2026-07-17).
+	var spawn_pos = global_position + Vector2(randf_range(-16.0, 16.0), -48.0)
 	damage_text.setup(damage, element, spawn_pos)
 	damage_text_container.add_child(damage_text)
 
@@ -840,6 +841,6 @@ func spawn_heal_text(amount: int) -> void:
 		return
 
 	var heal_text = DamageText.new()
-	var spawn_pos = global_position + Vector2(0, -20)
+	var spawn_pos = global_position + Vector2(randf_range(-16.0, 16.0), -48.0)
 	heal_text.setup_heal(amount, spawn_pos)
 	damage_text_container.add_child(heal_text)

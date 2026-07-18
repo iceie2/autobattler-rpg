@@ -100,6 +100,7 @@ var damage_text_container: Node2D
 var player_units: Array = []
 var enemy_units: Array = []
 var shop_open: bool = false
+var _ready_nudged: bool = false   # unspent-gold READY warning: armed once per prep
 var _panel_dragging: bool = false
 var _character_menu: CharacterMenu
 var _class_browser: ClassBrowser
@@ -717,6 +718,7 @@ func _on_state_changed(new_state: GameState.State) -> void:
 	
 	match new_state:
 		GameState.State.PLAYER_TURN:
+			_ready_nudged = false   # fresh prep phase — re-arm the unspent-gold warning
 			if not shop_open:
 				open_shop()
 			enable_unit_dragging(true)
@@ -1653,6 +1655,13 @@ func _apply_event_effects(effects: Dictionary) -> void:
 func _on_ready_pressed() -> void:
 	if player_units.is_empty():
 		info_label.text = "You need at least one unit to battle!"
+		return
+
+	# Unspent-gold nudge (2026-07-17): if you can still afford a hero, warn once
+	# and require a second READY. Cleared each prep phase in _on_state_changed.
+	if not _ready_nudged and game_state.gold >= Balance.HERO_COST:
+		_ready_nudged = true
+		info_label.text = "You have %dg unspent — buy/reroll heroes, or click READY again to start." % game_state.gold
 		return
 
 	close_shop()
