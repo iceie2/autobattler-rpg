@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://42l7w03s4x8l"
-path="res://.godot/imported/Rush.png-53ff1d758e262938ffc1e4d0f62bce27.ctex"
+path="res://.godot/imported/rush.png-774000b2f0e4f13e6934807eb9a13d00.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/using/Rush.png"
-dest_files=["res://.godot/imported/Rush.png-53ff1d758e262938ffc1e4d0f62bce27.ctex"]
+source_file="res://assets/using/rush.png"
+dest_files=["res://.godot/imported/rush.png-774000b2f0e4f13e6934807eb9a13d00.ctex"]
 
 [params]
 

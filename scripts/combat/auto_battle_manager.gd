@@ -1403,10 +1403,12 @@ func start_khagan_possession(khagan: UnitBase) -> void:
 	var candidates: Array = player_units.filter(func(u): return u and is_instance_valid(u))
 	if candidates.size() < 2:
 		return
-	var chosen: UnitBase = candidates[0]
-	for u in candidates:
-		if u.attack_damage > chosen.attack_damage:
-			chosen = u
+	# Take the SECOND-highest damage dealer this battle (2026-07-18 user spec).
+	# Grabbing the #1 carry made runs end anticlimactically (you lose your best
+	# hero AND then have to kill it) or trivially; #2 is a real threat you still
+	# have your top carry to answer. Deterministic — no RNG deciding the run.
+	candidates.sort_custom(func(a, b): return a.damage_dealt > b.damage_dealt)
+	var chosen: UnitBase = candidates[1]
 	player_units.erase(chosen)
 	enemy_units.append(chosen)
 	chosen.is_player_unit = false
