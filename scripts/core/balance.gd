@@ -40,7 +40,7 @@ const COIN_CHANCE_PER_ROUND := 0.025
 const COIN_CHANCE_CAP := 0.75
 
 # ── Combat baselines ──────────────────────────────────────────────────────────
-const CRIT_CHANCE_BASE := 0.0      # nothing grants crit chance yet (future gear/relics)
+const CRIT_CHANCE_BASE := 0.10     # everyone (heroes AND enemies) crits 10% of hits by default (2026-07-24)
 const CRIT_DAMAGE_BASE := 2.0      # crit = double damage
 const BASE_TIME_SCALE := 0.8       # all sim speed derives from this; UI speed buttons multiply on top
 
@@ -66,11 +66,41 @@ static func enemy_late_hp_mult(round: int) -> float:
 static func enemy_late_dmg_mult(round: int) -> float:
 	return 1.0 + maxi(round - ENEMY_LATE_SCALE_START_ROUND, 0) * ENEMY_LATE_DMG_PER_ROUND
 
+# ── Battle enrage (anti-stall, 2026-07-24) ───────────────────────────────────
+# A battle only ends when one side is wiped (AutoBattleManager.check_battle_end)
+# — there is no timer — so a fight where neither side can finish the other runs
+# forever and softlocks the run. That became reachable once waves extended past
+# 30: at round 40+ enemy HP pools carry a ×4-10 late-game multiplier, while some
+# heroes have ZERO attack growth per level (e.g. Sheildor's atk stays at its
+# base 14 — see UnitFactory.CLASS_GROWTH_PER_LEVEL). Armor is a diminishing-
+# returns curve, not a flat subtraction, so such a unit still lands ~9 damage a
+# hit — it just needs ~40 real-world MINUTES to chew through a 28k-HP giant.
+# Reproduced in the arena: a round-42 run left Sheildor alive at 100% HP with 3
+# enemies up and no resolution after 250 simulated seconds.
+# Fix: after ENRAGE_START seconds, ALL damage on BOTH sides is multiplied by a
+# figure that doubles every ENRAGE_DOUBLE_EVERY seconds. Because both sides
+# scale identically it never changes WHO wins — it only forces the fight to
+# actually finish. Normal fights resolve in 20-40s and never see it.
+const BATTLE_ENRAGE_START := 60.0          # seconds of battle before enrage starts
+const BATTLE_ENRAGE_DOUBLE_EVERY := 15.0   # damage multiplier doubles this often
+const BATTLE_ENRAGE_MAX := 1024.0          # hard cap (keeps the float sane)
+
 # ── Run structure (which rounds do what) ──────────────────────────────────────
-const VICTORY_ROUND := 30                              # clearing this round wins the run
-const BOSS_ROUND_INTERVAL := 10                        # bosses at 10/20/30 (Khagan @10, Triarch @20, Hydra @30)
-const ELITE_ROUNDS: Array[int] = [5, 15, 25]           # elite mob rounds
+# VICTORY_ROUND 30 → 100 (2026-07-24): the run used to END at wave 30, which
+# made every wave authored past it unreachable in the live game. See
+# WaveData.get_wave for the 1-100 decade structure.
+const VICTORY_ROUND := 100                             # clearing this round wins the run
+const BOSS_ROUND_INTERVAL := 10                        # bosses every 10 rounds (10/20/…/100)
+const ELITE_ROUND_INTERVAL := 10                       # elites every 10 rounds…
+const ELITE_ROUND_OFFSET := 5                          # …offset by 5 → 5/15/25/…/95
 const RELIC_WAVES: Array[int] = [1, 11, 21]            # forced pick-1-of-3 relic screens
+
+# Elite rounds are now derived rather than a hardcoded [5,15,25] literal — that
+# list silently stopped producing elites past round 25, so rounds 35/45/… fell
+# through to procedural random waves instead. Built once at load.
+const ELITE_ROUNDS: Array[int] = [
+	5, 15, 25, 35, 45, 55, 65, 75, 85, 95,
+]
 
 # ── Elite mob knobs ───────────────────────────────────────────────────────────
 # ── Elemental affinity rework (2026-07-16, user spec) ─────────────────────────
@@ -80,7 +110,7 @@ const AFFINITY_OWN_OFF_BONUS       := 50.0   # own element: hit that element har
 const AFFINITY_OWN_DEF_BONUS       := 25.0   # own element: block that element better
 const AFFINITY_OFFELEM_DEF_PENALTY := 15.0   # every other element: defended worse
 
-const ANT_HILL_SPAWN_INTERVAL := 1.0   # seconds between ant spawns (3.5 → 1.0
+const ANT_HILL_SPAWN_INTERVAL := 1.5   # seconds between ant spawns (3.5 → 1.0
 	# in the 2026-07-15 elite rebalance: at 3.5s the swarm never outpaced a
 	# round-15 team's kill rate — every ant died on arrival, all 7 heroes
 	# finished at 100% HP — so the DPS check was toothless)

@@ -438,12 +438,14 @@ const CLASSES := [
 		"skill": "Live Wire  /  Tripwire  /  Grid",
 		"skill_color": Color(1.0, 1.0, 0.5),
 		"skill_desc": (
-			"[PASSIVE] Live Wire — any enemy that ends a move next to Static is shocked " +
-			"and briefly slowed.\n\n" +
-			"[ACTIVE – 60 MP] Tripwire — stuns the nearest enemy for 3s as if it crossed a " +
-			"live wire.\n\n" +
-			"[ULTIMATE – 420 charge] Grid — electrifies the entire floor for 4s; enemies " +
-			"take damage with every step."
+			"[PASSIVE] Live Wire — anyone who attacks Static is hit by his current, " +
+			"taking back a share of the damage they dealt (10%-20%, scaling with his " +
+			"level and magic power).\n\n" +
+			"[ACTIVE – 60 MP] Tripwire — stuns the nearest enemy for 3s and deals lightning " +
+			"damage as if it crossed a live wire.\n\n" +
+			"[ULTIMATE – 420 charge] Grid — electrifies the entire field, dealing damage " +
+			"every second for 4s. If left unstunned for 2s, the field locks down and stuns " +
+			"every enemy for 2s."
 		),
 		"lore": "A saboteur who weaponised the power grid. Standing still near Static is " +
 			"bad; moving across the Grid is worse."

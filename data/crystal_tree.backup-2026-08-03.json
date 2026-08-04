@@ -1,0 +1,725 @@
+{
+  "center": {
+    "x": 750.0,
+    "y": 480.0
+  },
+  "center_size": 140.0,
+  "nodes": [
+    {
+      "icon": "quick_learner.png",
+      "key": "bonus_xp",
+      "parents": [],
+      "size": 110.0,
+      "x": 870.0,
+      "y": -630.0
+    },
+    {
+      "icon": "roster_expansion.png",
+      "key": "hero_slots",
+      "max_level": 1,
+      "parents": [],
+      "size": 110.0,
+      "x": -130.0,
+      "y": 440.0
+    },
+    {
+      "icon": "warm_bench.png",
+      "key": "bench_slots",
+      "parents": [
+        "hero_slots"
+      ],
+      "size": 96.0,
+      "x": -340.0,
+      "y": 440.0
+    },
+    {
+      "icon": "head_start.png",
+      "key": "starting_gold",
+      "parents": [
+        "starting gold"
+      ],
+      "size": 96.0,
+      "x": -90.0,
+      "y": 730.0
+    },
+    {
+      "icon": "head_start.png",
+      "key": "gold_per_kill",
+      "parents": [
+        "starting_gold"
+      ],
+      "size": 88.0,
+      "x": -510.0,
+      "y": 930.0
+    },
+    {
+      "icon": "crystal_surge.png",
+      "key": "crystal_per_round",
+      "parents": [
+        "starting gold"
+      ],
+      "size": 96.0,
+      "x": -30.0,
+      "y": 1000.0
+    },
+    {
+      "icon": "crystal_surge.png",
+      "key": "crystal_drop",
+      "max_level": 4,
+      "parents": [
+        "crystal_per_round"
+      ],
+      "size": 88.0,
+      "x": -350.0,
+      "y": 1270.0
+    },
+    {
+      "icon": "elemental_attunement.png",
+      "key": "elemental_attunement",
+      "parents": [],
+      "size": 88.0,
+      "x": 1630.0,
+      "y": 70.0
+    },
+    {
+      "icon": "equipment_quality_chance.png",
+      "key": "loot_quality",
+      "parents": [
+        "bench_slots"
+      ],
+      "size": 88.0,
+      "x": -500.0,
+      "y": 440.0
+    },
+    {
+      "icon": "roster_expansion.png",
+      "key": "hero_slots_2",
+      "max_level": 1,
+      "parents": [
+        "bonus_xp"
+      ],
+      "size": 110.0,
+      "x": 1030.0,
+      "y": -890.0
+    },
+    {
+      "desc": "Heroes can equip one more piece of equipment",
+      "icon": "equipment_plus1.png",
+      "key": "+1 Equipment",
+      "max_level": 1,
+      "parents": [],
+      "size": 96.0,
+      "x": 450.0,
+      "y": 260.0
+    },
+    {
+      "icon": "player_exp.png",
+      "key": "bonus_xp_2",
+      "name": "Bonus_player_xp",
+      "parents": [],
+      "size": 110.0,
+      "x": 470.0,
+      "y": -670.0
+    },
+    {
+      "icon": "sale_plus1.png",
+      "key": "+1 number of items per sale",
+      "parents": [],
+      "size": 96.0,
+      "x": 380.0,
+      "y": 1330.0
+    },
+    {
+      "icon": "discount_10pct.png",
+      "key": "+10% discount to items on sale.",
+      "parents": [
+        "starting gold"
+      ],
+      "size": 96.0,
+      "x": 120.0,
+      "y": 1240.0
+    },
+    {
+      "desc": "grants the player +1 reroll in hero rolls",
+      "icon": "hero_reroll_plus1.png",
+      "key": "+1 Reroll",
+      "parents": [],
+      "size": 96.0,
+      "x": 1510.0,
+      "y": 800.0
+    },
+    {
+      "desc": "grants the player one ree restock in the shop",
+      "icon": "shop_restock_plus1.png",
+      "key": "+1 Reroll_2",
+      "parents": [],
+      "size": 96.0,
+      "x": 1600.0,
+      "y": 550.0
+    },
+    {
+      "desc": "Heroes can equip one more piece of equipment",
+      "icon": "equipment_plus1.png",
+      "key": "+1 Equipment_2",
+      "max_level": 1,
+      "parents": [
+        "+1 Equipment"
+      ],
+      "size": 96.0,
+      "x": 250.0,
+      "y": 130.0
+    },
+    {
+      "desc": "Heroes can equip one more piece of equipment",
+      "icon": "equipment_plus1.png",
+      "key": "+1 Equipment_2_2",
+      "max_level": 1,
+      "parents": [
+        "+1 Equipment_2"
+      ],
+      "size": 96.0,
+      "x": 80.0,
+      "y": 10.0
+    },
+    {
+      "desc": "Heroes can equip one more piece of equipment",
+      "icon": "equipment_plus1.png",
+      "key": "+1 Equipment_2_2_2",
+      "max_level": 1,
+      "parents": [
+        "+1 Equipment_2_2"
+      ],
+      "size": 96.0,
+      "x": -100.0,
+      "y": -110.0
+    },
+    {
+      "desc": "Heroes can equip one more piece of equipment",
+      "icon": "equipment_plus1.png",
+      "key": "+1 Equipment_2_2_2_2",
+      "max_level": 1,
+      "parents": [
+        "+1 Equipment_2_2_2"
+      ],
+      "size": 96.0,
+      "x": -280.0,
+      "y": -230.0
+    },
+    {
+      "icon": "hero_pastor.png",
+      "key": "hero_unlock_pastor",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_3"
+      ],
+      "size": 96.0,
+      "x": 1380.0,
+      "y": -1700.0
+    },
+    {
+      "icon": "hero_coal.png",
+      "key": "hero_unlock_coal",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_3"
+      ],
+      "size": 96.0,
+      "x": 1600.0,
+      "y": -1820.0
+    },
+    {
+      "icon": "hero_sear.png",
+      "key": "hero_unlock_sear",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_3"
+      ],
+      "size": 96.0,
+      "x": 1870.0,
+      "y": -1590.0
+    },
+    {
+      "icon": "hero_ember.png",
+      "key": "hero_unlock_ember",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_3"
+      ],
+      "size": 96.0,
+      "x": 1990.0,
+      "y": -1320.0
+    },
+    {
+      "icon": "hero_doc.png",
+      "key": "hero_unlock_doc",
+      "max_level": 1,
+      "parents": [
+        "max_level_2"
+      ],
+      "size": 96.0,
+      "x": -530.0,
+      "y": -1030.0
+    },
+    {
+      "icon": "hero_reed.png",
+      "key": "hero_unlock_reed",
+      "max_level": 1,
+      "parents": [
+        "max_level_2"
+      ],
+      "size": 96.0,
+      "x": -210.0,
+      "y": -1250.0
+    },
+    {
+      "icon": "hero_sheildor.png",
+      "key": "hero_unlock_sheildor",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_2_2"
+      ],
+      "size": 96.0,
+      "x": 330.0,
+      "y": 3110.0
+    },
+    {
+      "icon": "hero_june.png",
+      "key": "hero_unlock_june",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_2_2"
+      ],
+      "size": 96.0,
+      "x": 640.0,
+      "y": 2970.0
+    },
+    {
+      "icon": "hero_spore.png",
+      "key": "hero_unlock_spore",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_2_2"
+      ],
+      "size": 96.0,
+      "x": 880.0,
+      "y": 2900.0
+    },
+    {
+      "icon": "hero_sable.png",
+      "key": "hero_unlock_sable",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_3_2_2"
+      ],
+      "size": 96.0,
+      "x": 2340.0,
+      "y": 2050.0
+    },
+    {
+      "icon": "hero_lumen.png",
+      "key": "hero_unlock_lumen",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_3_2"
+      ],
+      "size": 96.0,
+      "x": 3450.0,
+      "y": -410.0
+    },
+    {
+      "icon": "hero_vail.png",
+      "key": "hero_unlock_vail",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_3_2_2"
+      ],
+      "size": 96.0,
+      "x": 2590.0,
+      "y": 1740.0
+    },
+    {
+      "icon": "hero_zolt.png",
+      "key": "hero_unlock_zolt",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_3_2"
+      ],
+      "size": 96.0,
+      "x": 3380.0,
+      "y": 520.0
+    },
+    {
+      "icon": "hero_rush.png",
+      "key": "hero_unlock_rush",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_3_2"
+      ],
+      "size": 96.0,
+      "x": 3430.0,
+      "y": -80.0
+    },
+    {
+      "icon": "hero_lordee.png",
+      "key": "hero_unlock_lordee",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_2"
+      ],
+      "size": 96.0,
+      "x": -1530.0,
+      "y": 230.0
+    },
+    {
+      "icon": "hero_necro.png",
+      "key": "hero_unlock_necro",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_2"
+      ],
+      "size": 96.0,
+      "x": -1540.0,
+      "y": 480.0
+    },
+    {
+      "icon": "hero_riot.png",
+      "key": "hero_unlock_riot",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_2"
+      ],
+      "size": 96.0,
+      "x": -1580.0,
+      "y": 1060.0
+    },
+    {
+      "icon": "hero_stitch.png",
+      "key": "hero_unlock_stitch",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_2"
+      ],
+      "size": 96.0,
+      "x": -1560.0,
+      "y": 730.0
+    },
+    {
+      "icon": "hero_cross.png",
+      "key": "hero_unlock_cross",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_2"
+      ],
+      "size": 96.0,
+      "x": -1590.0,
+      "y": 1390.0
+    },
+    {
+      "icon": "hero_rift.png",
+      "key": "hero_unlock_rift",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_3_2"
+      ],
+      "size": 96.0,
+      "x": 3410.0,
+      "y": 250.0
+    },
+    {
+      "icon": "fleetfoot_growth.png",
+      "key": "attack_speed_per_level",
+      "parents": [
+        "fleetfoot_2"
+      ],
+      "size": 152.0,
+      "x": 3960.0,
+      "y": 1550.0
+    },
+    {
+      "icon": "max_hero_level.png",
+      "key": "max_level_2",
+      "max_level": 5,
+      "parents": [],
+      "size": 96.0,
+      "x": -70.0,
+      "y": -560.0
+    },
+    {
+      "icon": "mana_well_growth.png",
+      "key": "mana regen per level",
+      "parents": [
+        "mana_flow_2"
+      ],
+      "size": 96.0,
+      "x": -1490.0,
+      "y": -1470.0
+    },
+    {
+      "icon": "vitality_flow.png",
+      "key": "vitality_flow_2",
+      "parents": [
+        "max_level_2",
+        "spellpower_2"
+      ],
+      "size": 88.0,
+      "x": -10.0,
+      "y": -1670.0
+    },
+    {
+      "icon": "mana_flow.png",
+      "key": "mana_flow_2",
+      "parents": [
+        "max_level_2",
+        "vitality_flow_2",
+        "team_hp_2"
+      ],
+      "size": 88.0,
+      "x": -1050.0,
+      "y": -1030.0
+    },
+    {
+      "icon": "head_start.png",
+      "key": "starting gold",
+      "parents": [],
+      "size": 96.0,
+      "x": 380.0,
+      "y": 760.0
+    },
+    {
+      "icon": "max_hero_level.png",
+      "key": "max_level_2_2",
+      "max_level": 5,
+      "parents": [],
+      "size": 96.0,
+      "x": -900.0,
+      "y": 700.0
+    },
+    {
+      "icon": "max_hero_level.png",
+      "key": "max_level_2_2_2",
+      "max_level": 5,
+      "parents": [],
+      "size": 96.0,
+      "x": 880.0,
+      "y": 1570.0
+    },
+    {
+      "icon": "max_hero_level.png",
+      "key": "max_level_2_3",
+      "max_level": 5,
+      "parents": [],
+      "size": 96.0,
+      "x": 1620.0,
+      "y": -320.0
+    },
+    {
+      "icon": "might.png",
+      "key": "might_2",
+      "name": "attack per level",
+      "parents": [
+        "max_level_2_3",
+        "spellpower_2"
+      ],
+      "size": 96.0,
+      "x": 2390.0,
+      "y": -1810.0
+    },
+    {
+      "icon": "spellpower.png",
+      "key": "spellpower_2",
+      "parents": [
+        "max_level_2_3"
+      ],
+      "size": 88.0,
+      "x": 970.0,
+      "y": -2210.0
+    },
+    {
+      "icon": "max_hero_level.png",
+      "key": "max_level_2_3_2",
+      "max_level": 5,
+      "parents": [],
+      "size": 96.0,
+      "x": 1970.0,
+      "y": 270.0
+    },
+    {
+      "icon": "killing_blow.png",
+      "key": "killing_blow_2",
+      "parents": [
+        "max_level_2_3_2"
+      ],
+      "size": 88.0,
+      "x": 3560.0,
+      "y": 740.0
+    },
+    {
+      "icon": "lethality.png",
+      "key": "lethality_2",
+      "parents": [
+        "max_level_2_3_2",
+        "might_2",
+        "killing_blow_2"
+      ],
+      "size": 88.0,
+      "x": 3700.0,
+      "y": -800.0
+    },
+    {
+      "icon": "fortified.png",
+      "key": "team_hp_2",
+      "parents": [
+        "max_level_2_2"
+      ],
+      "size": 110.0,
+      "x": -1680.0,
+      "y": -200.0
+    },
+    {
+      "icon": "max_hero_level.png",
+      "key": "max_level_2_3_2_2",
+      "max_level": 5,
+      "parents": [],
+      "size": 96.0,
+      "x": 1900.0,
+      "y": 1430.0
+    },
+    {
+      "icon": "warding.png",
+      "key": "warding_2",
+      "parents": [
+        "max_level_2_2_2",
+        "mana_well_2"
+      ],
+      "size": 96.0,
+      "x": -70.0,
+      "y": 3470.0
+    },
+    {
+      "icon": "Bulwark.png",
+      "key": "bulwark_2",
+      "parents": [
+        "max_level_2_2_2",
+        "warding_2",
+        "swiftness_2"
+      ],
+      "size": 88.0,
+      "x": 1180.0,
+      "y": 3050.0
+    },
+    {
+      "icon": "fleetfoot.png",
+      "key": "fleetfoot_2",
+      "parents": [
+        "max_level_2_3_2_2",
+        "killing_blow_2"
+      ],
+      "size": 88.0,
+      "x": 3430.0,
+      "y": 1450.0
+    },
+    {
+      "icon": "swiftness.png",
+      "key": "swiftness_2",
+      "parents": [
+        "max_level_2_3_2_2",
+        "fleetfoot_2"
+      ],
+      "size": 88.0,
+      "x": 2280.0,
+      "y": 2710.0
+    },
+    {
+      "icon": "vitality_flow_growth.png",
+      "key": "hp_regen_per_level",
+      "parents": [
+        "vitality_flow_2"
+      ],
+      "size": 96.0,
+      "x": -150.0,
+      "y": -2160.0
+    },
+    {
+      "icon": "mana_well.png",
+      "key": "mana_well_2",
+      "parents": [
+        "max_level_2_2",
+        "team_hp_2"
+      ],
+      "size": 96.0,
+      "x": -1790.0,
+      "y": 2170.0
+    },
+    {
+      "icon": "spellpower_growth.png",
+      "key": "spellpower_per_level",
+      "parents": [
+        "spellpower_2"
+      ],
+      "size": 96.0,
+      "x": 1010.0,
+      "y": -2750.0
+    },
+    {
+      "icon": "might_growth.png",
+      "key": "attack_per_level",
+      "parents": [
+        "might_2"
+      ],
+      "size": 96.0,
+      "x": 2660.0,
+      "y": -2060.0
+    },
+    {
+      "icon": "lethality_growth.png",
+      "key": "crit_per_level",
+      "parents": [
+        "lethality_2"
+      ],
+      "size": 96.0,
+      "x": 4010.0,
+      "y": -970.0
+    },
+    {
+      "icon": "killing_blow_growth.png",
+      "key": "crit_dmg_per_lvl",
+      "parents": [
+        "killing_blow_2"
+      ],
+      "size": 96.0,
+      "x": 3864.0,
+      "y": 904.2
+    },
+    {
+      "icon": "warding_growth.png",
+      "key": "armor_per_lvl",
+      "parents": [
+        "bulwark_2"
+      ],
+      "size": 96.0,
+      "x": 1270.0,
+      "y": 3220.0
+    },
+    {
+      "icon": "mana_well_growth.png",
+      "key": "mana_per_level",
+      "parents": [
+        "mana_well_2"
+      ],
+      "size": 96.0,
+      "x": -2130.0,
+      "y": 2360.0
+    },
+    {
+      "icon": "hp_per_level.png",
+      "key": "health_per_level",
+      "parents": [
+        "team_hp_2"
+      ],
+      "size": 96.0,
+      "x": -1930.0,
+      "y": -270.0
+    }
+  ],
+  "version": 1
+}

@@ -10,8 +10,11 @@ class_name HydraElementScreen
 
 signal chosen(element: int)
 
-const PANEL_W := 760.0
-const PANEL_H := 320.0
+# Widened/heightened 2026-07-24 (user report) — 6 buttons at 110w/18-sep
+# summed to 750px, leaving only 5px margin inside a 760px panel (buttons
+# nearly touching the border); bottom margin was similarly cramped.
+const PANEL_W := 840.0
+const PANEL_H := 360.0
 const BTN_W   := 110.0
 const BTN_H   := 140.0
 
@@ -90,7 +93,7 @@ func _build_ui() -> void:
 	_btn_row = HBoxContainer.new()
 	_btn_row.add_theme_constant_override("separation", 18)
 	_btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_btn_row.position  = Vector2(0, 120)
+	_btn_row.position  = Vector2(0, 130)
 	_btn_row.size      = Vector2(PANEL_W, BTN_H)
 	_panel.add_child(_btn_row)
 

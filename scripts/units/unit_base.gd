@@ -122,9 +122,9 @@ enum TraitClass {
 @export var hp_regen: float = 0.5    # HP restored per second
 @export var mana_regen: float = 1.0  # mana restored per second
 # Crit is a real combat stat (not the Headhunter/Shauna hit-counter tricks below,
-# which are separate flavor mechanics) but baseline is 0% chance for everyone —
-# nothing grants crit_chance yet (future gear/relics will). crit_damage still
-# carries a real default so the multiplier is correct the moment something does.
+# which are separate flavor mechanics). Everyone — heroes AND enemies — crits at
+# a 10% baseline (Balance.CRIT_CHANCE_BASE, 2026-07-24); gear/perks/relics/shop
+# and the crystal-shop Lethality/Killing Blow nodes stack on top.
 @export var crit_chance: float = Balance.CRIT_CHANCE_BASE   # 0.0–1.0 chance to crit on a basic attack
 @export var crit_damage: float = Balance.CRIT_DAMAGE_BASE   # damage multiplier on a crit (2.0 = double)
 
@@ -138,6 +138,9 @@ var move_start_pos: Vector2 = Vector2.ZERO
 var move_target_pos: Vector2 = Vector2.ZERO
 var move_progress: float = 0.0
 var target_grid_pos: Vector2i = Vector2i.ZERO
+# World-space direction of the current/last step (set in AutoBattleManager.start_unit_movement).
+# VisualUnit._update_animation() reads this to pick walk_south/north/east/west.
+var last_move_direction: Vector2 = Vector2.ZERO
 
 # Elemental Affinity RATINGS (2026-07-16 rework): 100 = neutral.
 # - Offensive rating R vs a target element multiplies damage by R/100.
@@ -219,8 +222,49 @@ var recruit_grade: String     = ""   # "S" "A" "B" "C" "D"
 var growth_base: Dictionary  = {}    # {stat_key: flat amount per level}
 var growth_bonus: Dictionary = {}    # {stat_key: flat amount per level}
 
+# 2026-08-01: crystal-shop "Growth" upgrades (Might/Spellpower/Fleetfoot/
+# Vitality Flow/Mana Flow Growth) add a small extra amount to EVERY hero's
+# per-level growth for that stat — a global multiplier-ish bonus on top of
+# growth_base/growth_bonus above, read live so a mid-run purchase applies to
+# the next level-up. Player heroes only (enemies/summons have is_player_unit
+# false and never see these).
+const PROGRESSION_GROWTH_KEYS: Dictionary = {
+	"atk": "attack_per_level",
+	"magic": "spellpower_per_level",
+	"aspd": "attack_speed_per_level",
+	"hpregen": "hp_regen_per_level",
+	"manaregen": "mana regen per level",
+	"hp": "health_per_level",
+	"mana": "mana_per_level",
+	# crit/critdmg have no innate per-class growth (see
+	# UnitFactory.CLASS_GROWTH_PER_LEVEL) — these upgrades are their only
+	# source of per-level-up growth (2026-08-02).
+	"crit": "crit_per_level",
+	"critdmg": "crit_dmg_per_lvl",
+	# Physical-armor-only growth bucket — deliberately separate from "res" so
+	# it doesn't also buff magic_resist, which still rides "res" alone below.
+	"armor": "armor_per_lvl",
+}
+
 func stat_growth(stat_key: String) -> float:
-	return growth_base.get(stat_key, 0.0) + growth_bonus.get(stat_key, 0.0)
+	var total: float = growth_base.get(stat_key, 0.0) + growth_bonus.get(stat_key, 0.0)
+	if is_player_unit and PROGRESSION_GROWTH_KEYS.has(stat_key):
+		total += Progression.get_bonus_float(PROGRESSION_GROWTH_KEYS[stat_key])
+	return total
+
+# Fractional carry for int-typed stats (atk, magic) whose growth can now
+# include sub-1 amounts (Growth upgrades above) — apply_stat_growth() below
+# would otherwise truncate that fraction to 0 EVERY level via int(), silently
+# discarding it forever instead of it accumulating into a real point over
+# several level-ups (e.g. +0.1/level should become +1 extra attack every 10
+# hero levels, not never).
+var _int_growth_carry: Dictionary = {}   # {stat_key: float remainder}
+
+func _grow_int_stat(current: int, stat_key: String, min_value: int) -> int:
+	var carry: float = _int_growth_carry.get(stat_key, 0.0) + stat_growth(stat_key)
+	var whole := int(floor(carry))
+	_int_growth_carry[stat_key] = carry - float(whole)
+	return maxi(min_value, current + whole)
 
 # ── Shield system ─────────────────────────────────────────────────────────────
 var current_shield: int = 0   # absorbs damage before HP; resets at round end
@@ -263,6 +307,22 @@ var ultimate_ready: bool = false
 
 # ── Combat state (per-unit tracking) ─────────────────────────────────────────
 var damage_dealt: int = 0          # cumulative for damage meter
+# Seconds into the battle this unit first dealt damage or healed; -1 = never
+# contributed. Written only by AutoBattleManager._sample_first_contribution and
+# read only by the post-battle report — it drives the "your back row spent 6s
+# out of range" diagnosis that a raw damage total can't express.
+var first_contribution_time: float = -1.0
+# >0 = MELEE attackers (attack_range <= 1) can't target this unit; ranged and
+# magic still can. Distinct from untargetable_time, which hides a unit from
+# everything. Drives the Skyrender's aloft windows — see
+# AutoBattleManager.find_nearest_enemy and the "skyrender_ascent" mob passive.
+var melee_untargetable_time: float = 0.0
+# >0 = all healing this unit RECEIVES is scaled by Balance-side
+# AutoBattleManager.DROWNED_HEAL_MULT. Refreshed every tick by the Drowned Maw's
+# Riptide aura (wave-30 boss) and decayed in _tick_status, so it lifts on its
+# own once the boss dies. Gates inside heal(), which every sustain route in the
+# game funnels through — regen, lifesteal, drain-heals, skill and ult heals.
+var heal_cut_time: float = 0.0
 var pending_attack_log_damage: int = 0   # reset each attack; damage of this swing
 var hit_counter: int = 0           # Headhunter: every-7th-crit / Shauna: every-3rd-true-dmg
 var next_attack_boosted: bool = false  # Shauna active: next hit +50% DMG
@@ -284,6 +344,8 @@ var overdrive_time: float = 0.0    # Shauna ultimate: extra attack per swing whi
 var ult_active_time: float = 0.0
 var hp_regen_accum: float = 0.0    # fractional HP regen carried between frames
 var mp_regen_accum: float = 0.0    # fractional MP regen carried between frames
+var regen_text_accum: int = 0      # passive-regen HP healed since the last floating-text flush
+var regen_text_timer: float = 0.0  # time since the last floating-text flush
 
 # ── Status effects (roster expansion) ─────────────────────────────────────────
 # All counted down in AutoBattleManager._tick_statuses(). Generic so every hero's
@@ -318,8 +380,6 @@ var weakened_time: float = 0.0
 var spore_stacks: float = 0.0      # Spore passive accumulation
 var spore_tick_accum: float = 0.0
 
-var shock_cd: float = 0.0          # Static: debounce so adjacency shock can't every-frame
-
 var momentum_stacks: int = 0       # Sable: each shot empowers the next
 
 var link_partner = null            # Stitch Link: shares damage with this unit
@@ -328,7 +388,13 @@ var puppet_time: float = 0.0       # Stitch Puppet: temporarily fights its own t
 var stoke_charges: int = 0         # Coal Stoke: next N hits apply double burn
 var meltdown_time: float = 0.0     # Coal Meltdown: punches explode
 
-var combat_healing_done: int = 0   # Cross Judgment: tracks total healing this battle
+var combat_healing_done: int = 0   # lifetime healing-done stat this battle (arena/stat-sheet reporting)
+# Cross Judgment resource (2026-07-24 split from combat_healing_done): banks
+# Penance healing since the last Judgment cast, then Judgment spends it to
+# zero. Kept separate so Judgment scales off RECENT healing, not the
+# lifetime combat_healing_done total (which must stay untouched — it's the
+# stat sheet's "healing done" number for every healer class, not just Cross).
+var judgment_pool: int = 0
 var revive_used: bool = false      # Doc Field Surgery: once per battle
 
 # ── Relic modifiers (set by RelicInventory when relics are applied; read by the
@@ -368,13 +434,11 @@ var drain_per_sec: float = 0.0     # absolute amount drained per second (10% of 
 var drain_stolen: float = 0.0      # running total taken from this unit so far (for restoration)
 var drain_source = null            # the Stat Stealer who cast this drain
 var drain_accum: float = 0.0       # fractional carry-over for int-typed stats (mirrors burn_accum)
+# The stat's value at the moment of the cast — lets _tick_statuses cap total
+# theft at DRAIN_MAX_STEAL_PCT of this original value (2026-07-24 balance:
+# unbounded drain_time*drain_per_sec could otherwise fully zero a stat).
+var drain_snapshot: float = 0.0
 
-# ── Ant Hill elite ─────────────────────────────────────────────────────────────
-# Each Ant bite stacks +1 permanent vulnerability on its victim (no decay this
-# battle) — the Nth bite from any Ant deals +[stacks BEFORE that hit] bonus
-# damage, so ignoring the swarm makes every subsequent bite hurt more. Reset at
-# battle start.
-var ant_bite_stacks: int = 0
 # Ant Hill's periodic-spawn clock (generic name so any future "summons over
 # time" unit could reuse it). Counts down in _tick_passive; reset at battle start.
 var summon_spawn_timer: float = 0.0
@@ -414,6 +478,13 @@ func outgoing_damage_multiplier() -> float:
 		# Balance 2026-07-03: 0.06 → 0.05/stack (12-stack cap: max +72% → +60%).
 		# Sable topped the arena solo-damage board; user playtests flag her strong.
 		m *= (1.0 + momentum_stacks * 0.05)
+	# Basic-mob signature passives (Orc Bloodrage, Archer Focus Fire, Rat
+	# Infestation) stash their outgoing bonus in this meta each tick/hit — read
+	# here so every damage source scales the same way. Defaults to 0 for anything
+	# without a mob passive. See AutoBattleManager._tick_mob_passive.
+	var mob_dmg_bonus: float = get_meta("mob_dmg_bonus", 0.0)
+	if mob_dmg_bonus != 0.0:
+		m *= (1.0 + mob_dmg_bonus)
 	return m
 
 func get_defense_multiplier(attacking_element: Element = Element.NORMAL) -> float:
@@ -448,7 +519,11 @@ func _ready():
 func take_magic_damage(amount: int, element: Element = Element.NORMAL, attacker = null) -> void:
 	take_damage(amount, element, attacker, false, 0, true)
 
-func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null, true_damage: bool = false, bonus_true_damage: int = 0, is_magic: bool = false) -> void:
+func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null, true_damage: bool = false, bonus_true_damage: int = 0, is_magic: bool = false, is_crit: bool = false) -> void:
+	# Already dead (e.g. a projectile/skill landed after a prior hit killed this
+	# unit) — skip entirely so we don't re-run die(), on-hit passives, etc. on a corpse.
+	if current_hp <= 0:
+		return
 	# Evasion: chance to dodge the hit entirely (only applies to direct hits, not DoT/true damage)
 	if not true_damage and amount > 0:
 		var ev: float = equipment_passives.get("Evasion", 0.0)
@@ -480,6 +555,19 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 	# up (2026-07-10 bug report: fights stalling out with neither side progressing).
 	modified_damage += bonus_true_damage
 
+	# Anti-stall enrage: once a fight drags past Balance.BATTLE_ENRAGE_START,
+	# every damage source on BOTH sides is scaled up (doubling every
+	# BATTLE_ENRAGE_DOUBLE_EVERY seconds) so the battle actually terminates —
+	# the engine has no other timeout. Applied HERE rather than in
+	# outgoing_damage_multiplier() because that one is only consulted by basic
+	# attacks; skills, ultimates, projectiles and DoTs all converge on
+	# take_damage, so this is the single point that catches everything.
+	# See AutoBattleManager.enrage_multiplier for the full rationale.
+	if battle_manager and battle_manager.has_method("enrage_multiplier"):
+		var enrage: float = battle_manager.enrage_multiplier()
+		if enrage > 1.0:
+			modified_damage = int(modified_damage * enrage)
+
 	# Shield absorbs damage before HP
 	if current_shield > 0:
 		var absorbed: int = mini(current_shield, modified_damage)
@@ -490,9 +578,15 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 			spawn_damage_text(absorbed, element)
 			return   # fully blocked — no HP lost, no signals
 
-	spawn_damage_text(modified_damage, element)
+	spawn_damage_text(modified_damage, element, is_crit)
 
 	current_hp = max(0, current_hp - modified_damage)   # setter emits health_changed
+	# Troll "Regeneration" counterplay: a Fire or Lightning hit shuts its passive
+	# regen off for a couple seconds (ticked down in AutoBattleManager). Element is
+	# only known here, so the flag is set at the damage site rather than in the tick.
+	if not true_damage and (element == Element.FIRE or element == Element.LIGHTNING) \
+			and has_meta("mob_passive") and str(get_meta("mob_passive")) == "troll_regen":
+		set_meta("troll_regen_block_t", 2.0)
 	took_damage.emit(modified_damage, attacker)   # drives the hit reaction (flash + recoil)
 	_charge_ultimate(modified_damage)
 	# Track who dealt damage to us (for Bloodhound ultimate)
@@ -511,11 +605,24 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 # the 2026-07-16 affinity rework — elemental interaction is now entirely
 # "attacker's offensive rating vs target's defensive rating".)
 
-func heal(amount: int) -> void:
+func heal(amount: int, silent: bool = false) -> void:
+	# Khagan puppet: the possessed hero can't self-sustain while controlled — this
+	# single gate neutralizes regen, lifesteal, drain-heals and skill/ult heals
+	# alike (all sustain routes through heal()), so a geared bruiser/healer can't
+	# wall the possession fight forever. Restored when control breaks.
+	if has_meta("khagan_puppet"):
+		return
+	# Riptide (Drowned Maw, wave 30): healing RECEIVED is cut while the aura holds.
+	# Same choke-point logic as the puppet gate above — one gate here covers every
+	# sustain route in the game instead of patching each heal source.
+	if heal_cut_time > 0.0:
+		amount = int(round(float(amount) * AutoBattleManager.DROWNED_HEAL_MULT))
+		if amount <= 0:
+			return
 	var before: int = current_hp
 	current_hp = min(max_hp, current_hp + amount)   # setter emits health_changed
 	var healed: int = current_hp - before
-	if healed > 0:
+	if healed > 0 and not silent:
 		spawn_heal_text(healed)
 
 func restore_mana(amount: int) -> void:
@@ -540,17 +647,31 @@ func change_element(new_element: Element) -> void:
 # hero — see UnitFactory.apply_recruit_rolls). Two recruits of the same class
 # will diverge over time since their growth rolls differ.
 func apply_stat_growth() -> void:
-	max_hp         = maxi(1, max_hp         + int(stat_growth("hp")))
-	max_mana       = maxi(0, max_mana       + int(stat_growth("mana")))
-	attack_damage  = maxi(1, attack_damage  + int(stat_growth("atk")))
-	magic_power    = maxi(0, magic_power    + int(stat_growth("magic")))
+	# hp/mana route through the same fractional-carry helper as atk/magic
+	# (2026-08-02: the Fortified/Mana Well Growth upgrades can add a fraction
+	# on top of the already-whole per-class growth, so the carry still matters
+	# once that fraction and the class's own roll don't land on a whole number).
+	max_hp         = _grow_int_stat(max_hp, "hp", 1)
+	max_mana       = _grow_int_stat(max_mana, "mana", 0)
+	attack_damage  = _grow_int_stat(attack_damage, "atk", 1)
+	magic_power    = _grow_int_stat(magic_power, "magic", 0)
+	# "res" growth is always a whole number in CLASS_GROWTH_PER_LEVEL (no
+	# fractional source touches it), so plain int() is fine here — no carry
+	# bucket needed, and importantly resistance/magic_resist must NOT share
+	# one via _grow_int_stat("res", ...) since that would corrupt each
+	# other's remainder. Armor Growth below is physical-only, in its own key.
 	resistance     = maxi(0, resistance     + int(stat_growth("res")))
+	resistance     = _grow_int_stat(resistance, "armor", 0)
 	# Magic armor rides the same "res" growth roll until it gets its own table
 	# entry (defense split 2026-07-16 — keeps leveling balance-neutral).
 	magic_resist   = maxi(0, magic_resist   + int(stat_growth("res")))
 	attack_speed   = maxf(0.05, attack_speed + stat_growth("aspd"))
 	hp_regen       = maxf(0.0,  hp_regen     + stat_growth("hpregen"))
 	mana_regen     = maxf(0.0,  mana_regen   + stat_growth("manaregen"))
+	# 2026-08-02: crit chance/damage have no innate per-class growth (see
+	# PROGRESSION_GROWTH_KEYS above) — floats, so no carry needed.
+	crit_chance    = maxf(0.0, crit_chance   + stat_growth("crit"))
+	crit_damage    = maxf(0.0, crit_damage   + stat_growth("critdmg"))
 
 func level_up() -> void:
 	level += 1
@@ -584,47 +705,62 @@ func attack(target) -> void:
 		damage = int(damage * relic_outgoing_mult)
 	if relic_vs_boss_mult != 1.0 and target is UnitBase and target.is_boss:
 		damage = int(damage * relic_vs_boss_mult)
-	# Ant Hill swarm: every bite adds the victim's CURRENT stack count as bonus
-	# damage (read before this hit's stack increment in _apply_on_hit_passives),
-	# so the 1st bite is normal, the 2nd is +1, the 3rd is +2, etc. Passed to
-	# take_damage() as unmitigated bonus_true_damage (2026-07-10 fix) — added to
-	# `damage` here it was flat-resistance'd away and floored to 1 dmg forever,
-	# since resistance is a flat subtraction, not a percentage.
+	# Ant Hill swarm (2026-07-24 rework): the bonus is now a GLOBAL swarm-rage
+	# counter (AutoBattleManager.ant_swarm_stacks), not a per-victim one. Every
+	# landed Ant bite — on ANY target — ramps up EVERY Ant's damage against
+	# ANY target for the rest of the fight. The old per-victim version let
+	# players stall forever by spreading the swarm's attention (and healing)
+	# across many units, since no single target ever built up enough stacks
+	# to matter — this way the swarm gets scarier over time no matter who it's
+	# biting, so healing through it is a real DPS check instead of a stalemate.
+	# Read BEFORE this hit's stack increment (_apply_on_hit_passives), so the
+	# 1st bite of the fight is normal, the 2nd is +1, the 3rd is +2, etc.
+	# Passed to take_damage() as unmitigated bonus_true_damage (2026-07-10 fix)
+	# — added to `damage` here it was flat-resistance'd away and floored to
+	# 1 dmg forever, since resistance is a flat subtraction, not a percentage.
 	var ant_bonus_dmg: int = 0
-	if unit_class == UnitClass.ANT and target is UnitBase:
-		ant_bonus_dmg = target.ant_bite_stacks
+	if unit_class == UnitClass.ANT and battle_manager:
+		ant_bonus_dmg = battle_manager.ant_swarm_stacks
 
 	hit_counter += 1
 	# Generic crit roll (separate from the Headhunter/Shauna hit-counter flavor
 	# mechanics below — those are class-specific tricks, this is the real crit
 	# stat that gear/relics/the Stat Stealer's drain read and write).
+	# did_crit drives the gold/oversized/wobble crit floating text (DamageText).
+	# Both the generic crit stat and the Headhunter 7th-hit triple are "crits" visually.
+	var did_crit := false
 	if crit_chance > 0.0 and randf() < crit_chance:
 		damage = int(damage * crit_damage)
-	# Headhunter: every 7th hit = 3× crit
-	if unit_class == UnitClass.HEADHUNTER and hit_counter % 7 == 0:
-		damage = int(damage * 3.0)
-	# Shauna: next attack boosted (+50%) from Kite active
+		did_crit = true
+	# Headhunter "Seventh Shot" — numbers from AbilityFormulas, see that file.
+	if unit_class == UnitClass.HEADHUNTER \
+			and hit_counter % int(AbilityFormulas.flat(unit_class, AbilityFormulas.PASSIVE, "every")) == 0:
+		damage = int(damage * AbilityFormulas.flat(unit_class, AbilityFormulas.PASSIVE, "mult"))
+		did_crit = true
+	# Shauna: next attack boosted from the Kite active
 	var is_boosted := next_attack_boosted
 	if is_boosted:
-		damage = int(damage * 1.5)
+		damage = int(damage * (1.0 + AbilityFormulas.flat(
+				UnitClass.SHAUNA, AbilityFormulas.ACTIVE, "boost")))
 		next_attack_boosted = false
-	# Shauna: every 3rd hit = true damage (bypass defence)
-	var is_true_dmg := (unit_class == UnitClass.SHAUNA and hit_counter % 3 == 0)
+	# Shauna "Glass Cannon": every Nth hit is true damage (bypasses defence)
+	var is_true_dmg := (unit_class == UnitClass.SHAUNA \
+			and hit_counter % int(AbilityFormulas.flat(unit_class, AbilityFormulas.PASSIVE, "every")) == 0)
 
 	# Headhunter active bonus range already applied by battle manager
 
 	# Bouncer is a melee brawler despite having range 2 (grab/pull reach) — no projectile.
 	if attack_range > 1 and unit_class != UnitClass.BOUNCER:
-		spawn_projectile(target, damage)
+		spawn_projectile(target, damage, false, did_crit)
 		pending_attack_log_damage += damage   # intended damage (mitigated on hit)
 	else:
 		var pre_hp: int = target.current_hp
 		var was_alive: bool = pre_hp > 0
-		target.take_damage(damage, current_element, self, is_true_dmg, ant_bonus_dmg)
+		target.take_damage(damage, current_element, self, is_true_dmg, ant_bonus_dmg, false, did_crit)
 		var actual: int = max(0, pre_hp - target.current_hp)
 		damage_dealt += actual
 		pending_attack_log_damage += actual
-		_charge_ultimate(actual / 2)
+		_charge_ultimate(actual / 4)
 		apply_relic_on_hit(target, actual, was_alive)
 
 	attacked.emit(target)
@@ -650,17 +786,24 @@ func _charge_ultimate(amount: int) -> void:
 
 func grant_xp(amount: float) -> void:
 	current_xp += amount
-	while current_xp >= xp_to_level:
+	# 2026-08-01: hero level cap (Progression.hero_level_cap(), base 10, raised
+	# by the Max Hero Level tree family). Enemies/summons (is_player_unit
+	# false) aren't capped — only player heroes are meta-progression-gated.
+	var cap := Progression.hero_level_cap() if is_player_unit else 999999
+	while current_xp >= xp_to_level and level < cap:
 		current_xp -= xp_to_level
 		xp_to_level *= 1.5
 		level_up()
 		perk_points += 1
+	if level >= cap:
+		current_xp = 0.0   # capped: don't let XP pile up uselessly past the cap
 
 func set_level(target_level: int) -> void:
-	while level < target_level:
+	var cap := Progression.hero_level_cap() if is_player_unit else 999999
+	while level < target_level and level < cap:
 		level_up()
 
-func spawn_projectile(target, damage: int, is_magic: bool = false) -> void:
+func spawn_projectile(target, damage: int, is_magic: bool = false, is_crit: bool = false) -> void:
 	if not battle_manager:
 		return
 
@@ -670,19 +813,18 @@ func spawn_projectile(target, damage: int, is_magic: bool = false) -> void:
 
 	projectile.setup(start_pos, end_pos, damage, current_element, target)
 	projectile.is_magic = is_magic
+	projectile.is_crit = is_crit
 	projectile.caster = self   # so on_reach_target can credit damage_dealt
 
 	if battle_manager.has_method("add_projectile"):
 		battle_manager.add_projectile(projectile)
 
 func die() -> void:
-	# Khagan's mind-controlled puppet: a lethal hit clamps to 1 HP and STAYS
-	# there (no partial-heal floor — 2026-07-08 user spec) instead of really
-	# dying — the player fights their own hero down to exactly 1 HP to end the
-	# encounter. The normal between-round row heal
-	# (main_game._grant_between_round_bonuses) tops it up afterward same as any
-	# other survivor, since home_position was never touched (mirrors the
-	# VisualUnit.die() override).
+	# Khagan's puppet: bursting it to 0 HP frees it EARLY (clamps to 1 HP instead
+	# of dying) — one of two break paths, the other being the survival timer in
+	# AutoBattleManager._tick_khagan_possession. end_khagan_possession restores
+	# the loaned stats; the between-round row heal tops the hero up afterward
+	# (home_position untouched). Mirrors the VisualUnit.die() override.
 	if has_meta("khagan_puppet") and current_hp <= 0:
 		current_hp = 1
 		current_shield = 0
@@ -826,7 +968,7 @@ func is_in_attack_range(target_pos: Vector2i) -> bool:
 func get_distance_to(target_pos: Vector2i) -> float:
 	return grid_position.distance_to(target_pos)
 
-func spawn_damage_text(damage: int, element: Element) -> void:
+func spawn_damage_text(damage: int, element: Element, is_crit: bool = false) -> void:
 	if not damage_text_container:
 		return
 
@@ -834,8 +976,14 @@ func spawn_damage_text(damage: int, element: Element) -> void:
 	# Spawn ABOVE the HP-bar zone with a little horizontal jitter so numbers
 	# clear the bar and don't stack on top of each other (2026-07-17).
 	var spawn_pos = global_position + Vector2(randf_range(-16.0, 16.0), -48.0)
-	damage_text.setup(damage, element, spawn_pos)
+	# add_child BEFORE setup so setup()'s global_position is resolved against the
+	# container's real (battle_grid_node-offset) transform. Setting it while the
+	# node was still orphaned stored the value as a LOCAL position, so once
+	# parented the number flashed ~origin px to the right for a frame before
+	# _process snapped it back — reading as damage text darting/duplicating off
+	# to the right of the board (2026-07-22).
 	damage_text_container.add_child(damage_text)
+	damage_text.setup(damage, element, spawn_pos, is_crit)
 
 # Green "+N" floating text — fires whenever heal() actually restores any HP,
 # regardless of source (skills, lifesteal, auras, relics — anything routed
@@ -846,5 +994,7 @@ func spawn_heal_text(amount: int) -> void:
 
 	var heal_text = DamageText.new()
 	var spawn_pos = global_position + Vector2(randf_range(-16.0, 16.0), -48.0)
-	heal_text.setup_heal(amount, spawn_pos)
+	# add_child before setup (see spawn_damage_text) so the position resolves in
+	# the container's real transform instead of flashing off to the right.
 	damage_text_container.add_child(heal_text)
+	heal_text.setup_heal(amount, spawn_pos)

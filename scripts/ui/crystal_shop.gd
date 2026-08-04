@@ -3,10 +3,13 @@ class_name CrystalShop
 
 # Branching tree layout, v2 (2026-07-15 design pass). Call to Arms sits at
 # the center, always active (not purchasable — deliberately NOT in
-# Progression.UPGRADES). The 4 core upgrades are the compass ring, and the
-# old 10-wide stat fan is split into three themed sub-branches gated by
-# Might (offense), Warding (defense) and Mana Well (arcane/utility) so no
-# fan is wider than 4.
+# Progression.UPGRADES).
+#
+# LAYOUT IS DATA (2026-07-31): node positions/sizes/icons/parents live in
+# data/crystal_tree.json, loaded through CrystalTree. Nothing in this file
+# hardcodes where a node goes — press F9 in a dev build to drag the tree
+# around and save it back (see crystal_tree_editor.gd). Upgrade CONTENT
+# (name/desc/cost/effect) still lives in Progression.UPGRADES, joined by key.
 #
 # Nodes are the icon art itself (assets/icons/crystalshop, from
 # GEMINI_CRYSTAL_SHOP_PROMPTS.md) — no slot frames. State reads from the
@@ -19,78 +22,9 @@ class_name CrystalShop
 signal closed()
 
 const PLACEHOLDER_ICON := "res://assets/UI/Vector_UI_Pack_dobo_ui/Icons/128px/skills_icon_128px.png"
-const ICON_DIR := "res://assets/icons/crystalshop/"
-const CALL_TO_ARMS_ICON := ICON_DIR + "call_to_arms.png"
-
-# Upgrade key -> icon file. Circles = per-hero stat boosts, squares =
-# run-structure/economy upgrades (shape convention from the prompt sheet).
-const NODE_ICONS := {
-	"team_hp":              "fortified.png",
-	"starting_gold":        "head_start.png",
-	"gold_per_kill":        "head_start.png",     # shared art (user spec: 2 sprites, 4 nodes)
-	"bonus_xp":             "quick_learner.png",
-	"hero_slots":           "roster_expansion.png",
-	"bench_slots":          "warm_bench.png",
-	"loot_quality":         "head_start.png",   # shared art until a loot icon lands
-	"crystal_per_round":    "crystal_surge.png",  # shared art
-	"crystal_drop":         "crystal_surge.png",
-	"mana_well":            "mana_well.png",
-	"spellpower":           "spellpower.png",
-	"might":                "might.png",
-	"warding":              "warding.png",
-	"bulwark":              "warding.png",   # shared art until a dedicated armor icon lands
-	"fleetfoot":            "fleetfoot.png",
-	"vitality_flow":        "vitality_flow.png",
-	"mana_flow":            "mana_flow.png",
-	"swiftness":            "swiftness.png",
-	"lethality":            "lethality.png",
-	"killing_blow":         "killing_blow.png",
-	"elemental_attunement": "elemental_attunement.png",
-}
+const CALL_TO_ARMS_ICON := CrystalTree.ICON_DIR + "call_to_arms.png"
 
 const PANEL_SIZE := Vector2(1500, 1000)
-const TREE_CENTER := Vector2(750, 480)   # relative to panel top-left
-const CENTER_NODE_SIZE := 140.0
-const RADII := [0.0, 170.0, 300.0, 440.0]        # indexed by tier
-const NODE_SIZES := [140.0, 110.0, 96.0, 88.0]   # indexed by tier
-
-# The whole tree, hand-placed. Angles in degrees, standard math convention
-# (0 = right, 90 = up, CCW — _angle_offset flips Y for screen space).
-# parent "" = the Call to Arms center. Tier-3 nodes sit on one evenly-spaced
-# 22°-arc across the top so sibling groups never collide; each group's
-# gateway (tier-2) node sits at the mean angle of its children.
-# An "offset" (pixels from TREE_CENTER) overrides angle/radius placement —
-# used by the economy pairs, which chain HORIZONTALLY off the XP node
-# (2026-07-16 user spec: gold pair to XP's left, crystal pair to its right,
-# per-kill node of each pair outermost and gated behind the per-round one).
-const NODE_LAYOUT := {
-	"team_hp":    {"tier": 1, "angle": 90.0,  "parent": ""},
-	"bonus_xp":   {"tier": 1, "angle": 270.0, "parent": ""},
-	"hero_slots": {"tier": 1, "angle": 180.0, "parent": ""},
-
-	"might":       {"tier": 2, "angle": 42.0,  "parent": "team_hp"},
-	"warding":     {"tier": 2, "angle": 100.0, "parent": "team_hp"},
-	"mana_well":   {"tier": 2, "angle": 148.0, "parent": "team_hp"},
-	"bench_slots": {"tier": 2, "angle": 180.0, "parent": "hero_slots"},
-
-	"starting_gold":     {"tier": 2, "offset": Vector2(-135, 170), "parent": "bonus_xp"},
-	"gold_per_kill":     {"tier": 3, "offset": Vector2(-270, 170), "parent": "starting_gold"},
-	"crystal_per_round": {"tier": 2, "offset": Vector2(135, 170),  "parent": "bonus_xp"},
-	"crystal_drop":      {"tier": 3, "offset": Vector2(270, 170),  "parent": "crystal_per_round"},
-
-	# 9 tier-3 nodes spread evenly 13°..167° (19.25° apart) — re-spaced
-	# 2026-07-16 when Bulwark joined the defense branch.
-	"killing_blow":         {"tier": 3, "angle": 13.0,   "parent": "might"},
-	"lethality":            {"tier": 3, "angle": 32.25,  "parent": "might"},
-	"fleetfoot":            {"tier": 3, "angle": 51.5,   "parent": "might"},
-	"spellpower":           {"tier": 3, "angle": 70.75,  "parent": "might"},
-	"bulwark":              {"tier": 3, "angle": 90.0,   "parent": "warding"},
-	"loot_quality":         {"tier": 3, "angle": 180.0,  "parent": "bench_slots"},
-	"vitality_flow":        {"tier": 3, "angle": 109.25, "parent": "warding"},
-	"mana_flow":            {"tier": 3, "angle": 128.5,  "parent": "mana_well"},
-	"swiftness":            {"tier": 3, "angle": 147.75, "parent": "mana_well"},
-	"elemental_attunement": {"tier": 3, "angle": 167.0,  "parent": "mana_well"},
-}
 
 # Light-on-dark palette for everything floating over the dimmed game screen.
 const COL_TITLE    := Color(0.95, 0.82, 0.5)
@@ -124,10 +58,16 @@ class NodeRing extends Control:
 		if selected:
 			draw_arc(c, r + 6.0, 0.0, TAU, 48, SELECT, 2.5, true)
 
-const ZOOM_MIN := 0.6
-const ZOOM_MAX := 1.5
-const PAN_MARGIN := 140.0   # the tree hub can never get closer than this to leaving the view
+# Zoom-out goes far enough to see a tree several times the size of the view;
+# the old 0.6 floor assumed a hub-sized tree.
+const ZOOM_MIN := 0.2
+const ZOOM_MAX := 2.0
+# How much of the tree's bounding box must stay inside the view. Clamping
+# against the CONTENT rect (not the hub) is what makes distant nodes reachable
+# — the old hub-based clamp put a hard wall a few hundred px out.
+const PAN_MARGIN := 140.0
 
+var _tree: CrystalTree        # layout data (data/crystal_tree.json)
 var _wallet_lbl: Label
 var _nodes: Array = []        # [{button, key, icon, ring, glow, badge}, ...]
 var _connectors: Array = []   # [{line: Line2D, parent: String}, ...]
@@ -143,6 +83,9 @@ var _dragging := false
 var _reset_btn: Button
 var _reset_armed := false
 
+var _editor: CrystalTreeEditor   # null until F9 in a dev build
+
+var _detail_bar: Panel
 var _detail_prompt: Label
 var _detail_icon: TextureRect
 var _detail_name: Label
@@ -151,9 +94,25 @@ var _detail_stats: Label
 var _buy_btn: Button
 
 func _ready() -> void:
+	_load_tree()
 	_build_ui()
 
+# Layout comes off disk on every open in a dev run so the editor's Save is
+# visible without restarting the game.
+func _load_tree() -> void:
+	_tree = CrystalTree.load_from_disk()
+	# Keep the game's view of caps/wording in step with whatever just loaded.
+	Progression.apply_tree_overrides(_tree)
+	var keys := PackedStringArray()
+	for u in Progression.catalogue():
+		keys.append(String(u["key"]))
+	for problem in _tree.validate(keys):
+		push_warning("CrystalShop tree: %s" % problem)
+
 func open() -> void:
+	if OS.has_feature("editor"):
+		_load_tree()      # pick up editor saves without restarting the game
+		_build_tree()
 	_canvas.position = _canvas_home   # reset any pan/zoom from last visit
 	_canvas.scale = Vector2.ONE
 	_refresh()
@@ -201,16 +160,7 @@ func _build_ui() -> void:
 
 	# Draw order: ambient backdrop glow, connector lines, per-node glows,
 	# then the node buttons themselves (added by _build_tree).
-	_connector_layer = Node2D.new()
-	_canvas.add_child(_connector_layer)
-	_glow_layer = Control.new()
-	_glow_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_canvas.add_child(_glow_layer)
-	var ambient := _make_glow(TREE_CENTER, 380.0, Color(1.0, 0.85, 0.5, 0.055))
-	ambient.visible = true
-	_glow_layer.move_child(ambient, 0)
-
-	_build_tree(_canvas)
+	_build_tree()
 	_build_detail_bar(panel)
 
 	var close_btn := _btn("✕  Close", Rect2((PANEL_SIZE.x - 200) / 2.0, PANEL_SIZE.y - 56, 200, 40))
@@ -227,8 +177,15 @@ func _build_ui() -> void:
 
 # ── Pan & zoom ────────────────────────────────────────────────────────────────
 func _on_tree_view_input(event: InputEvent) -> void:
+	# Edit mode claims clicks on nodes (select/drag); anything it doesn't want
+	# falls through to the normal pan/zoom below, so panning still works while
+	# laying the tree out.
+	if _editor != null and _editor.active and _editor.handle_tree_input(event):
+		return
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT:
+		# Middle-drag also pans: in edit mode a left-drag on empty space is the
+		# rubber-band select, so panning needs a button the editor never wants.
+		if event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_MIDDLE:
 			_dragging = event.pressed
 			_tree_view.mouse_default_cursor_shape = Control.CURSOR_MOVE if _dragging else Control.CURSOR_ARROW
 		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -250,55 +207,79 @@ func _zoom_at(factor: float, mouse_pos: Vector2) -> void:
 	_canvas.scale = Vector2.ONE * new_scale
 	_clamp_canvas()
 
-# Keep the Call to Arms hub on screen no matter how far the user flings the
-# canvas — everything else is reachable by panning from there.
+# Keep the tree's bounding box overlapping the view by at least PAN_MARGIN, so
+# every node can be brought on screen but the canvas can't be flung into empty
+# space. The allowed range grows with the tree, which the old hub-anchored
+# clamp did not.
 func _clamp_canvas() -> void:
-	var hub: Vector2 = _canvas.position + TREE_CENTER * _canvas.scale.x
-	hub.x = clampf(hub.x, PAN_MARGIN, _tree_view.size.x - PAN_MARGIN)
-	hub.y = clampf(hub.y, PAN_MARGIN, _tree_view.size.y - PAN_MARGIN)
-	_canvas.position = hub - TREE_CENTER * _canvas.scale.x
+	var s: float = _canvas.scale.x
+	var b: Rect2 = _tree.bounds()
+	var lo := Vector2(PAN_MARGIN, PAN_MARGIN) - b.end * s
+	var hi := _tree_view.size - Vector2(PAN_MARGIN, PAN_MARGIN) - b.position * s
+	_canvas.position = _canvas.position.clamp(lo.min(hi), hi.max(lo))
+
+# Fit the whole tree in the view. The bigger the tree gets, the more this is
+# the only practical way to find your way back to it.
+func frame_all() -> void:
+	var b: Rect2 = _tree.bounds().grow(60.0)
+	if b.size.x <= 0.0 or b.size.y <= 0.0:
+		return
+	var s: float = clampf(minf(_tree_view.size.x / b.size.x, _tree_view.size.y / b.size.y),
+			ZOOM_MIN, ZOOM_MAX)
+	_canvas.scale = Vector2.ONE * s
+	_canvas.position = _tree_view.size / 2.0 - b.get_center() * s
+	_clamp_canvas()
 
 # ── Tree construction ─────────────────────────────────────────────────────────
-func _build_tree(canvas: Control) -> void:
-	# Every position is derivable straight from NODE_LAYOUT (angles are
-	# absolute), so compute them all up front — Progression.UPGRADES order
-	# doesn't put parents before children.
-	var positions: Dictionary = {"": TREE_CENTER}
-	for key: String in NODE_LAYOUT:
-		var l: Dictionary = NODE_LAYOUT[key]
-		positions[key] = TREE_CENTER + (l["offset"] if l.has("offset")
-				else _angle_offset(l["angle"], RADII[l["tier"]]))
+# Rebuildable from scratch: the editor calls this after every structural edit,
+# so it must tear down its own layers rather than assuming a fresh canvas.
+# Draw order: ambient backdrop glow, connector lines, per-node glows, then the
+# node buttons on top.
+func _build_tree() -> void:
+	for child in _canvas.get_children():
+		child.queue_free()
+		_canvas.remove_child(child)
+	_nodes.clear()
+	_connectors.clear()
 
-	for key: String in NODE_LAYOUT:
-		var l: Dictionary = NODE_LAYOUT[key]
-		var line := Line2D.new()
-		line.points = PackedVector2Array([positions[l["parent"]], positions[key]])
-		line.width = 6.0 if l["parent"] == "" else 4.0
-		line.default_color = CONN_DIM
-		_connector_layer.add_child(line)
-		_connectors.append({"line": line, "parent": l["parent"]})
+	_connector_layer = Node2D.new()
+	_canvas.add_child(_connector_layer)
+	_glow_layer = Control.new()
+	_glow_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_canvas.add_child(_glow_layer)
+	var ambient := _make_glow(_tree.center, 380.0, Color(1.0, 0.85, 0.5, 0.055))
+	ambient.visible = true
+	_glow_layer.move_child(ambient, 0)
+
+	for n in _tree.nodes:
+		# One connector per parent link (a node may now hang off several
+		# parents) — an empty parents array still draws the single hub line.
+		var parent_keys: Array[String] = n.parents.duplicate()
+		if parent_keys.is_empty():
+			parent_keys.append("")
+		for parent_key in parent_keys:
+			var line := Line2D.new()
+			line.points = PackedVector2Array([_tree.position_of(parent_key), n.pos])
+			line.width = 6.0 if parent_key == "" else 4.0
+			line.default_color = CONN_DIM
+			_connector_layer.add_child(line)
+			_connectors.append({"line": line, "parent": parent_key, "child": n.key})
 
 	# Center: Call to Arms — always active, selectable for its info, no buy.
-	var center_glow := _make_glow(TREE_CENTER, CENTER_NODE_SIZE, Color(1.0, 0.9, 0.55, 0.45), 2.0)
+	var center_glow := _make_glow(_tree.center, _tree.center_size, Color(1.0, 0.9, 0.55, 0.45), 2.0)
 	center_glow.visible = true
-	var center_btn := _make_icon_button(canvas, CALL_TO_ARMS_ICON, TREE_CENTER, CENTER_NODE_SIZE)
+	var center_btn := _make_icon_button(_canvas, CALL_TO_ARMS_ICON, _tree.center, _tree.center_size)
 	center_btn.tooltip_text = "Call to Arms — always active"
 	center_btn.pressed.connect(_select.bind("call_to_arms"))
-	var active_tag := _lbl(canvas, "ACTIVE", 11, COL_TITLE,
-		TREE_CENTER + Vector2(-60, CENTER_NODE_SIZE / 2.0 + 4), Vector2(120, 18), true)
+	var active_tag := _lbl(_canvas, "ACTIVE", 11, COL_TITLE,
+		_tree.center + Vector2(-60, _tree.center_size / 2.0 + 4), Vector2(120, 18), true)
 	_outline(active_tag)
 
-	for upgrade in Progression.UPGRADES:
-		var key: String = upgrade["key"]
-		if not NODE_LAYOUT.has(key):
-			push_warning("CrystalShop: upgrade '%s' has no tree slot — add it to NODE_LAYOUT" % key)
-			continue
-		var tier: int = NODE_LAYOUT[key]["tier"]
-		_add_upgrade_node(canvas, upgrade, positions[key], NODE_SIZES[tier])
-
-func _angle_offset(angle_deg: float, radius: float) -> Vector2:
-	var rad: float = deg_to_rad(angle_deg)
-	return Vector2(cos(rad), -sin(rad)) * radius   # -sin: screen Y grows downward
+	# Driven by the tree data, not by Progression order — a node whose key has
+	# no upgrade entry still draws (validate() warns), so the editor can place
+	# a slot before its content exists.
+	for n in _tree.nodes:
+		_add_upgrade_node(_canvas, n)
 
 # Frameless icon button — the medallion/plaque art IS the node.
 func _make_icon_button(parent: Control, icon_path: String, pos: Vector2, size: float) -> Button:
@@ -352,10 +333,12 @@ static func _radial_glow_tex(col: Color) -> GradientTexture2D:
 
 # One purchasable node: bare icon + progress ring + afford-glow + MAX badge.
 # Click = select (the detail bar handles buying).
-func _add_upgrade_node(canvas: Control, upgrade: Dictionary, pos: Vector2, size: float) -> void:
-	var key: String = upgrade["key"]
+func _add_upgrade_node(canvas: Control, n: CrystalTree.TreeNode) -> void:
+	var key: String = n.key
+	var pos: Vector2 = n.pos
+	var size: float = n.size
 	var glow := _make_glow(pos, size, GLOW_GOLD)
-	var icon_path: String = (ICON_DIR + NODE_ICONS[key]) if NODE_ICONS.has(key) else PLACEHOLDER_ICON
+	var icon_path: String = n.icon_path() if ResourceLoader.exists(n.icon_path()) else PLACEHOLDER_ICON
 	var btn := _make_icon_button(canvas, icon_path, pos, size)
 	btn.pressed.connect(_select.bind(key))
 
@@ -388,6 +371,7 @@ func _build_detail_bar(panel: Panel) -> void:
 	bar.size = Vector2(1200, 168)
 	bar.add_theme_stylebox_override("panel", UITheme.panel_box())
 	panel.add_child(bar)
+	_detail_bar = bar
 
 	_detail_prompt = _lbl(bar, "Select an upgrade to inspect it.", 16, UITheme.TEXT_BODY,
 		Vector2(0, 66), Vector2(1200, 30), true)
@@ -424,13 +408,15 @@ func _refresh_node(entry: Dictionary) -> void:
 	if upgrade.is_empty():
 		return
 	var lvl: int = Progression.get_level(key)
-	var max_lvl: int = int(upgrade["max_level"])
+	var max_lvl: int = Progression.max_level(key)
 	var maxed: bool = lvl >= max_lvl
 	var affordable: bool = Progression.can_afford(key)
 	var locked: bool = Progression.is_locked(key)
 
 	var ring: NodeRing = entry["ring"]
-	ring.progress = float(lvl) / float(max_lvl)
+	# Clamped: lowering a node's max in the editor can leave an old save with
+	# more levels than the cap, which would draw an arc past a full circle.
+	ring.progress = clampf(float(lvl) / float(maxi(max_lvl, 1)), 0.0, 1.0)
 	ring.maxed = maxed
 	ring.selected = key == _selected_key
 	ring.queue_redraw()
@@ -442,11 +428,12 @@ func _refresh_node(entry: Dictionary) -> void:
 	(entry["glow"] as TextureRect).visible = affordable
 	(entry["badge"] as Label).visible = maxed
 	if locked:
-		var req := Progression._find(String(upgrade.get("requires", "")))
+		var req_key := String(upgrade.get("requires", ""))
+		var req_name := Progression.display_name(req_key) if req_key != "" else "?"
 		(entry["button"] as Button).tooltip_text = "%s — locked (requires %s)" % [
-			upgrade["name"], req.get("name", "?")]
+			Progression.display_name(key), req_name]
 	else:
-		(entry["button"] as Button).tooltip_text = "%s — %d/%d" % [upgrade["name"], lvl, max_lvl]
+		(entry["button"] as Button).tooltip_text = "%s — %d/%d" % [Progression.display_name(key), lvl, max_lvl]
 
 func _refresh_detail() -> void:
 	var has_selection := _selected_key != ""
@@ -471,7 +458,7 @@ func _refresh_detail() -> void:
 	if upgrade.is_empty():
 		return
 	var lvl: int = Progression.get_level(_selected_key)
-	var max_lvl: int = int(upgrade["max_level"])
+	var max_lvl: int = Progression.max_level(_selected_key)
 	var cost: int = Progression.next_cost(_selected_key)
 	var is_float: bool = upgrade.get("is_float", false)
 	var per: float = float(upgrade["effect_per_level"])
@@ -479,22 +466,29 @@ func _refresh_detail() -> void:
 	var cur_txt: String = (eff_fmt % (per * lvl)) if is_float else (eff_fmt % int(per * lvl))
 	var next_txt: String = (eff_fmt % (per * (lvl + 1))) if is_float else (eff_fmt % int(per * (lvl + 1)))
 
-	_detail_icon.texture = load((ICON_DIR + NODE_ICONS[_selected_key]) if NODE_ICONS.has(_selected_key) else PLACEHOLDER_ICON)
-	_detail_name.text = "%s  —  Level %d/%d" % [upgrade["name"], lvl, max_lvl]
-	_detail_desc.text = upgrade["desc"]
+	_detail_icon.texture = load(_icon_path_for(_selected_key))
+	_detail_name.text = "%s  —  Level %d/%d" % [Progression.display_name(_selected_key), lvl, max_lvl]
+	_detail_desc.text = Progression.display_desc(_selected_key)
 	if cost < 0:
 		_detail_stats.text = "%s  (maxed out)" % cur_txt
 		_buy_btn.text = "MAXED"
 		_buy_btn.disabled = true
 	elif Progression.is_locked(_selected_key):
-		var req := Progression._find(String(upgrade.get("requires", "")))
-		_detail_stats.text = "Locked — buy a level of %s first." % req.get("name", "?")
+		var req_key := String(upgrade.get("requires", ""))
+		var req_name := Progression.display_name(req_key) if req_key != "" else "?"
+		_detail_stats.text = "Locked — buy a level of %s first." % req_name
 		_buy_btn.text = "LOCKED"
 		_buy_btn.disabled = true
 	else:
 		_detail_stats.text = "%s   →   %s" % [cur_txt, next_txt]
 		_buy_btn.text = "Buy — %d crystals" % cost
 		_buy_btn.disabled = not Progression.can_afford(_selected_key)
+
+func _icon_path_for(key: String) -> String:
+	var n := _tree.find(key)
+	if n != null and ResourceLoader.exists(n.icon_path()):
+		return n.icon_path()
+	return PLACEHOLDER_ICON
 
 func _select(key: String) -> void:
 	_selected_key = key
@@ -533,8 +527,119 @@ func _on_overlay_input(event: InputEvent) -> void:
 		_close()
 
 func _input(event: InputEvent) -> void:
-	if visible and event.is_action_pressed("ui_cancel"):
+	if not visible:
+		return
+	# F9 = tree layout editor. Dev-only: res:// is read-only in an exported
+	# build, so there would be nothing to save to.
+	if OS.has_feature("editor") and event is InputEventKey and event.pressed \
+			and not event.echo and event.keycode == KEY_F9:
+		_toggle_editor()
+		get_viewport().set_input_as_handled()
+		return
+	if _editor != null and _editor.active and event.is_action_pressed("ui_cancel"):
+		_toggle_editor()   # Esc leaves edit mode first, not the whole shop
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed("ui_cancel"):
 		_close()
+
+func _toggle_editor() -> void:
+	if _editor == null:
+		_editor = CrystalTreeEditor.new()
+		_editor.shop = self
+		# Sits on the shop's panel, above the tree view.
+		(_tree_view.get_parent() as Control).add_child(_editor)
+	_editor.set_active(not _editor.active)
+
+# ── Editor support ────────────────────────────────────────────────────────────
+# Everything below exists for CrystalTreeEditor (dev-only, F9). The shop keeps
+# ownership of the canvas and its coordinate space; the editor asks it to move
+# things and rebuild. Kept as a thin surface so the play-mode path above stays
+# unaware that an editor exists.
+
+func tree_data() -> CrystalTree:
+	return _tree
+
+func rebuild_tree() -> void:
+	_build_tree()
+	_refresh()
+	if _editor != null:
+		_editor.on_tree_rebuilt()
+
+# Screen position inside _tree_view -> canvas coordinates (the space node
+# positions are stored in), undoing the pan offset and zoom scale.
+func view_to_canvas(view_pos: Vector2) -> Vector2:
+	return (view_pos - _canvas.position) / _canvas.scale.x
+
+# Middle of whatever the user is currently looking at — where a newly added
+# node should land, now that the canvas is big enough to pan far from the hub.
+func view_center_canvas() -> Vector2:
+	return view_to_canvas(_tree_view.size / 2.0)
+
+# Topmost node whose icon box contains this canvas point, or "" for empty space.
+# Walks backwards so later-added nodes (drawn on top) win the hit test.
+func node_at(canvas_pos: Vector2) -> String:
+	for i in range(_nodes.size() - 1, -1, -1):
+		var entry: Dictionary = _nodes[i]
+		var n := _tree.find(entry["key"])
+		if n == null:
+			continue
+		if canvas_pos.distance_to(n.pos) <= n.size / 2.0:
+			return n.key
+	return ""
+
+# Move a node's visuals without a full rebuild — called every mouse-motion
+# frame during a drag, so it must stay allocation-free.
+func move_node_visual(key: String, pos: Vector2) -> void:
+	var n := _tree.find(key)
+	if n == null:
+		return
+	n.pos = pos
+	for entry: Dictionary in _nodes:
+		if entry["key"] != key:
+			continue
+		var btn: Button = entry["button"]
+		btn.position = pos - Vector2.ONE * n.size / 2.0
+		var glow: TextureRect = entry["glow"]
+		glow.position = pos - glow.size / 2.0
+		break
+	refresh_connectors()
+
+# Re-point every connector line at its current parent/child positions. Looked
+# up by key rather than by parallel index, since a node can now have several
+# connectors (one per parent) so _connectors and _tree.nodes no longer line
+# up 1:1.
+func refresh_connectors() -> void:
+	for c: Dictionary in _connectors:
+		var n := _tree.find(String(c["child"]))
+		if n == null:
+			continue
+		(c["line"] as Line2D).points = PackedVector2Array([
+			_tree.position_of(String(c["parent"])), n.pos])
+
+# In edit mode the buttons must stop eating clicks so the tree view's input
+# handler can run drag/hit-test logic uniformly over every node.
+func set_nodes_clickable(on: bool) -> void:
+	var filter := Control.MOUSE_FILTER_STOP if on else Control.MOUSE_FILTER_IGNORE
+	for entry: Dictionary in _nodes:
+		(entry["button"] as Button).mouse_filter = filter
+
+func editor_canvas() -> Control:
+	return _canvas
+
+# Edit mode has no use for the parchment detail bar (buying is not the point),
+# so hand that strip to the tree view — ~200 extra px of authoring height.
+func set_tree_view_expanded(on: bool) -> void:
+	_detail_bar.visible = not on
+	_tree_view.size = Vector2(PANEL_SIZE.x - 32,
+			(PANEL_SIZE.y - _tree_view.position.y - 66) if on else 650.0)
+	_clamp_canvas()
+
+func highlight_nodes(keys: PackedStringArray) -> void:
+	for entry: Dictionary in _nodes:
+		var ring: NodeRing = entry["ring"]
+		ring.selected = keys.has(entry["key"])
+		ring.queue_redraw()
 
 func _center(control: Control) -> void:
 	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)

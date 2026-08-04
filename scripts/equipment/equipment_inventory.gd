@@ -2,7 +2,15 @@ extends Node
 class_name EquipmentInventory
 
 const MAX_ITEMS = 30  # Total inventory size (global)
-const HERO_MAX_ITEMS = 6  # Max items per hero
+# Heroes start with a single equipment slot; every "+1 Equipment" node bought in
+# the crystal tree (family equipment_slot, 5 levels total) unlocks one more, so
+# a fully-invested account caps out at 6 (2026-08-03 user spec).
+const HERO_BASE_ITEMS = 1
+const HERO_MAX_ITEMS = 6  # Hard ceiling once every crystal upgrade is bought
+
+# Current per-hero equipment cap for this account.
+func hero_item_cap() -> int:
+	return clampi(HERO_BASE_ITEMS + Progression.get_bonus("+1 Equipment"), HERO_BASE_ITEMS, HERO_MAX_ITEMS)
 
 var items: Array[EquipmentItem] = []
 var hero_equipment: Dictionary = {}  # unit_id -> Array of EquipmentItem
@@ -31,7 +39,7 @@ func apply_to_hero(item: EquipmentItem, unit: UnitBase) -> bool:
 		hero_equipment[unit_id] = []
 
 	var hero_items = hero_equipment[unit_id] as Array
-	if hero_items.size() >= HERO_MAX_ITEMS:
+	if hero_items.size() >= hero_item_cap():
 		return false
 
 	hero_items.append(item)
@@ -95,10 +103,12 @@ func _apply_equipment_bonuses(unit: UnitBase, item: EquipmentItem) -> void:
 	unit.attack_speed += item.stat_bonus.get("aspd", 0.0)
 	unit.hp_regen += item.stat_bonus.get("hpregen", 0.0)
 	unit.mana_regen += item.stat_bonus.get("manaregen", 0.0)
+	unit.crit_chance += item.stat_bonus.get("crit", 0.0)
+	unit.crit_damage += item.stat_bonus.get("critdmg", 0.0)
 
-	if item.passive_effect != "":
-		var existing: float = unit.equipment_passives.get(item.passive_effect, 0.0)
-		unit.equipment_passives[item.passive_effect] = maxf(existing, item.effect_value)
+	for p in item.passives:
+		var existing: float = unit.equipment_passives.get(p["name"], 0.0)
+		unit.equipment_passives[p["name"]] = maxf(existing, p["value"])
 
 func _remove_equipment_bonuses(unit: UnitBase, item: EquipmentItem) -> void:
 	var hp_bonus: int = item.stat_bonus.get("hp", 0)
@@ -115,6 +125,8 @@ func _remove_equipment_bonuses(unit: UnitBase, item: EquipmentItem) -> void:
 	unit.attack_speed -= item.stat_bonus.get("aspd", 0.0)
 	unit.hp_regen -= item.stat_bonus.get("hpregen", 0.0)
 	unit.mana_regen -= item.stat_bonus.get("manaregen", 0.0)
+	unit.crit_chance -= item.stat_bonus.get("crit", 0.0)
+	unit.crit_damage -= item.stat_bonus.get("critdmg", 0.0)
 
 	_rebuild_passives(unit)
 
@@ -124,6 +136,6 @@ func _rebuild_passives(unit: UnitBase) -> void:
 	if not hero_equipment.has(unit_id):
 		return
 	for equipped_item in hero_equipment[unit_id]:
-		if equipped_item.passive_effect != "":
-			var existing: float = unit.equipment_passives.get(equipped_item.passive_effect, 0.0)
-			unit.equipment_passives[equipped_item.passive_effect] = maxf(existing, equipped_item.effect_value)
+		for p in equipped_item.passives:
+			var existing: float = unit.equipment_passives.get(p["name"], 0.0)
+			unit.equipment_passives[p["name"]] = maxf(existing, p["value"])

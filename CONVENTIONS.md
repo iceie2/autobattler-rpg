@@ -27,14 +27,59 @@ GODOT="/c/anything coding/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mon
 #      If your new ability is legitimately untestable statically, add an
 #      EXPECTED_SILENT entry (with an honest reason) in arena_main.gd.
 
+# 3b. Round-start ceremony (after touching row bonuses / revives / round flow):
+"$GODOT" --headless res://scenes/ceremony_smoke.tscn
+#    → "CEREMONY_SMOKE: ALL PASS". The boot smoke stops at round 1 and never
+#      reaches the between-round payout, so this drives it directly.
+
 # 4. Balance sim (after touching stats/numbers):
 "$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=sim \
   --team=SABLE:3,RIOT:3 --enemy=wave:5 --runs=5 --seed=42
 #    → compare win_rate/damage vs before your change.
 ```
 
+```sh
+# 5. Ability numbers + description lint (after touching AbilityFormulas or any hero kit):
+"$GODOT" --headless --path . res://scenes/formula_dump.tscn -- --level=10
+#    → every hero's 3 abilities with resolved numbers; "0 slots with no terms"
+#      and "DESC_LINT: ALL PASS".
+#      Level 10 is the calibration anchor, so values there must match whatever
+#      the ability produced before your change unless you MEANT to retune it.
+```
+
 A task is NOT done until the relevant checks above pass. Commit after each
 verified task; never commit with a failing check.
+
+## 1b. Hero ability numbers live in ONE place
+
+`scripts/units/ability_formulas.gd` is the single source of truth for every hero
+passive/active/ultimate number. Combat reads from it; the level-up screen reads
+from it; that is why the panel can promise the player a number and have the
+fight honour it.
+
+**Never inline an ability coefficient in `auto_battle_manager.gd`.** Add a term
+to the registry and read it back:
+
+```gdscript
+var dmg := _ab(caster, AF_ACTIVE, "dmg")        # int, the common case
+var pct := _abf(caster, AF_PASSIVE, "reflect")  # float
+AbilityFormulas.flat(UnitClass.STITCH, AF_ACTIVE, "share")  # no caster available
+```
+
+Every `text` template must make sense to a player who has never seen that hero:
+say what the effect DOES, never just restate the ability's name ("Overdrive for
+4s" is the anti-pattern) and never name another ability. `formula_dump`'s
+DESC_LINT enforces both, plus a 68-char budget so nothing overflows its row in
+the shop / level-up panel.
+
+An ability whose numbers are not in the registry cannot appear on the level-up
+panel — it will silently render blank. The formula is
+`(base + ratio*STAT) * (1 + LVL_COEF*level)`, normalised so `CAL_LEVEL` (10, the
+base hero level cap) is power-neutral against the pre-registry code. Damage,
+heals and shields scale; proc chances, durations and CC deliberately do not.
+
+Mob and legacy base-class skills (WARRIOR/RANGER/MONK/…) are NOT in the registry
+and still compute inline — they have no level-up screen, so they were left alone.
 
 ## 2. Landmines (each of these has already caused a real bug)
 
@@ -110,14 +155,17 @@ Balance passes start THERE. Per-class stat/growth tables stay in unit_factory
 | Hero classes (enum, stats, growth, traits) | `units/unit_factory.gd` | `CLASS_BASE_STATS`, `CLASS_GROWTH_PER_LEVEL`, `TRAIT_CLASS_MAP` |
 | Hero passives (per-frame) | `combat/auto_battle_manager.gd` `_tick_passive` | aura-style ones throttle via `AURA_TICK_INTERVAL` meta pattern |
 | Hero on-hit passives | `_apply_on_hit_passives` | ANT/COAL/EMBER/SABLE/ZOLT/LUMEN |
-| On-being-hit passives | `propagate_damage_links` + `take_damage` | RIOT/CROSS/RIFT/STITCH-link |
-| On-move triggers | `update_unit_movements` | STATIC Live Wire, SEAR fire trail, field hazards |
+| On-being-hit passives | `propagate_damage_links` + `take_damage` | RIOT/CROSS/RIFT/STITCH-link/STATIC Live Wire (reflect) |
+| On-move triggers | `update_unit_movements` | SEAR fire trail, field hazards |
 | Skills / ultimates | `_use_skill` / `_use_ultimate` dispatch | one match arm per class |
 | Enemy factories | `units/enemy_factory.gd` | register new enemies in `CODE_TO_TYPE` + `create_by_type` + WaveScaler dicts (`CODE_ROLE`, `CODE_IS_LARGE`, `UNIT_POWER`) |
 | Wave composition / difficulty | `waves/wave_scaler.gd` | all statics — arena-testable |
 | Boss rounds 10/20/30, elites 5/15/25 | `waves/wave_scaler.gd` (round numbers in `core/balance.gd`) | `boss_code_for`, `ELITE_POOL` |
 | Economy knobs | `core/balance.gd` (values), formulas in `waves/wave_scaler.gd` + `economy/round_reward.gd` | cut ~55% on 2026-07-02, do not buff without playtest data |
 | Relics | `relics/relic*.gd` | 25-relic pool, hooks throughout battle manager |
+| Crystal shop upgrades (content) | `core/progression.gd` `UPGRADES` | name/desc/max_level/cost_mult/effect, keyed by `key` |
+| Crystal shop tree (layout) | `data/crystal_tree.json` via `ui/crystal_tree.gd` | position/size/icon/parent/max_level — **do not hand-edit**: open the shop, press F9, drag, Save (`ui/crystal_tree_editor.gd`, dev builds only) |
+| Node max level | tree JSON override, else `UPGRADES` | read `Progression.max_level(key)`, **never** `upgrade["max_level"]` — the tree can override it per node (omitted in JSON = inherit) |
 | Equipment | `equipment/equipment_*.gd` | combine = 3 same-rarity → next tier |
 | Synergies | `synergies/synergy_data.gd`/`synergy_tracker.gd` | applied at battle start, reverted at end (`syn_backup` meta) |
 | UI theming | `ui/ui_theme.gd` | panel/button/slot styleboxes, text colors, font-size bump helpers (wired via each screen's `_lbl` factory) |

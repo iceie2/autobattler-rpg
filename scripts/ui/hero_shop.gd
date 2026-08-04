@@ -29,10 +29,18 @@ const CARD_W     := 400.0
 const CARD_H     := 780.0
 const PANEL_W    := 1340.0
 const PANEL_H    := 950.0
-const PORT_SIZE  := 240.0
+# 205, down from 240: the kit block below grew from two ability rows to three,
+# and folding the element into the rank line only paid for 24 of the 60 extra
+# pixels. The portrait covers the rest so the stat table below keeps the same
+# room it had — see _make_card's y arithmetic.
+const PORT_SIZE  := 205.0
 
 var _offers:    Array = []
 var _card_btns: Array = []
+# Slot indices the player has pinned so a reroll leaves them alone. Capacity
+# comes from the Hold That crystal upgrade; empty (and the toggle hidden) until
+# at least one node is bought. Cleared whenever a fresh shop opens.
+var _locked:    Dictionary = {}
 var _panel:     Panel
 var _title_lbl: Label
 var _sub_lbl:   Label
@@ -43,6 +51,21 @@ var _free_mode:  bool = false  # Call to Arms starting-hero pick (2026-07-10): n
 
 const CARD_GAP     := 20.0
 const SIDE_MARGIN  := 50.0
+
+# ── Slot-machine reveal pacing (2026-07-21, restaggered same day) ─────────────
+# Shared by all three reels (hero identity, rank, stat growth) so each takes
+# ~REEL_DURATION seconds to land. Cards now OVERLAP like real slot reels
+# instead of fully waiting each other out (that read as too slow): CARD_STAGGER
+# is HALF a card's full 3-reel cascade, so while card 1 is still spinning,
+# card 2 comes on and starts spinning too; by the time card 3 comes on, card 1
+# has just finished; card 2 lands next, then card 3 shortly after — all three
+# settle in a tight cluster at the end instead of one strictly after another.
+const NEUTRAL_COL   := Color(0.14, 0.14, 0.19)   # unrevealed card tint, before its rank reel lands
+const REEL_TICKS    := 8
+const REEL_START    := 0.035
+const REEL_GROWTH   := 1.22
+const REEL_DURATION := 0.62   # ~ REEL_START*(REEL_GROWTH^REEL_TICKS-1)/(REEL_GROWTH-1)
+const CARD_STAGGER  := REEL_DURATION * 3.0 / 2.0   # half the identity+rank+growth cascade
 
 func _ready() -> void:
 	_build_ui()
@@ -55,7 +78,11 @@ func open(gold: int, slot_count: int = 3, free_mode: bool = false) -> void:
 	_free_mode = free_mode
 	_layout_for_slots()
 	_offers.clear()
-	_card_btns.clear()
+	_locked.clear()          # locks are per-shop, not carried between rounds
+	# NOTE: don't clear _card_btns here — _rebuild_all_cards() frees the previous
+	# round's card nodes by iterating _card_btns first, THEN clears it. Emptying
+	# the array early orphaned the old cards (never freed), so they lingered
+	# behind the freshly rolling ones — the "two layers of heroes" bug (2026-07-22).
 	_generate_offers()
 	_rebuild_all_cards(gold)
 	if _title_lbl:
@@ -83,28 +110,60 @@ func _layout_for_slots() -> void:
 
 # Refresh the offers in place (called by main_game after it charges the reroll).
 func reroll(gold: int) -> void:
+	# Hold That (2026-08-03): locked slots survive the reroll untouched. Grab
+	# them BEFORE clearing, then hand them back to _generate_offers by index.
+	var keep := {}
+	for idx: int in _locked:
+		if idx < _offers.size() and _offers[idx] != null:
+			keep[idx] = _offers[idx]
 	_offers.clear()
-	_card_btns.clear()
-	_generate_offers()
+	# See open(): _rebuild_all_cards() is what frees the old card nodes (it walks
+	# _card_btns then clears it). Clearing here would orphan them behind the new
+	# roll — the two-layer bug.
+	_generate_offers(keep)
 	_rebuild_all_cards(gold)
 	if _reroll_btn:
 		_reroll_btn.disabled = (not _free_mode) and gold < REROLL_COST
 
-func _generate_offers() -> void:
-	var classes  := UnitFactory.get_all_classes()
-	var elements := UnitFactory.get_all_elements()
+func _generate_offers(preserve: Dictionary = {}) -> void:
+	# Element is fixed per class (2026-07-31) — offers are unique by CLASS alone,
+	# where they used to be unique by class+element.
+	# Crystal Shop hero unlocks (2026-08-01): only classes that are starter
+	# heroes or have their hero_unlock_* upgrade purchased can be recruited.
+	var classes: Array = []
+	for cls in UnitFactory.get_all_classes():
+		if Progression.is_hero_unlocked(cls):
+			classes.append(cls)
+	if classes.is_empty():
+		return
+
+	# Slots are filled by index now rather than appended, so a locked slot can
+	# keep its exact offer while the rest reroll around it (2026-08-03).
+	var out: Array = []
+	out.resize(_slot_count)
 	var used: Array = []
-	while _offers.size() < _slot_count:
-		var cls:  UnitBase.UnitClass = classes[randi() % classes.size()]
-		var elem: UnitBase.Element   = elements[randi() % elements.size()]
-		var key := "%d_%d" % [cls, elem]
-		if key not in used:
-			used.append(key)
-			_offers.append({
-				"class":   cls,
-				"element": elem,
-				"rolls":   UnitFactory.generate_recruit_rolls(),
-			})
+	for idx: int in preserve:
+		if idx >= 0 and idx < _slot_count:
+			out[idx] = preserve[idx]
+			used.append(preserve[idx]["class"])
+	for i in range(_slot_count):
+		if out[i] != null:
+			continue
+		# Unique-by-class, but only while there are classes left to be unique
+		# with — fewer unlocked classes than slots used to spin here forever.
+		var cls: UnitBase.UnitClass = classes[randi() % classes.size()]
+		if used.size() < classes.size():
+			var guard := 0
+			while cls in used and guard < 200:
+				cls = classes[randi() % classes.size()]
+				guard += 1
+		used.append(cls)
+		out[i] = {
+			"class":   cls,
+			"element": UnitFactory.element_for_class(cls),
+			"rolls":   UnitFactory.generate_recruit_rolls(),
+		}
+	_offers = out
 
 # ── UI shell (built once) ─────────────────────────────────────────────────────
 func _build_ui() -> void:
@@ -171,20 +230,24 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	btn.position = pos
 	btn.size     = Vector2(CARD_W, CARD_H)
 	btn.text     = ""
-	# Whole card is tinted by its rolled grade at all times (gacha-style FOMO) —
-	# hover/pressed just intensify the same grade color rather than switching to a
-	# neutral one.
-	var bg_base: Color = grade_col.darkened(0.82)
-	btn.add_theme_stylebox_override("normal",
-		_flat(bg_base, grade_col, 3, 12))
-	btn.add_theme_stylebox_override("hover",
-		_flat(bg_base.lightened(0.10), grade_col.lightened(0.25), 4, 12))
-	btn.add_theme_stylebox_override("pressed",
-		_flat(bg_base.darkened(0.15), grade_col.lightened(0.1), 4, 12))
-	btn.add_theme_stylebox_override("focus",
-		_flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
-	btn.disabled = (not _free_mode) and gold < HERO_COST
+	# Card stays visually NEUTRAL until its own rank reel actually lands — the
+	# rank roll IS what sets the tint now (2026-07-21 user request: the card
+	# used to show its final grade's color from the very start, spoiling the
+	# roll before the badge even spun). _paint_card_grade repaints this live,
+	# every tick of the rank reel, and only settles on the true grade_col when
+	# that reel lands.
+	_paint_card_grade(btn, NEUTRAL_COL)
+	# Picking a card is free — HERO_COST is charged up front when the roll is
+	# opened (see main_game._on_spawn_hero_pressed), not per-pick — so there's
+	# nothing left to gate on gold here (2026-07-24: this stale check disabled
+	# every card once gold dropped below HERO_COST from paying for the roll
+	# itself, making the shop look broken/unclickable right after opening it).
+	btn.disabled = false
 	btn.pressed.connect(_on_choose.bind(idx))
+	# Hidden until this card's turn in the left-to-right cascade below — see
+	# _run_card_reveal(). Works for any _slot_count (3 default, 4 with the
+	# Merchant's Ledger relic): each card just waits idx * CARD_STAGGER.
+	btn.visible = false
 
 	# ── Portrait ──────────────────────────────────────────────────────────────
 	# No backing box — the model sits directly on the card's grade-tinted
@@ -196,19 +259,18 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_load_portrait(portrait, cls)
 	btn.add_child(portrait)
 
 	# ── Grade badge (top-right of portrait) ───────────────────────────────────
 	var badge_bg := ColorRect.new()
 	badge_bg.position = Vector2(port_pos.x + PORT_SIZE - 38, port_pos.y)
 	badge_bg.size     = Vector2(38, 38)
-	badge_bg.color    = grade_col.darkened(0.4)
+	badge_bg.color    = NEUTRAL_COL.darkened(0.3)
 	badge_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(badge_bg)
 
 	var badge_lbl := Label.new()
-	badge_lbl.text = grade
+	badge_lbl.text = ""
 	badge_lbl.position = badge_bg.position
 	badge_lbl.size     = badge_bg.size
 	badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -220,24 +282,39 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 
 	# ── Name ──────────────────────────────────────────────────────────────────
 	var y_name := port_pos.y + PORT_SIZE + 8.0
-	var name_lbl := _clbl(btn, _class_name(cls), 22, elem_col,
+	var name_lbl := _clbl(btn, "", 22, elem_col,
 		Vector2(0, y_name), Vector2(CARD_W, 30), true)
 
-	# ── Element ───────────────────────────────────────────────────────────────
-	_clbl(btn, _elem_name(elem), 13, elem_col.lightened(0.25),
-		Vector2(0, y_name + 32), Vector2(CARD_W, 20), true)
-
-	# ── Grade summary ─────────────────────────────────────────────────────────
-	# avg_pct is the average GROWTH ROLL MULTIPLIER (1.0 = neutral); show it as a
+	# ── Element · rank · growth, all on ONE line (2026-08-02, user request) ───
+	# Element used to own a row of its own above the rank; folding it in buys the
+	# vertical space the three-ability block below needs. RichTextLabel because
+	# the element keeps its element colour while the rank keeps its grade colour,
+	# and each reel fills in its own segment as it lands (see _run_card_reveal).
+	# avg_pct is the average GROWTH ROLL MULTIPLIER (1.0 = neutral); shown as a
 	# +/- % relative to that baseline so "1.1" reads as "+10%", not "110%".
 	var avg_rel: float = (avg_pct - 1.0) * 100.0
-	var avg_sign := "+" if avg_rel >= 0.0 else ""
-	var grade_line := "%s-RANK  ·  growth %s%.1f%%" % [grade, avg_sign, avg_rel]
-	_clbl(btn, grade_line, 13, grade_col,
-		Vector2(0, y_name + 56), Vector2(CARD_W, 20), true)
+	var sub_rt := RichTextLabel.new()
+	sub_rt.bbcode_enabled = true
+	sub_rt.scroll_active  = false
+	sub_rt.fit_content    = true
+	sub_rt.position       = Vector2(0, y_name + 32)
+	sub_rt.size           = Vector2(CARD_W, 24)
+	sub_rt.mouse_filter   = Control.MOUSE_FILTER_IGNORE
+	sub_rt.add_theme_font_size_override("normal_font_size", UITheme.body_font(13))
+	btn.add_child(sub_rt)
+
+	# ── Slot-machine reveal sequencing (2026-07-21) ────────────────────────────
+	# Cards resolve strictly left to right: card N stays hidden until card N-1
+	# has fully finished all three of its reels (hero identity -> rank+color ->
+	# stat growth), each awaited in turn rather than fired in parallel with
+	# guessed delays — so the background-color paint truly only happens during
+	# the rank reel's own spin, never before it starts.
+	var card_delay: float = idx * CARD_STAGGER
+	_run_card_reveal(card_delay, btn, portrait, name_lbl, sub_rt,
+		badge_lbl, badge_bg, cls, elem, grade, avg_rel)
 
 	# ── Divider ───────────────────────────────────────────────────────────────
-	var div_y := y_name + 82.0
+	var div_y := y_name + 58.0
 	var div := ColorRect.new()
 	div.position = Vector2(16, div_y)
 	div.size     = Vector2(CARD_W - 32, 1)
@@ -247,53 +324,17 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 
 	var tmp := UnitFactory.create_unit(cls, elem, true)
 
-	# ── Skill (below the portrait, so the player sees what the hero does
-	# before scanning the stat table) ──────────────────────────────────────────
-	var skill_y := div_y + 8.0
-	_clbl(btn, "SKILL", 9, Color(0.42, 0.46, 0.62),
-		Vector2(14, skill_y), Vector2(CARD_W - 28, 14))
-	_clbl(btn, tmp.skill_name if tmp.skill_name != "" else "—", 15,
-		Color(1.0, 0.85, 0.35),
-		Vector2(14, skill_y + 14), Vector2(CARD_W - 28, 22))
-	var skill_desc_lbl := Label.new()
-	skill_desc_lbl.mouse_filter  = Control.MOUSE_FILTER_IGNORE
-	skill_desc_lbl.position      = Vector2(14, skill_y + 38)
-	skill_desc_lbl.size          = Vector2(CARD_W - 28, 40)
-	skill_desc_lbl.add_theme_font_size_override("font_size", 20)
-	skill_desc_lbl.add_theme_color_override("font_color", Color(0.62, 0.62, 0.76))
-	skill_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	skill_desc_lbl.text          = _skill_short_desc(tmp)
-	btn.add_child(skill_desc_lbl)
-
-	# ── Divider ───────────────────────────────────────────────────────────────
-	var div_skill_y := skill_y + 88.0
-	var div_skill := ColorRect.new()
-	div_skill.position = Vector2(16, div_skill_y)
-	div_skill.size     = Vector2(CARD_W - 32, 1)
-	div_skill.color    = Color(0.3, 0.3, 0.5, 0.5)
-	div_skill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	btn.add_child(div_skill)
-
-	# ── Ultimate ────────────────────────────────────────────────────────────────
-	var ult_y := div_skill_y + 8.0
-	_clbl(btn, "ULTIMATE", 9, Color(0.62, 0.46, 0.22),
-		Vector2(14, ult_y), Vector2(CARD_W - 28, 14))
-	_clbl(btn, tmp.ultimate_name if tmp.ultimate_name != "" else "—", 15,
-		Color(1.0, 0.65, 0.25),
-		Vector2(14, ult_y + 14), Vector2(CARD_W - 28, 22))
-	var ult_desc_lbl := Label.new()
-	ult_desc_lbl.mouse_filter  = Control.MOUSE_FILTER_IGNORE
-	ult_desc_lbl.position      = Vector2(14, ult_y + 38)
-	ult_desc_lbl.size          = Vector2(CARD_W - 28, 58)
-	ult_desc_lbl.add_theme_font_size_override("font_size", 20)
-	ult_desc_lbl.add_theme_color_override("font_color", Color(0.62, 0.62, 0.76))
-	ult_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	ult_desc_lbl.text          = _ultimate_short_desc(tmp, cls)
-	btn.add_child(ult_desc_lbl)
+	# ── Kit (below the portrait, so the player sees what the hero does before
+	# scanning the stat table). Same three-row style as the level-up screen and
+	# the unit details panel, driven by AbilityFormulas — the shop used to show
+	# only the active + ultimate as curated prose, so the passive was invisible
+	# at the one moment the player is choosing between heroes. ────────────────
+	var kit_y := div_y + 8.0
+	_add_ability_rows(btn, tmp, cls, kit_y)
 	tmp.free()
 
 	# ── Divider ───────────────────────────────────────────────────────────────
-	var div_ult_y := ult_y + 106.0
+	var div_ult_y := kit_y + ABIL_ROW_H * 3.0 + 4.0
 	var div_ult := ColorRect.new()
 	div_ult.position = Vector2(16, div_ult_y)
 	div_ult.size     = Vector2(CARD_W - 32, 1)
@@ -398,7 +439,65 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 			Vector2(ox + 54, row_y), Vector2(70, ROW_H))
 	row_y += ROW_H
 
+	_add_lock_toggle(btn, idx)
 	return btn
+
+# ── Hold That (2026-08-03) ────────────────────────────────────────────────────
+# A pin in the card's top-right corner. Hidden entirely until the crystal
+# upgrade is owned, so shops look unchanged for anyone who hasn't bought it.
+# Capacity is the upgrade's level: locking past it releases the oldest lock
+# rather than refusing the click, which reads better than a dead button.
+func lock_capacity() -> int:
+	return Progression.get_bonus("item_lock")
+
+const LOCK_PIN_NAME := "LockPin"
+
+func _add_lock_toggle(card: Button, idx: int) -> void:
+	if lock_capacity() <= 0:
+		return
+	var pin := Button.new()
+	# Named so _refresh_lock_visual can find it directly. Scanning the card for
+	# "a Button child" would silently retitle any other button added later.
+	pin.name = LOCK_PIN_NAME
+	pin.size = Vector2(66, 28)
+	pin.position = Vector2(CARD_W - 76, 8)
+	pin.focus_mode = Control.FOCUS_NONE
+	# Plain ASCII on purpose: the project font is LeagueGothic and a padlock
+	# emoji would render as tofu.
+	pin.pressed.connect(_on_lock_pressed.bind(idx))
+	card.add_child(pin)
+	_paint_pin(pin, idx)
+
+func _paint_pin(pin: Button, idx: int) -> void:
+	var held: bool = _locked.has(idx)
+	pin.text = "HELD" if held else "LOCK"
+	pin.tooltip_text = "Held — a reroll will keep this hero" if held \
+		else "Hold this slot so a reroll keeps it"
+	pin.modulate = Color(1, 0.86, 0.4) if held else Color(0.62, 0.62, 0.72)
+
+func _on_lock_pressed(idx: int) -> void:
+	if _locked.has(idx):
+		_locked.erase(idx)
+	else:
+		# Oldest hold gives way once we're at capacity — that reads better than
+		# a dead button. Dictionary keys iterate in insertion order in Godot,
+		# so keys()[0] is the oldest.
+		while _locked.size() >= lock_capacity() and not _locked.is_empty():
+			var oldest: int = int(_locked.keys()[0])
+			_locked.erase(oldest)
+			_refresh_lock_visual(oldest)
+		_locked[idx] = true
+	_refresh_lock_visual(idx)
+
+func _refresh_lock_visual(idx: int) -> void:
+	if idx < 0 or idx >= _card_btns.size():
+		return
+	var card = _card_btns[idx]
+	if not is_instance_valid(card):
+		return
+	var pin := card.get_node_or_null(LOCK_PIN_NAME) as Button
+	if pin:
+		_paint_pin(pin, idx)
 
 # ── Signal handlers ───────────────────────────────────────────────────────────
 func _on_choose(idx: int) -> void:
@@ -410,15 +509,44 @@ func _on_cancel() -> void:
 	cancelled.emit()
 	visible = false
 
+# ── Pending-roll persistence (2026-07-24) ──────────────────────────────────────
+# Cancel no longer discards the roll you just paid for: the card nodes stay
+# alive (just hidden) until you either pick one (clear_offers, below) or a new
+# prep phase starts. Cancel → check the field/bag → press Buy Hero again just
+# re-shows the SAME offers via reopen(), no second charge and no re-roll.
+func has_pending_offer() -> bool:
+	return not _offers.is_empty()
+
+func reopen(gold: int) -> void:
+	if _offers.is_empty():
+		return
+	visible = true
+	# Gold may have moved (items bought, etc.) since this roll was last shown —
+	# only the reroll button's afford-gate needs a refresh; picks are free.
+	if _reroll_btn:
+		_reroll_btn.disabled = (not _free_mode) and gold < REROLL_COST
+
+# Called once a hero is actually picked (or the roll is otherwise spent) so
+# the NEXT Buy Hero press pays for and generates a fresh roll instead of
+# re-showing stale offers. Also called on prep-phase start so a roll never
+# survives into a new round.
+func clear_offers() -> void:
+	for old in _card_btns:
+		if is_instance_valid(old):
+			old.queue_free()
+	_card_btns.clear()
+	_offers.clear()
+
 # ── Portrait loader ───────────────────────────────────────────────────────────
-func _load_portrait(portrait: TextureRect, cls: UnitBase.UnitClass) -> void:
+# Resolves a class's portrait texture — used both for the final card art and
+# by the identity-roll animation to build its flicker pool (_build_card).
+func _portrait_tex(cls: UnitBase.UnitClass) -> Texture2D:
 	# Try AI sprite first — filename = class name lowercased, spaces → underscores.
 	var ai_path := "res://assets/using/%s.png" % _class_name(cls).to_lower().replace(" ", "_")
 	if ResourceLoader.exists(ai_path):
 		var tex := load(ai_path) as Texture2D
 		if tex:
-			portrait.texture = tex
-			return
+			return tex
 	# Fall back to LPC sprite sheet (old RPG classes and any hero without AI art yet).
 	var folder: String = SPRITE_FOLDERS.get(cls, "warrior")
 	var sheet := load("res://assets/sprites/generated/%s/0/single.png" % folder) as Texture2D
@@ -426,7 +554,8 @@ func _load_portrait(portrait: TextureRect, cls: UnitBase.UnitClass) -> void:
 		var atlas := AtlasTexture.new()
 		atlas.atlas  = sheet
 		atlas.region = IDLE_FRAME
-		portrait.texture = atlas
+		return atlas
+	return null
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 func _skill_short_desc(unit: UnitBase) -> String:
@@ -445,44 +574,6 @@ func _skill_short_desc(unit: UnitBase) -> String:
 	if unit.skill_mana_cost > 0:
 		parts.append("%d MP" % unit.skill_mana_cost)
 	return " · ".join(parts)
-
-# Ultimates don't carry their own written description on UnitBase — reuse the
-# flavor text already authored in ClassBrowser (the "[ULTIMATE ...] Name —
-# description" segment of its skill_desc) so the recruit card and the class
-# compendium never drift apart.
-func _ultimate_short_desc(unit: UnitBase, cls: UnitBase.UnitClass) -> String:
-	if unit.ultimate_name == "":
-		return ""
-	var full := _ultimate_desc_from_browser(cls)
-	if full != "":
-		return full
-	# Fallback for any ultimate without browser flavor text yet
-	var parts: Array[String] = []
-	if unit.ultimate_damage_mult > 0:
-		parts.append("%.0f%% DMG" % (unit.ultimate_damage_mult * 100))
-	if unit.ultimate_range > 0:
-		parts.append("RNG %d" % unit.ultimate_range)
-	if unit.ultimate_charge_max > 0:
-		parts.append("%d charge" % unit.ultimate_charge_max)
-	return " · ".join(parts)
-
-func _ultimate_desc_from_browser(cls: UnitBase.UnitClass) -> String:
-	for entry in ClassBrowser.CLASSES:
-		if entry.get("unit_class") != cls:
-			continue
-		var full: String = entry.get("skill_desc", "")
-		var idx := full.find("[ULTIMATE")
-		if idx == -1:
-			return ""
-		var seg := full.substr(idx)
-		var bracket_end := seg.find("] ")
-		if bracket_end != -1:
-			seg = seg.substr(bracket_end + 2)
-		var dash_idx := seg.find(" — ")
-		if dash_idx != -1:
-			seg = seg.substr(dash_idx + 3)
-		return seg.strip_edges()
-	return ""
 
 func _center_panel() -> void:
 	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
@@ -553,6 +644,170 @@ func _grade_color(grade: String) -> Color:
 		"C": return Color(0.20, 0.62, 0.28)
 		"D": return Color(0.65, 0.65, 0.68)
 		_:   return Color(0.60, 0.60, 0.72)
+
+# Repaints a card's normal/hover/pressed background+border to `col` — called
+# once with NEUTRAL_COL at build time, then on every tick of the rank reel
+# (2026-07-21) so the card's tint genuinely rolls with the rank instead of
+# showing the final grade's color from frame one.
+func _paint_card_grade(btn: Button, col: Color) -> void:
+	var bg_base: Color = col.darkened(0.82)
+	btn.add_theme_stylebox_override("normal", _flat(bg_base, col, 3, 12))
+	btn.add_theme_stylebox_override("hover", _flat(bg_base.lightened(0.10), col.lightened(0.25), 4, 12))
+	btn.add_theme_stylebox_override("pressed", _flat(bg_base.darkened(0.15), col.lightened(0.1), 4, 12))
+	btn.add_theme_stylebox_override("focus", _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
+
+# Runs one card's full reveal: wait for its turn -> become visible -> hero
+# identity reel -> rank reel (also repaints the card tint every tick) ->
+# stat-growth reel — each fully awaited before the next starts, so cards
+# resolve strictly left to right and reels within a card never overlap.
+# Fire-and-forget from _build_card (not awaited there).
+# ── Ability rows ──────────────────────────────────────────────────────────────
+# Mirrors LevelUpScreen's ability panel: slot badge and name share the title
+# line, and the resolved numbers are sized up rather than bolded (RichTextLabel
+# has no bold cut of the project font, so [b] falls back to a face that reads
+# smaller than the body around it).
+const ABIL_ROW_H   := 86.0
+const ABIL_BADGE_W := 92.0
+const ABIL_TITLE_H := 24.0
+const ABIL_VALUE_FONT := 20
+const ABIL_SLOT_LABELS := ["PASSIVE", "ACTIVE", "ULTIMATE"]
+const ABIL_SLOT_COLORS := [
+	Color(0.55, 0.78, 0.95),
+	Color(0.95, 0.80, 0.42),
+	Color(0.85, 0.55, 0.98),
+]
+const ABIL_VALUE_COL := "eef0ff"
+
+func _add_ability_rows(btn: Button, unit: UnitBase, cls: UnitBase.UnitClass,
+		top_y: float) -> void:
+	var slots := [AbilityFormulas.PASSIVE, AbilityFormulas.ACTIVE, AbilityFormulas.ULTIMATE]
+	var has_registry := AbilityFormulas.has_entry(cls, AbilityFormulas.PASSIVE)
+	for i in 3:
+		var ry := top_y + i * ABIL_ROW_H
+
+		_clbl(btn, ABIL_SLOT_LABELS[i], 10, ABIL_SLOT_COLORS[i],
+			Vector2(14, ry), Vector2(ABIL_BADGE_W, ABIL_TITLE_H))
+
+		var r: Dictionary = AbilityFormulas.resolve(unit, slots[i]) if has_registry else {}
+		var aname: String = str(r.get("name", ""))
+		if aname == "":
+			# No registry entry (shouldn't happen for a recruitable hero, but the
+			# shop must never render a blank card): fall back to the unit's own
+			# names, and leave the passive row empty rather than inventing text.
+			aname = unit.skill_name if i == 1 else (unit.ultimate_name if i == 2 else "")
+		_clbl(btn, aname if aname != "" else "—", 15, ABIL_SLOT_COLORS[i],
+			Vector2(14 + ABIL_BADGE_W, ry), Vector2(CARD_W - 28 - ABIL_BADGE_W, ABIL_TITLE_H))
+
+		var desc := RichTextLabel.new()
+		desc.bbcode_enabled = true
+		desc.scroll_active  = false
+		desc.fit_content    = false
+		desc.position       = Vector2(14, ry + ABIL_TITLE_H + 2.0)
+		desc.size           = Vector2(CARD_W - 28, ABIL_ROW_H - ABIL_TITLE_H - 6.0)
+		desc.mouse_filter   = Control.MOUSE_FILTER_IGNORE
+		desc.add_theme_font_size_override("normal_font_size", UITheme.body_font(13))
+		desc.add_theme_color_override("default_color", Color(0.66, 0.68, 0.82))
+		btn.add_child(desc)
+
+		if r.is_empty() or (r["terms"] as Array).is_empty():
+			desc.text = _skill_short_desc(unit) if i == 1 else ""
+			continue
+		var body: String = str(r["template"])
+		for t in r["terms"]:
+			body = body.replace("{%s}" % t["id"],
+				"[font_size=%d][color=#%s]%s[/color][/font_size]"
+					% [UITheme.body_font(ABIL_VALUE_FONT), ABIL_VALUE_COL, t["display"]])
+		desc.text = body
+
+func _run_card_reveal(delay: float, btn: Button, portrait: TextureRect,
+		name_lbl: Label, sub_rt: RichTextLabel, badge_lbl: Label, badge_bg: ColorRect,
+		cls: UnitBase.UnitClass, elem: UnitBase.Element,
+		grade: String, avg_rel: float) -> void:
+	var tree := get_tree()
+	if not tree:
+		return
+
+	# Element, rank and growth share one line, but they land on three different
+	# reels — so each paint writes only its own segment into this dict and the
+	# whole line is rebuilt. Segments that haven't rolled yet simply aren't shown,
+	# which keeps the progressive reveal intact. Dictionary (not local vars)
+	# because lambdas capture by value — see CONVENTIONS landmine #5.
+	var seg := {"elem": "", "elem_col": Color.WHITE,
+				"rank": "", "rank_col": Color.WHITE, "growth": ""}
+	var refresh_sub := func() -> void:
+		if not is_instance_valid(sub_rt):
+			return
+		var parts: Array[String] = []
+		if seg["elem"] != "":
+			parts.append("[color=#%s]%s[/color]"
+				% [(seg["elem_col"] as Color).to_html(false), seg["elem"]])
+		if seg["rank"] != "":
+			parts.append("[color=#%s]%s[/color]"
+				% [(seg["rank_col"] as Color).to_html(false), seg["rank"]])
+		if seg["growth"] != "":
+			parts.append("[color=#%s]%s[/color]"
+				% [(seg["rank_col"] as Color).to_html(false), seg["growth"]])
+		sub_rt.text = "[center]%s[/center]" % "  ·  ".join(parts)
+	if delay > 0.0:
+		await tree.create_timer(delay).timeout
+	if not is_instance_valid(btn):
+		return
+	btn.visible = true
+
+	# Reel 1: hero identity — portrait, name and element change TOGETHER each
+	# tick (a mismatched portrait/name mid-spin would look like a bug, not a
+	# roll), landing on the true class+element.
+	# The reel now spins on class only — each ticked class drags its own fixed
+	# element along, so mid-spin frames stay legal hero identities.
+	var all_classes  := UnitFactory.get_all_classes()
+	var identity_pool: Array = []
+	for _i in range(8):
+		var rc: UnitBase.UnitClass = all_classes[randi() % all_classes.size()]
+		identity_pool.append({"cls": rc, "elem": UnitFactory.element_for_class(rc)})
+	var paint_identity := func(v: Dictionary) -> void:
+		var vcls: UnitBase.UnitClass = v["cls"]
+		var velem: UnitBase.Element  = v["elem"]
+		var vcol := _elem_color(velem)
+		portrait.texture = _portrait_tex(vcls)
+		name_lbl.text = _class_name(vcls)
+		name_lbl.add_theme_color_override("font_color", vcol)
+		seg["elem"] = _elem_name(velem)
+		seg["elem_col"] = vcol.lightened(0.25)
+		refresh_sub.call()
+	var punch_identity := func() -> void: GradeRoll.land_punch(portrait)
+	await GradeRoll.spin(btn, identity_pool, {"cls": cls, "elem": elem}, paint_identity,
+		0.0, REEL_TICKS, REEL_START, REEL_GROWTH, punch_identity)
+	if not is_instance_valid(btn):
+		return
+
+	# Reel 2: rank badge — also repaints the card + badge background every
+	# tick, so the "what color is this card" question rolls WITH the rank
+	# instead of being decided (and shown) before the reel even spins.
+	var paint_rank := func(g: String) -> void:
+		var gcol := _grade_color(g)
+		badge_lbl.text = g
+		badge_lbl.add_theme_color_override("font_color", gcol)
+		badge_bg.color = gcol.darkened(0.4)
+		_paint_card_grade(btn, gcol)
+		seg["rank"] = "%s-RANK" % g
+		seg["rank_col"] = gcol
+		refresh_sub.call()
+	var punch_rank := func() -> void: GradeRoll.land_punch(badge_lbl)
+	await GradeRoll.spin(btn, GradeRoll.GRADE_SEQUENCE, grade, paint_rank,
+		0.0, REEL_TICKS, REEL_START, REEL_GROWTH, punch_rank)
+	if not is_instance_valid(btn):
+		return
+
+	# Reel 3: stat growth %.
+	var growth_pool: Array = []
+	for _i in range(8):
+		growth_pool.append(randf_range(-60.0, 100.0))
+	var paint_growth := func(v: float) -> void:
+		var sign := "+" if v >= 0.0 else ""
+		seg["growth"] = "growth %s%.1f%%" % [sign, v]
+		refresh_sub.call()
+	await GradeRoll.spin(sub_rt, growth_pool, avg_rel, paint_growth,
+		0.0, REEL_TICKS, REEL_START, REEL_GROWTH)
 
 func _lbl(parent: Node, text: String, sz: int, col: Color,
 		pos: Vector2, size: Vector2, center: bool = false) -> Label:

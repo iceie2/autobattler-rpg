@@ -1,5 +1,18 @@
 class_name WaveDirector
 extends RefCounted
+
+# XP a demoted heavy-tier elite (G/AH/SS in a normal wave) awards. Capped to a
+# strong-normal payout so a now-common Giant doesn't fountain XP like its
+# round-5/15/25 elite form (130-200 xp) does. See create_enemy_for_entry.
+const HEAVY_XP_CAP: int = 90
+
+# Demoted heavies keep their elite SILHOUETTE (2×2, tanky) but not their elite
+# STATLINE — "you already beat it, now it's a regular." Without this a lone
+# level-scaled Hill Giant scores ~as much as an entire pre-retune wave, so any
+# escort overshoots the difficulty target. 0.55 lands a Giant at roughly 4-5
+# fodder-bodies of power: a real anchor, not a one-unit wave. Applied to the
+# FULLY scaled stats (after level + late-mult) so it tracks the round curve.
+const HEAVY_STAT_MULT: float = 0.6
 # ══════════════════════════════════════════════════════════════════════════════
 # Wave direction (extracted from main_game.gd, 2026-07-04 refactor).
 # Generates wave SPECS ({"type", "level", "pos"?} dicts) and creates the enemy
@@ -38,7 +51,7 @@ func generate_wave_spec(round: int, difficulty: int, grid_width: int, chosen_ele
 				continue
 			var lvl: int = boss_lvl if code == boss_code \
 					else WaveScaler.enemy_level_for_round(round, false)
-			spec.append({"type": t, "level": lvl, "pos": entry["pos"]})
+			spec.append({"type": t, "level": lvl, "pos": entry["pos"], "code": code})
 		return spec
 
 	# ── Elite rounds (5 / 15 / 25): a mini-boss + light fodder support. ──
@@ -52,7 +65,7 @@ func generate_wave_spec(round: int, difficulty: int, grid_width: int, chosen_ele
 				continue
 			var lvl: int = elite_lvl if code in WaveScaler.ELITE_POOL \
 					else WaveScaler.enemy_level_for_round(round, false)
-			spec.append({"type": t, "level": lvl, "pos": entry["pos"]})
+			spec.append({"type": t, "level": lvl, "pos": entry["pos"], "code": code})
 		return spec
 
 	var formation_data: Array = WaveScaler.build_formation(round, difficulty, grid_width)
@@ -71,11 +84,23 @@ func generate_wave_spec(round: int, difficulty: int, grid_width: int, chosen_ele
 	# Fixed waves 11+ ride the same level ramp the old procedural rounds used —
 	# composition power AND unit level climb together (see WaveData's header).
 	for entry: Dictionary in formation_data:
-		var type: String = EnemyFactory.CODE_TO_TYPE.get(entry["code"], "")
+		var code: String = entry["code"]
+		var type: String = EnemyFactory.CODE_TO_TYPE.get(code, "")
 		if type == "":
 			continue
 		var lvl: int = 1 if round <= 10 else WaveScaler.enemy_level_for_round(round, false)
-		spec.append({"type": type, "level": lvl, "pos": entry["pos"]})
+		# Heavy-tier demotion (2026-07-23): the round-5/15/25 elites (G/AH/SS) may
+		# now recur as ordinary "heavy" anchors in later normal waves — cheaper
+		# than a whole new enemy tier, and thematically "you beat it, now it's a
+		# regular." Progression is linear within a run, so a wave-N comp can only
+		# reference an elite whose own round (5/15/25) already passed. Flagged here,
+		# demoted (no elite flag / no elite bounty) in create_enemy_for_entry.
+		# "code" is carried through purely for readouts (WaveScaler.threat_profile
+		# — the prep-phase wave dossier); nothing in unit creation reads it.
+		var e: Dictionary = {"type": type, "level": lvl, "pos": entry["pos"], "code": code}
+		if code in WaveScaler.ELITE_POOL:
+			e["heavy"] = true
+		spec.append(e)
 	return spec
 
 # Create the enemy described by one wave-spec entry. "random" = procedural
@@ -94,6 +119,28 @@ func create_enemy_for_entry(entry: Dictionary, round: int) -> VisualUnit:
 		UnitFactory.apply_recruit_rolls(unit, UnitFactory.generate_recruit_rolls(bias))
 	else:
 		unit = EnemyFactory.create_by_type(type)
+	# Role badge tag (2026-07-27) — stamped from the wave CODE here because this
+	# is the only place that still knows it (the spec's "type" has already lost
+	# the elemental-variant grouping the role tables are keyed on). Purely
+	# cosmetic; VisualUnit._setup_role_badge reads it. Same classifier the prep
+	# panel's dossier uses, so badge and dossier can never disagree.
+	if unit:
+		var code: String = String(entry.get("code", ""))
+		if code != "":
+			unit.set_meta("role_tag", WaveScaler.role_tag_for_code(code))
+	# Heavy-tier demotion: an elite creature (G/AH/SS) recurring as a normal wave
+	# anchor keeps its statline/level scaling but sheds its elite identity — no
+	# is_elite/is_boss flag (which would trigger the fixed elite coin bounty in
+	# WaveScaler.gold_drops_for_unit) and no score-based crystal drop (gated via
+	# the wave_heavy meta in WaveScaler.crystals_for_unit). XP is capped to a
+	# strong-normal payout so a common Giant isn't an XP fountain.
+	if unit and entry.get("heavy", false):
+		unit.is_elite = false
+		unit.is_boss  = false
+		unit.gold_reward = 0
+		unit.crystal_reward = 0
+		unit.xp_reward = mini(unit.xp_reward, HEAVY_XP_CAP)
+		unit.set_meta("wave_heavy", true)
 	if unit and lvl > 1:
 		unit.set_level(lvl)
 	# Late-game stat multiplier (round 11+, see Balance) — applied AFTER
@@ -106,12 +153,25 @@ func create_enemy_for_entry(entry: Dictionary, round: int) -> VisualUnit:
 		unit.current_hp    = maxi(1, int(unit.current_hp * hp_mult))
 		unit.attack_damage = maxi(1, int(unit.attack_damage * dmg_mult))
 		unit.magic_power   = int(unit.magic_power * dmg_mult)
+	# Heavy down-scale — applied LAST so it multiplies the fully round-scaled
+	# stats (level + late-mult). Turns a boss-statline elite into a heavy anchor.
+	if unit and entry.get("heavy", false):
+		unit.max_hp        = maxi(1, int(unit.max_hp * HEAVY_STAT_MULT))
+		unit.current_hp    = maxi(1, int(unit.current_hp * HEAVY_STAT_MULT))
+		unit.attack_damage = maxi(1, int(unit.attack_damage * HEAVY_STAT_MULT))
+		unit.magic_power   = int(unit.magic_power * HEAVY_STAT_MULT)
 	return unit
 
 # Dry-run power estimate for a difficulty WITHOUT touching the battlefield —
 # lets the difficulty panel show all 3 tiers' power side by side.
 func estimate_wave_power(round: int, difficulty: int, grid_width: int, chosen_element: int = -1) -> float:
-	var spec: Array = generate_wave_spec(round, difficulty, grid_width, chosen_element)
+	return score_spec(generate_wave_spec(round, difficulty, grid_width, chosen_element), round)
+
+# Power of an ALREADY-generated spec. Split out from estimate_wave_power so the
+# difficulty panel can score the exact spec the wave will use (main_game caches
+# one per difficulty) instead of rolling a third independent one — the displayed
+# power now matches the roster on the grid.
+func score_spec(spec: Array, round: int) -> float:
 	var total: float = 0.0
 	for entry: Dictionary in spec:
 		var unit: VisualUnit = create_enemy_for_entry(entry, round)

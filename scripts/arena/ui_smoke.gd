@@ -30,6 +30,22 @@ func _ready() -> void:
 		await get_tree().process_frame
 		# A populated name label proves _refresh_details actually ran.
 		_check(str(mg.details_unit_name.text) != "", "details panel populated (%s)" % mg.details_unit_name.text)
+		# The bag must NOT be rebuilt every refresh: refresh_live() runs each frame,
+		# and freeing the slot button under the cursor killed its hover tooltip
+		# (2026-08-02). Same items across refreshes → same button instances.
+		var bag: GridContainer = mg.unit_details_panel.get_node(
+			"Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow/ItemBag")
+		var before: Array = []
+		for c in bag.get_children():
+			before.append(c.get_instance_id())
+		for i in range(3):
+			mg._update_details_panel()
+			await get_tree().process_frame
+		var after: Array = []
+		for c in bag.get_children():
+			after.append(c.get_instance_id())
+		_check(before.size() > 0 and before == after, "bag slots survive live refresh")
+
 		mg._on_details_close_pressed()
 		await get_tree().process_frame
 		_check(not mg.unit_details_panel.visible, "details panel closes")

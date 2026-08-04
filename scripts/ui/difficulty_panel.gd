@@ -10,6 +10,17 @@ var _diff_btns: Array = []
 var _power_by_diff: Dictionary = {}
 var _rewards_by_diff: Dictionary = {}
 
+# ── Wave dossier (2026-07-27) ────────────────────────────────────────────────
+# Placement swings win rate enormously (measured 0% → ~85% on an identical team)
+# and which formation is correct depends on whether the wave's damage is melee
+# or ranged — information the player previously had no way to read off a board
+# of unfamiliar sprites. These two lines are that information: a name for
+# flavour, and a derived count readout that stays true for every wave.
+# Deliberately NOT prescriptive ("spread out here") — no formation is right in
+# every matchup, so telling the player what to do would flatten real depth.
+var _dossier_name: Label
+var _dossier_comp: Label
+
 # Difficulty button art (2026-07-04, user-picked tiles from the pixel-button
 # sheet — see assets/UI/Pixel Buttom.png, 32px grid). Each button is a 2-tile
 # (64x32 native) pill, cropped+3x-scaled into assets/UI/generated/. The user
@@ -73,6 +84,28 @@ func _process(_delta: float) -> void:
 func _build_ui() -> void:
 	add_theme_constant_override("separation", 5)
 	visible = false
+
+	# ── Wave dossier — sits above the difficulty picker: what you're facing,
+	# then how hard you want it. See _dossier_name / set_dossier.
+	_dossier_name = Label.new()
+	if font:
+		_dossier_name.add_theme_font_override("font", font)
+	_dossier_name.add_theme_font_size_override("font_size", 22)
+	_dossier_name.add_theme_color_override("font_color", Color(0.90, 0.86, 0.74, 1.0))
+	_dossier_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_dossier_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_dossier_name.visible = false
+	add_child(_dossier_name)
+
+	_dossier_comp = Label.new()
+	if font:
+		_dossier_comp.add_theme_font_override("font", font)
+	_dossier_comp.add_theme_font_size_override("font_size", 20)
+	_dossier_comp.add_theme_color_override("font_color", Color(0.62, 0.70, 0.78, 1.0))
+	_dossier_comp.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_dossier_comp.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_dossier_comp.visible = false
+	add_child(_dossier_comp)
 
 	# Heading
 	var heading := Label.new()
@@ -174,7 +207,7 @@ func _build_ui() -> void:
 	if font:
 		_reward_lbl.add_theme_font_override("font", font)
 	_reward_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_reward_lbl.add_theme_font_size_override("font_size", 22)
+	_reward_lbl.add_theme_font_size_override("font_size", 28)
 	_reward_lbl.add_theme_color_override("font_color", Color(0.83, 0.69, 0.22, 0.95))
 	_reward_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_reward_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -194,6 +227,24 @@ func set_panel_visible(show: bool) -> void:
 	visible = show
 	if not show:
 		_hide_tooltip()
+
+# Wave dossier. `wave_name` may be "" (elite/boss rounds name themselves,
+# generated Act 7 waves have no fixed identity) — that line just hides.
+# `profile` is WaveScaler.threat_profile(spec); zero-count buckets are omitted
+# so the line stays short and every term on it carries information.
+func set_dossier(wave_name: String, profile: Dictionary) -> void:
+	if not _dossier_name:
+		return
+	_dossier_name.text = wave_name
+	_dossier_name.visible = wave_name != ""
+
+	var parts := PackedStringArray()
+	if int(profile.get("melee", 0))   > 0: parts.append("%d melee"   % profile["melee"])
+	if int(profile.get("ranged", 0))  > 0: parts.append("%d ranged"  % profile["ranged"])
+	if int(profile.get("support", 0)) > 0: parts.append("%d support" % profile["support"])
+	if int(profile.get("large", 0))   > 0: parts.append("%d large"   % profile["large"])
+	_dossier_comp.text = " · ".join(parts)
+	_dossier_comp.visible = not parts.is_empty()
 
 # power_by_diff:   {EASY: 45.0, NORMAL: 90.0, HARD: 180.0}
 # rewards_by_diff: {EASY: {type:...}, NORMAL: {...}, HARD: {...}} — already
@@ -239,8 +290,8 @@ func _refresh_reward_display() -> void:
 		RoundReward.Type.STAT_BONUS:
 			var p: Dictionary = reward.get("perk", {})
 			if not p.is_empty():
-				var v: float = p.get("rolled_value", p.get("value", 0))
-				var val_str: String = ("+%.2f" % v) if p.get("id", "") in ["aspd", "regen"] else ("+%d" % int(v))
+				var _v: float = p.get("rolled_value", p.get("value", 0))
+				var val_str: String = LevelUpScreen.format_perk_value(p)
 				_reward_lbl.text = "Reward: %s %s" % [p.get("label", "?"), val_str]
 			else:
 				_reward_lbl.text = "Reward: Stat Bonus"
@@ -258,7 +309,7 @@ func _build_tooltip() -> void:
 	add_child(_tip_layer)
 
 	_tip_panel = PanelContainer.new()
-	_tip_panel.custom_minimum_size = Vector2(190, 0)
+	_tip_panel.custom_minimum_size = Vector2(320, 0)
 	_tip_panel.visible = false
 	var s := StyleBoxFlat.new()
 	s.bg_color     = Color(0.06, 0.05, 0.10, 0.97)
@@ -279,7 +330,7 @@ func _build_tooltip() -> void:
 	mg.add_child(vb)
 
 	_tip_name_lbl = Label.new()
-	_tip_name_lbl.add_theme_font_size_override("font_size", 15)
+	_tip_name_lbl.add_theme_font_size_override("font_size", 28)
 	vb.add_child(_tip_name_lbl)
 
 	var sep := HSeparator.new()
@@ -293,16 +344,16 @@ func _build_tooltip() -> void:
 	vb.add_child(_tip_stats_vb)
 
 	_tip_passive_lbl = Label.new()
-	_tip_passive_lbl.add_theme_font_size_override("font_size", 13)
+	_tip_passive_lbl.add_theme_font_size_override("font_size", 28)
 	_tip_passive_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.30))
 	_tip_passive_lbl.visible = false
 	vb.add_child(_tip_passive_lbl)
 
 	_tip_passive_desc = Label.new()
-	_tip_passive_desc.add_theme_font_size_override("font_size", 12)
+	_tip_passive_desc.add_theme_font_size_override("font_size", 28)
 	_tip_passive_desc.add_theme_color_override("font_color", Color(0.70, 0.70, 0.82))
 	_tip_passive_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_tip_passive_desc.custom_minimum_size = Vector2(174, 0)
+	_tip_passive_desc.custom_minimum_size = Vector2(304, 0)
 	_tip_passive_desc.visible = false
 	vb.add_child(_tip_passive_desc)
 
@@ -318,22 +369,29 @@ func _on_reward_icon_hover() -> void:
 	const STAT_NAMES := {
 		"hp": "HP", "mana": "Mana", "atk": "ATK", "magic": "Magic Power",
 		"res": "Armor", "aspd": "Attack Speed", "hpregen": "HP Regen", "manaregen": "MP Regen",
+		"crit": "Crit Chance", "critdmg": "Crit Damage",
 	}
 	const FLOAT_STATS := ["aspd", "hpregen", "manaregen"]
-	for stat in ["hp", "mana", "atk", "magic", "res", "aspd", "hpregen", "manaregen"]:
+	for stat in ["hp", "mana", "atk", "magic", "res", "aspd", "hpregen", "manaregen", "crit", "critdmg"]:
 		var v: float = float(item.stat_bonus.get(stat, 0))
 		if v > 0:
 			var lbl := Label.new()
-			lbl.text = ("+%.2f  %s" % [v, STAT_NAMES.get(stat, stat.to_upper())]) if stat in FLOAT_STATS \
-				else ("+%d  %s" % [int(v), STAT_NAMES.get(stat, stat.to_upper())])
-			lbl.add_theme_font_size_override("font_size", 13)
+			if stat == "crit":
+				lbl.text = "+%d%%  %s" % [int(round(v * 100.0)), STAT_NAMES[stat]]
+			elif stat == "critdmg":
+				lbl.text = "+%.2fx  %s" % [v, STAT_NAMES[stat]]
+			else:
+				lbl.text = ("+%.2f  %s" % [v, STAT_NAMES.get(stat, stat.to_upper())]) if stat in FLOAT_STATS \
+					else ("+%d  %s" % [int(v), STAT_NAMES.get(stat, stat.to_upper())])
+			lbl.add_theme_font_size_override("font_size", 28)
 			lbl.add_theme_color_override("font_color", Color(0.82, 0.96, 0.72))
 			_tip_stats_vb.add_child(lbl)
 
-	if item.passive_effect != "":
-		_tip_passive_lbl.text = "◆ " + item.passive_effect
+	# One resolved line per passive rather than a bare list of names.
+	if not item.passives.is_empty():
+		_tip_passive_lbl.text = "◆ Passives"
 		_tip_passive_lbl.visible = true
-		_tip_passive_desc.text = item.description
+		_tip_passive_desc.text = "\n".join(item.get_passive_lines())
 		_tip_passive_desc.visible = true
 	else:
 		_tip_passive_lbl.visible = false

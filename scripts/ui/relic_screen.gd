@@ -12,6 +12,20 @@ const PANEL_H := 520.0
 const CARD_W  := 290.0
 const CARD_H  := 360.0
 
+# ── Slot-machine reveal pacing (2026-07-21, restaggered same day) — shared
+# with hero_shop/level_up_screen. Only 2 reels here (relics have no numeric
+# growth to roll): identity (icon+name), then rank (badge+card tint), each
+# fully awaited in turn, so REEL_DURATION*2 is one card's full cascade time.
+# CARD_STAGGER is HALF that — cards overlap like real slot reels: card 2
+# starts while card 1 is still spinning, card 3 comes on right as card 1
+# finishes, then card 2 lands, then card 3 shortly after.
+const NEUTRAL_COL   := Color(0.14, 0.14, 0.19)
+const REEL_TICKS    := 8
+const REEL_START    := 0.035
+const REEL_GROWTH   := 1.22
+const REEL_DURATION := 0.62
+const CARD_STAGGER  := REEL_DURATION   # half of (identity + rank), i.e. one reel's duration
+
 var _panel:     Panel
 var _sub_lbl:   Label
 var _card_row:  HBoxContainer
@@ -25,39 +39,42 @@ func present(offers: Array, wave: int) -> void:
 	_sub_lbl.text = "Wave %d  ·  choose a relic — it lasts the rest of your run" % wave
 	for c in _card_row.get_children():
 		c.queue_free()
-	for relic in offers:
-		_card_row.add_child(_make_card(relic))
+	for i in range(offers.size()):
+		_card_row.add_child(_make_card(offers[i], i))
 	_center_panel()
 
 # ── Card builder ──────────────────────────────────────────────────────────────
-func _make_card(relic: Dictionary) -> Button:
+func _make_card(relic: Dictionary, idx: int) -> Button:
 	var grade: String = relic.get("grade", "D")
 	var grade_col: Color = Relic.grade_color(grade)
 
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(CARD_W, CARD_H)
 	btn.text = ""
-
-	var bg_base: Color = grade_col.darkened(0.82)
-	btn.add_theme_stylebox_override("normal",  _flat(bg_base, grade_col, 3, 12))
-	btn.add_theme_stylebox_override("hover",   _flat(bg_base.lightened(0.10), grade_col.lightened(0.25), 4, 12))
-	btn.add_theme_stylebox_override("pressed", _flat(bg_base.darkened(0.15), grade_col.lightened(0.1), 4, 12))
-	btn.add_theme_stylebox_override("focus",   _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
+	# Card stays neutral-tinted until its OWN rank reel lands (2026-07-21) —
+	# see hero_shop.gd's _paint_card_grade for why. Hidden via modulate/mouse
+	# filter rather than `visible` because _card_row is an HBoxContainer,
+	# which excludes invisible children from layout entirely — hiding with
+	# `visible=false` would collapse the row and shift cards as they revealed
+	# instead of each just popping in at its already-reserved slot.
+	_paint_card_grade(btn, NEUTRAL_COL)
+	btn.modulate = Color(1, 1, 1, 0)
+	btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# Grade badge (top-right)
 	var badge_bg := ColorRect.new()
 	badge_bg.position = Vector2(CARD_W - 46, 12)
 	badge_bg.size     = Vector2(34, 34)
-	badge_bg.color    = grade_col.darkened(0.4)
+	badge_bg.color    = NEUTRAL_COL.darkened(0.3)
 	badge_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(badge_bg)
 	var badge_lbl := Label.new()
-	badge_lbl.text = grade
+	badge_lbl.text = ""
 	badge_lbl.position = badge_bg.position
 	badge_lbl.size     = badge_bg.size
 	badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge_lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-	badge_lbl.add_theme_font_size_override("font_size", 20)
+	badge_lbl.add_theme_font_size_override("font_size", 28)
 	badge_lbl.add_theme_color_override("font_color", grade_col)
 	badge_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(badge_lbl)
@@ -65,20 +82,18 @@ func _make_card(relic: Dictionary) -> Button:
 	# "RELIC" kicker
 	_lbl(btn, "RELIC", 11, Color(0.55, 0.55, 0.72), Vector2(0, 22), Vector2(CARD_W, 16), true)
 
-	# Icon (centered, above the name)
-	var icon_path: String = Relic.icon_path(relic)
-	if icon_path != "":
-		var icon := TextureRect.new()
-		icon.expand_mode  = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.texture      = load(icon_path) as Texture2D
-		icon.position     = Vector2((CARD_W - 80) / 2.0, 44)
-		icon.size         = Vector2(80, 80)
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		btn.add_child(icon)
+	# Icon (centered, above the name) — always created (even if this relic has
+	# no art yet) so the identity reel has a stable node to paint into.
+	var icon := TextureRect.new()
+	icon.expand_mode  = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.position     = Vector2((CARD_W - 80) / 2.0, 44)
+	icon.size         = Vector2(80, 80)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(icon)
 
 	# Name (grade coloured, big)
-	_lbl(btn, relic.get("name", "Relic"), 24, grade_col, Vector2(0, 130), Vector2(CARD_W, 34), true)
+	var name_lbl := _lbl(btn, "", 24, grade_col, Vector2(0, 130), Vector2(CARD_W, 34), true)
 
 	# Divider
 	var div := ColorRect.new()
@@ -92,7 +107,7 @@ func _make_card(relic: Dictionary) -> Button:
 	var desc := Label.new()
 	desc.position             = Vector2(24, 182)
 	desc.size                 = Vector2(CARD_W - 48, 140)
-	desc.add_theme_font_size_override("font_size", 20)
+	desc.add_theme_font_size_override("font_size", 28)
 	desc.add_theme_color_override("font_color", Color(0.82, 0.82, 0.92))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.vertical_alignment   = VERTICAL_ALIGNMENT_TOP
@@ -102,7 +117,60 @@ func _make_card(relic: Dictionary) -> Button:
 	btn.add_child(desc)
 
 	btn.pressed.connect(_on_pick.bind(relic))
+	_run_card_reveal(idx * CARD_STAGGER, btn, icon, name_lbl, badge_lbl, badge_bg, relic)
 	return btn
+
+# Repaints a card's normal/hover/pressed background+border — called once with
+# NEUTRAL_COL at build time, then on every tick of the rank reel so the tint
+# genuinely rolls with the rank instead of showing the final grade up front.
+func _paint_card_grade(btn: Button, col: Color) -> void:
+	var bg_base: Color = col.darkened(0.82)
+	btn.add_theme_stylebox_override("normal",  _flat(bg_base, col, 3, 12))
+	btn.add_theme_stylebox_override("hover",   _flat(bg_base.lightened(0.10), col.lightened(0.25), 4, 12))
+	btn.add_theme_stylebox_override("pressed", _flat(bg_base.darkened(0.15), col.lightened(0.1), 4, 12))
+	btn.add_theme_stylebox_override("focus",   _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
+
+# Wait for this card's turn -> fade in -> identity reel (icon+name cycle
+# through other relics) -> rank reel (badge + card tint), sequential.
+func _run_card_reveal(delay: float, btn: Button, icon: TextureRect, name_lbl: Label,
+		badge_lbl: Label, badge_bg: ColorRect, relic: Dictionary) -> void:
+	var tree := get_tree()
+	if not tree:
+		return
+	if delay > 0.0:
+		await tree.create_timer(delay).timeout
+	if not is_instance_valid(btn):
+		return
+	btn.modulate = Color(1, 1, 1, 1)
+	btn.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	# Reel 1: relic identity — icon and name change TOGETHER each tick.
+	var identity_pool: Array = []
+	for _i in range(8):
+		identity_pool.append(Relic.POOL[randi() % Relic.POOL.size()])
+	var paint_identity := func(v: Dictionary) -> void:
+		var ipath: String = Relic.icon_path(v)
+		icon.texture = (load(ipath) as Texture2D) if ipath != "" else null
+		name_lbl.text = str(v.get("name", "Relic"))
+	var punch_identity := func() -> void: GradeRoll.land_punch(icon)
+	await GradeRoll.spin(btn, identity_pool, relic, paint_identity,
+		0.0, REEL_TICKS, REEL_START, REEL_GROWTH, punch_identity)
+	if not is_instance_valid(btn):
+		return
+
+	# Reel 2: rank badge + card/badge background tint.
+	var final_grade: String = relic.get("grade", "D")
+	var paint_rank := func(g: String) -> void:
+		var gcol := Relic.grade_color(g)
+		badge_lbl.text = g
+		badge_lbl.add_theme_color_override("font_color", gcol)
+		badge_bg.color = gcol.darkened(0.4)
+		_paint_card_grade(btn, gcol)
+	var punch_rank := func() -> void: GradeRoll.land_punch(badge_lbl)
+	# Relic.GRADE_ORDER, not GradeRoll.GRADE_SEQUENCE — relics never roll an
+	# F grade (see Relic.gd header), so the reel shouldn't flash one either.
+	await GradeRoll.spin(btn, Relic.GRADE_ORDER, final_grade, paint_rank,
+		0.0, REEL_TICKS, REEL_START, REEL_GROWTH, punch_rank)
 
 func _on_pick(relic: Dictionary) -> void:
 	visible = false

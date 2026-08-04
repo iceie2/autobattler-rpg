@@ -13,6 +13,10 @@ signal coin_collected(value: int)
 # Set by main_game after construction — used to pick rain cells for bursts.
 var battle_grid: BattleGrid = null
 
+# Screen-space hover radius (canvas-transformed) — same technique main_game
+# already uses for the held-item badge tooltip (2026-07-21 hover-collect).
+const HOVER_RADIUS := 24.0
+
 # coin_value lets meta-progression bonuses (Bounty: +gold per kill) drop ONE
 # richer coin instead of flooding the field with extra coin nodes.
 func spawn_coins(world_pos: Vector2, count: int, coin_value: int = 1) -> void:
@@ -45,3 +49,15 @@ func vacuum_all(target: Vector2) -> void:
 		if c is GoldCoin:
 			c.start_vacuum(local_target, float(i) * 0.05)
 			i += 1
+
+# Hand-collect: any IDLE coin under the mouse starts vacuuming toward `target`
+# immediately, individually (2026-07-21 user request — no need to wait for
+# round end). Call every frame with the current mouse position; repeated
+# calls while still hovering are harmless (start_vacuum no-ops once vacuuming).
+func check_hover(mouse_screen: Vector2, target: Vector2) -> void:
+	var local_target := to_local(target)
+	for c in get_children():
+		if c is GoldCoin and c.state == GoldCoin.State.IDLE:
+			var screen_pos: Vector2 = c.get_global_transform_with_canvas().origin
+			if screen_pos.distance_to(mouse_screen) <= HOVER_RADIUS:
+				c.start_vacuum(local_target, 0.0)

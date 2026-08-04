@@ -83,6 +83,11 @@ static func _enemy_variant(tex: Texture2D) -> Texture2D:
 func _hp_h() -> float:
 	return bar_height * HP_HEIGHT_SCALE
 
+# Total stacked height of HP + MP + ult rows. Used by VisualUnit to park status
+# icons clear of the bar instead of on top of it (2026-08-02).
+func total_height() -> float:
+	return _hp_h() + sub_height * 2.0 + gap * 2.0
+
 var hp_current:     float = 1.0
 var hp_max:         float = 1.0
 # Recent-damage ghost (2026-07-17): when HP drops, a pale bar lingers at the

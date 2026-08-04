@@ -47,8 +47,14 @@ func _draw():
 
 func world_to_grid(world_pos: Vector2) -> Vector2i:
 	var local_pos = to_local(world_pos)
-	var grid_x = int(local_pos.x / cell_size)
-	var grid_y = int(local_pos.y / cell_size)
+	# floori, NOT int() (2026-07-24): int() truncates TOWARD ZERO, so any point
+	# left of / above the board (local -54px, say) mapped to cell 0 instead of
+	# -1 — i.e. every off-board position on those two sides silently reported as
+	# a real in-bounds cell, and is_valid_position() then happily approved it.
+	# floori sends them to -1/-2/… so out-of-bounds actually reads as
+	# out-of-bounds and drag placement rejects it.
+	var grid_x = floori(local_pos.x / cell_size)
+	var grid_y = floori(local_pos.y / cell_size)
 	return Vector2i(grid_x, grid_y)
 
 func grid_to_world(grid_pos: Vector2i) -> Vector2:

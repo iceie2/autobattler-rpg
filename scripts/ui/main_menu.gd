@@ -3,6 +3,19 @@ class_name MainMenu
 
 const GAME_SCENE := "res://scenes/main_game.tscn"
 
+# ── Menu art (drop real PNGs here; each falls back to procedural if missing) ──
+# NOTE: exact case ("UI") — the exported .pck filesystem is case-sensitive, so a
+# lowercase "ui" here loads fine from source on Windows but drops the art in a build.
+const BG_PATH     := "res://assets/UI/menu/background.png"
+const CIRCLE_PATH := "res://assets/UI/menu/summon_circle.png"
+const LOGO_PATH   := "res://assets/UI/menu/logo.png"
+const HERO_DIR    := "res://assets/UI/menu/heroes"   # curated menu-pose cutouts
+
+const CENTER := Vector2(960, 540)          # design-space center (1920×1080)
+const CIRCLE_CENTER := Vector2(960, 250)   # biased up so its bright core backs the logo
+const PARALLAX_BG := 14.0                   # px the bg drifts with the cursor
+const PARALLAX_CIRCLE := 7.0
+
 enum WinMode { WINDOWED, BORDERLESS, FULLSCREEN }
 var _win_mode := WinMode.WINDOWED
 
@@ -11,13 +24,42 @@ var _class_browser: ClassBrowser
 var _crystal_shop: CrystalShop
 var _run_history: RunHistoryScreen
 
+# animated layers
+var _bg_layer: Node2D
+var _bg_sprite: Sprite2D
+var _circle: Sprite2D
+var _has_bg_tex := false
+var _has_circle_tex := false
+var _menu_buttons: Array = []
+var _anim_t := 0.0
+var _parallax := Vector2.ZERO
+
+# featured hero showcase (activates only if HERO_DIR has textures)
+var _hero_sprite: Sprite2D
+var _hero_glow: Sprite2D
+var _hero_name_lbl: Label
+var _hero_el_lbl: Label
+var _hero_files: Array = []
+var _hero_index := 0
+var _hero_timer := 0.0
+const HERO_CYCLE := 15.0
+
 func _ready() -> void:
 	_apply_window_mode(WinMode.WINDOWED)
 	_load_settings()   # overrides with the saved window mode, if any
+
+	_build_background()
+	_build_circle()
+	_build_particles()
+	_build_hero_showcase()
+
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
 	_build_main(canvas)
 	_build_options(canvas)
+	if _hero_name_lbl:
+		canvas.add_child(_hero_name_lbl)
+		canvas.add_child(_hero_el_lbl)
 
 	var cb_scene := load("res://scenes/class_browser.tscn") as PackedScene
 	_class_browser = cb_scene.instantiate() as ClassBrowser
@@ -30,17 +72,181 @@ func _ready() -> void:
 	_run_history = RunHistoryScreen.new()
 	add_child(_run_history)
 
+func _process(delta: float) -> void:
+	_anim_t += delta
+
+	# eased parallax toward the cursor's offset from centre
+	var mp := get_viewport().get_mouse_position()
+	var target := (mp - CENTER) / CENTER
+	_parallax = _parallax.lerp(target, clampf(delta * 3.0, 0.0, 1.0))
+
+	if _bg_sprite:
+		_bg_sprite.position = CENTER - _parallax * PARALLAX_BG
+	if _circle:
+		_circle.rotation += delta * 0.12
+		_circle.position = CIRCLE_CENTER - _parallax * PARALLAX_CIRCLE
+		var p: float = 0.52 + 0.15 * sin(_anim_t * 1.1)   # gentle breathing glow (dim = backdrop)
+		_circle.self_modulate.a = p
+	elif not _has_circle_tex:
+		queue_redraw()   # procedural fallback ring needs repainting
+
+	_animate_hero(delta)
+
+# ── Background ────────────────────────────────────────────────────────────────
+func _build_background() -> void:
+	_bg_layer = Node2D.new()
+	_bg_layer.z_index = -20
+	add_child(_bg_layer)
+
+	var tex := _try_load(BG_PATH)
+	if tex:
+		_has_bg_tex = true
+		_bg_sprite = Sprite2D.new()
+		_bg_sprite.texture = tex
+		_bg_sprite.centered = true
+		_bg_sprite.position = CENTER
+		# scale to COVER 1920×1080 plus parallax headroom, keep aspect
+		var ts := tex.get_size()
+		var s: float = max((1920.0 + PARALLAX_BG * 4) / ts.x, (1080.0 + PARALLAX_BG * 4) / ts.y)
+		_bg_sprite.scale = Vector2(s, s)
+		_bg_layer.add_child(_bg_sprite)
+
+func _build_circle() -> void:
+	var tex := _try_load(CIRCLE_PATH)
+	if not tex:
+		return
+	_has_circle_tex = true
+	_circle = Sprite2D.new()
+	_circle.texture = tex
+	_circle.centered = true
+	_circle.position = CIRCLE_CENTER
+	_circle.z_index = -10
+	# additive blend → the pure-black export vanishes for free, glow composites
+	var mat := CanvasItemMaterial.new()
+	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	_circle.material = mat
+	var target_h := 600.0
+	var s := target_h / tex.get_size().y
+	_circle.scale = Vector2(s, s)
+	_circle.modulate = Color(0.75, 0.85, 1.0)   # cool the glow slightly
+	add_child(_circle)
+
+func _build_particles() -> void:
+	var p := CPUParticles2D.new()
+	p.z_index = -5
+	p.amount = 60
+	p.lifetime = 9.0
+	p.preprocess = 6.0
+	p.position = Vector2(960, 1120)
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(1000, 40)
+	p.direction = Vector2(0, -1)
+	p.spread = 18.0
+	p.gravity = Vector2(0, -6)
+	p.initial_velocity_min = 10.0
+	p.initial_velocity_max = 28.0
+	p.scale_amount_min = 1.0
+	p.scale_amount_max = 3.0
+	p.color = Color(0.63, 0.82, 1.0, 0.5)
+	# fade in and out over life
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0.63, 0.82, 1.0, 0.0))
+	grad.set_color(1, Color(0.75, 0.88, 1.0, 0.0))
+	grad.add_point(0.5, Color(0.7, 0.85, 1.0, 0.55))
+	p.color_ramp = grad
+	p.emitting = true
+	add_child(p)
+
+# ── Featured hero showcase ────────────────────────────────────────────────────
+func _build_hero_showcase() -> void:
+	_hero_files = _scan_dir(HERO_DIR, [".png"])
+	if _hero_files.is_empty():
+		return   # no curated art yet — showcase stays off
+
+	var hero_pos := Vector2(1500, 560)
+
+	_hero_glow = Sprite2D.new()
+	_hero_glow.texture = _radial_glow_tex()
+	_hero_glow.position = hero_pos
+	_hero_glow.scale = Vector2(3.2, 3.2)
+	_hero_glow.modulate = Color(0.6, 0.82, 1.0, 0.5)
+	_hero_glow.z_index = -6
+	var gmat := CanvasItemMaterial.new()
+	gmat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	_hero_glow.material = gmat
+	add_child(_hero_glow)
+
+	_hero_sprite = Sprite2D.new()
+	_hero_sprite.position = hero_pos
+	_hero_sprite.z_index = -4
+	add_child(_hero_sprite)
+
+	_hero_name_lbl = Label.new()
+	_hero_name_lbl.position = Vector2(1300, 760)
+	_hero_name_lbl.size = Vector2(400, 40)
+	_hero_name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hero_name_lbl.add_theme_font_size_override("font_size", UITheme.body_font(26))
+	_hero_name_lbl.add_theme_color_override("font_color", Color(0.87, 0.92, 1.0))
+
+	_hero_el_lbl = Label.new()
+	_hero_el_lbl.position = Vector2(1300, 800)
+	_hero_el_lbl.size = Vector2(400, 28)
+	_hero_el_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hero_el_lbl.add_theme_font_size_override("font_size", UITheme.body_font(16))
+	_hero_el_lbl.add_theme_color_override("font_color", Color(0.62, 0.78, 1.0))
+
+	_hero_index = 0
+	_show_hero(_hero_files[0])
+
+func _show_hero(path: String) -> void:
+	var tex := _try_load(path)
+	if not tex:
+		return
+	_hero_sprite.texture = tex
+	var target_h := 460.0
+	var s: float = target_h / tex.get_size().y
+	_hero_sprite.scale = Vector2(s, s)
+	var nm := path.get_file().get_basename().capitalize()
+	if _hero_name_lbl:
+		_hero_name_lbl.text = nm
+
+func _animate_hero(delta: float) -> void:
+	if not _hero_sprite:
+		return
+	var bob := sin(_anim_t * 1.35) * 12.0
+	_hero_sprite.position.y = 560 + bob
+	if _hero_glow:
+		var b: float = 0.85 + 0.15 * sin(_anim_t * 1.35)
+		_hero_glow.scale = Vector2(3.2 * b, 3.2 * b)
+		_hero_glow.position.y = 560 + bob * 0.5
+
+	_hero_timer += delta
+	if _hero_timer >= HERO_CYCLE and _hero_files.size() > 1:
+		_hero_timer = 0.0
+		_hero_index = (_hero_index + 1) % _hero_files.size()
+		_show_hero(_hero_files[_hero_index])
+
+# ── Fallback background paint (only used when the real art is absent) ─────────
 func _draw() -> void:
+	# When the real background sprite is present it sits at z=-20 and covers the
+	# screen — painting anything here (at z=0) would draw OVER it, so bail out.
+	if _has_bg_tex:
+		return
 	var sz := get_viewport_rect().size
-	draw_rect(Rect2(Vector2.ZERO, sz), Color(0.06, 0.07, 0.12))
-	for x in range(0, int(sz.x) + 64, 64):
-		draw_line(Vector2(x, 0), Vector2(x, sz.y), Color(0.12, 0.13, 0.2, 0.4), 1)
-	for y in range(0, int(sz.y) + 64, 64):
-		draw_line(Vector2(0, y), Vector2(sz.x, y), Color(0.12, 0.13, 0.2, 0.4), 1)
-	var cx := sz.x / 2
-	for i in range(4):
-		draw_arc(Vector2(cx, 160), 70.0 + i * 18, 0, TAU, 40,
-			Color(0.35, 0.4, 0.85, 0.08 - i * 0.015), 2)
+	draw_rect(Rect2(Vector2.ZERO, sz), Color(0.045, 0.055, 0.10))
+	# soft radial darkening toward the edges so it isn't a flat slab
+	var layers := 5
+	for i in range(layers):
+		var t := float(i) / layers
+		var r := (1.0 - t) * sz.x * 0.7
+		draw_circle(Vector2(sz.x * 0.5, sz.y * 0.35), r,
+			Color(0.10, 0.12, 0.22, 0.10))
+	if not _has_circle_tex:
+		# procedural rune-ring stand-in, rotating via _anim_t
+		var c := CIRCLE_CENTER
+		for i in range(4):
+			draw_arc(c, 70.0 + i * 30, 0, TAU, 48,
+				Color(0.4, 0.55, 1.0, 0.10 + 0.02 * sin(_anim_t + i)), 2)
 
 # ── Main panel ────────────────────────────────────────────────────────────────
 func _build_main(canvas: CanvasLayer) -> void:
@@ -49,33 +255,58 @@ func _build_main(canvas: CanvasLayer) -> void:
 	root.add_theme_stylebox_override("panel", _flat(Color(0, 0, 0, 0)))
 
 	var cx := 960.0
-	_lbl(root, "AUTO HEROES", 60, Color(0.82, 0.88, 1.0),
-		Vector2(cx - 300, 80), Vector2(600, 80), true)
+	# real logo if present, else the styled text title
+	var logo := _try_load(LOGO_PATH)
+	var subtitle_y := 205.0
+	if logo:
+		var tr := TextureRect.new()
+		tr.texture = logo
+		# IGNORE_SIZE = respect the box we set (default KEEP_SIZE draws at native res)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var aspect := float(logo.get_size().x) / float(logo.get_size().y)
+		var lh := 230.0
+		var lw := lh * aspect
+		if lw > 940.0:          # clamp very wide logos to fit the header band
+			lw = 940.0
+			lh = lw / aspect
+		tr.position = Vector2(cx - lw / 2, 46)
+		tr.size = Vector2(lw, lh)
+		root.add_child(tr)
+		subtitle_y = 46.0 + lh - 4.0
+	else:
+		_lbl(root, "AUTO HEROES", 60, Color(0.82, 0.88, 1.0),
+			Vector2(cx - 300, 80), Vector2(600, 80), true)
 	_lbl(root, "an autobattler rpg", 16, Color(0.5, 0.6, 0.85, 0.75),
-		Vector2(cx - 200, 162), Vector2(400, 30), true)
+		Vector2(cx - 200, subtitle_y), Vector2(400, 30), true)
 
+	# accent colour per entry ties each button to its element / role
+	var ICE := Color(0.62, 0.84, 1.0)
+	var VIOLET := Color(0.60, 0.48, 1.0)
+	var MAGENTA := Color(0.85, 0.56, 1.0)
 	var btns := []
 	# A saved run gets top billing (2026-07-17 mid-run save).
 	if RunSave.exists():
-		btns.append(["CONTINUE RUN", _on_continue])
+		btns.append(["CONTINUE RUN", _on_continue, VIOLET])
 	btns.append_array([
-		["START GAME",    _on_start],
-		["CLASSES",       _on_classes],
-		["CRYSTAL SHOP",  _on_crystal_shop],
-		["RUN HISTORY",   _on_run_history],
-		["ARENA",         _on_arena],
-		["OPTIONS",       _on_options],
-		["QUIT",          _on_quit],
+		["START GAME",    _on_start,       ICE],
+		["CLASSES",       _on_classes,     Color(0.50, 0.69, 1.0)],
+		["CRYSTAL SHOP",  _on_crystal_shop, MAGENTA],
+		["RUN HISTORY",   _on_run_history, Color(0.56, 0.84, 0.75)],
+		["ARENA",         _on_arena,       Color(1.0, 0.60, 0.36)],
+		["OPTIONS",       _on_options,     Color(0.60, 0.65, 0.80)],
+		["QUIT",          _on_quit,        Color(0.78, 0.54, 0.54)],
 	])
-	var by := 240.0
+	var by := 300.0
 	for b in btns:
-		var btn := _btn(b[0], Rect2(cx - 150, by, 300, 52))
+		var btn := _btn(b[0], Rect2(cx - 170, by, 340, 54), b[2])
 		btn.pressed.connect(b[1])
 		root.add_child(btn)
-		by += 70
+		by += 66
 
-	_lbl(root, "v0.2 – early development", 12, Color(0.3, 0.3, 0.4),
-		Vector2(cx - 150, by + 30), Vector2(300, 24), true)
+	_lbl(root, "v0.3.1 – early development", 12, Color(0.3, 0.3, 0.4),
+		Vector2(cx - 150, by + 24), Vector2(300, 24), true)
 
 # ── Options panel ─────────────────────────────────────────────────────────────
 func _build_options(canvas: CanvasLayer) -> void:
@@ -98,12 +329,12 @@ func _build_options(canvas: CanvasLayer) -> void:
 	]
 	var my := 122.0
 	for m in modes:
-		var b := _btn(m[0], Rect2(30, my, 260, 44))
+		var b := _btn(m[0], Rect2(30, my, 260, 44), Color(0.62, 0.84, 1.0))
 		b.pressed.connect(_on_window_mode.bind(m[1]))
 		_options_panel.add_child(b)
 		my += 54
 
-	var close := _btn("✕  Close", Rect2(220, 326, 160, 40))
+	var close := _btn("✕  Close", Rect2(220, 326, 160, 40), Color(0.78, 0.54, 0.54))
 	close.pressed.connect(func(): _options_panel.visible = false)
 	_options_panel.add_child(close)
 
@@ -154,9 +385,19 @@ func _load_settings() -> void:
 		_apply_window_mode(_win_mode)
 
 func _save_settings() -> void:
+	# Read-modify-write: main_game.gd stores its own keys in this file (e.g.
+	# "intent_arrows"), and a blind overwrite here would silently wipe them.
+	var d: Dictionary = {}
+	if FileAccess.file_exists(SETTINGS_PATH):
+		var rf := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
+		if rf:
+			var parsed = JSON.parse_string(rf.get_as_text())
+			if parsed is Dictionary:
+				d = parsed
+	d["win_mode"] = _win_mode
 	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
 	if f:
-		f.store_string(JSON.stringify({"win_mode": _win_mode}))
+		f.store_string(JSON.stringify(d))
 
 func _on_window_mode(mode: WinMode) -> void:
 	_win_mode = mode
@@ -180,18 +421,67 @@ func _panel(parent: Node, rect: Rect2) -> Panel:
 	if rect.size != Vector2.ZERO:
 		p.position = rect.position; p.size = rect.size
 	p.add_theme_stylebox_override("panel",
-		_flat(Color(0.1, 0.1, 0.16, 0.97), Color(0.4, 0.4, 0.6), 2, 6))
+		_flat(Color(0.08, 0.09, 0.15, 0.96), Color(0.4, 0.4, 0.6), 2, 6))
 	parent.add_child(p)
 	return p
 
-func _btn(text: String, rect: Rect2) -> Button:
+# Menu button with an element-accent bar, hover glow/scale, and a slide-in chevron.
+func _btn(text: String, rect: Rect2, accent: Color = Color(0.62, 0.84, 1.0)) -> Button:
 	var b := Button.new()
-	b.text = text; b.position = rect.position; b.size = rect.size
+	b.text = text
+	b.position = rect.position
+	b.size = rect.size
+	b.pivot_offset = rect.size * 0.5
+	b.clip_contents = false
 	b.add_theme_font_size_override("font_size", 26)
-	b.add_theme_color_override("font_color", Color(0.9, 0.9, 1.0))
-	b.add_theme_stylebox_override("normal",  _flat(Color(0.18, 0.18, 0.28), Color(0.45, 0.45, 0.6), 1, 4))
-	b.add_theme_stylebox_override("hover",   _flat(Color(0.25, 0.25, 0.38), Color(0.6, 0.6, 0.8),  1, 4))
-	b.add_theme_stylebox_override("pressed", _flat(Color(0.12, 0.12, 0.22), Color(0.3, 0.3, 0.5),  1, 4))
+	b.add_theme_color_override("font_color", Color(0.86, 0.9, 1.0))
+	b.add_theme_color_override("font_hover_color", Color(0.98, 0.99, 1.0))
+
+	var base_bg := Color(0.09, 0.11, 0.19, 0.95)
+	var hover_bg := Color(0.15, 0.17, 0.28, 0.97)
+	var acc_dim := Color(accent.r, accent.g, accent.b, 0.55)
+	b.add_theme_stylebox_override("normal",  _flat(base_bg, Color(0.42, 0.44, 0.6, 0.7), 1, 6))
+	b.add_theme_stylebox_override("hover",   _flat(hover_bg, acc_dim, 1, 6))
+	b.add_theme_stylebox_override("pressed", _flat(Color(0.08, 0.09, 0.16), acc_dim, 1, 6))
+	b.add_theme_stylebox_override("focus",   _flat(Color(0, 0, 0, 0)))
+
+	# left accent bar
+	var bar := ColorRect.new()
+	bar.color = accent
+	bar.position = Vector2(0, 6)
+	bar.size = Vector2(3, rect.size.y - 12)
+	bar.modulate.a = 0.35
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(bar)
+
+	# slide-in chevron
+	var chev := Label.new()
+	chev.text = "▶"
+	chev.add_theme_font_size_override("font_size", 18)
+	chev.add_theme_color_override("font_color", accent)
+	chev.position = Vector2(rect.size.x - 34, rect.size.y * 0.5 - 14)
+	chev.modulate.a = 0.0
+	chev.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(chev)
+
+	var enter := func():
+		var t := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		t.tween_property(b, "position:x", rect.position.x + 8, 0.16)
+		t.tween_property(b, "scale", Vector2(1.02, 1.02), 0.16)
+		t.tween_property(bar, "modulate:a", 1.0, 0.16)
+		t.tween_property(bar, "size:x", 5.0, 0.16)
+		t.tween_property(chev, "modulate:a", 0.9, 0.16)
+	var leave := func():
+		var t := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		t.tween_property(b, "position:x", rect.position.x, 0.16)
+		t.tween_property(b, "scale", Vector2(1, 1), 0.16)
+		t.tween_property(bar, "modulate:a", 0.35, 0.16)
+		t.tween_property(bar, "size:x", 3.0, 0.16)
+		t.tween_property(chev, "modulate:a", 0.0, 0.16)
+	b.mouse_entered.connect(enter)
+	b.mouse_exited.connect(leave)
+	b.focus_entered.connect(enter)
+	b.focus_exited.connect(leave)
 	return b
 
 func _lbl(parent: Node, text: String, sz: int, col: Color,
@@ -213,3 +503,40 @@ func _flat(bg: Color, border: Color = Color.TRANSPARENT,
 	s.corner_radius_top_left = radius; s.corner_radius_top_right = radius
 	s.corner_radius_bottom_left = radius; s.corner_radius_bottom_right = radius
 	return s
+
+# ── Asset utilities ───────────────────────────────────────────────────────────
+func _try_load(path: String) -> Texture2D:
+	if ResourceLoader.exists(path):
+		return load(path) as Texture2D
+	return null
+
+func _scan_dir(dir_path: String, exts: Array) -> Array:
+	var out: Array = []
+	var d := DirAccess.open(dir_path)
+	if not d:
+		return out
+	d.list_dir_begin()
+	var name := d.get_next()
+	while name != "":
+		if not d.current_is_dir():
+			var lower := name.to_lower()
+			for e in exts:
+				if lower.ends_with(e):
+					out.append(dir_path + "/" + name)
+					break
+		name = d.get_next()
+	d.list_dir_end()
+	out.sort()
+	return out
+
+func _radial_glow_tex() -> Texture2D:
+	var size := 128
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var c := size * 0.5
+	for y in range(size):
+		for x in range(size):
+			var dist := Vector2(x - c, y - c).length() / c
+			var a := clampf(1.0 - dist, 0.0, 1.0)
+			a = a * a
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	return ImageTexture.create_from_image(img)

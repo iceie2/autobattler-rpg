@@ -14,10 +14,17 @@ extends Node
 #   Simulate battles:
 #     godot --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=sim \
 #       --team=SABLE:3,NEMI:3,RIOT:3 --enemy=wave:12 --runs=10 --seed=42
+#   Power-rank every hero across level milestones (solo + paired sweep at each
+#   level, then a combined ranked table averaged across levels):
+#     godot --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=powerrank \
+#       --levels=1,3,6,9 --runs=5
 #   Enemy can be an explicit list too:  --enemy=goblin:3,orc_earth:5,hill_giant:4
 #   Optional: --out=user://arena_result.json  --max-sim-seconds=120
 #             --difficulty=easy|normal|hard (wave enemies only)
-#             --element=FIRE (team-wide hero element, default NORMAL)
+#             --element=FIRE (team-wide hero element override; default is each
+#               hero's own fixed element)
+#             --formation=default|front|clump|spread|split (sim mode only —
+#               how the player team is laid out; see _PLAYER_FORMATIONS)
 #
 # Output: JSON printed between ARENA_RESULT_BEGIN / ARENA_RESULT_END lines
 # (parse-friendly), plus optional --out file. Exit code 0 = ran clean,
@@ -69,57 +76,60 @@ const EXPECTED_SILENT := {
 	"RIOT":      {"passive": "retaliation — verified in on_being_hit phase"},
 	"CROSS":     {"passive": "retaliation heal — verified in on_being_hit phase"},
 	"RIFT":      {"passive": "Backlash damage-redirect — verified in on_being_hit phase"},
-	"STATIC":    {"passive": "Live Wire triggers on enemy MOVEMENT (update_unit_movements) — untestable statically, verify in sim"},
+	"STATIC":    {"passive": "Live Wire triggers on being ATTACKED (propagate_damage_links) — untestable statically, verify in sim"},
 	# SHEILDOR "Guardian Aura" + VAIL "Far Winds" were design gaps (UI names
 	# with no implementation) until 2026-07-03 — both implemented; the probe
 	# now REQUIRES them to fire, so no entries here.
-	# Basic mobs: kit = one signature skill (2026-07-03), no passive by design.
-	"goblin": {"passive": "kit is Shank; no passive by design"},
-	"goblin_archer": {"passive": "kit is Crippling Arrow; no passive by design"},
-	"goblin_shaman_normal": {"passive": "kit is Mend; no passive by design"},
-	"goblin_shaman_fire": {"passive": "kit is Mend; no passive by design"},
-	"goblin_shaman_water": {"passive": "kit is Mend; no passive by design"},
-	"goblin_shaman_earth": {"passive": "kit is Mend; no passive by design"},
-	"goblin_shaman_air": {"passive": "kit is Mend; no passive by design"},
-	"goblin_shaman_lightning": {"passive": "kit is Mend; no passive by design"},
-	"orc_normal": {"passive": "kit is Crushing Blow; no passive by design"},
-	"orc_fire": {"passive": "kit is Crushing Blow; no passive by design"},
-	"orc_water": {"passive": "kit is Crushing Blow; no passive by design"},
-	"orc_earth": {"passive": "kit is Crushing Blow; no passive by design"},
-	"orc_air": {"passive": "kit is Crushing Blow; no passive by design"},
-	"orc_lightning": {"passive": "kit is Crushing Blow; no passive by design"},
-	"slime_normal": {"passive": "kit is Corrosive Goo; no passive by design"},
-	"slime_fire": {"passive": "kit is Corrosive Goo; no passive by design"},
-	"slime_water": {"passive": "kit is Corrosive Goo; no passive by design"},
-	"slime_earth": {"passive": "kit is Corrosive Goo; no passive by design"},
-	"slime_air": {"passive": "kit is Corrosive Goo; no passive by design"},
-	"slime_lightning": {"passive": "kit is Corrosive Goo; no passive by design"},
-	"lizard_normal": {"passive": "kit is Precision Shot; no passive by design"},
-	"lizard_fire": {"passive": "kit is Precision Shot; no passive by design"},
-	"lizard_water": {"passive": "kit is Precision Shot; no passive by design"},
-	"lizard_earth": {"passive": "kit is Precision Shot; no passive by design"},
-	"lizard_air": {"passive": "kit is Precision Shot; no passive by design"},
-	"lizard_lightning": {"passive": "kit is Precision Shot; no passive by design"},
-	"bear_normal": {"passive": "kit is Rending Swipe; no passive by design"},
-	"bear_fire": {"passive": "kit is Rending Swipe; no passive by design"},
-	"bear_water": {"passive": "kit is Rending Swipe; no passive by design"},
-	"bear_earth": {"passive": "kit is Rending Swipe; no passive by design"},
-	"bear_air": {"passive": "kit is Rending Swipe; no passive by design"},
-	"bear_lightning": {"passive": "kit is Rending Swipe; no passive by design"},
-	"troll_normal": {"passive": "kit is Enrage; no passive by design"},
-	"troll_fire": {"passive": "kit is Enrage; no passive by design"},
-	"troll_water": {"passive": "kit is Enrage; no passive by design"},
-	"troll_earth": {"passive": "kit is Enrage; no passive by design"},
-	"troll_air": {"passive": "kit is Enrage; no passive by design"},
-	"troll_lightning": {"passive": "kit is Enrage; no passive by design"},
-	"windup_bot_normal": {"passive": "kit is Wind-Up Punch; no passive by design"},
-	"windup_bot_fire": {"passive": "kit is Wind-Up Punch; no passive by design"},
-	"windup_bot_water": {"passive": "kit is Wind-Up Punch; no passive by design"},
-	"windup_bot_earth": {"passive": "kit is Wind-Up Punch; no passive by design"},
-	"windup_bot_air": {"passive": "kit is Wind-Up Punch; no passive by design"},
-	"windup_bot_lightning": {"passive": "kit is Wind-Up Punch; no passive by design"},
-	"skeleton": {"passive": "kit is Bone Shield; no passive by design"},
-	"rat": {"passive": "kit is Infected Bite; no passive by design"},
+	# Basic mobs (2026-07-24): each now has a signature passive too, but they're
+	# all CONDITIONAL — packs, low HP, nearby allies, or on-hit/on-death triggers a
+	# lone-unit 3s passive probe can't exercise, so "silent here" is correct. See
+	# _tick_mob_passive / _apply_on_hit_passives / VisualUnit.die().
+	"goblin": {"passive": "Pack Courage needs other Goblins within 3 tiles — silent for a lone probe unit"},
+	"goblin_archer": {"passive": "Focus Fire is on-hit (see on_hit result), not a per-frame passive"},
+	"goblin_shaman_normal": {"passive": "Spirit Link aura needs nearby allies — silent for a lone probe unit"},
+	"goblin_shaman_fire": {"passive": "Spirit Link aura needs nearby allies — silent for a lone probe unit"},
+	"goblin_shaman_water": {"passive": "Spirit Link aura needs nearby allies — silent for a lone probe unit"},
+	"goblin_shaman_earth": {"passive": "Spirit Link aura needs nearby allies — silent for a lone probe unit"},
+	"goblin_shaman_air": {"passive": "Spirit Link aura needs nearby allies — silent for a lone probe unit"},
+	"goblin_shaman_lightning": {"passive": "Spirit Link aura needs nearby allies — silent for a lone probe unit"},
+	"orc_normal": {"passive": "Bloodrage triggers below 50% HP — silent at full HP in probe"},
+	"orc_fire": {"passive": "Bloodrage triggers below 50% HP — silent at full HP in probe"},
+	"orc_water": {"passive": "Bloodrage triggers below 50% HP — silent at full HP in probe"},
+	"orc_earth": {"passive": "Bloodrage triggers below 50% HP — silent at full HP in probe"},
+	"orc_air": {"passive": "Bloodrage triggers below 50% HP — silent at full HP in probe"},
+	"orc_lightning": {"passive": "Bloodrage triggers below 50% HP — silent at full HP in probe"},
+	"slime_normal": {"passive": "Split is on-death — not observable in the passive probe window"},
+	"slime_fire": {"passive": "Split is on-death — not observable in the passive probe window"},
+	"slime_water": {"passive": "Split is on-death — not observable in the passive probe window"},
+	"slime_earth": {"passive": "Split is on-death — not observable in the passive probe window"},
+	"slime_air": {"passive": "Split is on-death — not observable in the passive probe window"},
+	"slime_lightning": {"passive": "Split is on-death — not observable in the passive probe window"},
+	"lizard_normal": {"passive": "Cold Blood regen only shows on a damaged unit; probe unit is at full HP"},
+	"lizard_fire": {"passive": "Cold Blood regen only shows on a damaged unit; probe unit is at full HP"},
+	"lizard_water": {"passive": "Cold Blood regen only shows on a damaged unit; probe unit is at full HP"},
+	"lizard_earth": {"passive": "Cold Blood regen only shows on a damaged unit; probe unit is at full HP"},
+	"lizard_air": {"passive": "Cold Blood regen only shows on a damaged unit; probe unit is at full HP"},
+	"lizard_lightning": {"passive": "Cold Blood regen only shows on a damaged unit; probe unit is at full HP"},
+	"bear_normal": {"passive": "Fury ramps with missing HP — silent at full HP in probe"},
+	"bear_fire": {"passive": "Fury ramps with missing HP — silent at full HP in probe"},
+	"bear_water": {"passive": "Fury ramps with missing HP — silent at full HP in probe"},
+	"bear_earth": {"passive": "Fury ramps with missing HP — silent at full HP in probe"},
+	"bear_air": {"passive": "Fury ramps with missing HP — silent at full HP in probe"},
+	"bear_lightning": {"passive": "Fury ramps with missing HP — silent at full HP in probe"},
+	"troll_normal": {"passive": "Regeneration only shows on a damaged unit; probe unit is at full HP"},
+	"troll_fire": {"passive": "Regeneration only shows on a damaged unit; probe unit is at full HP"},
+	"troll_water": {"passive": "Regeneration only shows on a damaged unit; probe unit is at full HP"},
+	"troll_earth": {"passive": "Regeneration only shows on a damaged unit; probe unit is at full HP"},
+	"troll_air": {"passive": "Regeneration only shows on a damaged unit; probe unit is at full HP"},
+	"troll_lightning": {"passive": "Regeneration only shows on a damaged unit; probe unit is at full HP"},
+	"windup_bot_normal": {"passive": "Overclock ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff"},
+	"windup_bot_fire": {"passive": "Overclock ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff"},
+	"windup_bot_water": {"passive": "Overclock ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff"},
+	"windup_bot_earth": {"passive": "Overclock ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff"},
+	"windup_bot_air": {"passive": "Overclock ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff"},
+	"windup_bot_lightning": {"passive": "Overclock ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff"},
+	"skeleton": {"passive": "Undying is on-death — not observable in the passive probe window"},
+	"rat": {"passive": "Infestation needs 2+ other Rats within 2 tiles — silent for a lone probe unit"},
 	"hill_giant": {"passive": "no passive by design"},
 	"triarch": {"passive": "phase mechanics live in die(), not passives"},
 	"khagan": {"passive": "phase mechanics live in die(), not passives"},
@@ -130,6 +140,51 @@ const EXPECTED_SILENT := {
 	"hydra_air": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
 	"hydra_lightning": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
 	"stat_stealer": {"passive": "kit is skill+ult only"},
+	# Elemental elites (2026-07-27).
+	# Ant Hill: PROBE-ENVIRONMENT limitation, not a broken kit (traced 2026-07-27).
+	# The probe parks the enemy subject at cell (4,5), but _spawn_ant requires a
+	# free cell passing _in_team_zone(), which for an enemy means y < 4. All ten of
+	# its candidate offsets from y=5 land at y >= 4, so no ant can ever spawn here.
+	# In a real wave the hill is placed in rows 1-2 (Role.BOSS) and spawns normally.
+	# Verify this one in sim, not probe.
+	"ant_hill": {"passive": "spawn cells are gated by _in_team_zone (enemy y<4) and the probe places the subject at y=5 — no legal spawn cell exists in the probe env; verified in sim instead"},
+	# on_being_hit is PROBABILISTIC here, not absent: the probe lands one test hit
+	# and the Warden's evasion can simply dodge it, leaving no world-state change.
+	# It therefore flickers between OK and SILENT depending on where the RNG
+	# stream happens to sit — adding any enemy earlier in the roster (the 2026-07-28
+	# decade bosses did exactly this) is enough to flip it. Listed so the gate
+	# stays meaningful; if evasion is ever removed, delete this line.
+	"gale_warden": {"passive": "evasion is a flat equipment_passives stat rolled inside take_damage, not a per-frame passive — its kit is the Cyclone Shove skill",
+		"on_being_hit": "evasion can dodge the probe's single test hit — genuinely intermittent, not a missing kit"},
+	"tempest_conduit": {"passive": "no passive by design — its whole kit is the Chain Discharge skill (verified in the skill phase)"},
+	"mirrorplate_warden": {"passive": "Mirrorplate is a reactive reflect read off the mob_reflect meta in propagate_damage_links — verified in the on_being_hit phase, not a per-frame passive"},
+	# Beast tier (2026-07-24) — reuses orc_normal/bear_normal/hill_giant's exact
+	# EXPECTED_SILENT reasons since these mobs reuse those same mob_passive keys.
+	"ogre": {"passive": "Bloodrage (reused from Orc) triggers below 50% HP — silent at full HP in probe"},
+	"minotaur": {"passive": "Savage Charge (reused from Bear's Fury) ramps with missing HP — silent at full HP in probe"},
+	"gargoyle": {"passive": "Stone Skin (reused from Troll's Regeneration) only shows on a damaged unit; probe unit is at full HP"},
+	"stone_golem": {"passive": "no passive by design"},
+	# Earth-decade variety (2026-07-24, wave 31-40).
+	"crystal_crab": {"passive": "Frenzied Clacking (reused from Bear's Fury) ramps with missing HP — silent at full HP in probe"},
+	"root_walker": {"passive": "Nature's Blessing (reused from Goblin Shaman's Spirit Link) needs nearby allies — silent for a lone probe unit"},
+	# Fire decade (2026-07-24, wave 41-50).
+	"fire_giant": {"passive": "Forge Fury (reused from Orc's Bloodrage) triggers below 50% HP — silent at full HP in probe"},
+	"hellhound": {"passive": "Hunting Pack (reused from Goblin's Pack Courage) needs other Hellhounds within 3 tiles — silent for a lone probe unit"},
+	"ember_phoenix": {"passive": "Rekindle (reused from Troll's Regeneration) only shows on a damaged unit; probe unit is at full HP"},
+	# Lightning decade (2026-07-24, wave 51-60).
+	"storm_giant": {"passive": "Gathering Storm (reused from Wind-Up Bot's Overclock) ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff"},
+	"storm_crow": {"passive": "Murder (reused from Goblin's Pack Courage) needs other Storm Crows within 3 tiles — silent for a lone probe unit"},
+	# Air/Water decade anchors (2026-08-02, wave 11-20 / 21-30).
+	"sky_wyvern": {"passive": "Wounded Dive (reused from Bear's Fury) ramps with missing HP — silent at full HP in probe"},
+	"tidepool_horror": {"passive": "Deathgrip (reused from Goblin Archer's Focus Fire) is on-hit (see on_hit result), not a per-frame passive"},
+	"harpy": {"passive": "Windborne is a flat equipment_passives[\"Evasion\"] roll applied inside take_damage, not a per-frame passive — same shape as the Gale Warden's, which it foreshadows; its kit is the Talon Rake skill"},
+	"coral_husk": {"passive": "Slow Tide (reused from Wind-Up Bot's Overclock) ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff"},
+	"gravekeeper": {"passive": "no per-frame passive by design — Grave Call is an on-DEATH hook on the OTHER side (gravekeeper meta → AutoBattleManager.gravekeeper_raise_shade, fired from VisualUnit.die()), and nothing dies in a passive probe window; verified instead by the dedicated shade test (raises detuned shades, caps at GRAVE_SHADE_MAX, shades never re-raise)"},
+	"arcfang": {"passive": "Thunder Run fires on a ARCFANG_BLINK_INTERVAL (10s) timer — far longer than this probe's fixed 3-second passive window, so the first blink legitimately hasn't happened yet; verified instead by the dedicated blink test (2×2 body teleports beside the highest-damage hero, all 4 footprint cells stay registered)"},
+	"emberhollow": {"passive": "its kit is the on-death revive gate (emberhollow_revive meta → AutoBattleManager.emberhollow_hearts_alive, checked in VisualUnit.die) — a passive window that never kills the subject can't see it; verified instead by the dedicated revive-gate test (revives at 50% with a Heart alive, stays down with both out, never twice)"},
+	"ember_heart": {"passive": "no per-frame passive by design — its entire job is EXISTING, since Emberhollow's revive checks for a living Heart. Damage comes from the Cinder Spit skill (verified in the skill phase)"},
+	"cloven_titan": {"passive": "its whole kit IS the on-death split (spawn_cloven_halves via the cloven_split meta in VisualUnit.die) — not observable in a passive window that never kills the subject, same as the slimes above; verified instead by the dedicated split test"},
+	"skyrender": {"passive": "Cyclone Ascent opens with a SKYRENDER_GROUND_TIME (8s) grounded window — longer than this probe's fixed 3-second passive test, so the first ascent legitimately hasn't fired yet; verified instead by the wave-20 sim (melee-vs-ranged win-rate split)"},
 }
 
 # Set before add_child to force a mode without CLI args (tests use this).
@@ -155,6 +210,10 @@ func _ready() -> void:
 			result = await _run_sims(args)
 		"sweep":
 			result = await _run_sweep(args)
+		"powerrank":
+			result = await _run_powerrank(args)
+		"power":
+			result = _run_power(args)
 		_:
 			result = {"error": "unknown mode '%s'" % mode}
 			_had_failures = true
@@ -249,6 +308,95 @@ func _place_player(u: VisualUnit) -> bool:
 func _place_enemy(u: VisualUnit) -> bool:
 	return _place_in_rows(u, [0, 1, 2, 3])
 
+# ── Player formations (sim mode, --formation=) ────────────────────────────────
+# Added 2026-07-27 to answer a design question empirically: does WHERE the
+# player puts their team actually change outcomes? Targeting is nearest-enemy
+# (AutoBattleManager._choose_target), so geometry is the player's only implicit
+# targeting lever — if these formations all win at the same rate, that lever is
+# decorative and no boss mechanic can lean on it.
+#
+# Player zone is the bottom 4 rows (5-8 on the 9×9 grid); row 5 is the FRONT
+# (closest to the enemy half), row 8 the back. Note the pre-existing default
+# fills BACK-first, so an unspecified sim has the whole team hugging row 8.
+const _FORMATION_ROWS := {
+	"default": [8, 7, 6, 5],   # legacy behaviour — back rows first, left→right
+	"front":   [5, 6, 7, 8],   # everyone shoved forward into contact
+	"clump":   [6, 7, 5, 8],   # tight centre block (worst case for AoE/chains)
+	"spread":  [5, 7, 6, 8],   # maximum separation (best case for AoE/chains)
+	# Bottom-RIGHT corner (2026-08-03). Added while chasing the large-unit
+	# "shuffles forever, never attacks" bug: a hero pinned here can only be
+	# approached from the west/north, the two sides where a 2×2 unit's top-left
+	# origin sits 2 cells away while its body is already flush. Worth keeping —
+	# it's the harshest corner case for any footprint/reach work.
+	"corner":  [8, 7, 6, 5],
+}
+# Column order per formation. "clump" packs around centre; "spread" takes every
+# other column first so no two units start adjacent.
+const _FORMATION_COLS := {
+	"default": [0, 1, 2, 3, 4, 5, 6, 7, 8],
+	"front":   [0, 1, 2, 3, 4, 5, 6, 7, 8],
+	"clump":   [4, 3, 5, 2, 6, 1, 7, 0, 8],
+	"spread":  [0, 2, 4, 6, 8, 1, 3, 5, 7],
+	"corner":  [8, 7, 6, 5, 4, 3, 2, 1, 0],
+}
+
+# Cell order for a formation, as a flat list of grid positions.
+func _formation_cells(formation: String) -> Array:
+	var rows: Array = _FORMATION_ROWS.get(formation, _FORMATION_ROWS["default"])
+	var cols: Array = _FORMATION_COLS.get(formation, _FORMATION_COLS["default"])
+	var cells: Array = []
+	for y in rows:
+		for x in cols:
+			cells.append(Vector2i(x, y))
+	return cells
+
+func _place_at(u: VisualUnit, p: Vector2i) -> bool:
+	if not grid.place_unit(u, p):
+		return false
+	u.grid_position = p
+	var w: Vector2 = grid.grid_to_world(p)
+	if u.cell_size == 2:
+		w += Vector2(grid.cell_size * 0.5, grid.cell_size * 0.5)
+	u.position = w
+	return true
+
+# Lay out the whole player team. "split" is the role-aware formation a thinking
+# player would build by hand — melee up front, ranged/casters behind — and is
+# the real test of whether skilled placement beats the naive default.
+func _place_team(team: Array, formation: String) -> void:
+	if formation == "split":
+		var melee: Array = []
+		var ranged: Array = []
+		for u in team:
+			if u.attack_range <= 1: melee.append(u)
+			else:                   ranged.append(u)
+		_fill_cells(melee,  _cells_for_rows([5, 6], _FORMATION_COLS["clump"]))
+		_fill_cells(ranged, _cells_for_rows([8, 7], _FORMATION_COLS["clump"]))
+		return
+	_fill_cells(team, _formation_cells(formation))
+
+func _cells_for_rows(rows: Array, cols: Array) -> Array:
+	var cells: Array = []
+	for y in rows:
+		for x in cols:
+			cells.append(Vector2i(x, y))
+	return cells
+
+# Place units into the given cell order; anything left over falls back to the
+# default row scan so an oversized team never silently loses members.
+func _fill_cells(units: Array, cells: Array) -> void:
+	var i := 0
+	for u in units:
+		var placed := false
+		while i < cells.size():
+			var p: Vector2i = cells[i]
+			i += 1
+			if _place_at(u, p):
+				placed = true
+				break
+		if not placed and not _place_player(u):
+			push_error("no room for player unit")
+
 # ── Team / enemy spec parsing ─────────────────────────────────────────────────
 
 func _class_from_name(name: String) -> int:
@@ -256,12 +404,22 @@ func _class_from_name(name: String) -> int:
 	var idx: int = keys.find(name.to_upper())
 	return idx   # -1 if unknown (enum values are contiguous 0..N here)
 
+# ELEMENT_UNSET means "let each hero use its own fixed element" — see _spawn_team.
+const ELEMENT_UNSET := -1
+
 func _element_from_name(name: String) -> int:
+	if name.is_empty():
+		return ELEMENT_UNSET
 	var keys: PackedStringArray = UnitBase.Element.keys()
 	var idx: int = keys.find(name.to_upper())
 	return maxi(idx, 0)
 
 # "SABLE:3,NEMI:2" → hero units with (seeded) recruit rolls, like real recruits.
+# element: an explicit team-wide override, or ELEMENT_UNSET to give every hero
+# its own natural element. UNSET is the default since the recruitment element
+# roll was removed (2026-07-31) — before that the harness forced everything to
+# NORMAL, which after the element-identity rework (2026-08-02) meant every
+# "per-element" sim was silently testing an all-Normal team.
 func _spawn_team(spec: String, element: int) -> Array:
 	var out: Array = []
 	for token in spec.split(",", false):
@@ -272,7 +430,8 @@ func _spawn_team(spec: String, element: int) -> Array:
 			_had_failures = true
 			continue
 		var lvl: int = int(parts[1]) if parts.size() > 1 else 1
-		var u: VisualUnit = UnitFactory.create_unit(cls, element, true)
+		var elem: int = element if element != ELEMENT_UNSET else UnitFactory.element_for_class(cls)
+		var u: VisualUnit = UnitFactory.create_unit(cls, elem, true)
 		UnitFactory.apply_recruit_rolls(u, UnitFactory.generate_recruit_rolls())
 		if lvl > 1: u.set_level(lvl)
 		out.append(u)
@@ -322,11 +481,13 @@ func _run_sims(args: Dictionary) -> Dictionary:
 	var runs: int = int(args.get("runs", "10"))
 	var base_seed: int = int(args.get("seed", "1000"))
 	var max_sim: float = float(args.get("max-sim-seconds", "120"))
-	var element: int = _element_from_name(args.get("element", "NORMAL"))
+	var element: int = _element_from_name(args.get("element", ""))
 	var difficulty: int = {"easy": 0, "normal": 1, "hard": 2}.get(
 			String(args.get("difficulty", "easy")).to_lower(), 0)
+	var formation: String = String(args.get("formation", "default")).to_lower()
 
 	var run_results: Array = []
+	var layout: Array = []
 	var wins := 0
 	var stalls := 0
 	for i in range(runs):
@@ -340,7 +501,13 @@ func _run_sims(args: Dictionary) -> Dictionary:
 			return {"error": "empty team or enemy list — check specs"}
 		for u in team:
 			_wire_unit(u)
-			if not _place_player(u): push_error("no room for player unit")
+		_place_team(team, formation)
+		# Snapshot the layout from the FIRST run only — _unit_stats() can't report
+		# it afterwards (dead units are freed, so their grid_position is gone).
+		if i == 0:
+			for u in team:
+				layout.append({"class": UnitBase.UnitClass.keys()[u.unit_class],
+						"range": u.attack_range, "x": u.grid_position.x, "y": u.grid_position.y})
 		for u in enemies:
 			_wire_unit(u)
 			if not _place_enemy(u): push_error("no room for enemy unit")
@@ -361,12 +528,17 @@ func _run_sims(args: Dictionary) -> Dictionary:
 			"team": _unit_stats(team),
 			"survivors_player": mgr.player_units.size(),
 			"survivors_enemy": mgr.enemy_units.size(),
+			# Per-hero first-contribution rows (2026-07-27) — the instrument for
+			# the after-action report. Read BEFORE teardown; unlike _unit_stats
+			# this survives heroes dying, since the manager snapshots it live.
+			"after_action": mgr.after_action_rows(),
 		})
 		await _teardown_env()
 	if stalls > 0:
 		_had_failures = true   # a stall is always a bug worth looking at
 	return {
 		"mode": "sim", "team": team_spec, "enemy": enemy_spec,
+		"formation": formation, "layout": layout,
 		"runs": runs, "wins": wins, "losses": runs - wins - stalls,
 		"stalls": stalls, "win_rate": snappedf(float(wins) / float(runs), 0.01),
 		"results": run_results,
@@ -380,6 +552,7 @@ func _unit_stats(units: Array) -> Array:
 			continue
 		out.append({
 			"name": u.unit_name, "class": UnitBase.UnitClass.keys()[u.unit_class],
+			"pos": [u.grid_position.x, u.grid_position.y],   # verify --formation actually landed
 			"level": u.level, "alive": u.current_hp > 0 and not u._is_dying,
 			"hp_pct": snappedf(float(u.current_hp) / maxf(float(u.max_hp), 1.0), 0.01),
 			"damage_dealt": u.damage_dealt,
@@ -387,6 +560,45 @@ func _unit_stats(units: Array) -> Array:
 			"kills": u.kill_count,
 		})
 	return out
+
+# ── POWER MODE ────────────────────────────────────────────────────────────────
+# Battle-free difficulty dump: for each round in [from..to], build the REAL wave
+# spec (WaveDirector — same levels, late-game mults and heavy-demotion the live
+# game uses) and report body count + summed score_unit power. This is the
+# instrument for the "fewer bodies, same power" retune — deterministic, no team,
+# no calibration. Usage: -- --mode=power --from=1 --to=30 [--difficulty=easy]
+func _run_power(args: Dictionary) -> Dictionary:
+	var difficulty: int = {"easy": 0, "normal": 1, "hard": 2}.get(
+			String(args.get("difficulty", "easy")).to_lower(), 0)
+	var lo: int = int(args.get("from", "1"))
+	var hi: int = int(args.get("to", "30"))
+	var director := WaveDirector.new()
+	var rows: Array = []
+	for r in range(lo, hi + 1):
+		var spec: Array = director.generate_wave_spec(r, difficulty, 9)
+		var power: float = 0.0
+		var bodies: int = 0
+		var large: int = 0
+		for entry: Dictionary in spec:
+			var u: VisualUnit = director.create_enemy_for_entry(entry, r)
+			if u:
+				power += WaveScaler.score_unit(u)
+				bodies += 1
+				if u.cell_size >= 2:
+					large += 1   # >= not ==, or the 3×3 Architect reports as small
+				u.free()
+		# Dossier fields (2026-07-27) — exactly what the prep-phase panel shows the
+		# player, so the readout can be verified headlessly for all 100 rounds
+		# instead of by clicking through the game.
+		var profile: Dictionary = WaveScaler.threat_profile(spec)
+		rows.append({
+			"round": r, "bodies": bodies, "large2x2": large,
+			"power": int(snappedf(power, 1.0)),
+			"name": WaveData.name_for(r),
+			"comp": "%d melee · %d ranged · %d support · %d large" % [
+					profile["melee"], profile["ranged"], profile["support"], profile["large"]],
+		})
+	return {"mode": "power", "difficulty": difficulty, "rows": rows}
 
 # ── SWEEP MODE ────────────────────────────────────────────────────────────────
 # Comparative kit-power measurement: every recruitable hero, level 3, run through
@@ -460,6 +672,71 @@ func _sweep_averages(sim_result: Dictionary, cname: String) -> Dictionary:
 	return {"dmg": int(dmg / n), "heal": int(heal / n),
 			"end_hp_pct": snappedf(hp / n, 0.01)}
 
+# ── POWER-RANK MODE ───────────────────────────────────────────────────────────
+# Runs _run_sweep at every requested level milestone (default 1,3,6,9 — level 1
+# is the recruit floor, the rest sample the growth curve without needing perk
+# choices, which are player-driven and out of headless reach) and folds the
+# per-level solo/paired win rates into one ranked table per hero, so "who's
+# broken and at what point in progression" is a single command instead of N.
+# NOTE: this only captures base stat growth from set_level() — it does NOT
+# simulate perk-point choices from the level-up screen (those are player
+# picks), so a hero whose real power depends heavily on a specific perk build
+# will read weaker here than in actual play.
+func _run_powerrank(args: Dictionary) -> Dictionary:
+	var levels_str: String = args.get("levels", "1,3,6,9")
+	var levels: Array = []
+	for s in levels_str.split(","):
+		var lvl := int(s.strip_edges())
+		if lvl > 0:
+			levels.append(lvl)
+	if levels.is_empty():
+		levels = [1, 3, 6, 9]
+
+	var per_level: Dictionary = {}   # level (String) -> sweep result dict
+	for lvl in levels:
+		var sweep_args: Dictionary = args.duplicate()
+		sweep_args["level"] = str(lvl)
+		log_line("[powerrank] running sweep at level %d..." % lvl)
+		per_level[str(lvl)] = await _run_sweep(sweep_args)
+
+	# Fold per-level rows into one entry per class.
+	var by_class: Dictionary = {}
+	for lvl_key in per_level:
+		for row in (per_level[lvl_key] as Dictionary).get("rows", []):
+			var cname: String = row["class"]
+			if not by_class.has(cname):
+				by_class[cname] = {"class": cname, "by_level": {}}
+			by_class[cname]["by_level"][lvl_key] = row
+
+	var ranked: Array = []
+	for cname in by_class:
+		var entry: Dictionary = by_class[cname]
+		var solo_sum := 0.0
+		var paired_sum := 0.0
+		var n := 0
+		for lvl_key in entry["by_level"]:
+			var row: Dictionary = entry["by_level"][lvl_key]
+			solo_sum += float(row.get("solo_win_rate", 0.0))
+			paired_sum += float(row.get("paired_win_rate", 0.0))
+			n += 1
+		var avg_solo: float = solo_sum / n if n > 0 else 0.0
+		var avg_paired: float = paired_sum / n if n > 0 else 0.0
+		entry["avg_solo_win_rate"] = snappedf(avg_solo, 0.01)
+		entry["avg_paired_win_rate"] = snappedf(avg_paired, 0.01)
+		# Paired weighted higher — solo strength alone rewards "can duo the
+		# whole game," which is exactly the failure mode this mode exists to
+		# catch, but paired is the more representative real-team scenario.
+		entry["power_score"] = snappedf(avg_solo * 0.4 + avg_paired * 0.6, 0.01)
+		ranked.append(entry)
+	ranked.sort_custom(func(a, b): return a["power_score"] > b["power_score"])
+	for i in range(ranked.size()):
+		ranked[i]["rank"] = i + 1
+		log_line("[powerrank] #%d %s  power=%.2f  (solo avg=%.2f, paired avg=%.2f)" % [
+			i + 1, ranked[i]["class"], ranked[i]["power_score"],
+			ranked[i]["avg_solo_win_rate"], ranked[i]["avg_paired_win_rate"]])
+
+	return {"mode": "powerrank", "levels": levels, "ranked": ranked, "per_level": per_level}
+
 func log_line(s: String) -> void:
 	print(s)
 
@@ -475,8 +752,11 @@ func _run_probe(args: Dictionary) -> Dictionary:
 	for cls in UnitFactory.get_all_classes():
 		if cls in MINION_CLASSES:
 			continue
+		# Probed at the hero's OWN element (2026-08-02) — forcing NORMAL here meant
+		# no hero ever applied its element signature, so the whole status layer was
+		# invisible to the probe.
 		var r: Dictionary = await _probe_one(
-			func(): return UnitFactory.create_unit(cls, UnitBase.Element.NORMAL, true),
+			func(): return UnitFactory.create_unit(cls, UnitFactory.element_for_class(cls), true),
 			true, UnitBase.UnitClass.keys()[cls], "hero")
 		results.append(r)
 	# Enemies — every factory type, probed from the enemy side.
@@ -642,9 +922,20 @@ func _world_snapshot() -> Dictionary:
 			"hp": u.current_hp, "mana": u.current_mana, "shield": u.current_shield,
 			"dmg_dealt": u.damage_dealt, "healing": u.combat_healing_done,
 			"pos": u.grid_position,
+			# current_element is snapshotted (2026-07-27) so element SWAPS are
+			# visible to the diff at all — without it the Aspect Devourer's whole
+			# kit registered as SILENT despite firing correctly, and the Triarch/
+			# Khagan/Hydra phase element changes were equally invisible.
+			"element": u.current_element,
 			"stun": u.stun_time > 0.0, "burn": u.burn_time > 0.0,
 			"slow": u.slow_time > 0.0, "root": u.root_time > 0.0,
 			"taunt": u.taunt_time > 0.0, "weak": u.weakened_time > 0.0,
+			# Riptide (Drowned Maw) writes only this field, so without it here the
+			# aura reads as a SILENT passive when it's actually working.
+			"heal_cut": u.heal_cut_time > 0.0,
+			# Same for the aloft state (Skyrender's Cyclone Ascent, and the
+			# Architect's phase-0 reprise of it).
+			"aloft": u.melee_untargetable_time > 0.0,
 			"untargetable": u.untargetable_time > 0.0,
 			"rapid": u.rapid_fire_time > 0.0, "overdrive": u.overdrive_time > 0.0,
 			"aspd_buff": u.bonus_aspd_time > 0.0,
@@ -715,7 +1006,31 @@ var _sand_menu_btn: Button
 var _sand_busy := false
 var _sand_leaving := false
 
+# ── Biome preview (2026-07-28) ─────────────────────────────────────────────
+# Flipping through all 10 decades by actually playing to wave 91 just to see
+# the art was the whole complaint — this shows whatever BackgroundLayer would
+# draw at wave (idx*10+1) without touching the battle/fight flow at all.
+# Labels mirror arena_props.py's DECADES list (that's the source of truth for
+# decade→biome naming; keep the two in sync by hand if it ever changes).
+const _SAND_BIOME_LABELS := [
+	"Grassland", "Skyreach (Air)", "Tidewater (Water)", "Caverns (Earth)",
+	"Ashlands (Fire)", "Stormreach (Lightning)", "Warfront", "The Wastes",
+	"The Abyss", "Apex",
+]
+var _sand_bg: BackgroundLayer
+var _sand_biome_idx := 0
+var _sand_biome_lbl: Label
+
 func _build_sandbox() -> void:
+	# Background is added independently of _build_env()/FIGHT — it must be
+	# visible (and switchable) whether or not a battle is running. Position
+	# (0,0) matches BattleGrid's own default position, same coordinate space
+	# the fight board uses once FIGHT is pressed.
+	_sand_bg = BackgroundLayer.new()
+	add_child(_sand_bg)
+	_sand_bg.position = Vector2.ZERO
+	_sand_bg.set_biome_from_round(1)
+
 	# Camera centers the 9x9 board (990px, centered at 495,495) in the space
 	# right of the form panel — screen-space UI is unaffected by the camera.
 	var cam := Camera2D.new()
@@ -742,6 +1057,27 @@ func _build_sandbox() -> void:
 	mg.add_child(vb)
 
 	vb.add_child(_sand_lbl("ARENA SANDBOX", 22, UITheme.TEXT_HEADER))
+
+	vb.add_child(_sand_lbl("Biome preview", 16, UITheme.TEXT_HEADER))
+	var biome_row := HBoxContainer.new()
+	biome_row.add_theme_constant_override("separation", 6)
+	vb.add_child(biome_row)
+	var prev_biome_btn := Button.new()
+	prev_biome_btn.text = "◀"
+	UITheme.style_button(prev_biome_btn)
+	prev_biome_btn.pressed.connect(_sandbox_cycle_biome.bind(-1))
+	biome_row.add_child(prev_biome_btn)
+	_sand_biome_lbl = _sand_lbl("", 14, UITheme.TEXT_BODY)
+	_sand_biome_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sand_biome_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	biome_row.add_child(_sand_biome_lbl)
+	var next_biome_btn := Button.new()
+	next_biome_btn.text = "▶"
+	UITheme.style_button(next_biome_btn)
+	next_biome_btn.pressed.connect(_sandbox_cycle_biome.bind(1))
+	biome_row.add_child(next_biome_btn)
+	_sandbox_update_biome_label()
+
 	vb.add_child(_sand_lbl("Team — HERO:level, one per unit", 13, UITheme.TEXT_BODY))
 	_sand_team_edit = LineEdit.new()
 	_sand_team_edit.text = "SABLE:3,RIOT:3"
@@ -803,6 +1139,16 @@ func _sand_lbl(text: String, size: int, col: Color) -> Label:
 	l.add_theme_font_size_override("font_size", UITheme.body_font(size))
 	l.add_theme_color_override("font_color", col)
 	return l
+
+func _sandbox_cycle_biome(delta: int) -> void:
+	var n := _SAND_BIOME_LABELS.size()
+	_sand_biome_idx = ((_sand_biome_idx + delta) % n + n) % n
+	_sand_bg.set_biome_from_round(_sand_biome_idx * 10 + 1)
+	_sandbox_update_biome_label()
+
+func _sandbox_update_biome_label() -> void:
+	var lo := _sand_biome_idx * 10 + 1
+	_sand_biome_lbl.text = "%s\n(waves %d-%d)" % [_SAND_BIOME_LABELS[_sand_biome_idx], lo, lo + 9]
 
 func _sandbox_fight() -> void:
 	if _sand_busy:

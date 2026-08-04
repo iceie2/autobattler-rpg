@@ -1,0 +1,773 @@
+extends CanvasLayer
+class_name ShopScreen
+# ══════════════════════════════════════════════════════════════════════════════
+# EVENT SHOP screen (2026-07-20, user spec) — the merchant's storefront.
+#
+# A full-screen modal (like relic_screen / round_reward_screen) opened at a
+# prep-phase merchant round. Renders a pre-rolled ShopGenerator stock as a row
+# of grade-tinted, priced cards. Hovering a card shows exactly what you'd get
+# (hero stat rolls / item stats / stat-upgrade value / relic effect). Buying
+# emits a per-kind signal that main_game fulfils; the card then reads "SOLD".
+# Reroll and a single discounted "sale" slot round out the services.
+#
+# ── LAYERED SHOPKEEPER (art plan) ─────────────────────────────────────────────
+# The backdrop is assets/using/gold_shop.png (goblin behind a counter, one flat
+# image). To bring it to LIFE we draw the keeper as a SEPARATE optional layer on
+# top so it can move independently of the room:
+#   BG_PATH        — the room. Ideally a keeper-LESS regen (empty counter).
+#   KEEPER_PATH    — a transparent-PNG cutout of just the shopkeeper.
+# If KEEPER_PATH exists it's layered over BG and given an idle bob + reactive
+# "bark" wobble on buy/reroll. If it's absent we simply show the flat gold_shop
+# and animate cheap room effects (lantern-glow pulse) instead — so this works
+# TODAY and upgrades to a real animated keeper the moment the two art files drop
+# in, with zero code changes. See the gen prompts in the chat / memory.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Buy signals carry the slot index so main_game can call mark_sold(idx) after a
+# successful purchase (a hero blocked by a full roster, say, won't be marked).
+signal buy_hero(idx: int, cls: int, element: int, rolls: Dictionary)
+signal buy_stat(idx: int, perk: Dictionary)
+signal buy_item(idx: int, item: EquipmentItem)
+signal buy_relic(idx: int, relic: Dictionary)
+signal reroll_requested()
+signal closed()
+
+# Art. The keeper-less bg + cutout are optional upgrades over the flat image.
+const BG_PATH        := "res://assets/using/gold_shop.png"
+const BG_EMPTY_PATH  := "res://assets/using/gold_shop_bg.png"      # optional: room without keeper
+const KEEPER_PATH    := "res://assets/using/gold_shop_keeper.png"  # optional: transparent keeper cutout
+
+const PANEL_W := 1500.0
+const PANEL_H := 940.0
+const CARD_W  := 196.0
+const CARD_H  := 300.0
+const CARD_GAP := 14.0
+
+var _panel:      Control
+var _title_lbl:  Label
+var _gold_lbl:   Label
+var _bark_lbl:   Label
+var _reroll_btn: Button
+var _leave_btn:  Button
+var _card_row:   Control
+var _keeper:     TextureRect
+var _tooltip:    Panel
+
+var _stock:      Array = []
+var _card_nodes: Array = []
+var _round:      int = 1
+var _gold:       int = 0
+var _reroll_n:   int = 0     # how many times rerolled this visit (escalating cost)
+
+# Element display colors (matches hero_shop's palette).
+const ELEM_COLORS := {
+	UnitBase.Element.FIRE:      Color(0.95, 0.45, 0.25),
+	UnitBase.Element.WATER:     Color(0.35, 0.62, 0.95),
+	UnitBase.Element.EARTH:     Color(0.65, 0.52, 0.30),
+	UnitBase.Element.AIR:       Color(0.70, 0.90, 0.95),
+	UnitBase.Element.LIGHTNING: Color(0.95, 0.88, 0.35),
+	UnitBase.Element.NORMAL:    Color(0.80, 0.80, 0.85),
+}
+
+func _ready() -> void:
+	_build_ui()
+	visible = false
+
+# ── Public entry ──────────────────────────────────────────────────────────────
+func open(round: int, gold: int, stock: Array) -> void:
+	_round = round
+	_gold = gold
+	_reroll_n = 0
+	_stock = stock
+	_title_lbl.text = "THE TRAVELING MERCHANT  ·  Round %d" % round
+	_refresh_gold(gold)
+	_rebuild_cards()
+	_set_bark("Step in, step in — finest wares this side of the wastes!")
+	visible = true
+	_animate_keeper_intro()
+
+# Called by main_game after it charges the reroll and rolls fresh stock.
+func set_stock(gold: int, stock: Array) -> void:
+	_gold = gold
+	_stock = stock
+	_reroll_n += 1
+	_refresh_gold(gold)
+	_rebuild_cards()
+	_set_bark("Fresh stock, fresh prices. Go on, look again.")
+
+# The gold the player has changed (after a buy) — refresh affordability.
+func refresh(gold: int) -> void:
+	_gold = gold
+	_refresh_gold(gold)
+	for c in _card_nodes:
+		if is_instance_valid(c):
+			_update_card_affordability(c)
+
+func current_reroll_cost() -> int:
+	return ShopGenerator.reroll_cost(_reroll_n)
+
+# ── UI shell ──────────────────────────────────────────────────────────────────
+func _build_ui() -> void:
+	var overlay := ColorRect.new()
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.86)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	_panel = Control.new()
+	_panel.size = Vector2(PANEL_W, PANEL_H)
+	overlay.add_child(_panel)
+
+	# ── Background art (the room) ───────────────────────────────────────────────
+	var bg := TextureRect.new()
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bg_path := BG_EMPTY_PATH if ResourceLoader.exists(BG_EMPTY_PATH) else BG_PATH
+	bg.texture = load(bg_path) as Texture2D
+	# Soft rounded frame via a bordered panel behind, so the art reads as a card.
+	var frame := Panel.new()
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	frame.add_theme_stylebox_override("panel", _frame_box())
+	_panel.add_child(frame)
+	_panel.add_child(bg)
+
+	# ── Optional layered shopkeeper (animated) ──────────────────────────────────
+	# Positioned over roughly where the goblin sits in the reference art. If the
+	# cutout is absent this stays null and we animate the flat bg's glow instead.
+	if ResourceLoader.exists(KEEPER_PATH):
+		_keeper = TextureRect.new()
+		_keeper.texture = load(KEEPER_PATH) as Texture2D
+		_keeper.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_keeper.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_keeper.size = Vector2(PANEL_W * 0.42, PANEL_H * 0.52)
+		_keeper.position = Vector2(PANEL_W * 0.30, PANEL_H * 0.02)
+		_keeper.pivot_offset = _keeper.size * Vector2(0.5, 1.0)
+		_keeper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_panel.add_child(_keeper)
+		_start_keeper_idle()
+	else:
+		# Cheap life on the flat image: a slow lantern-glow pulse overlay.
+		_start_glow_pulse(bg)
+
+	# Darken the lower third so the card row + text stay readable over the art.
+	var scrim := ColorRect.new()
+	scrim.position = Vector2(0, PANEL_H * 0.52)
+	scrim.size = Vector2(PANEL_W, PANEL_H * 0.48)
+	scrim.color = Color(0.04, 0.03, 0.06, 0.72)
+	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(scrim)
+
+	# ── Header ──────────────────────────────────────────────────────────────────
+	_title_lbl = _mk_label("THE TRAVELING MERCHANT", 30, Color(1.0, 0.86, 0.45),
+		Vector2(0, 18), Vector2(PANEL_W, 40), true)
+	_title_lbl.add_theme_constant_override("shadow_offset_x", 2)
+	_title_lbl.add_theme_constant_override("shadow_offset_y", 2)
+	_title_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+
+	# ── Shopkeeper bark line (reactive flavor) ──────────────────────────────────
+	_bark_lbl = _mk_label("", 19, Color(0.95, 0.92, 0.75),
+		Vector2(PANEL_W * 0.06, PANEL_H * 0.44), Vector2(PANEL_W * 0.88, 30), true)
+	_bark_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
+	_bark_lbl.add_theme_constant_override("shadow_offset_x", 1)
+	_bark_lbl.add_theme_constant_override("shadow_offset_y", 1)
+
+	# ── Card row ────────────────────────────────────────────────────────────────
+	_card_row = Control.new()
+	_card_row.position = Vector2(0, PANEL_H * 0.54)
+	_card_row.size = Vector2(PANEL_W, CARD_H)
+	_card_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(_card_row)
+
+	# ── Footer buttons ──────────────────────────────────────────────────────────
+	_gold_lbl = _mk_label("", 24, Color(1.0, 0.85, 0.3),
+		Vector2(PANEL_W * 0.06, PANEL_H - 66), Vector2(300, 34), false)
+
+	_reroll_btn = _mk_button("↻ Reroll", Rect2(PANEL_W * 0.5 - 320, PANEL_H - 70, 300, 46))
+	_reroll_btn.pressed.connect(func(): reroll_requested.emit())
+	_panel.add_child(_reroll_btn)
+
+	_leave_btn = _mk_button("Leave Shop", Rect2(PANEL_W * 0.5 + 20, PANEL_H - 70, 300, 46))
+	_leave_btn.pressed.connect(_on_leave)
+	_panel.add_child(_leave_btn)
+
+	# ── Floating tooltip (built once, shown on hover) ───────────────────────────
+	_tooltip = Panel.new()
+	_tooltip.add_theme_stylebox_override("panel", UITheme.panel_box())
+	_tooltip.visible = false
+	_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tooltip.z_index = 10
+	add_child(_tooltip)
+
+	_center_panel()
+
+func _center_panel() -> void:
+	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
+	_panel.position = (vp - _panel.size) / 2.0
+
+# ── Cards ─────────────────────────────────────────────────────────────────────
+func _rebuild_cards() -> void:
+	for c in _card_nodes:
+		if is_instance_valid(c):
+			c.queue_free()
+	_card_nodes.clear()
+
+	var n := _stock.size()
+	var total_w := n * CARD_W + (n - 1) * CARD_GAP
+	var start_x := (PANEL_W - total_w) / 2.0
+	for i in range(n):
+		var x := start_x + i * (CARD_W + CARD_GAP)
+		var card := _build_card(_stock[i], i, Vector2(x, 6))
+		_card_row.add_child(card)
+		_card_nodes.append(card)
+
+func _build_card(slot: Dictionary, idx: int, pos: Vector2) -> Button:
+	var kind: String = slot.get("kind", "")
+	var grade_col := _slot_grade_color(slot)
+
+	var btn := Button.new()
+	btn.position = pos
+	btn.size = Vector2(CARD_W, CARD_H)
+	btn.pivot_offset = btn.size * 0.5
+	btn.text = ""
+	btn.clip_contents = false
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.set_meta("slot_idx", idx)
+	# Starts on a neutral grey box — the roll (below) swaps in the grade-tinted
+	# styleboxes the instant it settles, so the border color itself is part of
+	# the reveal instead of spoiling the grade before the spin even starts.
+	var neutral := Color(0.5, 0.5, 0.55)
+	btn.add_theme_stylebox_override("normal", _flat(neutral.darkened(0.80), neutral, 3, 12))
+	btn.add_theme_stylebox_override("hover", _flat(neutral.darkened(0.70), neutral.lightened(0.25), 4, 12))
+	btn.add_theme_stylebox_override("pressed", _flat(neutral.darkened(0.72), neutral.lightened(0.1), 4, 12))
+	btn.add_theme_stylebox_override("focus", _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
+	btn.add_theme_stylebox_override("disabled", _flat(neutral.darkened(0.85), neutral.darkened(0.3), 2, 12))
+	btn.disabled = true   # re-enabled by _settle_card once the roll lands
+
+	# Kind ribbon at top.
+	_clabel(btn, _kind_title(kind).to_upper(), 12, grade_col.lightened(0.35),
+		Vector2(6, 8), Vector2(CARD_W - 12, 18), true)
+
+	# Icon/portrait — starts blank, the roll cycles through decoy icons.
+	var icon := TextureRect.new()
+	icon.position = Vector2((CARD_W - 128) / 2.0, 28)
+	icon.size = Vector2(128, 128)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(icon)
+
+	# Grade badge (top-right) — starts blank, filled in by the spin.
+	var bl := _clabel(btn, "", 22, Color.WHITE, Vector2(CARD_W - 46, 26), Vector2(38, 30), true)
+	bl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	bl.add_theme_constant_override("shadow_offset_x", 1)
+	bl.add_theme_constant_override("shadow_offset_y", 1)
+
+	# Name / label — "???" until the roll settles.
+	var name_lbl := _clabel(btn, "???", 16, Color(0.95, 0.95, 1.0),
+		Vector2(6, 162), Vector2(CARD_W - 12, 44), true, true)
+
+	# Short summary line (stats teaser) — blank until settled.
+	var summary_lbl := _clabel(btn, "", 12, Color(0.78, 0.80, 0.92),
+		Vector2(8, 210), Vector2(CARD_W - 16, 34), true, true)
+
+	# Price tag. On sale, show the original price crossed into the new one plus
+	# the discount percent (e.g. "9g → 5g  -45%") instead of just the sale price,
+	# so the deal actually reads as a deal. Price is already fixed at generation,
+	# so it's shown from the start — only the ITEM itself is rolled in front of
+	# the player.
+	var on_sale: bool = slot.get("on_sale", false)
+	var price: int = slot.get("price", 0)
+	var orig_price: int = slot.get("original_price", price)
+	var price_col := Color(1.0, 0.85, 0.3) if not on_sale else Color(1.0, 0.45, 0.4)
+	var price_txt: String
+	var price_font_sz: int
+	if on_sale and orig_price > price:
+		var pct: int = int(round((1.0 - float(price) / float(orig_price)) * 100.0))
+		price_txt = "%dg → %dg  (-%d%%)" % [orig_price, price, pct]
+		price_font_sz = 15
+	else:
+		price_txt = "%dg" % price
+		price_font_sz = 20
+	var pl := _clabel(btn, price_txt, price_font_sz, price_col,
+		Vector2(6, CARD_H - 40), Vector2(CARD_W - 12, 30), true)
+	pl.set_meta("price_lbl", true)
+
+	# Hover → tooltip; press → buy.
+	btn.mouse_entered.connect(_on_card_hover.bind(idx, btn))
+	btn.mouse_exited.connect(_on_card_unhover)
+	btn.pressed.connect(_on_card_pressed.bind(idx))
+
+	_play_card_roll(btn, slot, idx, icon, bl, name_lbl, summary_lbl,
+		_slot_icon(slot), _slot_grade_letter(slot), grade_col, _slot_name(slot), _slot_summary(slot))
+	return btn
+
+# ── Roll reveal (2026-07-21, user spec: "add a sense of randomness") ─────────
+# Every card is already fully pre-rolled the instant ShopGenerator builds the
+# stock — this animation is purely a REVEAL, not a re-roll: it cycles the icon/
+# grade/name through random decoys (slot-machine deceleration) before landing
+# on the exact value the player already bought into. Cards stagger their start
+# so the whole row cascades instead of popping at once.
+const _SPIN_STEP_DELAYS: Array[float] = [0.03, 0.035, 0.04, 0.05, 0.06, 0.075, 0.095, 0.12, 0.16, 0.22]
+const _SPIN_GRADES_BY_KIND := {
+	"hero": ["F", "D", "C", "B", "A", "S"],
+	"stat": ["F", "D", "C", "B", "A", "S"],
+	"item": ["D", "C", "B", "A", "S"],
+	"relic": ["D", "C", "B", "A", "S"],
+}
+var _icon_pool_cache: Dictionary = {}
+
+func _play_card_roll(card: Button, slot: Dictionary, idx: int, icon: TextureRect,
+		badge_lbl: Label, name_lbl: Label, summary_lbl: Label,
+		final_icon: Texture2D, final_grade: String, final_color: Color,
+		final_name: String, final_summary: String) -> void:
+	var kind: String = slot.get("kind", "")
+	var pool: Array = _icon_pool_for_kind(kind)
+	var grades: Array = _SPIN_GRADES_BY_KIND.get(kind, ["D", "C", "B", "A", "S"])
+
+	var tw := create_tween()
+	tw.tween_interval(idx * 0.10)   # cascading stagger across the row
+	for d in _SPIN_STEP_DELAYS:
+		tw.tween_callback(_spin_frame.bind(icon, badge_lbl, pool, grades, kind))
+		tw.tween_interval(d)
+	tw.tween_callback(_settle_card.bind(card, icon, badge_lbl, name_lbl, summary_lbl,
+		final_icon, final_grade, final_color, final_name, final_summary))
+
+func _spin_frame(icon: TextureRect, badge_lbl: Label, pool: Array, grades: Array, kind: String) -> void:
+	var g: String = grades[randi() % grades.size()]
+	if is_instance_valid(badge_lbl):
+		badge_lbl.text = g
+		badge_lbl.add_theme_color_override("font_color", _grade_color_for_kind(kind, g))
+	if is_instance_valid(icon) and not pool.is_empty():
+		icon.texture = pool[randi() % pool.size()]
+
+func _settle_card(card: Button, icon: TextureRect, badge_lbl: Label, name_lbl: Label, summary_lbl: Label,
+		final_icon: Texture2D, final_grade: String, final_color: Color,
+		final_name: String, final_summary: String) -> void:
+	if is_instance_valid(icon):
+		icon.texture = final_icon
+	if is_instance_valid(badge_lbl):
+		badge_lbl.text = final_grade
+		badge_lbl.add_theme_color_override("font_color", final_color)
+	if is_instance_valid(name_lbl):
+		name_lbl.text = final_name
+	if is_instance_valid(summary_lbl):
+		summary_lbl.text = final_summary
+	if not is_instance_valid(card):
+		return
+	var bg_base: Color = final_color.darkened(0.80)
+	card.add_theme_stylebox_override("normal", _flat(bg_base, final_color, 3, 12))
+	card.add_theme_stylebox_override("hover", _flat(bg_base.lightened(0.10), final_color.lightened(0.25), 4, 12))
+	card.add_theme_stylebox_override("pressed", _flat(bg_base.darkened(0.12), final_color.lightened(0.1), 4, 12))
+	card.add_theme_stylebox_override("disabled", _flat(bg_base.darkened(0.35), final_color.darkened(0.3), 2, 12))
+	var tw := create_tween()
+	tw.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	card.scale = Vector2(1.16, 1.16)
+	tw.tween_property(card, "scale", Vector2.ONE, 0.30)
+	_update_card_affordability(card)   # also clears the forced-disabled roll state
+
+func _grade_color_for_kind(kind: String, letter: String) -> Color:
+	if kind == "relic":
+		return Relic.grade_color(letter)
+	return UnitFactory.GRADE_COLORS.get(letter, Color.WHITE)
+
+# Cached per shop instance — same textures get reused across rerolls, and
+# Godot's own resource cache means the load() calls inside are cheap after
+# the first build anyway.
+func _icon_pool_for_kind(kind: String) -> Array:
+	if _icon_pool_cache.has(kind):
+		return _icon_pool_cache[kind]
+	var pool: Array = []
+	match kind:
+		"hero":
+			for p in VisualUnit.HERO_SPRITE_PATHS.values():
+				var t := load(p) as Texture2D
+				if t:
+					pool.append(t)
+		"stat":
+			for p in UnitFactory.STAT_ICONS.values():
+				var t := load(p) as Texture2D
+				if t:
+					pool.append(t)
+		"item":
+			for p in EquipmentManager.ITEM_ICONS.values():
+				var t := load(p) as Texture2D
+				if t:
+					pool.append(t)
+		"relic":
+			for r in Relic.POOL:
+				var rp := Relic.icon_path(r)
+				if rp != "":
+					var t := load(rp) as Texture2D
+					if t:
+						pool.append(t)
+	_icon_pool_cache[kind] = pool
+	return pool
+
+func _update_card_affordability(card: Button) -> void:
+	var idx: int = card.get_meta("slot_idx", -1)
+	if idx < 0 or idx >= _stock.size():
+		return
+	var slot: Dictionary = _stock[idx]
+	var sold: bool = slot.get("sold", false)
+	var price: int = slot.get("price", 0)
+	card.disabled = sold or _gold < price
+	if sold:
+		for child in card.get_children():
+			if child is Label and child.get_meta("price_lbl", false):
+				child.text = "SOLD"
+				child.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
+		card.modulate = Color(0.55, 0.55, 0.6, 0.9)
+
+# ── Buy flow ──────────────────────────────────────────────────────────────────
+func _on_card_pressed(idx: int) -> void:
+	if idx < 0 or idx >= _stock.size():
+		return
+	var slot: Dictionary = _stock[idx]
+	if slot.get("sold", false):
+		return
+	if _gold < int(slot.get("price", 0)):
+		_set_bark("Coin first, friend. No coin, no wares.")
+		return
+	# main_game validates + charges + fulfils via the matching signal, then calls
+	# mark_sold(idx) if it succeeded (e.g. hero not blocked by a full roster).
+	match slot.get("kind", ""):
+		"hero":  buy_hero.emit(idx, slot["class"], slot["element"], slot["rolls"])
+		"stat":  buy_stat.emit(idx, slot["perk"])
+		"item":  buy_item.emit(idx, slot["item"])
+		"relic": buy_relic.emit(idx, slot["relic"])
+
+# main_game calls this after a successful purchase.
+func mark_sold(idx: int) -> void:
+	if idx < 0 or idx >= _stock.size():
+		return
+	_stock[idx]["sold"] = true
+	if idx < _card_nodes.size() and is_instance_valid(_card_nodes[idx]):
+		_update_card_affordability(_card_nodes[idx])
+	_hide_tooltip()
+	_set_bark(_buy_bark(_stock[idx].get("kind", "")))
+	_keeper_react()
+
+# ── Tooltip (hover preview: exactly what you'd get) ───────────────────────────
+func _on_card_hover(idx: int, card: Button) -> void:
+	if idx < 0 or idx >= _stock.size():
+		return
+	_show_tooltip(_stock[idx], card)
+
+func _on_card_unhover() -> void:
+	_hide_tooltip()
+
+func _hide_tooltip() -> void:
+	if _tooltip:
+		_tooltip.visible = false
+
+func _show_tooltip(slot: Dictionary, card: Button) -> void:
+	for c in _tooltip.get_children():
+		c.queue_free()
+
+	var lines := _tooltip_lines(slot)
+	var tip_w := 300.0
+	var y := 12.0
+	var title := _mk_label_on(_tooltip, lines[0], 18, Color(1.0, 0.9, 0.55),
+		Vector2(12, y), Vector2(tip_w - 24, 26), false)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	y += 30.0
+	for i in range(1, lines.size()):
+		var entry: Array = lines[i]
+		var l := _mk_label_on(_tooltip, entry[0], 15, entry[1],
+			Vector2(12, y), Vector2(tip_w - 24, 22), false)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		y += 22.0
+	_tooltip.size = Vector2(tip_w, y + 12.0)
+
+	# Position above the card, clamped to viewport.
+	var card_global := card.get_global_rect()
+	var tx: float = card_global.position.x + (CARD_W - tip_w) / 2.0
+	var ty: float = card_global.position.y - _tooltip.size.y - 8.0
+	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
+	tx = clampf(tx, 8.0, vp.x - tip_w - 8.0)
+	if ty < 8.0:
+		ty = card_global.position.y + CARD_H + 8.0
+	_tooltip.position = Vector2(tx, ty)
+	_tooltip.visible = true
+
+# Returns [title_string, [line, color], [line, color], ...]
+func _tooltip_lines(slot: Dictionary) -> Array:
+	var out: Array = []
+	match slot.get("kind", ""):
+		"hero":
+			var cls: int = slot["class"]
+			var elem: int = slot["element"]
+			var rolls: Dictionary = slot["rolls"]
+			out.append("%s %s  (%s)" % [_elem_name(elem), _class_name(cls), rolls.get("grade", "?")])
+			var tmp := UnitFactory.create_unit(cls, elem, true)
+			UnitFactory.apply_recruit_rolls(tmp, rolls)
+			var rows := [
+				["HP",  str(tmp.max_hp)], ["ATK", str(tmp.attack_damage)],
+				["MAG", str(tmp.magic_power)], ["ARM", str(tmp.resistance)],
+				["AS",  "%.2f" % tmp.attack_speed], ["SPD", str(tmp.movement_speed)],
+			]
+			for r in rows:
+				out.append(["%s  %s" % [r[0], r[1]], Color(0.82, 0.86, 0.96)])
+			if tmp.skill_name != "":
+				out.append(["Skill: %s" % tmp.skill_name, Color(1.0, 0.85, 0.4)])
+			tmp.free()
+		"stat":
+			var perk: Dictionary = slot["perk"]
+			var _v: float = perk.get("rolled_value", perk.get("value", 0))
+			var vs: String = LevelUpScreen.format_perk_value(perk)
+			out.append("%s %s  (%s roll)" % [perk.get("label", "?"), vs, perk.get("grade", "?")])
+			out.append([str(perk.get("desc", "")), Color(0.82, 0.86, 0.96)])
+			out.append(["You choose which hero receives it.", Color(0.7, 0.72, 0.85)])
+		"item":
+			var item: EquipmentItem = slot["item"]
+			out.append("%s  (%s)" % [item.name, item.get_rarity_name()])
+			for row in EquipmentItem._STAT_DISPLAY:
+				var val: float = float(item.stat_bonus.get(row[0], 0))
+				if val > 0.0:
+					out.append([EquipmentItem.format_bonus(row, val), Color(0.82, 0.86, 0.96)])
+			for line in item.get_passive_lines():
+				out.append(["◆ %s" % line, Color(1.0, 0.85, 0.30)])
+			out.append(["Goes to your bag — equip from the Equipment panel.", Color(0.7, 0.72, 0.85)])
+		"relic":
+			var relic: Dictionary = slot["relic"]
+			out.append("%s  (%s)" % [relic.get("name", "?"), relic.get("grade", "?")])
+			out.append([str(relic.get("desc", "")), Color(0.82, 0.86, 0.96)])
+	return out
+
+# ── Slot display helpers ──────────────────────────────────────────────────────
+func _kind_title(kind: String) -> String:
+	match kind:
+		"hero": return "Hero"
+		"stat": return "Stat Upgrade"
+		"item": return "Item"
+		"relic": return "Relic"
+	return kind
+
+func _slot_name(slot: Dictionary) -> String:
+	match slot.get("kind", ""):
+		"hero":  return "%s %s" % [_elem_name(slot["element"]), _class_name(slot["class"])]
+		"stat":  return str(slot["perk"].get("label", "?"))
+		"item":  return str(slot["item"].name)
+		"relic": return str(slot["relic"].get("name", "?"))
+	return "?"
+
+func _slot_summary(slot: Dictionary) -> String:
+	match slot.get("kind", ""):
+		"hero":
+			return "%s-rank recruit" % slot["rolls"].get("grade", "?")
+		"stat":
+			var perk: Dictionary = slot["perk"]
+			var _v: float = perk.get("rolled_value", perk.get("value", 0))
+			return "%s %s" % [LevelUpScreen.format_perk_value(perk), perk.get("label", "")]
+		"item":
+			return slot["item"].get_rarity_name()
+		"relic":
+			return str(slot["relic"].get("grade", "?")) + "-grade relic"
+	return ""
+
+func _slot_icon(slot: Dictionary) -> Texture2D:
+	match slot.get("kind", ""):
+		"hero":
+			var path: String = VisualUnit.HERO_SPRITE_PATHS.get(slot["class"], "")
+			if path != "":
+				return load(path) as Texture2D
+		"stat":
+			var key: String = _PERK_ICON.get(slot["perk"].get("id", ""), "")
+			if key != "" and UnitFactory.STAT_ICONS.has(key):
+				return load(UnitFactory.STAT_ICONS[key]) as Texture2D
+		"item":
+			var item: EquipmentItem = slot["item"]
+			var ipath: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
+			if ipath != "":
+				return load(ipath) as Texture2D
+		"relic":
+			var rpath: String = Relic.icon_path(slot["relic"])
+			if rpath != "":
+				return load(rpath) as Texture2D
+	return null
+
+const _PERK_ICON := {
+	"atk": "atk", "aspd": "aspd", "magic": "magic", "hp": "hp",
+	"res": "res", "regen": "hpregen", "spd": "move",
+	"crit": "crit_chance", "critdmg": "crit_damage",
+}
+
+func _slot_grade_letter(slot: Dictionary) -> String:
+	match slot.get("kind", ""):
+		"hero":  return str(slot["rolls"].get("grade", ""))
+		"stat":  return str(slot["perk"].get("grade", ""))
+		"relic": return str(slot["relic"].get("grade", ""))
+		"item":  return _RARITY_LETTER[clampi(slot["item"].rarity, 0, 4)]
+	return ""
+
+const _RARITY_LETTER := ["D", "C", "B", "A", "S"]
+
+func _slot_grade_color(slot: Dictionary) -> Color:
+	match slot.get("kind", ""):
+		"hero":  return UnitFactory.GRADE_COLORS.get(slot["rolls"].get("grade", "C"), Color.WHITE)
+		"stat":  return slot["perk"].get("grade_color", Color.WHITE)
+		"relic": return Relic.grade_color(slot["relic"].get("grade", "C"))
+		"item":  return slot["item"].icon_color
+	return Color(0.7, 0.7, 0.75)
+
+func _elem_name(elem: int) -> String:
+	match elem:
+		UnitBase.Element.FIRE:      return "Fire"
+		UnitBase.Element.WATER:     return "Water"
+		UnitBase.Element.EARTH:     return "Earth"
+		UnitBase.Element.AIR:       return "Air"
+		UnitBase.Element.LIGHTNING: return "Lightning"
+		_: return "Normal"
+
+func _class_name(cls: int) -> String:
+	match cls:
+		UnitBase.UnitClass.WARRIOR:    return "Warrior"
+		UnitBase.UnitClass.RANGER:     return "Ranger"
+		UnitBase.UnitClass.MONK:       return "Monk"
+		UnitBase.UnitClass.THIEF:      return "Thief"
+		UnitBase.UnitClass.BLACK_MAGE: return "Black Mage"
+		UnitBase.UnitClass.WHITE_MAGE: return "White Mage"
+		UnitBase.UnitClass.RED_MAGE:   return "Red Mage"
+		UnitBase.UnitClass.BLOODHOUND: return "Bloodhound"
+		UnitBase.UnitClass.BOUNCER:    return "Bouncer"
+		UnitBase.UnitClass.HEADHUNTER: return "Headhunter"
+		UnitBase.UnitClass.SHAUNA:     return "Shauna"
+		UnitBase.UnitClass.NEMI:       return "Nemi"
+		UnitBase.UnitClass.SHEILDOR:   return "Sheildor"
+		UnitBase.UnitClass.LORDEE:     return "Lordee"
+		UnitBase.UnitClass.NECRO:      return "Necro"
+		UnitBase.UnitClass.DOC:        return "Doc"
+		UnitBase.UnitClass.RIOT:       return "Riot"
+		UnitBase.UnitClass.PASTOR:     return "Pastor"
+		UnitBase.UnitClass.SABLE:      return "Sable"
+		UnitBase.UnitClass.RUSH:       return "Rush"
+		UnitBase.UnitClass.STITCH:     return "Stitch"
+		UnitBase.UnitClass.COAL:       return "Coal"
+		UnitBase.UnitClass.JUNE:       return "June"
+		UnitBase.UnitClass.CROSS:      return "Cross"
+		UnitBase.UnitClass.SEAR:       return "Sear"
+		UnitBase.UnitClass.EMBER:      return "Ember"
+		UnitBase.UnitClass.RIFT:       return "Rift"
+		UnitBase.UnitClass.ZOLT:       return "Zolt"
+		UnitBase.UnitClass.LUMEN:      return "Lumen"
+		UnitBase.UnitClass.STATIC:     return "Static"
+		UnitBase.UnitClass.REED:       return "Reed"
+		UnitBase.UnitClass.VAIL:       return "Vail"
+		UnitBase.UnitClass.SPORE:      return "Spore"
+		_: return "Unknown"
+
+# ── Barks (reactive flavor) ───────────────────────────────────────────────────
+func _set_bark(text: String) -> void:
+	if _bark_lbl:
+		_bark_lbl.text = "“%s”" % text
+
+func _buy_bark(kind: String) -> String:
+	match kind:
+		"hero":  return "A fine hire! Treat 'em well, hey?"
+		"stat":  return "Sharper already. Heh heh."
+		"item":  return "Ah, good eye — that one's got history."
+		"relic": return "Oho! You know real power when you see it."
+	return "Sold! Pleasure doing business."
+
+# ── Keeper / room animation ───────────────────────────────────────────────────
+func _start_keeper_idle() -> void:
+	if not _keeper:
+		return
+	var tw := create_tween().set_loops()
+	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(_keeper, "scale", Vector2(1.012, 0.99), 1.8)
+	tw.tween_property(_keeper, "scale", Vector2(1.0, 1.0), 1.8)
+	_keeper.set_meta("idle_tween", tw)
+
+func _keeper_react() -> void:
+	if not _keeper:
+		return
+	var tw := create_tween()
+	tw.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_keeper, "scale", Vector2(1.06, 1.06), 0.10)
+	tw.tween_property(_keeper, "scale", Vector2(1.0, 1.0), 0.22)
+
+func _animate_keeper_intro() -> void:
+	if not _keeper:
+		return
+	_keeper.modulate = Color(1, 1, 1, 0)
+	var tw := create_tween()
+	tw.tween_property(_keeper, "modulate", Color.WHITE, 0.35)
+
+func _start_glow_pulse(bg: TextureRect) -> void:
+	# Gentle warm-light breathing on the flat image so it isn't dead-static.
+	var tw := create_tween().set_loops()
+	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(bg, "modulate", Color(1.06, 1.02, 0.96), 2.4)
+	tw.tween_property(bg, "modulate", Color(0.96, 0.97, 1.0), 2.4)
+
+# ── Close ─────────────────────────────────────────────────────────────────────
+func _on_leave() -> void:
+	visible = false
+	_hide_tooltip()
+	closed.emit()
+
+func _refresh_gold(gold: int) -> void:
+	if _gold_lbl:
+		_gold_lbl.text = "Gold: %dg" % gold
+	if _reroll_btn:
+		var cost := current_reroll_cost()
+		_reroll_btn.text = "↻ Reroll (%dg)" % cost
+		_reroll_btn.disabled = gold < cost
+
+# ── Small widget factories ────────────────────────────────────────────────────
+func _mk_label(text: String, sz: int, col: Color, pos: Vector2, size: Vector2, center: bool) -> Label:
+	return _mk_label_on(_panel, text, sz, col, pos, size, center)
+
+func _mk_label_on(parent: Node, text: String, sz: int, col: Color, pos: Vector2, size: Vector2, center: bool) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.position = pos
+	l.size = size
+	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
+	l.add_theme_color_override("font_color", col)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if center:
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	parent.add_child(l)
+	return l
+
+func _clabel(parent: Node, text: String, sz: int, col: Color, pos: Vector2, size: Vector2, center: bool, wrap: bool = false) -> Label:
+	var l := _mk_label_on(parent, text, sz, col, pos, size, center)
+	if wrap:
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	return l
+
+func _mk_button(text: String, rect: Rect2) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.position = rect.position
+	b.size = rect.size
+	UITheme.style_button(b)
+	b.add_theme_font_size_override("font_size", UITheme.body_font(18))
+	return b
+
+func _flat(bg: Color, border: Color, bw: int, radius: int) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.border_color = border
+	s.set_border_width_all(bw)
+	s.corner_radius_top_left = radius
+	s.corner_radius_top_right = radius
+	s.corner_radius_bottom_left = radius
+	s.corner_radius_bottom_right = radius
+	return s
+
+func _frame_box() -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(0.06, 0.05, 0.08)
+	s.border_color = Color(0.83, 0.69, 0.22)
+	s.set_border_width_all(4)
+	s.corner_radius_top_left = 14
+	s.corner_radius_top_right = 14
+	s.corner_radius_bottom_left = 14
+	s.corner_radius_bottom_right = 14
+	return s

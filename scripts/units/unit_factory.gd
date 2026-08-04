@@ -53,13 +53,6 @@ const ELEMENT_ICONS: Dictionary = {
 
 # Trait class mapping (for synergies)
 const TRAIT_CLASS_MAP = {
-	UnitBase.UnitClass.WARRIOR:    UnitBase.TraitClass.FIGHTER,
-	UnitBase.UnitClass.RANGER:     UnitBase.TraitClass.RANGED,
-	UnitBase.UnitClass.MONK:       UnitBase.TraitClass.FIGHTER,
-	UnitBase.UnitClass.THIEF:      UnitBase.TraitClass.FIGHTER,
-	UnitBase.UnitClass.BLACK_MAGE: UnitBase.TraitClass.MAGE,
-	UnitBase.UnitClass.WHITE_MAGE: UnitBase.TraitClass.HEALER,
-	UnitBase.UnitClass.RED_MAGE:   UnitBase.TraitClass.MAGE,
 	UnitBase.UnitClass.BLOODHOUND: UnitBase.TraitClass.FIGHTER,
 	UnitBase.UnitClass.BOUNCER:    UnitBase.TraitClass.TANK,
 	UnitBase.UnitClass.HEADHUNTER: UnitBase.TraitClass.RANGED,
@@ -92,9 +85,13 @@ const TRAIT_CLASS_MAP = {
 	UnitBase.UnitClass.ANT:        UnitBase.TraitClass.FIGHTER,
 }
 
-# Natural aspect: the element that best scales each hero's kit. Aspect is rolled
-# randomly at recruitment (any element is valid and never punished), but matching
-# the natural aspect grants a small kit bonus — see UnitFactory.natural_aspect().
+# Natural aspect: the element that best scales each hero's kit, and — since the
+# 2026-07-31 rework — the element that hero simply IS. The random recruitment
+# roll is gone: shops offer every hero at its natural aspect (see
+# element_for_class), so element synergies are drafted toward on purpose rather
+# than prayed for. natural_aspect() therefore returns the matched multiplier for
+# every player hero; it still discriminates for enemy/summon units, which inherit
+# their spawner's element and can legitimately run off-aspect.
 # Void-themed heroes have no matching element, so they home to NORMAL.
 const NATURAL_ASPECT = {
 	UnitBase.UnitClass.BOUNCER:    UnitBase.Element.NORMAL,
@@ -116,14 +113,19 @@ const NATURAL_ASPECT = {
 	UnitBase.UnitClass.CROSS:      UnitBase.Element.NORMAL,
 	UnitBase.UnitClass.SEAR:      UnitBase.Element.FIRE,
 	UnitBase.UnitClass.EMBER:      UnitBase.Element.FIRE,
-	UnitBase.UnitClass.RIFT:       UnitBase.Element.NORMAL,
+	UnitBase.UnitClass.RIFT:       UnitBase.Element.LIGHTNING,
 	UnitBase.UnitClass.ZOLT:       UnitBase.Element.LIGHTNING,
-	UnitBase.UnitClass.LUMEN:      UnitBase.Element.AIR,
+	UnitBase.UnitClass.LUMEN:      UnitBase.Element.LIGHTNING,
 	UnitBase.UnitClass.STATIC:     UnitBase.Element.LIGHTNING,
 	UnitBase.UnitClass.REED:       UnitBase.Element.WATER,
 	UnitBase.UnitClass.VAIL:       UnitBase.Element.AIR,
 	UnitBase.UnitClass.SPORE:      UnitBase.Element.EARTH,
 }
+
+# The element a hero is offered/recruited at. Single source of truth for every
+# player-facing hero roll — shops must call this instead of picking at random.
+static func element_for_class(cls: UnitBase.UnitClass) -> UnitBase.Element:
+	return NATURAL_ASPECT.get(cls, UnitBase.Element.NORMAL)
 
 # 1.0 normally; matched natural aspect grants +15% kit magnitude (no off-aspect penalty).
 static func natural_aspect(unit: UnitBase) -> float:
@@ -136,44 +138,50 @@ static func natural_aspect(unit: UnitBase) -> float:
 
 # Base stats for each class at level 1 (TFT-style independent stats)
 const CLASS_BASE_STATS = {
-	UnitBase.UnitClass.WARRIOR: { "hp":1200,"mana":300, "atk":19,"magic":9,"res":12,"aspd":0.66,"hpregen":0.5,"manaregen":1.67, "move":2,"range":1, "off_affinity":130.0,"def_affinity":83.0 },
-	UnitBase.UnitClass.RANGER: { "hp":900,"mana":400, "atk":18,"magic":11,"res":7,"aspd":0.82,"hpregen":0.42,"manaregen":2.5, "move":3,"range":4, "off_affinity":140.0,"def_affinity":91.0 },
-	UnitBase.UnitClass.MONK: { "hp":1000,"mana":500, "atk":18,"magic":13,"res":10,"aspd":0.74,"hpregen":0.6,"manaregen":3.67, "move":3,"range":1, "off_affinity":125.0,"def_affinity":80.0 },
-	UnitBase.UnitClass.THIEF: { "hp":800,"mana":350, "atk":17,"magic":12,"res":6,"aspd":0.86,"hpregen":0.3,"manaregen":2.33, "move":5,"range":1, "off_affinity":150.0,"def_affinity":95.0 },
-	UnitBase.UnitClass.BLACK_MAGE: { "hp":700,"mana":800, "atk":8,"magic":19,"res":8,"aspd":0.64,"hpregen":0.47,"manaregen":5.33, "move":2,"range":5, "off_affinity":160.0,"def_affinity":87.0 },
-	UnitBase.UnitClass.WHITE_MAGE: { "hp":750,"mana":750, "atk":10,"magic":17,"res":12,"aspd":0.66,"hpregen":0.55,"manaregen":5.33, "move":2,"range":5, "off_affinity":135.0,"def_affinity":77.0 },
-	UnitBase.UnitClass.RED_MAGE: { "hp":850,"mana":650, "atk":15,"magic":17,"res":10,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":2,"range":5, "off_affinity":145.0,"def_affinity":83.0 },
-	UnitBase.UnitClass.BLOODHOUND: { "hp":1100,"mana":400, "atk":20,"magic":10,"res":14,"aspd":0.74,"hpregen":0.5,"manaregen":2.0, "move":3,"range":1, "off_affinity":135.0,"def_affinity":80.0 },
-	UnitBase.UnitClass.BOUNCER: { "hp":1300,"mana":600, "atk":11,"magic":18,"res":16,"aspd":0.62,"hpregen":0.5,"manaregen":4.67, "move":2,"range":0, "off_affinity":130.0,"def_affinity":74.0 },
+	# magic 10 -> 20 (2026-08-03): his kit now reads magic_power instead of
+	# attack_damage (user request), so his MAG line is mirrored onto his ATK line
+	# — same base, same per-level growth. That makes the stat swap exactly
+	# power-neutral at every level instead of a 50% ability nerf, and it means
+	# MAG is finally a live pick for him on the level-up screen. Autos still use
+	# ATK, so both stats do real work. See AbilityFormulas C.BLOODHOUND.
+	UnitBase.UnitClass.BLOODHOUND: { "hp":1100,"mana":400, "atk":20,"magic":20,"res":20,"aspd":0.74,"hpregen":0.5,"manaregen":2.0, "move":3,"range":1, "off_affinity":135.0,"def_affinity":80.0 },
+	UnitBase.UnitClass.BOUNCER: { "hp":1300,"mana":600, "atk":11,"magic":18,"res":22,"aspd":0.62,"hpregen":0.5,"manaregen":4.67, "move":2,"range":0, "off_affinity":130.0,"def_affinity":74.0 },
 	# Balance 2026-07-03: HEADHUNTER atk 24→23, SABLE atk 21→20, RUSH atk 24→22,
 	# NEMI magic 19→21 — arena sweep + user playtests: the first three top the
 	# damage board (their base stats over-fit their kits), Nemi underperforms
 	# even for a support. ZOMBIE/BAT summon stats buffed (melted instantly,
 	# making Necro's whole kit weak: 183 solo dmg, worst-3 in roster).
-	UnitBase.UnitClass.HEADHUNTER: { "hp":600,"mana":350, "atk":23,"magic":16,"res":5,"aspd":0.9,"hpregen":0.47,"manaregen":2.83, "move":3,"range":6, "off_affinity":155.0,"def_affinity":93.0 },
-	UnitBase.UnitClass.SHAUNA: { "hp":700,"mana":400, "atk":22,"magic":11,"res":6,"aspd":0.9,"hpregen":0.45,"manaregen":2.33, "move":3,"range":5, "off_affinity":150.0,"def_affinity":93.0 },
-	UnitBase.UnitClass.NEMI: { "hp":750,"mana":600, "atk":11,"magic":21,"res":10,"aspd":0.7,"hpregen":0.6,"manaregen":6.0, "move":2,"range":4, "off_affinity":135.0,"def_affinity":83.0 },
-	UnitBase.UnitClass.SHEILDOR: { "hp":1400,"mana":700, "atk":14,"magic":17,"res":18,"aspd":0.66,"hpregen":0.6,"manaregen":4.67, "move":2,"range":1, "off_affinity":120.0,"def_affinity":71.0 },
-	UnitBase.UnitClass.LORDEE: { "hp":950,"mana":500, "atk":23,"magic":14,"res":10,"aspd":0.78,"hpregen":0.6,"manaregen":3.0, "move":3,"range":1, "off_affinity":145.0,"def_affinity":87.0 },
-	UnitBase.UnitClass.NECRO: { "hp":800,"mana":900, "atk":8,"magic":21,"res":8,"aspd":0.64,"hpregen":0.53,"manaregen":6.0, "move":2,"range":4, "off_affinity":130.0,"def_affinity":87.0 },
-	UnitBase.UnitClass.DOC: { "hp":850,"mana":750, "atk":10,"magic":17,"res":9,"aspd":0.68,"hpregen":0.6,"manaregen":5.67, "move":3,"range":3, "off_affinity":130.0,"def_affinity":83.0 },
-	UnitBase.UnitClass.RIOT: { "hp":1500,"mana":500, "atk":14,"magic":11,"res":20,"aspd":0.64,"hpregen":0.47,"manaregen":2.67, "move":2,"range":1, "off_affinity":120.0,"def_affinity":71.0 },
-	UnitBase.UnitClass.PASTOR: { "hp":900,"mana":650, "atk":12,"magic":17,"res":11,"aspd":0.68,"hpregen":0.53,"manaregen":4.67, "move":2,"range":3, "off_affinity":140.0,"def_affinity":83.0 },
-	UnitBase.UnitClass.SABLE: { "hp":650,"mana":350, "atk":20,"magic":12,"res":6,"aspd":0.88,"hpregen":0.45,"manaregen":2.5, "move":3,"range":6, "off_affinity":155.0,"def_affinity":93.0 },
-	UnitBase.UnitClass.RUSH: { "hp":820,"mana":300, "atk":22,"magic":11,"res":8,"aspd":0.86,"hpregen":0.53,"manaregen":2.17, "move":15,"range":1, "off_affinity":145.0,"def_affinity":91.0 },
-	UnitBase.UnitClass.STITCH: { "hp":780,"mana":700, "atk":13,"magic":18,"res":9,"aspd":0.74,"hpregen":0.47,"manaregen":4.67, "move":2,"range":2, "off_affinity":140.0,"def_affinity":87.0 },
-	UnitBase.UnitClass.COAL: { "hp":1150,"mana":350, "atk":22,"magic":13,"res":13,"aspd":0.72,"hpregen":0.57,"manaregen":2.33, "move":3,"range":1, "off_affinity":145.0,"def_affinity":83.0 },
-	UnitBase.UnitClass.JUNE: { "hp":880,"mana":700, "atk":10,"magic":15,"res":10,"aspd":0.68,"hpregen":0.57,"manaregen":5.17, "move":2,"range":3, "off_affinity":130.0,"def_affinity":82.0 },
-	UnitBase.UnitClass.CROSS: { "hp":1450,"mana":550, "atk":15,"magic":13,"res":18,"aspd":0.64,"hpregen":0.6,"manaregen":3.67, "move":2,"range":1, "off_affinity":125.0,"def_affinity":72.0 },
-	UnitBase.UnitClass.SEAR: { "hp":900,"mana":600, "atk":18,"magic":19,"res":10,"aspd":0.7,"hpregen":0.55,"manaregen":4.17, "move":3,"range":2, "off_affinity":150.0,"def_affinity":87.0 },
-	UnitBase.UnitClass.EMBER: { "hp":640,"mana":400, "atk":19,"magic":16,"res":6,"aspd":0.86,"hpregen":0.42,"manaregen":3.33, "move":3,"range":5, "off_affinity":155.0,"def_affinity":93.0 },
-	UnitBase.UnitClass.RIFT: { "hp":950,"mana":650, "atk":17,"magic":19,"res":12,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":3,"range":2, "off_affinity":145.0,"def_affinity":82.0 },
-	UnitBase.UnitClass.ZOLT: { "hp":720,"mana":850, "atk":9,"magic":21,"res":8,"aspd":0.68,"hpregen":0.5,"manaregen":5.83, "move":2,"range":5, "off_affinity":160.0,"def_affinity":89.0 },
-	UnitBase.UnitClass.LUMEN: { "hp":700,"mana":800, "atk":10,"magic":20,"res":7,"aspd":0.72,"hpregen":0.45,"manaregen":5.33, "move":2,"range":5, "off_affinity":158.0,"def_affinity":91.0 },
-	UnitBase.UnitClass.STATIC: { "hp":820,"mana":700, "atk":12,"magic":18,"res":10,"aspd":0.72,"hpregen":0.47,"manaregen":4.67, "move":2,"range":3, "off_affinity":145.0,"def_affinity":85.0 },
-	UnitBase.UnitClass.REED: { "hp":860,"mana":780, "atk":10,"magic":16,"res":11,"aspd":0.66,"hpregen":0.6,"manaregen":5.5, "move":2,"range":4, "off_affinity":130.0,"def_affinity":80.0 },
-	UnitBase.UnitClass.VAIL: { "hp":820,"mana":780, "atk":11,"magic":16,"res":9,"aspd":0.7,"hpregen":0.6,"manaregen":5.5, "move":3,"range":4, "off_affinity":130.0,"def_affinity":85.0 },
-	UnitBase.UnitClass.SPORE: { "hp":780,"mana":820, "atk":9,"magic":20,"res":9,"aspd":0.68,"hpregen":0.47,"manaregen":5.5, "move":2,"range":2, "off_affinity":150.0,"def_affinity":85.0 },
+	UnitBase.UnitClass.HEADHUNTER: { "hp":600,"mana":350, "atk":23,"magic":16,"res":11,"aspd":0.9,"hpregen":0.47,"manaregen":2.83, "move":3,"range":6, "off_affinity":155.0,"def_affinity":93.0 },
+	UnitBase.UnitClass.SHAUNA: { "hp":700,"mana":400, "atk":22,"magic":11,"res":12,"aspd":0.9,"hpregen":0.45,"manaregen":2.33, "move":3,"range":5, "off_affinity":150.0,"def_affinity":93.0 },
+	UnitBase.UnitClass.NEMI: { "hp":750,"mana":600, "atk":11,"magic":21,"res":16,"aspd":0.7,"hpregen":0.6,"manaregen":6.0, "move":2,"range":4, "off_affinity":135.0,"def_affinity":83.0 },
+	UnitBase.UnitClass.SHEILDOR: { "hp":1400,"mana":700, "atk":14,"magic":17,"res":24,"aspd":0.66,"hpregen":0.6,"manaregen":4.67, "move":2,"range":1, "off_affinity":120.0,"def_affinity":71.0 },
+	UnitBase.UnitClass.LORDEE: { "hp":950,"mana":500, "atk":23,"magic":14,"res":16,"aspd":0.78,"hpregen":0.6,"manaregen":3.0, "move":3,"range":1, "off_affinity":145.0,"def_affinity":87.0 },
+	UnitBase.UnitClass.NECRO: { "hp":800,"mana":900, "atk":8,"magic":21,"res":14,"aspd":0.64,"hpregen":0.53,"manaregen":6.0, "move":2,"range":4, "off_affinity":130.0,"def_affinity":87.0 },
+	UnitBase.UnitClass.DOC: { "hp":850,"mana":750, "atk":10,"magic":17,"res":15,"aspd":0.68,"hpregen":0.6,"manaregen":5.67, "move":3,"range":3, "off_affinity":130.0,"def_affinity":83.0 },
+	UnitBase.UnitClass.RIOT: { "hp":1500,"mana":500, "atk":14,"magic":11,"res":26,"aspd":0.64,"hpregen":0.47,"manaregen":2.67, "move":2,"range":1, "off_affinity":120.0,"def_affinity":71.0 },
+	UnitBase.UnitClass.PASTOR: { "hp":900,"mana":650, "atk":12,"magic":17,"res":17,"aspd":0.68,"hpregen":0.53,"manaregen":4.67, "move":2,"range":3, "off_affinity":140.0,"def_affinity":83.0 },
+	UnitBase.UnitClass.SABLE: { "hp":650,"mana":350, "atk":20,"magic":12,"res":12,"aspd":0.88,"hpregen":0.45,"manaregen":2.5, "move":3,"range":6, "off_affinity":155.0,"def_affinity":93.0 },
+	UnitBase.UnitClass.RUSH: { "hp":820,"mana":300, "atk":22,"magic":11,"res":14,"aspd":0.86,"hpregen":0.53,"manaregen":2.17, "move":15,"range":1, "off_affinity":145.0,"def_affinity":91.0 },
+	UnitBase.UnitClass.STITCH: { "hp":780,"mana":700, "atk":13,"magic":18,"res":15,"aspd":0.74,"hpregen":0.47,"manaregen":4.67, "move":2,"range":2, "off_affinity":140.0,"def_affinity":87.0 },
+	UnitBase.UnitClass.COAL: { "hp":1150,"mana":350, "atk":22,"magic":13,"res":19,"aspd":0.72,"hpregen":0.57,"manaregen":2.33, "move":3,"range":1, "off_affinity":145.0,"def_affinity":83.0 },
+	UnitBase.UnitClass.JUNE: { "hp":880,"mana":700, "atk":10,"magic":15,"res":16,"aspd":0.68,"hpregen":0.57,"manaregen":5.17, "move":2,"range":3, "off_affinity":130.0,"def_affinity":82.0 },
+	# Balance 2026-07-24: hp 1450->1300, res 24->20 — Cross was sitting at
+	# roughly Sheildor/Riot's HP+armor tier (1400/1400 hp, 24/26 res) while
+	# ALSO being the only tank with a lifesteal-off-all-damage passive
+	# (Penance). Same stat budget as peer tanks + a strictly-better kit made
+	# him strictly better than them; now he's the squishiest of the three,
+	# paying for Penance/Judgment with lower raw bulk. See auto_battle_manager
+	# _cross_judgment/Penance comments for the kit-side half of this fix.
+	UnitBase.UnitClass.CROSS: { "hp":1300,"mana":550, "atk":15,"magic":13,"res":20,"aspd":0.64,"hpregen":0.6,"manaregen":3.67, "move":2,"range":1, "off_affinity":125.0,"def_affinity":72.0 },
+	UnitBase.UnitClass.SEAR: { "hp":900,"mana":600, "atk":18,"magic":19,"res":16,"aspd":0.7,"hpregen":0.55,"manaregen":4.17, "move":3,"range":2, "off_affinity":150.0,"def_affinity":87.0 },
+	UnitBase.UnitClass.EMBER: { "hp":640,"mana":400, "atk":19,"magic":16,"res":12,"aspd":0.86,"hpregen":0.42,"manaregen":3.33, "move":3,"range":5, "off_affinity":155.0,"def_affinity":93.0 },
+	UnitBase.UnitClass.RIFT: { "hp":950,"mana":650, "atk":17,"magic":19,"res":18,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":3,"range":2, "off_affinity":145.0,"def_affinity":82.0 },
+	UnitBase.UnitClass.ZOLT: { "hp":720,"mana":850, "atk":9,"magic":21,"res":14,"aspd":0.68,"hpregen":0.5,"manaregen":5.83, "move":2,"range":5, "off_affinity":160.0,"def_affinity":89.0 },
+	UnitBase.UnitClass.LUMEN: { "hp":700,"mana":800, "atk":10,"magic":20,"res":13,"aspd":0.72,"hpregen":0.45,"manaregen":5.33, "move":2,"range":5, "off_affinity":158.0,"def_affinity":91.0 },
+	UnitBase.UnitClass.STATIC: { "hp":820,"mana":700, "atk":12,"magic":18,"res":16,"aspd":0.72,"hpregen":0.47,"manaregen":4.67, "move":2,"range":3, "off_affinity":145.0,"def_affinity":85.0 },
+	UnitBase.UnitClass.REED: { "hp":860,"mana":780, "atk":10,"magic":16,"res":17,"aspd":0.66,"hpregen":0.6,"manaregen":5.5, "move":2,"range":4, "off_affinity":130.0,"def_affinity":80.0 },
+	UnitBase.UnitClass.VAIL: { "hp":820,"mana":780, "atk":11,"magic":16,"res":15,"aspd":0.7,"hpregen":0.6,"manaregen":5.5, "move":3,"range":4, "off_affinity":130.0,"def_affinity":85.0 },
+	UnitBase.UnitClass.SPORE: { "hp":780,"mana":820, "atk":9,"magic":20,"res":15,"aspd":0.68,"hpregen":0.47,"manaregen":5.5, "move":2,"range":2, "off_affinity":150.0,"def_affinity":85.0 },
 	UnitBase.UnitClass.ZOMBIE: { "hp":110,"mana":0, "atk":10,"magic":2,"res":5,"aspd":0.58,"hpregen":0.17,"manaregen":0.33, "move":2,"range":1, "off_affinity":120.0,"def_affinity":91.0 },
 	UnitBase.UnitClass.BAT: { "hp":70,"mana":0, "atk":9,"magic":2,"res":3,"aspd":0.7,"hpregen":0.12,"manaregen":0.33, "move":4,"range":1, "off_affinity":120.0,"def_affinity":95.0 },
 	# Ant (2026-07-15): only the round-15 Ant Hill spawns these (always level 1,
@@ -185,42 +193,44 @@ const CLASS_BASE_STATS = {
 # growth" every hero/enemy of that class always gets on level-up, on top of
 # their personalized growth_bonus rolled at recruit — see apply_recruit_rolls).
 const CLASS_GROWTH_PER_LEVEL = {
-	UnitBase.UnitClass.WARRIOR: {"hp":25,"mana":0,"atk":3,"magic":0,"res":2,"aspd":0.02,"hpregen":0.1,"manaregen":0.167},
-	UnitBase.UnitClass.RANGER: {"hp":15,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.MONK: {"hp":20,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.THIEF: {"hp":12,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.05,"manaregen":0.167},
-	UnitBase.UnitClass.BLACK_MAGE: {"hp":10,"mana":20,"atk":0,"magic":4,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.833},
-	UnitBase.UnitClass.WHITE_MAGE: {"hp":12,"mana":18,"atk":0,"magic":3,"res":2,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.RED_MAGE: {"hp":15,"mana":15,"atk":2,"magic":2,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.5},
-	UnitBase.UnitClass.BLOODHOUND: {"hp":22,"mana":0,"atk":2,"magic":0,"res":2,"aspd":0.02,"hpregen":0.1,"manaregen":0.333},
-	UnitBase.UnitClass.BOUNCER: {"hp":28,"mana":0,"atk":0,"magic":2,"res":2,"aspd":0.02,"hpregen":0.05,"manaregen":0.667},
-	UnitBase.UnitClass.HEADHUNTER: {"hp":10,"mana":0,"atk":2,"magic":0,"res":1,"aspd":0.02,"hpregen":0.05,"manaregen":0.167},
-	UnitBase.UnitClass.SHAUNA: {"hp":12,"mana":0,"atk":2,"magic":0,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.333},
-	UnitBase.UnitClass.NEMI: {"hp":14,"mana":20,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":1.0},
-	UnitBase.UnitClass.SHEILDOR: {"hp":18,"mana":15,"atk":0,"magic":2,"res":2,"aspd":0.02,"hpregen":0.075,"manaregen":0.833},
-	UnitBase.UnitClass.LORDEE: {"hp":22,"mana":12,"atk":0,"magic":3,"res":2,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.NECRO: {"hp":10,"mana":25,"atk":0,"magic":4,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":1.167},
-	UnitBase.UnitClass.DOC: {"hp":14,"mana":20,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.1,"manaregen":1.167},
-	UnitBase.UnitClass.RIOT: {"hp":30,"mana":0,"atk":2,"magic":0,"res":3,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.PASTOR: {"hp":14,"mana":18,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":1.0},
-	UnitBase.UnitClass.SABLE: {"hp":11,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.RUSH: {"hp":14,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.STITCH: {"hp":13,"mana":18,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.COAL: {"hp":22,"mana":0,"atk":3,"magic":0,"res":1,"aspd":0.02,"hpregen":0.1,"manaregen":0.167},
-	UnitBase.UnitClass.JUNE: {"hp":16,"mana":18,"atk":0,"magic":2,"res":1,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
-	UnitBase.UnitClass.CROSS: {"hp":30,"mana":0,"atk":2,"magic":0,"res":3,"aspd":0.02,"hpregen":0.1,"manaregen":0.333},
-	UnitBase.UnitClass.SEAR: {"hp":16,"mana":16,"atk":2,"magic":3,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":0.667},
-	UnitBase.UnitClass.EMBER: {"hp":11,"mana":0,"atk":1,"magic":2,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.5},
-	UnitBase.UnitClass.RIFT: {"hp":17,"mana":16,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.ZOLT: {"hp":10,"mana":24,"atk":0,"magic":4,"res":1,"aspd":0.02,"hpregen":0.075,"manaregen":1.167},
-	UnitBase.UnitClass.LUMEN: {"hp":10,"mana":22,"atk":0,"magic":4,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.833},
-	UnitBase.UnitClass.STATIC: {"hp":13,"mana":18,"atk":0,"magic":3,"res":1,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.REED: {"hp":15,"mana":20,"atk":0,"magic":2,"res":1,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
-	UnitBase.UnitClass.VAIL: {"hp":14,"mana":20,"atk":0,"magic":2,"res":1,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
-	UnitBase.UnitClass.SPORE: {"hp":12,"mana":22,"atk":0,"magic":4,"res":1,"aspd":0.02,"hpregen":0.05,"manaregen":1.0},	# Summons don'''t level, but give them a small fallback so set_level() never crashes.
-	UnitBase.UnitClass.ZOMBIE: {"hp":5,"mana":0,"atk":1,"magic":0,"res":1,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
-	UnitBase.UnitClass.BAT:    {"hp":3,"mana":0,"atk":1,"magic":0,"res":1,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
-	UnitBase.UnitClass.ANT:    {"hp":2,"mana":0,"atk":0,"magic":0,"res":1,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	# magic 0 -> 2, matching atk (2026-08-03): his abilities scale off MAG now, so
+	# without magic growth they would flatline the moment he leveled. See the
+	# CLASS_BASE_STATS comment above.
+	UnitBase.UnitClass.BLOODHOUND: {"hp":44,"mana":0,"atk":2,"magic":2,"res":5,"aspd":0.02,"hpregen":0.1,"manaregen":0.333},
+	UnitBase.UnitClass.BOUNCER: {"hp":56,"mana":0,"atk":1,"magic":2,"res":5,"aspd":0.02,"hpregen":0.05,"manaregen":0.667},
+	UnitBase.UnitClass.HEADHUNTER: {"hp":20,"mana":0,"atk":2,"magic":0,"res":4,"aspd":0.02,"hpregen":0.05,"manaregen":0.167},
+	UnitBase.UnitClass.SHAUNA: {"hp":24,"mana":0,"atk":2,"magic":0,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.333},
+	UnitBase.UnitClass.NEMI: {"hp":28,"mana":20,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":1.0},
+	UnitBase.UnitClass.SHEILDOR: {"hp":36,"mana":15,"atk":1,"magic":2,"res":5,"aspd":0.02,"hpregen":0.075,"manaregen":0.833},
+	UnitBase.UnitClass.LORDEE: {"hp":44,"mana":12,"atk":1,"magic":3,"res":5,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
+	UnitBase.UnitClass.NECRO: {"hp":20,"mana":25,"atk":1,"magic":4,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":1.167},
+	UnitBase.UnitClass.DOC: {"hp":28,"mana":20,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":1.167},
+	UnitBase.UnitClass.RIOT: {"hp":40,"mana":0,"atk":2,"magic":0,"res":6,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
+	UnitBase.UnitClass.PASTOR: {"hp":28,"mana":18,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":1.0},
+	UnitBase.UnitClass.SABLE: {"hp":22,"mana":0,"atk":3,"magic":0,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
+	UnitBase.UnitClass.RUSH: {"hp":28,"mana":0,"atk":3,"magic":0,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
+	UnitBase.UnitClass.STITCH: {"hp":26,"mana":18,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
+	UnitBase.UnitClass.COAL: {"hp":44,"mana":0,"atk":3,"magic":0,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":0.167},
+	UnitBase.UnitClass.JUNE: {"hp":32,"mana":18,"atk":1,"magic":2,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
+	# Balance 2026-07-24: growth trimmed to match RIOT (his closest stat-twin —
+	# identical hp/res/atk/aspd growth) instead of exceeding it: hpregen
+	# 0.1->0.075, manaregen 0.333->0.167, res growth 6->5. Cross's hp_regen
+	# and mana_regen growth used to OUTPACE Riot's despite Cross alone having
+	# Penance (heals off all damage taken) — a tank shouldn't out-sustain the
+	# roster's dedicated CC tank on raw regen AND have a unique heal passive.
+	UnitBase.UnitClass.CROSS: {"hp":60,"mana":0,"atk":2,"magic":0,"res":5,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
+	UnitBase.UnitClass.SEAR: {"hp":32,"mana":16,"atk":2,"magic":3,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.667},
+	UnitBase.UnitClass.EMBER: {"hp":22,"mana":0,"atk":1,"magic":2,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.5},
+	UnitBase.UnitClass.RIFT: {"hp":34,"mana":16,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
+	UnitBase.UnitClass.ZOLT: {"hp":20,"mana":24,"atk":1,"magic":4,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":1.167},
+	UnitBase.UnitClass.LUMEN: {"hp":20,"mana":22,"atk":1,"magic":4,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.833},
+	UnitBase.UnitClass.STATIC: {"hp":26,"mana":18,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
+	UnitBase.UnitClass.REED: {"hp":30,"mana":20,"atk":1,"magic":2,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
+	UnitBase.UnitClass.VAIL: {"hp":28,"mana":20,"atk":1,"magic":2,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
+	UnitBase.UnitClass.SPORE: {"hp":24,"mana":22,"atk":1,"magic":4,"res":4,"aspd":0.02,"hpregen":0.05,"manaregen":1.0},	# Summons don'''t level, but give them a small fallback so set_level() never crashes.
+	UnitBase.UnitClass.ZOMBIE: {"hp":10,"mana":0,"atk":1,"magic":0,"res":1,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.BAT:    {"hp":6,"mana":0,"atk":1,"magic":0,"res":1,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.ANT:    {"hp":4,"mana":0,"atk":1,"magic":0,"res":1,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
 }
 
 static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Element = UnitBase.Element.NORMAL, is_player: bool = true) -> VisualUnit:
@@ -272,42 +282,6 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 
 	# Assign class skill
 	match unit_class:
-		UnitBase.UnitClass.WARRIOR:
-			unit.skill_name = "Whirlwind"
-			unit.skill_damage_multiplier = 1.2
-			unit.skill_range = 1
-			unit.skill_cooldown_max = 3
-		UnitBase.UnitClass.RANGER:
-			unit.skill_name = "Arrow Rain"
-			unit.skill_damage_multiplier = 0.8
-			unit.skill_range = 5
-			unit.skill_cooldown_max = 4
-		UnitBase.UnitClass.MONK:
-			unit.skill_name = "Chi Burst"
-			unit.skill_damage_multiplier = 1.0
-			unit.skill_range = 2
-			unit.skill_cooldown_max = 4
-		UnitBase.UnitClass.THIEF:
-			unit.skill_name = "Shadow Strike"
-			unit.skill_damage_multiplier = 2.5
-			unit.skill_range = 2
-			unit.skill_cooldown_max = 5
-		UnitBase.UnitClass.BLACK_MAGE:
-			unit.skill_name = "Inferno"
-			unit.skill_damage_multiplier = 2.0
-			unit.skill_range = 5
-			unit.skill_cooldown_max = 4
-		UnitBase.UnitClass.WHITE_MAGE:
-			unit.skill_name = "Holy Light"
-			unit.skill_damage_multiplier = 0.0   # healing skill
-			unit.skill_range = 99
-			unit.skill_cooldown_max = 5
-		UnitBase.UnitClass.RED_MAGE:
-			unit.skill_name = "Chaos Bolt"
-			unit.skill_damage_multiplier = 1.8
-			unit.skill_range = 4
-			unit.skill_cooldown_max = 3
-		# ── New classes ───────────────────────────────────────────────────────
 		UnitBase.UnitClass.BLOODHOUND:
 			unit.passive_name = "Blood Frenzy"
 			unit.skill_name = "Bite"
@@ -580,7 +554,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 4
 			unit.skill_cooldown_max  = 5
 			unit.skill_mana_cost     = 60
-			unit.skill_description   = "Stun the nearest enemy for 3s and deal 60% MAG as lightning damage. · 60 MP · 5s CD"
+			unit.skill_description   = "Stun the nearest enemy for 3s and deal 60-100% MAG as lightning damage, scaling with level. · 60 MP · 5s CD"
 			unit.ultimate_name       = "Grid"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99

@@ -19,6 +19,20 @@ var atlas: Texture2D
 var show_player_zone := false
 var show_enemy_zone := true
 
+# Ground props (scattered decals from arena_props.py — see [[arena_prop_pipeline]]).
+# OFF by default (2026-07-28 user call): static, non-animated decal clutter
+# next to static, non-animated unit sprites reads as visual noise rather than
+# atmosphere. Base tile + backdrop still render per biome either way — this
+# only gates the scattered grass/rock/flower props on top. Kept as a toggle,
+# not deleted, because the whole pipeline (50 props/decade, prep tooling) is
+# staying for whenever animated sprites make decals worth the clutter again.
+var show_ground_props := false
+
+func set_ground_props_visible(v: bool) -> void:
+	if show_ground_props != v:
+		show_ground_props = v
+		queue_redraw()
+
 # ── Gold game-board border ────────────────────────────────────────────────────
 const GOLD        := Color(0.83, 0.69, 0.22)   # warm gold
 const GOLD_LIGHT  := Color(1.0, 0.9, 0.5)       # highlight
@@ -46,9 +60,21 @@ var biome_tiles := [
 ]
 
 func _ready() -> void:
-	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	atlas = load("res://assets/terrain/terrain-v7.png")
+	_sync_texture_filter()
 	queue_redraw()
+
+# Filtering has to follow the art style of the current decade, and both live on
+# this one CanvasItem (decals must stay in the same _draw as the base so they
+# layer *under* the zone tints and battle line):
+#   • decades with generated art → painterly tile + decals scaled to 46-92px
+#     from a 256px source and rotated, which NEAREST turns into sparkle.
+#   • decades still on the legacy LPC atlas → 32px tiles upscaled to 110px
+#     cells, which NEAREST is required to keep crisp.
+func _sync_texture_filter() -> void:
+	var has_art := _load_arena_art(_decade_range() + "/ready/tile.png") != null
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if has_art \
+		else CanvasItem.TEXTURE_FILTER_NEAREST
 
 func _process(_delta: float) -> void:
 	queue_redraw()   # drives the battle-line pulse animation
@@ -113,9 +139,70 @@ func set_biome_from_round(battle_round: int) -> void:
 	if new_biome != current_biome:
 		current_biome = new_biome
 		queue_redraw()
+	if battle_round != _decal_round:
+		_decal_round = battle_round   # re-rolls the decal scatter each wave
+		_sync_texture_filter()
+		queue_redraw()
+	_set_side_backdrop_from_round(battle_round)
+
+# ── Side backdrops (tall scenes filling the gap between the arena and the
+# sidebars) — one elemental illustration per 10-round decade, wrapping once
+# the roster of generated art runs out. Missing files are skipped silently
+# so partially-completed art sets don't break the arena. ──────────────────
+const BACKDROP_DIR := "res://assets/terrain/biomes/"
+# Canonical decade→element order (wave_structure_1_100, locked): Normal, Air,
+# Water, Earth, Fire, Lightning for waves 1-60, then wraps for the mixed
+# 61-100 endgame acts. All 6 backdrop images now exist on disk (2026-07-28).
+const BACKDROP_ORDER := ["normal", "air", "water", "earth", "fire", "lightning"]
+
+var _backdrop_cache := {}
+var side_backdrop_texture: Texture2D
+
+func _load_side_backdrop(biome_name: String) -> Texture2D:
+	if _backdrop_cache.has(biome_name):
+		return _backdrop_cache[biome_name]
+	var path := BACKDROP_DIR + biome_name + "_backdrop.png"
+	var tex: Texture2D = load(path) as Texture2D
+	if tex == null:
+		push_warning("BackgroundLayer: no side backdrop found at %s" % path)
+		return null   # don't cache a miss — retry next round in case the file lands later
+	_backdrop_cache[biome_name] = tex
+	return tex
+
+func _set_side_backdrop_from_round(battle_round: int) -> void:
+	var decade := (battle_round - 1) / 10
+	var biome_name: String = BACKDROP_ORDER[decade % BACKDROP_ORDER.size()]
+	var tex := _load_side_backdrop(biome_name)
+	if tex != side_backdrop_texture:
+		side_backdrop_texture = tex
+		queue_redraw()
+
+func _draw_side_backdrops() -> void:
+	if side_backdrop_texture == null:
+		return
+	# One full-viewport image behind everything, cover-fit (scaled + cropped,
+	# never distorted) and centred. The arena and sidebars paint over the
+	# middle, so only the outer edges of the image end up visible — avoids
+	# having to hand-place separate left/right strips (and the seam/mirror
+	# weirdness that came with it).
+	var vp_size := get_viewport_rect().size
+	var tex_size := side_backdrop_texture.get_size()
+	var s: float = max(vp_size.x / tex_size.x, vp_size.y / tex_size.y)
+	var draw_size: Vector2 = tex_size * s
+	# Centre on the board's own centre (local space) rather than trying to
+	# compensate for the node's position within the viewport — that inversion
+	# only holds when this node sits at the viewport's exact centre, which
+	# breaks in layouts like the arena sandbox that place the board off to
+	# one side. Centring on the board itself is layout-independent.
+	var board_center := Vector2(TOTAL_W, TOTAL_H) * 0.5
+	var top_left: Vector2 = board_center - draw_size * 0.5
+	draw_texture_rect(side_backdrop_texture, Rect2(top_left, draw_size), false)
 
 func _draw() -> void:
+	_draw_side_backdrops()
 	_draw_base_tiles()
+	if show_ground_props:
+		_draw_ground_decals()
 	_draw_cell_shading()
 	if show_enemy_zone:
 		_draw_enemy_zone()
@@ -127,8 +214,21 @@ func _draw() -> void:
 	_draw_border()
 	_draw_labels()
 
-# ── Grassy meadow terrain from the LPC atlas ──────────────────────────────────
+# ── Base ground ───────────────────────────────────────────────────────────────
+# A decade with its own generated tile (assets/UI/arena/<range>/ready/tile.png)
+# uses it; everything else still falls back to the legacy LPC atlas below.
+#
+# The tile is drawn with draw_texture_rect(tile: true), which repeats it at its
+# NATIVE size — so a 512px texture covers the 990px board about twice at a
+# strict 1:1 pixel ratio. That matters: scaling it to fit the 110px cell grid
+# instead would make it repeat once per cell, which is precisely the visible
+# grid rhythm the base/decal split exists to avoid.
 func _draw_base_tiles() -> void:
+	var decade_tile := _load_arena_art(_decade_range() + "/ready/tile.png")
+	if decade_tile != null:
+		draw_texture_rect(decade_tile, Rect2(0, 0, TOTAL_W, TOTAL_H), true)
+		return
+
 	var tiles: Dictionary = biome_tiles[current_biome % biome_tiles.size()]
 	var fill: Vector2i = tiles["fill"]
 	var variants: Array = tiles["variants"]
@@ -142,11 +242,170 @@ func _draw_base_tiles() -> void:
 				tcoord = variants[(h / 9) % variants.size()]
 			_blit_tile(col, row, tcoord)
 
+# ── Ground decals ─────────────────────────────────────────────────────────────
+# Scattered elements (flower clumps, bare earth, pebbles, tufts) layered over
+# the base tile instead of being baked into it. Baking them in made the features
+# repeat on an obvious fixed grid every time the tile wrapped; placing them here
+# with a per-cell hash — plus per-instance offset, rotation, scale and mirroring
+# — means the eye can't find the period even though the base texture repeats.
+#
+# EVERYTHING here must stay deterministic: _process() calls queue_redraw() every
+# frame, so a randi() would make the decals strobe. The hash is seeded with the
+# round number so each wave gets a fresh layout from the same art.
+#
+# Art is organised per DECADE (assets/UI/arena/<lo>-<hi>/ready/), not per biome
+# name — one folder per 10 waves, matching how the run is actually structured.
+# `ready/` holds the processed, game-ready files; the raw generations with their
+# magenta backgrounds stay in the parent folder as the source of truth.
+const ARENA_ART_DIR := "res://assets/UI/arena/"
+
+# ── Prop taxonomy ─────────────────────────────────────────────────────────────
+# Decals are DISCOVERED, not listed. The code probes <kind>_1 … <kind>_<MAX_
+# VARIANTS> per decade and uses whatever exists — adding art is a drop-in, no
+# manifest to keep in sync across ten folders.
+#
+# Kind NAMES are per-decade — "grass" makes no sense as a floor prop on a
+# floating sky island, so Air gets cloud/crystal/feather/mist/stone instead of
+# a reskinned grass/flower/branch/dirt/rock (an earlier pass did exactly that
+# reskin and it read as forced; see [[arena_prop_pipeline]]). What IS shared
+# across every decade is the STRUCTURE: 5 roles in a fixed weight/size order —
+# main ground cover, small colour accent, scattered debris, high-contrast
+# ground patch, hard detail — because that's what reads as "one aesthetic
+# floor" no matter what the biome's own vocabulary is. `arena_props.py` is the
+# single source of truth for both the kind names and the weights below; keep
+# this dict in sync with it by hand (there's no shared codegen between GDScript
+# and Python here).
+const ROLE_WEIGHTS := [4, 2, 1, 1, 1]
+const ROLE_SIZES := [
+	{ "min": 72.0, "max": 130.0 },   # main cover — biggest, most common
+	{ "min": 48.0, "max": 84.0 },    # accent
+	{ "min": 60.0, "max": 104.0 },   # debris
+	{ "min": 52.0, "max": 88.0 },    # patch — high-contrast, kept rare by weight
+	{ "min": 44.0, "max": 76.0 },    # hard detail — smallest
+]
+const DECADE_KIND_NAMES := {
+	"1-10":   ["grass", "flower", "branch", "dirt", "rock"],
+	"11-20":  ["cloud", "crystal", "feather", "mist", "stone"],
+	"21-30":  ["kelp", "coral", "driftwood", "sand", "shell"],
+	"31-40":  ["moss", "mushroom", "root", "scree", "shard"],
+	"41-50":  ["scrub", "ember", "cinder", "ash", "basalt"],
+	"51-60":  ["rush", "bloom", "branch", "puddle", "gravel"],
+	"61-70":  ["weed", "bloom", "wreckage", "mud", "rubble"],
+	"71-80":  ["scrub", "husk", "deadwood", "dust", "stone"],
+	"81-90":  ["lichen", "bloom", "root", "soil", "shard"],
+	"91-100": ["turf", "bloom", "branch", "sand", "marble"],
+}
+const MAX_VARIANTS := 8   # how many numbered files to probe per kind
+
+# Weight-expanded pick list per decade, so choosing is a single modulo. Built
+# once per decade (it hits the filesystem) and cached — _draw runs every frame.
+var _weighted_cache := {}
+
+func _weighted_decals(decade: String) -> Array:
+	if _weighted_cache.has(decade):
+		return _weighted_cache[decade]
+	var out: Array = []
+	var names: Array = DECADE_KIND_NAMES.get(decade, [])
+	for role in range(names.size()):
+		var kind: String = names[role]
+		var size: Dictionary = ROLE_SIZES[role]
+		var variants: Array = []
+		for n in range(1, MAX_VARIANTS + 1):
+			var file_name := "%s_%d" % [kind, n]
+			if _load_decal(decade, file_name) != null:
+				variants.append(file_name)   # a gap in numbering is fine, keep probing
+		if variants.is_empty():
+			continue
+		# One entry per WEIGHT unit holding the whole variant list, so the
+		# variant is chosen separately at draw time. Appending per-variant
+		# instead would mean generating more variants of a kind also made that
+		# kind more frequent, which is not what a weight should do.
+		var entry := { "variants": variants, "min": size["min"], "max": size["max"] }
+		for _i in range(ROLE_WEIGHTS[role]):
+			out.append(entry)
+	_weighted_cache[decade] = out
+	return out
+
+const DECAL_CHANCE   := 42   # out of 100 cells
+# (size range now lives per-kind in DECAL_SETS)
+# Jitter is deliberately wide enough (vs CELL 110) that decals straddle cell
+# boundaries — clamping them near cell centres leaves a faint grid rhythm.
+const DECAL_JITTER   := 45
+
+var _art_cache := {}         # full path → Texture2D or null
+var _decal_round := 1
+
+# "1-10", "11-20", … from the current round.
+func _decade_range() -> String:
+	var d := (_decal_round - 1) / 10
+	return "%d-%d" % [d * 10 + 1, d * 10 + 10]
+
+func _load_arena_art(rel: String) -> Texture2D:
+	if _art_cache.has(rel):
+		return _art_cache[rel]
+	# exists() first: _draw runs every frame, and a bare load() on an absent
+	# path logs a hard ERROR — an incomplete art set would flood the console.
+	# Safe to cache the miss because the manifest above is fixed, so a file
+	# that's absent now stays absent for the rest of the run.
+	var path := ARENA_ART_DIR + rel
+	var tex: Texture2D = load(path) as Texture2D if ResourceLoader.exists(path) else null
+	_art_cache[rel] = tex
+	return tex
+
+func _load_decal(decade: String, name: String) -> Texture2D:
+	return _load_arena_art(decade + "/ready/" + name + ".png")
+
+func _draw_ground_decals() -> void:
+	var biome := _decade_range()
+	var picks := _weighted_decals(biome)
+	if picks.is_empty():
+		return
+	for row in range(GRID_H):
+		for col in range(GRID_W):
+			var h := _hash3(col, row, _decal_round)
+			if h % 100 >= DECAL_CHANCE:
+				continue
+			# Independent hash streams per property, so kind/variant/size/
+			# rotation/offset don't correlate into a visible pattern of their own.
+			var h2 := _hash3(col * 7 + 1, row * 13 + 5, _decal_round)
+			var h3 := _hash3(col * 31 + 9, row * 17 + 3, _decal_round)
+			var h4 := _hash3(col * 53 + 11, row * 23 + 7, _decal_round)
+			var entry: Dictionary = picks[(h / 100) % picks.size()]
+			var variants: Array = entry["variants"]
+			var tex := _load_decal(biome, variants[h4 % variants.size()])
+			if tex == null:
+				continue
+			var size := lerpf(entry["min"], entry["max"], float(h2 % 100) / 99.0)
+			var span := DECAL_JITTER * 2 + 1
+			var centre := Vector2(
+				col * CELL + CELL * 0.5 + float(h2 / 100 % span - DECAL_JITTER),
+				row * CELL + CELL * 0.5 + float(h3 % span - DECAL_JITTER))
+			# Keep the whole sprite inside the board — _draw() has no clip rect,
+			# so an edge cell's jittered decal would otherwise spill past the
+			# gold frame. Uses the rotated extent, not size*0.5, since a
+			# rotated square's corners reach further than its half-width.
+			var reach := size * 0.708
+			centre.x = clampf(centre.x, reach, TOTAL_W - reach)
+			centre.y = clampf(centre.y, reach, TOTAL_H - reach)
+			var rot := TAU * float(h3 / 100 % 360) / 360.0
+			var flip := -1.0 if (h % 2 == 0) else 1.0
+			draw_set_transform(centre, rot, Vector2(flip, 1.0))
+			draw_texture_rect(tex, Rect2(-size * 0.5, -size * 0.5, size, size), false)
+			draw_set_transform_matrix(Transform2D.IDENTITY)
+
 # Deterministic non-banding hash so scattered tiles don't line up diagonally.
 func _hash2(x: int, y: int) -> int:
 	var h := x * 374761393 + y * 668265263
 	h = (h ^ (h >> 13)) * 1274126177
 	return abs(h ^ (h >> 16)) % 1000
+
+# Same, plus a third input so the scatter can be re-rolled per round.
+func _hash3(x: int, y: int, z: int) -> int:
+	var h := x * 374761393 + y * 668265263 + z * 2246822519
+	h = (h ^ (h >> 13)) * 1274126177
+	h = h ^ (h >> 16)
+	h = (h ^ (h >> 7)) * 2654435761
+	return abs(h ^ (h >> 15)) % 100000
 
 func _blit_tile(col: int, row: int, tcoord: Vector2i) -> void:
 	var dest := Rect2(col * CELL, row * CELL, CELL, CELL)

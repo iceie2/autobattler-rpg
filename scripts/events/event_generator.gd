@@ -1,14 +1,14 @@
 extends Node
 class_name EventGenerator
 
-static func generate_event(round: int) -> EventBlessing:
+static func generate_event(round: int, gold: int = 0) -> EventBlessing:
 	# Pool is freshly built each call, so no duplicate() needed.
 	# (Resource.duplicate() re-runs _init() with empty defaults and drops the
 	#  choices array of inner-class objects, which blanked the event panel.)
-	var events = _get_event_pool(round)
+	var events = _get_event_pool(round, gold)
 	return events[randi() % events.size()]
 
-static func _get_event_pool(round: int) -> Array:
+static func _get_event_pool(round: int, gold: int = 0) -> Array:
 	var pool = []
 
 	# Blessing events
@@ -30,7 +30,7 @@ static func _get_event_pool(round: int) -> Array:
 	pool.append(_create_duel_event(round))
 	pool.append(_create_echo_curse())
 	pool.append(_create_blacksmith_blessing(round))
-	pool.append(_create_desperate_wager(round))
+	pool.append(_create_desperate_wager(round, gold))
 
 	return pool
 
@@ -199,13 +199,16 @@ static func _create_blacksmith_blessing(round: int) -> EventBlessing:
 	)
 	return event
 
-static func _create_desperate_wager(round: int) -> EventBlessing:
+static func _create_desperate_wager(round: int, gold: int = 0) -> EventBlessing:
 	var event = EventBlessing.new("Desperate Wager", "A stranger offers one final, bigger bet", EventBlessing.EventType.NEUTRAL)
-	var high_gold = 12 + round * 3
+	# Double-or-nothing on the gold you ACTUALLY hold — "All in" stakes your whole
+	# purse: win and it doubles, lose and you're wiped to 0. (Previously used flat
+	# +12..+N/-8 amounts unrelated to your gold, so a 5g player could "lose 8g".)
+	var stake = maxi(0, gold)
 	event.add_choice(
 		"All in (50/50)",
-		{"gold_if_win": high_gold, "gold_if_lose": -8},
-		"50%% chance for %dg, 50%% chance to lose 8g" % high_gold
+		{"gold_if_win": stake, "gold_if_lose": -stake},
+		"50%% chance to WIN %dg, 50%% chance to lose your %dg" % [stake, stake]
 	)
 	event.add_choice(
 		"Play it safe",

@@ -13,6 +13,17 @@ class_name SynergyData
 # stat: one of attack_damage / magic_power / resistance / max_hp / attack_speed
 #       (multipliers), or "range_add" (flat int added to attack_range).
 # need: [t1_count, t2_count] — team members of that element/trait to reach each tier.
+#
+# The 2026-08-02 status-amplifier version of this table was scrapped the same day
+# (see ELEMENT_IDENTITY_SPEC.md): giving every hero of an element the same
+# signature status took identity AWAY from the individual heroes. Elements now do
+# exactly what they did before — offensive/defensive affinity, plus these stat
+# bonuses — and per-hero status effects belong on individual kits instead.
+#
+# NOTE for a balance pass: heroes have fixed elements now, and the roster is
+# uneven (Normal 7, Fire 5, Earth 4, Air 4, Water 3, Lightning 3). A flat [2, 3]
+# threshold is therefore much easier to hit in Normal than in Water or Lightning.
+# Left flat here because that's the pre-existing tuning, not because it's right.
 const ELEMENT_SYN := {
 	UnitBase.Element.NORMAL:    {"stat": "attack_damage", "t1": 1.10, "t2": 1.20, "need": [2, 3], "name": "Normal"},
 	UnitBase.Element.FIRE:      {"stat": "attack_damage", "t1": 1.15, "t2": 1.30, "need": [2, 3], "name": "Fire"},

@@ -55,7 +55,43 @@ const MONSTER_SPRITE_PATHS: Dictionary = {
 	"goblin_shaman_lightning":  "res://assets/using/goblin_shaman_lightning.png",
 	"skeleton":      "res://assets/using/skeleton.png",
 	"rat":           "res://assets/using/rat.png",
-	"hill_giant":    "res://assets/using/hill_giant.png",
+	# ── Elite tier — all elite art lives in assets/using/enemies/elite/ ─────────
+	# Consolidated there 2026-07-28 (hill_giant/ant/ant_hill/stat_stealer moved up
+	# from the flat using/ dir to join the 7 new elemental elites).
+	#
+	# ⚠️ These paths MUST stay valid or ANIMATION breaks, not just the still art:
+	# _setup_lpc_sprite() gates the animated-sprite loader behind
+	# ResourceLoader.exists(mpath) — a dead path here silently falls through to the
+	# generic warrior LPC sheet, so a unit with a full frame set (hill_giant has
+	# walk x4 + idle + attack in assets/sprites/monsters/hill_giant/) would lose it
+	# with no error. The frames themselves are keyed by FOLDER NAME, not by this
+	# path, so they never move — but they're only reached if this resolves.
+	"hill_giant":    "res://assets/using/enemies/elite/hill_giant.png",
+	# Elemental elites (2026-07-27, art landed 2026-07-28).
+	"gale_warden":   "res://assets/using/enemies/elite/gale_warden.png",
+	"tidecaller":    "res://assets/using/enemies/elite/tidecaller.png",
+	"terracotta_colossus": "res://assets/using/enemies/elite/terracotta_colossus.png",
+	"magma_heart":   "res://assets/using/enemies/elite/magma_heart.png",
+	"tempest_conduit": "res://assets/using/enemies/elite/tempest_conduit.png",
+	"mirrorplate_warden": "res://assets/using/enemies/elite/mirrorplate_warden.png",
+	"aspect_devourer": "res://assets/using/enemies/elite/aspect_devourer.png",
+	# ── Decade bosses (2026-07-28) — art lives in assets/using/enemies/boss/ ────
+	# Khagan and the Hydra are NOT here: they were already wired to
+	# assets/using/*.png further down this dict and have been rendering fine all
+	# along (the copies under enemies/boss/Chubulu/ and pick_element/ are just the
+	# kept originals). Only skyrender is coded so far — the other seven are
+	# registered ahead of their factories so the art is live the moment each
+	# boss's create_* lands and sets the matching sprite_folder meta.
+	# Same dead-path caveat as the elite block above: a typo here fails SILENTLY
+	# (falls through to the generic warrior LPC), so verify by rendering.
+	"skyrender":     "res://assets/using/enemies/boss/skyrender.png",
+	"drowned_maw":   "res://assets/using/enemies/boss/drowned_maw.png",
+	"cloven_titan":  "res://assets/using/enemies/boss/cloven_titan.png",
+	"emberhollow":   "res://assets/using/enemies/boss/emberhollow.png",
+	"ember_heart":   "res://assets/using/enemies/boss/ember_heart.png",
+	"arcfang":       "res://assets/using/enemies/boss/arcfang.png",
+	"gravekeeper":   "res://assets/using/enemies/boss/gravekeeper.png",
+	"the_architect": "res://assets/using/enemies/boss/the_architect.png",
 	# Orc + Slime — 6 elemental variants each, one sprite per Element enum value.
 	"orc_normal":     "res://assets/using/orc_normal.png",
 	"orc_fire":       "res://assets/using/orc_fire.png",
@@ -99,9 +135,9 @@ const MONSTER_SPRITE_PATHS: Dictionary = {
 	"windup_bot_lightning":  "res://assets/using/windup_bot_lightning.png",
 	"zombie_minion": "res://assets/using/zombie_minion.png",
 	"bat_minion":    "res://assets/using/bat_minion.png",
-	"ant":           "res://assets/using/ant.png",
-	"ant_hill":      "res://assets/using/ant_hill.png",
-	"stat_stealer":  "res://assets/using/stat_stealer.png",
+	"ant":           "res://assets/using/enemies/elite/ant.png",
+	"ant_hill":      "res://assets/using/enemies/elite/ant_hill.png",
+	"stat_stealer":  "res://assets/using/enemies/elite/stat_stealer.png",
 	# Khagan — boss, 2 body phases (phase 3 is a positioning trick, see below).
 	"khagan_phase1": "res://assets/using/khagan_phase1.png",
 	"khagan_phase2": "res://assets/using/khagan_phase2.png",
@@ -112,6 +148,30 @@ const MONSTER_SPRITE_PATHS: Dictionary = {
 	"hydra_earth":      "res://assets/using/hydra_earth.png",
 	"hydra_air":        "res://assets/using/hydra_air.png",
 	"hydra_lightning":  "res://assets/using/hydra_lightning.png",
+	# Beast tier (2026-07-24) — art pending, slugs match GEMINI_MONSTER_PROMPTS.md
+	# so dropped Gemini art lines up directly. Falls back to the generic warrior
+	# LPC sheet until the PNG exists (see ResourceLoader.exists check above).
+	"ogre":        "res://assets/using/ogre.png",
+	"minotaur":    "res://assets/using/minotaur.png",
+	"gargoyle":    "res://assets/using/gargoyle.png",
+	"stone_golem": "res://assets/using/stone_golem.png",
+	# Earth-decade variety (2026-07-24, wave 31-40) — art pending, same fallback.
+	"crystal_crab": "res://assets/using/crystal_crab.png",
+	"root_walker":  "res://assets/using/root_walker.png",
+	# Fire decade (2026-07-24, wave 41-50) — art pending, same fallback.
+	"fire_giant":    "res://assets/using/fire_giant.png",
+	"hellhound":     "res://assets/using/hellhound.png",
+	"ember_phoenix": "res://assets/using/ember_phoenix.png",
+	# Lightning decade (2026-07-24, wave 51-60) — art pending, same fallback.
+	"storm_giant": "res://assets/using/storm_giant.png",
+	"storm_crow":  "res://assets/using/storm_crow.png",
+	# Air/Water decade anchors (2026-08-02, wave 11-20 / 21-30) — art pending,
+	# same generic-warrior fallback. Prompts already exist on the monster sheet
+	# under "wyvern" and "tidepool_horror".
+	"sky_wyvern":      "res://assets/using/sky_wyvern.png",
+	"tidepool_horror": "res://assets/using/tidepool_horror.png",
+	"harpy":           "res://assets/using/harpy.png",
+	"coral_husk":      "res://assets/using/coral_husk.png",
 }
 # All hero sprites are normalised to this rendered height (px) regardless of source resolution.
 # 166 = what 128px art looked like at the old 1.3× scale — keeps Nemi/Bloodhound unchanged.
@@ -123,9 +183,17 @@ var sprite_variant: int = -1  # set by factory; -1 = pick randomly in _ready
 # pixels — set it per-status so a big dramatic effect and a subtle one don't
 # have to share the same scale. Add new entries here as sheets arrive, no other
 # code changes needed.
+# frame_w/h of 0 = single whole image (StatusIcon reads the real size off the
+# texture) rather than a sprite sheet.
 const STATUS_ICON_SHEETS := {
 	"stun": {"path": "res://assets/using/status_icons/stunned.png", "frame_w": 32, "frame_h": 32, "frames": 3, "size": Vector2(60, 60)},
 }
+
+# Display order for status icons, so an icon never jumps sideways just because a
+# different status expired. Add new keys here AND to STATUS_ICON_SHEETS.
+const STATUS_ICON_ORDER := ["stun"]
+const STATUS_ICON_SPACING := 24.0
+
 var _status_icons: Dictionary = {}   # status_key -> StatusIcon node (lazily created)
 
 # Skill-cooldown badge, floated to the left of the health bar (2026-07-06 user
@@ -148,19 +216,26 @@ var is_dragging: bool = false
 var drag_offset: Vector2 = Vector2.ZERO
 var original_position: Vector2 = Vector2.ZERO       # local coords saved on drag start
 var original_global_pos: Vector2 = Vector2.ZERO    # global coords saved on drag start
-var can_be_dragged: bool = true
+# Setter-backed so revoking drag permission ALWAYS resolves an in-flight drag
+# immediately (battle start, death), instead of leaving the node stranded
+# wherever the cursor was until some later input event happens to arrive.
+var can_be_dragged: bool = true:
+	set(value):
+		can_be_dragged = value
+		if not value and is_dragging:
+			_cancel_drag()
 var mouse_down_position: Vector2 = Vector2.ZERO
 var drag_threshold: float = 5.0
 
 # Components
 var health_bar: HealthBar
-var animated_sprite: LPCAnimatedSprite2D
+var animated_sprite: AnimatedSprite2D   # LPCAnimatedSprite2D for classes, or a plain
+                                         # AnimatedSprite2D for generated video->sheet anims
 var plain_sprite: Sprite2D   # used for AI-generated hero sprites instead of LPC
 var element_glow: Sprite2D
 var held_item_badge: Sprite2D   # small weapon icon shown while an enemy wields loot
 
 # Animation state
-var last_move_direction: Vector2 = Vector2.ZERO
 var fill_color: Color = Color(1, 1, 1, 1)
 
 # ── Procedural animation (additive layers) ───────────────────────────────────
@@ -185,6 +260,7 @@ var _flash: float = 0.0                       # 0..1 white flash on hit
 var _death_rotation: float = 0.0             # topple on death
 var _death_alpha: float = 1.0                # fade on death
 var _is_dying: bool = false
+var _death_tween: Tween = null   # kept so revive() can cancel a fade-out in flight
 
 # Particles (assigned per element in _ready; tune the mapping by previewing
 # assets/particle/"Free Preview All.gif" and swapping which "Part N" maps to what).
@@ -261,6 +337,7 @@ func _ready():
 	health_bar.offset_y  = 60.0 + (cell_size - 1) * 35.0    # 60 / 95 / …
 	add_child(health_bar)
 	_setup_skill_icon()
+	_setup_role_badge()
 	health_bar.update_hp(current_hp, max_hp)
 	health_bar.update_mp(current_mana, max_mana)
 	# Pass the REAL max — 0 means "this unit has no ultimate" and the bar hides
@@ -305,6 +382,135 @@ func _setup_plain_sprite(path: String) -> void:
 	if cell_size >= 2:
 		shape_size = 100.0   # bigger click/hover + held-item-badge radius for big units
 
+# Every anim name video_to_sheet.py can produce for a unit — loaded if present,
+# skipped if not (a unit can have just legacy "walk" or a full directional set).
+const _GENERATED_ANIM_NAMES := [
+	"walk_south", "walk_north", "walk_east", "walk_west",
+	"idle_south", "idle_north",
+]
+# One-shot actions (single direction, non-looping). Played over the walk/idle
+# base by _play_oneshot() when the unit swings / gets hit / dies.
+const _ONESHOT_ANIM_NAMES := ["attack", "hurt", "death"]
+
+# Loads video_to_sheet.py-generated animations (assets/sprites/<category>/<key>/<anim>.png
+# + <anim>.json) as a real AnimatedSprite2D. Picks up whichever of walk_south/
+# north/east/west + idle_south/north exist for this unit — _update_animation()
+# already knows how to pick between them by last_move_direction, falling back
+# to walk_south for any direction that isn't generated yet. Also loads the
+# legacy single "walk" sheet (pre-4-direction hill_giant test) as walk_south
+# so older units keep working untouched.
+# Returns false (leaving nothing built) if no sheet at all has been generated
+# for this unit yet, so callers fall back to the static plain_sprite art.
+func _setup_generated_animated_sprite(key: String, category: String) -> bool:
+	var dir := "res://assets/sprites/%s/%s" % [category, key]
+	var sf := SpriteFrames.new()
+	var frame_h_ref: int = 0
+
+	var found_loop := false
+	for anim in _GENERATED_ANIM_NAMES:
+		found_loop = _load_anim_into(sf, dir, anim, anim) or found_loop
+	# True walk_east/west already encode team-relative facing, so only the
+	# legacy single-sheet fallback (one side-view sheet reused for everyone)
+	# still needs a flip to make enemy-side units face the other way.
+	var is_legacy_single_sheet := not found_loop
+	if not found_loop:
+		# Legacy single-direction sheet: "walk.png" stands in for walk_south.
+		found_loop = _load_anim_into(sf, dir, "walk", "walk_south")
+
+	# One-shot actions load non-looping (loop=false) so _update_animation() holds
+	# them to their last frame. Loaded even when NO walk/idle exists: a unit can
+	# legitimately have only an attack sheet (goblin, 2026-07-25) and still needs
+	# it to play — bailing out before this point sent those units back to the
+	# static sprite and the attack never appeared.
+	var found_oneshot := false
+	for anim in _ONESHOT_ANIM_NAMES:
+		found_oneshot = _load_anim_into(sf, dir, anim, anim, false) or found_oneshot
+
+	if not (found_loop or found_oneshot):
+		return false
+
+	if sf.has_animation("walk_south"):
+		frame_h_ref = sf.get_frame_texture("walk_south", 0).get_height()
+	else:
+		# Whatever loaded first still tells us the frame height for scaling.
+		for anim in sf.get_animation_names():
+			frame_h_ref = sf.get_frame_texture(anim, 0).get_height()
+			break
+
+	# Attack-only unit: synthesise a 1-frame resting pose so the walk/idle
+	# picker in _update_animation() always has something valid to play. Frame 0
+	# of a one-shot is the neutral stance (the prompts require these clips to
+	# start and end there), so it reads correctly as a standing pose.
+	if not found_loop:
+		var rest_src := ""
+		for anim in _ONESHOT_ANIM_NAMES:
+			if sf.has_animation(anim):
+				rest_src = anim
+				break
+		if rest_src != "":
+			sf.add_animation("idle_south")
+			sf.set_animation_loop("idle_south", true)
+			sf.set_animation_speed("idle_south", 1.0)
+			sf.add_frame("idle_south", sf.get_frame_texture(rest_src, 0))
+
+	var node := AnimatedSprite2D.new()
+	node.sprite_frames = sf
+	node.z_index = 1
+	node.flip_h = is_legacy_single_sheet and not is_player_unit
+	# Same bottom-anchor + consistent-render-height convention as _setup_plain_sprite —
+	# the generated canvas is a fixed square (feet locked near the bottom), so it
+	# scales/anchors identically to the static AI sprites it replaces.
+	var render_h: float = HERO_SPRITE_RENDER_H * (SPRITE_RENDER_H_2X_MULT if cell_size >= 2 else 1.0)
+	var scale_val: float = render_h / float(max(frame_h_ref, 1))
+	node.scale = Vector2(scale_val, scale_val)
+	var anchor_half: float = 55.0 * cell_size
+	var tex_half: float = render_h * 0.5
+	_sprite_base_offset = Vector2(0.0, anchor_half - tex_half)
+	node.position = _sprite_base_offset
+	add_child(node)
+	var start_anim := "idle_south" if is_player_unit else "idle_north"
+	if not sf.has_animation(start_anim):
+		start_anim = "walk_south" if sf.has_animation("walk_south") else sf.get_animation_names()[0]
+	node.play(start_anim)
+	animated_sprite = node
+	_base_sprite_scale = node.scale
+	if cell_size >= 2:
+		shape_size = 100.0
+	return true
+
+# Reads "<dir>/<file_name>.png" + ".json" (if present) into `sf` as animation
+# `anim_key`. `loop` is false for one-shot actions (attack/hurt/death) — that's
+# what makes _update_animation() hold them to their last frame instead of
+# cutting back to walk/idle mid-swing. Returns whether it found a sheet.
+func _load_anim_into(sf: SpriteFrames, dir: String, file_name: String, anim_key: String, loop: bool = true) -> bool:
+	var png_path := "%s/%s.png" % [dir, file_name]
+	var json_path := "%s/%s.json" % [dir, file_name]
+	if not (ResourceLoader.exists(png_path) and FileAccess.file_exists(json_path)):
+		return false
+
+	var f := FileAccess.open(json_path, FileAccess.READ)
+	var meta = JSON.parse_string(f.get_as_text())
+	f.close()
+	if not (meta is Dictionary and meta.has("frame_w") and meta.has("count")):
+		push_warning("Malformed sprite sheet metadata: %s" % json_path)
+		return false
+
+	var texture: Texture2D = load(png_path)
+	var frame_w: int = int(meta["frame_w"])
+	var frame_h: int = int(meta.get("frame_h", frame_w))
+	var count: int = int(meta["count"])
+	var fps: float = float(meta.get("fps", 12.0))
+
+	sf.add_animation(anim_key)
+	sf.set_animation_loop(anim_key, loop)
+	sf.set_animation_speed(anim_key, fps)
+	for i in range(count):
+		var atlas := AtlasTexture.new()
+		atlas.atlas = texture
+		atlas.region = Rect2(i * frame_w, 0, frame_w, frame_h)
+		sf.add_frame(anim_key, atlas)
+	return true
+
 # Tear down and rebuild whichever sprite node is active, re-reading unit_class /
 # the "sprite_folder" meta. Used by the Triple-Threat boss so its silhouette
 # actually changes when it transforms phase (unit_class drives the class→folder
@@ -337,7 +543,11 @@ func _rebuild_skill_icon() -> void:
 
 func _setup_lpc_sprite() -> void:
 	if unit_class in HERO_SPRITE_PATHS:
-		_setup_plain_sprite(HERO_SPRITE_PATHS[unit_class])
+		var hero_path: String = HERO_SPRITE_PATHS[unit_class]
+		var hero_key: String = hero_path.get_file().get_basename()
+		if _setup_generated_animated_sprite(hero_key, "heroes"):
+			return
+		_setup_plain_sprite(hero_path)
 		return
 
 	var folder: String = get_meta("sprite_folder") if has_meta("sprite_folder") else get_class_sprite_folder()
@@ -348,6 +558,8 @@ func _setup_lpc_sprite() -> void:
 	if MONSTER_SPRITE_PATHS.has(folder):
 		var mpath: String = MONSTER_SPRITE_PATHS[folder]
 		if ResourceLoader.exists(mpath):
+			if _setup_generated_animated_sprite(folder, "monsters"):
+				return
 			_setup_plain_sprite(mpath)
 			return
 		# Registered but the art hasn't been dropped in yet (e.g. a boss whose
@@ -373,15 +585,18 @@ func _setup_lpc_sprite() -> void:
 		lpc.play(idle)
 		# LPC frames have large transparent margins, so the character only fills
 		# part of the 64px frame. Scale up so units read at a good size on the grid.
-		if cell_size == 2:
-			lpc.scale = Vector2(SPRITE_SCALE_2X, SPRITE_SCALE_2X)
+		# Scale with the footprint rather than branching on 2 — a 3×3 body has to
+		# read as bigger than a 2×2 or the finale looks like just another giant.
+		if cell_size > 1:
+			var s: float = SPRITE_SCALE_2X * (cell_size - 1)
+			lpc.scale = Vector2(s, s)
 		else:
 			lpc.scale = Vector2(SPRITE_SCALE_1X, SPRITE_SCALE_1X)
 		_base_sprite_scale = lpc.scale   # animations multiply on top of this
 	else:
 		lpc.queue_free()
-		if cell_size == 2:
-			shape_size = 80.0
+		if cell_size > 1:
+			shape_size = 80.0 * (cell_size - 1)   # click/hit radius tracks the block
 
 
 # Small weapon icon shown above an enemy that spawned wielding a dropped item —
@@ -451,7 +666,14 @@ func _on_attacked(target) -> void:
 		return
 	if not (target and is_instance_valid(target)):
 		return
-	play_attack(target.global_position - global_position)
+	var dir_world: Vector2 = target.global_position - global_position
+	# If this unit has a real attack sheet, play the swing and keep just the
+	# impact particles — skip the procedural lunge so the two don't fight.
+	if _play_oneshot("attack"):
+		var dir: Vector2 = dir_world.normalized() if dir_world.length() > 0.01 else Vector2.UP
+		_spawn_particle(attack_particle_pack, 0.22, global_position + dir * 24.0)
+		return
+	play_attack(dir_world)
 
 # Pick element-themed particle packs (called from _ready once element is set).
 func _assign_element_particles() -> void:
@@ -496,7 +718,12 @@ func _on_took_damage(_amount: int, attacker) -> void:
 		var d: Vector2 = global_position - attacker.global_position
 		if d.length() > 0.01:
 			dir = d.normalized()
-	play_hit(dir)
+	# Real hurt sheet: play the flinch + keep the white flash; else the full
+	# procedural recoil (which includes its own flash).
+	if _play_oneshot("hurt"):
+		create_tween().tween_method(_set_flash, 1.0, 0.0, 0.18)
+	else:
+		play_hit(dir)
 	_spawn_particle(hit_particle_pack, 0.05, global_position)
 
 func play_hit(dir: Vector2) -> void:
@@ -520,12 +747,13 @@ func die() -> void:
 	# Khagan's mind-controlled puppet (a player's own hero, temporarily fighting
 	# for the enemy side): a lethal hit clamps to 1 HP and STAYS there — no
 	# partial-heal floor (2026-07-08 user spec) — breaking the possession
-	# instead of really dying: "fight your own unit till its 1 hp." Checked
+	# instead of really dying: bursting the puppet to 0 HP frees it EARLY (the
+	# other break path is the survival timer in _tick_khagan_possession). Checked
 	# FIRST since a single big hit can overshoot straight past 1 to a negative
 	# number, so this can't be a polling threshold check — it must intercept
-	# every death path the same way Phoenix Pact/Triarch do below. The normal
-	# between-round row heal tops it up afterward like any other survivor,
-	# since home_position was never touched.
+	# every death path the same way Phoenix Pact/Triarch do below.
+	# end_khagan_possession restores loaned stats; the between-round row heal tops
+	# it up afterward like any survivor, since home_position was never touched.
 	if has_meta("khagan_puppet") and current_hp <= 0:
 		current_hp = 1   # setter emits health_changed
 		current_shield = 0
@@ -552,6 +780,50 @@ func die() -> void:
 		current_hp = maxi(1, int(round(max_hp * relic_revive_pct)))   # setter emits health_changed
 		current_shield = 0
 		return
+	# Skeleton "Undying": the first time it would die, it reassembles once at 35% HP
+	# instead of dying (same cheat-death mechanism as Phoenix Pact above).
+	if has_meta("mob_passive") and str(get_meta("mob_passive")) == "skeleton_undying" \
+			and not has_meta("undying_used") and current_hp <= 0:
+		set_meta("undying_used", true)
+		current_hp = maxi(1, int(round(max_hp * 0.35)))   # setter emits health_changed
+		current_shield = 0
+		return
+	# Slime "Split": a real death spawns two smaller slimes (handled by the battle
+	# manager, which owns the grid + unit arrays). Guarded there against splitting
+	# the children again, so it stays one generation.
+	if has_meta("mob_passive") and str(get_meta("mob_passive")) == "slime_split" and current_hp <= 0 \
+			and battle_manager and battle_manager.has_method("spawn_slime_split"):
+		battle_manager.spawn_slime_split(self)
+	# Emberhollow (wave-50 boss): while either Ember Heart still burns, a lethal
+	# hit only banks the kill — it returns at EMBERHOLLOW_REVIVE_HP. Sits with the
+	# other cheat-death paths above, and like them restores HP to >= 1 before
+	# returning, so every "is it dead" check in the game stays consistent.
+	if has_meta("emberhollow_revive") and not has_meta("emberhollow_revived") \
+			and current_hp <= 0 and battle_manager \
+			and battle_manager.has_method("emberhollow_hearts_alive") \
+			and battle_manager.emberhollow_hearts_alive(self):
+		set_meta("emberhollow_revived", true)
+		current_hp = maxi(1, int(round(max_hp * AutoBattleManager.EMBERHOLLOW_REVIVE_HP)))
+		current_shield = 0
+		if battle_manager.has_signal("action_logged"):
+			battle_manager.action_logged.emit(
+				"%s reignites — the Hearts still burn!" % unit_name, false)
+		return
+	# Cloven Titan (wave-40 boss): the crack down its middle finally gives and it
+	# comes apart into two 1×1 halves. Same shape as the slime split above — the
+	# boss's own death is REAL (loot/xp fire normally), the halves are what's left
+	# to finish. Separate function because a 2×2 parent needs a wider spawn ring
+	# than the slime's immediate neighbours.
+	if has_meta("cloven_split") and current_hp <= 0 \
+			and battle_manager and battle_manager.has_method("spawn_cloven_halves"):
+		battle_manager.spawn_cloven_halves(self)
+	# Gravekeeper (wave-90 boss): anything that falls while it still stands gets
+	# back up on ITS side. Runs after every cheat-death path above, so a hero that
+	# survives via Phoenix Pact / Undying is never raised — only a real death.
+	if current_hp <= 0 and not has_meta("grave_shade") \
+			and battle_manager and battle_manager.has_method("gravekeeper_active") \
+			and battle_manager.gravekeeper_active(is_player_unit):
+		battle_manager.gravekeeper_raise_shade(self)
 	_is_dying = true
 	can_be_dragged = false
 	# Stat Stealer: return any stats it's currently holding stolen — only on a
@@ -564,15 +836,71 @@ func die() -> void:
 
 	_spawn_particle(death_particle_pack, 0.35, global_position)  # start fading death particles
 
+	# Real death sheet: let it play out (it ends on a collapsed pose and is
+	# pinned there by the _is_dying guard in _update_animation), then fade + free
+	# once the clip has finished. No procedural topple — the frames own the fall.
+	if _play_oneshot("death"):
+		var frames = animated_sprite.sprite_frames
+		var dur: float = float(frames.get_frame_count("death")) / maxf(1.0, frames.get_animation_speed("death"))
+		_death_tween = create_tween()
+		_death_tween.tween_interval(dur)
+		_death_tween.tween_method(_set_death_alpha, 1.0, 0.0, 0.25).set_ease(Tween.EASE_IN)
+		_death_tween.tween_callback(_after_death_anim)
+		return
+
 	var topple: float = 0.5 if randf() > 0.5 else -0.5   # ~28°, random side
-	var t := create_tween()
-	t.set_parallel(true)
-	t.tween_method(_set_death_rot, 0.0, topple, 0.35) \
+	_death_tween = create_tween()
+	_death_tween.set_parallel(true)
+	_death_tween.tween_method(_set_death_rot, 0.0, topple, 0.35) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	t.tween_method(_set_death_alpha, 1.0, 0.0, 0.35).set_ease(Tween.EASE_IN)
-	t.tween_method(_set_punch, _punch_scale, Vector2(0.7, 0.7), 0.35)
-	t.set_parallel(false)
-	t.tween_callback(queue_free)
+	_death_tween.tween_method(_set_death_alpha, 1.0, 0.0, 0.35).set_ease(Tween.EASE_IN)
+	_death_tween.tween_method(_set_punch, _punch_scale, Vector2(0.7, 0.7), 0.35)
+	_death_tween.set_parallel(false)
+	_death_tween.tween_callback(_after_death_anim)
+
+# Death animation finished. A player HERO is no longer freed here (2026-07-24
+# design change: heroes are never permanently lost — they come back at 10% HP
+# at the end of the round, see main_game._revive_downed_heroes). Its node is
+# simply parked invisible, keeping level/XP/equipment/recruit-rolls intact
+# because it stays the very same object. Enemies, summons and Doc's revivals
+# still free normally.
+func _after_death_anim() -> void:
+	if is_player_unit and not is_summoned:
+		visible = false
+		return
+	queue_free()
+
+# Bring a parked (or mid-battle downed) hero back to life at `hp_pct` of max.
+# Undoes everything die() did visually AND clears the status effects that
+# killed them, so a revived hero can't be instantly re-killed by a leftover
+# burn/bleed tick. Used by both the end-of-round revival and Doc's Field
+# Surgery ultimate.
+func revive(hp_pct: float) -> void:
+	if _death_tween and _death_tween.is_valid():
+		_death_tween.kill()
+	_death_tween = null
+	_is_dying = false
+	visible = true
+	_death_alpha = 1.0
+	_death_rotation = 0.0
+	_punch_scale = Vector2.ONE
+	_hit_squash = Vector2.ONE
+	_flash = 0.0
+	current_hp = maxi(1, int(round(float(max_hp) * hp_pct)))   # setter emits health_changed
+	current_shield = 0
+	# Wipe the damage-over-time / control statuses that were on them when they
+	# fell — reviving into an active burn would just kill them again.
+	burn_time = 0.0; bleed_time = 0.0
+	stun_time = 0.0; root_time = 0.0; slow_time = 0.0
+	taunt_time = 0.0; taunt_source = null
+	spore_stacks = 0.0
+	is_moving = false
+	move_progress = 0.0
+	if health_bar:
+		health_bar.visible = true
+	_apply_animation()
+	_update_animation()
+	update_visuals()
 
 # Tween target setters (named so tween_method can't mis-parse an inline lambda).
 func _set_lunge(v: Vector2) -> void:       _lunge_offset = v
@@ -587,7 +915,10 @@ func _apply_animation() -> void:
 	var off: Vector2 = _bob_offset + _lunge_offset + _recoil_offset
 	var scl: Vector2 = _breathe_scale * _punch_scale * _hit_squash
 	if animated_sprite:
-		animated_sprite.position = off
+		# _sprite_base_offset is zero for the LPC path (its frames are already
+		# feet-centred) and set for generated video->sheet anims, which are
+		# bottom-anchored on a fixed canvas exactly like _setup_plain_sprite.
+		animated_sprite.position = _sprite_base_offset + off
 		animated_sprite.scale = _base_sprite_scale * scl
 		animated_sprite.rotation = _death_rotation
 		var m: Color = Color(1, 1, 1, 1).lerp(Color(2.2, 2.2, 2.2, 1), _flash)
@@ -637,8 +968,35 @@ func _process(delta: float) -> void:
 # Add a new "key": timer_field pair here whenever a new status sheet is wired up.
 func _update_status_icons() -> void:
 	_set_status_icon_active("stun", stun_time > 0.0)
+	_layout_status_icons()
 
-func _set_status_icon_active(key: String, active: bool) -> void:
+# Lays the visible status icons out in a centred row BELOW the unit, in
+# STATUS_ICON_ORDER. Two things this fixes (2026-08-02, user report):
+#   • Icons used to sit above the head, where they landed directly on the enemy
+#     health bar with the damage numbers rising through the same space — three
+#     overlapping things in one strip, all illegible.
+#   • Every icon was pinned to the same hardcoded point, so a second status
+#     would have rendered exactly on top of the first.
+# Below the sprite is otherwise-empty board space for enemies. Player units carry
+# their bar down there instead (BarPlacement.BOTTOM), so the row clears the bar's
+# full height rather than assuming a fixed offset.
+func _layout_status_icons() -> void:
+	var shown: Array = []
+	for key in STATUS_ICON_ORDER:
+		var icon: StatusIcon = _status_icons.get(key)
+		if icon and icon.visible:
+			shown.append(icon)
+	if shown.is_empty():
+		return
+	var y: float = shape_size * 0.72 + 16.0
+	if health_bar and is_instance_valid(health_bar) \
+			and health_bar.placement == HealthBar.BarPlacement.BOTTOM:
+		y = health_bar.position.y + health_bar.total_height() + 16.0
+	var start_x: float = -(float(shown.size()) - 1.0) * STATUS_ICON_SPACING * 0.5
+	for i in range(shown.size()):
+		shown[i].position = Vector2(start_x + float(i) * STATUS_ICON_SPACING, y)
+
+func _set_status_icon_active(key: String, active: bool, tint_elem: int = -1) -> void:
 	if not active:
 		if _status_icons.has(key):
 			_status_icons[key].visible = false
@@ -652,10 +1010,12 @@ func _set_status_icon_active(key: String, active: bool) -> void:
 			return
 		icon = StatusIcon.new()
 		add_child(icon)
+		var tint: Color = SynergyData.element_color(tint_elem) if tint_elem >= 0 else Color.WHITE
 		icon.setup(tex, meta.get("frame_w", 32), meta.get("frame_h", 32),
-			meta.get("frames", 1), meta.get("size", Vector2(28, 28)))
-		icon.position = Vector2(0, -shape_size * 0.9)
+			meta.get("frames", 1), meta.get("size", Vector2(28, 28)), 6.0, tint)
 		_status_icons[key] = icon
+		# Position is owned by _layout_status_icons(), not set here — a hardcoded
+		# spot per icon is exactly what made them pile up on each other.
 	icon.visible = true
 
 
@@ -664,6 +1024,70 @@ func _set_status_icon_active(key: String, active: bool) -> void:
 # art registered in UnitDetailsController.SKILL_ICONS (keyed by skill_name —
 # same field skill_cd_time governs, so it works identically for heroes and
 # enemies alike; heroes are getting a full icon set soon, per user 2026-07-06).
+# ── Role badge (2026-07-27) ───────────────────────────────────────────────────
+# A small shape mirroring the skill icon, on the OPPOSITE end of the health bar.
+# Enemies only: placement is the player's strongest lever (it swings win rate
+# from 0% to ~85% — see the placement-sensitivity measurement) and the right
+# formation depends on whether the wave's damage is melee or ranged, but a board
+# of unfamiliar monster sprites gave no way to tell them apart. Heroes don't get
+# one — the player picked those and already knows what they are.
+#
+# Shapes, not letters: readable at 14px, language-neutral, and no new art or
+# font glyphs needed (Polygon2D is built in, so this adds no class_name and
+# needs no Godot rescan).
+#   melee   → red square      ranged → blue diamond      support → green cross
+# Purely cosmetic — nothing here touches combat state.
+const ROLE_BADGE_SIZE := 14.0
+const ROLE_BADGE_MARGIN := 8.0
+const ROLE_BADGE_COLORS := {
+	"melee":   Color(0.86, 0.33, 0.28, 0.95),
+	"ranged":  Color(0.36, 0.62, 0.88, 0.95),
+	"support": Color(0.42, 0.78, 0.45, 0.95),
+}
+
+var _role_badge: Polygon2D = null
+
+# Unit-space points for each role's glyph, sized to ROLE_BADGE_SIZE.
+static func _role_badge_points(tag: String, s: float) -> PackedVector2Array:
+	var h: float = s * 0.5
+	match tag:
+		"ranged":   # diamond
+			return PackedVector2Array([Vector2(0, -h), Vector2(h, 0), Vector2(0, h), Vector2(-h, 0)])
+		"support":  # cross / plus
+			var t: float = s * 0.17
+			return PackedVector2Array([
+				Vector2(-t, -h), Vector2(t, -h), Vector2(t, -t), Vector2(h, -t),
+				Vector2(h, t), Vector2(t, t), Vector2(t, h), Vector2(-t, h),
+				Vector2(-t, t), Vector2(-h, t), Vector2(-h, -t), Vector2(-t, -t)])
+		_:          # melee — square
+			return PackedVector2Array([
+				Vector2(-h, -h), Vector2(h, -h), Vector2(h, h), Vector2(-h, h)])
+
+func _setup_role_badge() -> void:
+	# Tag is stamped by WaveDirector.create_enemy_for_entry from the wave code.
+	# Absent for heroes, summons and arena-spawned units — all correctly badgeless.
+	if is_player_unit or not has_meta("role_tag"):
+		return
+	# Bosses are exempt: the Triarch and Khagan CHANGE combat role mid-fight
+	# (melee → ranged → magic), and the tag is derived from the wave code once at
+	# spawn, so a badge on them would go stale and lie. They're single, unique,
+	# 2×2 silhouettes the player studies anyway — the badge exists to parse a
+	# crowd of similar fodder, which is not a problem bosses have.
+	if is_boss:
+		return
+	var tag: String = String(get_meta("role_tag"))
+	if not ROLE_BADGE_COLORS.has(tag):
+		return
+	_role_badge = Polygon2D.new()
+	_role_badge.polygon = _role_badge_points(tag, ROLE_BADGE_SIZE)
+	_role_badge.color = ROLE_BADGE_COLORS[tag]
+	_role_badge.z_index = 5
+	var hp_h: float = health_bar.bar_height * HealthBar.HP_HEIGHT_SCALE
+	_role_badge.position = Vector2(
+		health_bar.bar_width / 2.0 + ROLE_BADGE_MARGIN + ROLE_BADGE_SIZE / 2.0,
+		hp_h / 2.0)
+	health_bar.add_child(_role_badge)
+
 func _setup_skill_icon() -> void:
 	var icon_path: String = UnitDetailsController.SKILL_ICONS.get(skill_name, "")
 	if icon_path == "" or not ResourceLoader.exists(icon_path):
@@ -702,11 +1126,30 @@ func _update_skill_icon(delta: float) -> void:
 	else:
 		_skill_icon.modulate = SKILL_ICON_COOLDOWN_COLOR
 
+# Plays a non-looping one-shot action sheet (attack/hurt/death) if this unit has
+# it. Returns true if it played. _update_animation()'s non-loop guard holds the
+# clip to its final frame, then resumes walk/idle (death stays pinned).
+func _play_oneshot(name: String) -> bool:
+	if not animated_sprite:
+		return false
+	var frames = animated_sprite.sprite_frames
+	if not (frames and frames.has_animation(name)):
+		return false
+	animated_sprite.play(name)
+	animated_sprite.frame = 0   # force a restart even if this anim was mid-play
+	return true
+
 func _update_animation() -> void:
 	if not animated_sprite:
 		return
 	var frames = animated_sprite.sprite_frames
 	if not frames:
+		return
+
+	# A dying unit with a real death sheet stays on it (non-looping, ends
+	# collapsed) — don't let the walk/idle picker below revive it after the
+	# last frame. Units without a death sheet keep their old procedural death.
+	if _is_dying and frames.has_animation("death"):
 		return
 
 	var curr = animated_sprite.animation
@@ -726,13 +1169,26 @@ func _update_animation() -> void:
 		var want = "walk_" + dir_suffix
 		if not frames.has_animation(want):
 			want = "walk_south"
+		# Attack-only units have no walk sheet at all — hold the resting pose
+		# rather than calling play() on a missing animation (which errors).
+		if not frames.has_animation(want):
+			want = "idle_south"
+		if not frames.has_animation(want):
+			return
 		if want != curr:
 			animated_sprite.play(want)
 		return
 
+	# Enemies prefer a back-view idle, players a front-view one — but most units
+	# only have the front (idle_south), matching the front-facing static art, so
+	# fall back to idle_south before dropping all the way to walk_south.
 	var idle = "idle_south" if is_player_unit else "idle_north"
 	if not frames.has_animation(idle):
+		idle = "idle_south"
+	if not frames.has_animation(idle):
 		idle = "walk_south"
+	if not frames.has_animation(idle):
+		return
 	if idle != curr:
 		animated_sprite.play(idle)
 
@@ -854,6 +1310,15 @@ func change_element(new_element: Element) -> void:
 
 func _input(event: InputEvent) -> void:
 	if not can_be_dragged:
+		# A drag can be revoked WHILE it's in flight — can_be_dragged flips off
+		# at battle start (main_game.enable_unit_dragging) and in die(). This
+		# used to plain `return`, which meant the button-release that would have
+		# placed-or-reverted the unit was never processed: the node just stayed
+		# wherever the cursor left it, permanently off-grid and often entirely
+		# off-screen, while the grid still thought it was on its old cell
+		# (2026-07-24 user report). Always resolve an in-flight drag first.
+		if is_dragging:
+			_cancel_drag()
 		return
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -867,8 +1332,11 @@ func _input(event: InputEvent) -> void:
 		else:
 			if is_dragging:
 				is_dragging = false
-				_set_placement_zone_visible(false)
+				# Resolve the drop FIRST: _set_placement_zone_visible(false)
+				# hides the sell zone, and the drop test reads its visibility —
+				# hiding first would make every sell-drop silently miss.
 				_try_place_at_mouse()
+				_set_placement_zone_visible(false)
 				get_viewport().set_input_as_handled()
 
 	if event is InputEventMouseMotion:
@@ -884,33 +1352,86 @@ func _input(event: InputEvent) -> void:
 			mouse_down_position = Vector2.ZERO
 
 
+# ── Drag-to-sell drop zone ────────────────────────────────────────────────────
+# main_game owns the actual Control and the sell logic; it registers both here
+# once at setup. Static because it's one shared drop target for every hero on
+# the board — wiring a signal per unit would mean touching all six places that
+# connect `died`, and every future spawn path would silently miss it.
+static var sell_zone: Control = null
+static var sell_handler: Callable = Callable()
+
+static func _sell_zone_ready() -> bool:
+	return sell_zone != null and is_instance_valid(sell_zone)
+
+# True while the cursor is inside the drop zone. Hit-tested in the zone's OWN
+# space: it lives under a CanvasLayer, so its Control coords and this Node2D's
+# world coords are different spaces and comparing them directly would be wrong.
+static func _mouse_over_sell_zone() -> bool:
+	if not _sell_zone_ready() or not sell_zone.visible:
+		return false
+	return Rect2(Vector2.ZERO, sell_zone.size).has_point(sell_zone.get_local_mouse_position())
+
 # Show the player placement zone while an allied hero is being dragged.
 func _set_placement_zone_visible(v: bool) -> void:
 	if not is_player_unit:
 		return
 	if battle_manager and battle_manager.background_layer:
 		battle_manager.background_layer.set_player_zone_visible(v)
+	# The sell target only exists while you're actually holding a hero.
+	if _sell_zone_ready():
+		sell_zone.visible = v and not is_summoned
 
+
+# Abort an in-flight drag and put the node back where the GRID says it lives.
+func _cancel_drag() -> void:
+	is_dragging = false
+	mouse_down_position = Vector2.ZERO
+	_set_placement_zone_visible(false)
+	_snap_to_grid_cell()
+
+# Authoritative visual reset. battle_grid is the source of truth for where a
+# unit actually IS, so revert paths re-derive the node's position from
+# grid_position instead of trusting original_global_pos — a captured global
+# that's silently wrong if the board was re-centred (window resize) or if a
+# previous interrupted drag already left the node somewhere bogus.
+func _snap_to_grid_cell() -> void:
+	var bg = battle_manager.battle_grid if battle_manager else null
+	if not bg:
+		global_position = original_global_pos   # nothing better to go on
+		return
+	var w: Vector2 = bg.grid_to_world(grid_position)
+	if cell_size > 1:
+		# Multi-cell units are centred on their block — mirrors main_game._place_at
+		# and AutoBattleManager._world_pos_for. N×N formula, same result at size 2.
+		var off: float = bg.cell_size * (cell_size - 1) * 0.5
+		w += Vector2(off, off)
+	position = w
 
 func _try_place_at_mouse() -> void:
+	# Dropped on the sell zone → hand off to main_game and stop; it decides
+	# whether the sale is legal (prep phase only, can't sell your last hero)
+	# and snaps us back itself if it refuses.
+	if is_player_unit and not is_summoned and _mouse_over_sell_zone() and sell_handler.is_valid():
+		sell_handler.call(self)
+		return
 	if not battle_manager:
-		global_position = original_global_pos
+		_snap_to_grid_cell()
 		return
 	var bg = battle_manager.battle_grid
 	if not bg:
-		global_position = original_global_pos
+		_snap_to_grid_cell()
 		return
 	var new_pos = bg.world_to_grid(get_global_mouse_position())
 	if not _is_valid_placement(new_pos, bg):
-		global_position = original_global_pos
+		_snap_to_grid_cell()
 		return
 	bg.remove_unit(grid_position)
 	if bg.place_unit(self, new_pos):
 		grid_position = new_pos
-		position = bg.grid_to_world(new_pos)
+		_snap_to_grid_cell()
 	else:
 		bg.place_unit(self, grid_position)
-		global_position = original_global_pos
+		_snap_to_grid_cell()
 
 
 func _is_valid_placement(pos: Vector2i, bg) -> bool:

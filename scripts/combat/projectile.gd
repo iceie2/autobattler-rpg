@@ -7,6 +7,7 @@ var speed: float = 600.0
 var damage: int = 0
 var element: UnitBase.Element = UnitBase.Element.NORMAL
 var is_magic: bool = false   # magic-scaled payloads are mitigated by magic armor
+var is_crit: bool = false     # drives gold crit floating text when this lands
 var target_unit = null
 var caster = null          # tracks who fired this for damage_dealt attribution
 var traveled_distance: float = 0.0
@@ -41,22 +42,28 @@ func _process(delta: float):
 	if not start_pos or not target_pos:
 		queue_free()
 		return
-	
+
+	# Target died mid-flight (e.g. another hit killed it first) — fizzle out
+	# instead of visibly flying on to hit a corpse.
+	if target_unit and is_instance_valid(target_unit) and "current_hp" in target_unit and target_unit.current_hp <= 0:
+		queue_free()
+		return
+
 	# Move towards target using global position
 	var direction = (target_pos - global_position).normalized()
 	var move_amount = speed * delta
 	global_position += direction * move_amount
 	traveled_distance += move_amount
-	
+
 	# Check if we've reached the target
 	if traveled_distance >= total_distance or global_position.distance_to(target_pos) < 5.0:
 		on_reach_target()
 
 func on_reach_target():
-	if target_unit and is_instance_valid(target_unit) and target_unit.has_method("take_damage"):
+	if target_unit and is_instance_valid(target_unit) and target_unit.has_method("take_damage") and target_unit.current_hp > 0:
 		var pre_hp: int = target_unit.current_hp
 		var was_alive: bool = pre_hp > 0
-		target_unit.take_damage(damage, element, caster, false, 0, is_magic)
+		target_unit.take_damage(damage, element, caster, false, 0, is_magic, is_crit)
 		var actual: int = max(0, pre_hp - target_unit.current_hp)
 		# Credit the damage back to whoever fired this projectile
 		if caster and is_instance_valid(caster) and "damage_dealt" in caster:

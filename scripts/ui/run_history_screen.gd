@@ -8,6 +8,7 @@ signal closed()
 var _panel: Panel
 var _stats_lbl: Label
 var _list: VBoxContainer
+var _export_lbl: Label
 
 func _ready() -> void:
 	_build_ui()
@@ -27,7 +28,9 @@ func _build_ui() -> void:
 	add_child(overlay)
 
 	_panel = Panel.new()
-	_panel.size = Vector2(760, 620)
+	# 620 → 660 (2026-08-04) to fit the export button row + its status line
+	# without the label overhanging the panel's bottom edge.
+	_panel.size = Vector2(760, 660)
 	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
 	overlay.add_child(_panel)
 	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
@@ -55,14 +58,43 @@ func _build_ui() -> void:
 	_list.add_theme_constant_override("separation", 3)
 	scroll.add_child(_list)
 
+	# Export (2026-08-04): external testers can't be asked to dig a JSON out of
+	# %APPDATA%, so this drops a dated copy on their Desktop and opens the folder.
+	var export_btn := Button.new()
+	export_btn.text = "⇩  Export Runs"; export_btn.position = Vector2(150, 566); export_btn.size = Vector2(220, 40)
+	export_btn.add_theme_font_size_override("font_size", 14)
+	export_btn.tooltip_text = "Save this run history to your Desktop as a .json file."
+	UITheme.style_button(export_btn)
+	export_btn.pressed.connect(_on_export)
+	_panel.add_child(export_btn)
+
+	_export_lbl = _lbl(_panel, "", 12, Color(0.6, 0.85, 0.65), Vector2(24, 616), Vector2(712, 22), true)
+
 	var close_btn := Button.new()
-	close_btn.text = "✕  Close"; close_btn.position = Vector2(280, 566); close_btn.size = Vector2(200, 40)
+	close_btn.text = "✕  Close"; close_btn.position = Vector2(390, 566); close_btn.size = Vector2(220, 40)
 	close_btn.add_theme_font_size_override("font_size", 14)
 	UITheme.style_button(close_btn)
 	close_btn.pressed.connect(_close)
 	_panel.add_child(close_btn)
 
 	visible = false
+
+func _on_export() -> void:
+	# Meta state is passed in rather than read inside RunHistory so that stays a
+	# pure static (CONVENTIONS landmine 9). Nodes owned is the x-axis of the whole
+	# balance pass, so an export without it is far less useful.
+	var path := RunHistory.export_to_desktop({
+		"nodes_owned": Progression.nodes_owned(),
+		"crystals": Progression.crystals,
+		"crystals_spent": Progression.total_spent(),
+	})
+	if path == "":
+		_export_lbl.add_theme_color_override("font_color", Color(0.95, 0.5, 0.5))
+		_export_lbl.text = "Export failed — couldn't write the file."
+		return
+	_export_lbl.add_theme_color_override("font_color", Color(0.6, 0.85, 0.65))
+	_export_lbl.text = "Saved to %s" % path.get_file()
+	OS.shell_show_in_file_manager(path)
 
 func _refresh() -> void:
 	var s := RunHistory.stats()

@@ -14,6 +14,13 @@ var active: Array = []
 var element_counts: Dictionary = {}
 var trait_counts: Dictionary = {}
 
+# Element enum -> the lowercase name used in crystal-tree upgrade keys.
+const ELEMENT_KEY: Dictionary = {
+	UnitBase.Element.NORMAL: "normal", UnitBase.Element.FIRE: "fire",
+	UnitBase.Element.WATER: "water", UnitBase.Element.EARTH: "earth",
+	UnitBase.Element.AIR: "air", UnitBase.Element.LIGHTNING: "lightning",
+}
+
 func update_from_team(units: Array) -> void:
 	element_counts.clear()
 	trait_counts.clear()
@@ -21,6 +28,17 @@ func update_from_team(units: Array) -> void:
 		if u and is_instance_valid(u):
 			element_counts[u.current_element] = element_counts.get(u.current_element, 0) + 1
 			trait_counts[u.trait_class] = trait_counts.get(u.trait_class, 0) + 1
+
+	# Element synergy nodes (2026-08-03, the deep end of each spoke's elemental
+	# grid) count as extra heroes of that element for threshold purposes only —
+	# they push you over a tier without occupying a board slot, which is why
+	# there are just three per element. An element you field nobody of stays at
+	# zero: a phantom count with no real hero would light up a synergy the team
+	# has no way to use.
+	for e in element_counts.keys():
+		var extra: int = Progression.get_bonus("synergy_%s" % ELEMENT_KEY.get(e, ""))
+		if extra > 0:
+			element_counts[e] = int(element_counts[e]) + extra
 
 	active.clear()
 	for e in SynergyData.ELEMENT_SYN:

@@ -37,28 +37,34 @@ const ITEM_TEMPLATES = {
 
 # Stats whose values are small floats rather than whole numbers.
 const FLOAT_STATS := ["aspd", "hpregen", "manaregen"]
+# Crit stats (2026-07-24) roll on their own magnitude scale (percent chance /
+# multiplier delta), independent of round so late-game items don't spike to 100%.
+const CRIT_STATS := ["crit", "critdmg"]
 
-# ── Equipment rework (2026-07-17 user spec) ───────────────────────────────────
-# DROPPED items are stat-sticks only: 1 roll for grey, 2 for green, 3 for blue
-# (rolls can repeat — "+attack speed ×2" is a legal green). Drops are 100%
-# COMMON unless the Lucky Find crystal-shop upgrade grants better odds.
+# ── Equipment rework (2026-07-17 user spec, roll counts fixed 2026-07-24) ─────
+# DROPPED items are stat-sticks only (rolls can repeat — "+attack speed ×2" is
+# legal). Drops are 100% COMMON unless the Lucky Find crystal-shop upgrade
+# grants better odds. Roll counts are set so a DROPPED item of a given rarity
+# always has exactly as many stat rolls as a FUSED item of that rarity would
+# (fusing 3 items sums their rolls, so each tier is 3x the one below) — a
+# dropped green used to have fewer rolls AND no passive than a fused green,
+# making drops strictly worse instead of just "passive-less."
 # PASSIVES exist ONLY on combined gear: fusing 3 same-rarity items yields the
-# next tier carrying ALL of their stats plus one fresh random passive.
+# next tier carrying ALL of their inherited passives (plus one fresh roll if
+# none of the inputs had any yet, e.g. grey→green).
 const RARITY_STAT_ROLLS := {
 	EquipmentItem.Rarity.COMMON:    1,
-	EquipmentItem.Rarity.UNCOMMON:  2,
-	EquipmentItem.Rarity.RARE:      3,
-	EquipmentItem.Rarity.EPIC:      4,
-	EquipmentItem.Rarity.LEGENDARY: 5,
+	EquipmentItem.Rarity.UNCOMMON:  3,
+	EquipmentItem.Rarity.RARE:      9,
+	EquipmentItem.Rarity.EPIC:      27,
+	EquipmentItem.Rarity.LEGENDARY: 81,
 }
 
+# Roll pool for the fresh passive a grey→green fusion grants. Display text lives
+# in EquipmentItem.PASSIVE_DISPLAY (built from the rolled value, not static prose).
 const PASSIVE_EFFECTS = [
-	{"name": "Lifesteal", "desc": "Restore 15% of damage dealt as HP"},
-	{"name": "Thorns", "desc": "Return 10% of damage taken"},
-	{"name": "Haste", "desc": "+10% action speed"},
-	{"name": "Regeneration", "desc": "+3 HP per turn"},
-	{"name": "Spell Echo", "desc": "+20% magic power"},
-	{"name": "Evasion", "desc": "+15% dodge chance"},
+	{"name": "Lifesteal"}, {"name": "Thorns"}, {"name": "Haste"},
+	{"name": "Regeneration"}, {"name": "Spell Echo"}, {"name": "Evasion"},
 ]
 
 # Apply an item's stat bonuses directly onto a unit's live stats. Used for enemies
@@ -75,9 +81,11 @@ static func apply_to_unit(unit: UnitBase, item: EquipmentItem) -> void:
 	unit.attack_speed += item.stat_bonus.get("aspd", 0.0)
 	unit.hp_regen += item.stat_bonus.get("hpregen", 0.0)
 	unit.mana_regen += item.stat_bonus.get("manaregen", 0.0)
-	if item.passive_effect != "":
-		var existing: float = unit.equipment_passives.get(item.passive_effect, 0.0)
-		unit.equipment_passives[item.passive_effect] = maxf(existing, item.effect_value)
+	unit.crit_chance += item.stat_bonus.get("crit", 0.0)
+	unit.crit_damage += item.stat_bonus.get("critdmg", 0.0)
+	for p in item.passives:
+		var existing: float = unit.equipment_passives.get(p["name"], 0.0)
+		unit.equipment_passives[p["name"]] = maxf(existing, p["value"])
 
 static func generate_item(round: int = 1, max_rarity: int = EquipmentItem.Rarity.RARE) -> EquipmentItem:
 	var templates = ITEM_TEMPLATES.keys()
@@ -94,11 +102,13 @@ static func generate_item(round: int = 1, max_rarity: int = EquipmentItem.Rarity
 
 	# First point always rolls the item's primary (identity) stat; the rest hit
 	# random stats.
-	var available_stats = ["hp", "mana", "atk", "magic", "res", "aspd", "hpregen", "manaregen"]
+	var available_stats = ["hp", "mana", "atk", "magic", "res", "aspd", "hpregen", "manaregen", "crit", "critdmg"]
 	var primary: String = template.get("primary", "atk")
 	for i in range(points):
 		var stat: String = primary if i == 0 else available_stats[randi() % available_stats.size()]
-		if stat in FLOAT_STATS:
+		if stat in CRIT_STATS:
+			item.stat_bonus[stat] += _roll_crit_stat_value(stat, rarity)
+		elif stat in FLOAT_STATS:
 			item.stat_bonus[stat] += _roll_float_stat_value(rarity, round)
 		else:
 			var value: int = _roll_stat_value(rarity, round)
@@ -115,13 +125,15 @@ static func generate_item(round: int = 1, max_rarity: int = EquipmentItem.Rarity
 const BIG_STATS: Array[String] = ["hp", "mana"]
 const BIG_STATS_MULT := 10
 
-# Drops are 100% COMMON out of the box (2026-07-17 rework). The Lucky Find
-# crystal-shop upgrade adds +3% uncommon / +1% rare per level (max 10 →
-# 30%/10%). Epic+ never drops — those tiers exist only through combining.
+# Drops are 100% COMMON out of the box (2026-07-17 rework). Epic+ never drops —
+# those tiers exist only through combining.
+#
+# 2026-08-03: Lucky Find (loot_quality, one node giving +3% uncommon AND +1%
+# rare) was retired for two separate upconversion families in the Armory spoke,
+# so the two chances are now read independently instead of scaling together.
 static func _roll_rarity(_round: int, max_rarity: int = EquipmentItem.Rarity.RARE) -> int:
-	var lvl: int = Progression.get_level("loot_quality")
-	var rare_chance: float = 0.01 * lvl
-	var uncommon_chance: float = 0.03 * lvl
+	var rare_chance: float = 0.01 * float(Progression.get_bonus("loot_to_rare"))
+	var uncommon_chance: float = 0.01 * float(Progression.get_bonus("loot_to_uncommon"))
 	if max_rarity < EquipmentItem.Rarity.RARE:
 		rare_chance = 0.0
 	if max_rarity < EquipmentItem.Rarity.UNCOMMON:
@@ -134,23 +146,89 @@ static func _roll_rarity(_round: int, max_rarity: int = EquipmentItem.Rarity.RAR
 		return EquipmentItem.Rarity.UNCOMMON
 	return EquipmentItem.Rarity.COMMON
 
+# Round-scaling halved 2026-08-04 (BALANCE_PLAN.md §1.8): was round*0.5, which
+# made a round-25 common worth 5x a round-1 common and let late-run loot alone
+# outscale the whole crystal tree. Now round*0.25.
 static func _roll_stat_value(rarity: int, round: int) -> int:
-	var base_value = 3 + (round * 0.5)
+	var base_value = 3 + (round * 0.25)
 	var roll = base_value * (0.8 + randf() * 0.4)
 	var multiplier = 1.0 + (rarity * 0.3)
 	return int(roll * multiplier)
 
-# Small-magnitude version for attack_speed/hp_regen/mana_regen bonuses (0.05–0.3ish per roll).
+# Crit rolls: "crit" is crit CHANCE (0.03–0.06 base per roll → +3–6%, ×rarity),
+# "critdmg" is the crit-damage multiplier delta (0.15–0.30 base → +0.15–0.30x,
+# ×rarity). Round-independent — crit% shouldn't inflate into guaranteed-crit gear.
+static func _roll_crit_stat_value(stat: String, rarity: int) -> float:
+	var multiplier := 1.0 + (rarity * 0.3)
+	if stat == "crit":
+		return snappedf((0.03 + randf() * 0.03) * multiplier, 0.01)
+	return snappedf((0.15 + randf() * 0.15) * multiplier, 0.01)
+
+# Small-magnitude version for attack_speed/hp_regen/mana_regen bonuses.
+# Round-scaling halved 2026-08-04 alongside _roll_stat_value. This one mattered
+# MOST: 3 of the 12 item templates roll aspd as their primary, and a fused Epic
+# was measuring +1.3 attack speed against a 0.62-0.90 hero base — on its own a
+# ~2.7x attack-rate multiplier. Watch this number after any retune.
 static func _roll_float_stat_value(rarity: int, round: int) -> float:
-	var base_value = 0.05 + (round * 0.01)
+	var base_value = 0.05 + (round * 0.005)
 	var roll = base_value * (0.8 + randf() * 0.4)
 	var multiplier = 1.0 + (rarity * 0.3)
 	return snappedf(roll * multiplier, 0.01)
 
-# Combine 3 items of same rarity → one item of the next rarity whose stats are
-# the SUM of all three. Inherits the identity (name/icon) of the strongest input
-# so bag icons (keyed by name) still resolve; the higher rarity conveys "upgraded".
-static func combine_items(items: Array[EquipmentItem]) -> EquipmentItem:
+# ── Fusion economy (2026-08-04 rebalance, BALANCE_PLAN.md §1.7-1.8) ───────────
+# Fusion used to be LOSSLESS: three items summed with no tax, so 27 commons
+# concentrated into one Epic carrying all 27 rolls. Measured, that Epic was worth
+# ~+47 atk and +1.3 aspd — roughly an 8x DPS multiplier, beating a fully maxed
+# crystal-tree stat branch that costs ~7,300 crystals, for free.
+#
+# COMBINE_KEEP taxes each fusion. At 0.85 an Epic falls from 27 common-
+# equivalents to ~16 (a ~40% cut) while every tier stays clearly better than its
+# inputs (2.55x per fusion, not 3x) — combining still feels worth doing, which
+# was the explicit design requirement.
+const COMBINE_KEEP := 0.85
+
+# Max DISTINCT passives an item may carry, by rarity. Before this cap, only 6
+# passive types existed and add_passive() deduped by name taking the max, so
+# every Epic converged on ~5 of 6 at near-max value — not merely too strong,
+# but IDENTICAL every time, which meant there was no build to speak of.
+# Capping turns "collect them all" into a choice.
+const PASSIVE_CAP_BY_RARITY := {
+	EquipmentItem.Rarity.COMMON:    0,
+	EquipmentItem.Rarity.UNCOMMON:  1,
+	EquipmentItem.Rarity.RARE:      2,
+	EquipmentItem.Rarity.EPIC:      3,
+	EquipmentItem.Rarity.LEGENDARY: 4,
+}
+
+static func passive_cap(rarity: int) -> int:
+	return int(PASSIVE_CAP_BY_RARITY.get(rarity, 0))
+
+# Every passive the inputs could contribute, best value per name, strongest
+# first. The equipment page calls this to show the player what they're choosing
+# BETWEEN before committing a fusion; combine_items() falls back to the top N of
+# this same list when no explicit choice is supplied.
+static func candidate_passives(items: Array) -> Array:
+	var best: Dictionary = {}
+	for item: EquipmentItem in items:
+		for p in item.passives:
+			var n: String = str(p["name"])
+			best[n] = maxf(float(best.get(n, 0.0)), float(p["value"]))
+	var out: Array = []
+	for n: String in best:
+		out.append({"name": n, "value": float(best[n])})
+	out.sort_custom(func(a, b): return a["value"] > b["value"])
+	return out
+
+# Combine 3 items of same rarity → one item of the next rarity. Stats are the
+# taxed sum of all three (see COMBINE_KEEP). Inherits the identity (name/icon) of
+# the strongest input so bag icons (keyed by name) still resolve.
+#
+# keep_passives: names the player chose to carry forward. Empty = no choice made
+# (headless callers, or the bag UI before the passive-pick screen exists), in
+# which case the strongest candidates win up to the cap. Names that aren't
+# actually available are ignored rather than trusted, so a stale UI selection
+# can't invent a passive.
+static func combine_items(items: Array[EquipmentItem], keep_passives: Array = []) -> EquipmentItem:
 	if items.size() < 3:
 		return null
 
@@ -166,12 +244,51 @@ static func combine_items(items: Array[EquipmentItem]) -> EquipmentItem:
 	for item in items:
 		for stat in item.stat_bonus:
 			combined.stat_bonus[stat] += item.stat_bonus[stat]
+	# Apply the fusion tax. Int-typed stats are re-floored so the bag keeps
+	# showing whole numbers for hp/atk/res; the float stats (aspd/regens/crit)
+	# keep their precision.
+	for stat in combined.stat_bonus:
+		var taxed: float = float(combined.stat_bonus[stat]) * COMBINE_KEEP
+		if stat in FLOAT_STATS or stat in CRIT_STATS:
+			combined.stat_bonus[stat] = snappedf(taxed, 0.01)
+		else:
+			combined.stat_bonus[stat] = int(taxed)
 
-	# Combining is THE source of passives (2026-07-17 rework): every fusion
-	# rolls one fresh random passive, replacing whatever the inputs carried.
-	var passive = PASSIVE_EFFECTS[randi() % PASSIVE_EFFECTS.size()]
-	combined.passive_effect = passive["name"]
-	combined.description = passive["desc"]
-	combined.effect_value = 0.15 + randf() * 0.15  # 0.15-0.30
+	# Passives carry forward from the inputs, now limited to the rarity's cap.
+	var cap: int = passive_cap(combined.rarity)
+	var candidates: Array = candidate_passives(items)
+	if candidates.is_empty():
+		# No input carried a passive (the grey→green case) — roll one fresh.
+		# Values roll WEAK now (was 0.15-0.30): duplicates stack to max via
+		# add_passive, so three different passives is broad-and-shallow while the
+		# same passive three times is one strong effect. That's the decision the
+		# old always-max convergence removed.
+		if cap > 0:
+			var passive = PASSIVE_EFFECTS[randi() % PASSIVE_EFFECTS.size()]
+			combined.add_passive(passive["name"], 0.05 + randf() * 0.10)
+	else:
+		var chosen: Array = []
+		# Honour the player's picks first, in their order, but only for passives
+		# the inputs actually offer.
+		for wanted: Variant in keep_passives:
+			if chosen.size() >= cap:
+				break
+			for c: Dictionary in candidates:
+				if c["name"] == str(wanted) and not (c in chosen):
+					chosen.append(c)
+					break
+		# Fill any remaining slots with the strongest unchosen candidates.
+		for c: Dictionary in candidates:
+			if chosen.size() >= cap:
+				break
+			if not (c in chosen):
+				chosen.append(c)
+		for c: Dictionary in chosen:
+			combined.add_passive(str(c["name"]), float(c["value"]))
+
+	# Description is always rebuilt from the resolved passive lines so a fused
+	# item spells out what each of its passives actually does at its rolled
+	# value (2026-08-02 — it used to just list the names).
+	combined.description = "\n".join(combined.get_passive_lines())
 
 	return combined

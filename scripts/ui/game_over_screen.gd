@@ -9,13 +9,22 @@ var _dmg_lbl:     Label
 var _kills_lbl:   Label
 var _title_lbl:   Label
 var _subtitle_lbl: Label
+var _verdict_lbl: Label
 var _panel: Panel
+
+# Empty verdict just hides the line, so callers that don't supply one are safe.
+func _set_verdict(verdict: String) -> void:
+	if not _verdict_lbl:
+		return
+	_verdict_lbl.text = verdict
+	_verdict_lbl.visible = verdict != ""
 
 func _ready() -> void:
 	_build_ui()
 
 func show_defeat(crystals: int, rounds_survived: int,
-		total_damage: int, kills: int) -> void:
+		total_damage: int, kills: int, verdict: String = "") -> void:
+	_set_verdict(verdict)
 	_title_lbl.text    = "☠  DEFEATED"
 	_title_lbl.add_theme_color_override("font_color", Color(0.95, 0.3, 0.3))
 	_subtitle_lbl.text = "Your heroes have fallen. Gold and heroes are lost."
@@ -29,7 +38,8 @@ func show_defeat(crystals: int, rounds_survived: int,
 	visible = true
 
 func show_victory(crystals: int, rounds_cleared: int,
-		total_damage: int, kills: int) -> void:
+		total_damage: int, kills: int, verdict: String = "") -> void:
+	_set_verdict(verdict)
 	_title_lbl.text    = "✦  VICTORY"
 	_title_lbl.add_theme_color_override("font_color", Color(1.0, 0.88, 0.2))
 	_subtitle_lbl.text = "Your heroes have triumphed! Crystals saved for the next run."
@@ -53,7 +63,7 @@ func _build_ui() -> void:
 	# ── Main panel ────────────────────────────────────────────────────────────
 	_panel = Panel.new()
 	var panel := _panel
-	panel.size = Vector2(560, 460)
+	panel.size = Vector2(560, 520)   # +60 for the after-action verdict line
 	# UI theme pass 2026-07-04: dobo card panel (retinted by show_defeat/show_victory).
 	panel.add_theme_stylebox_override("panel", UITheme.panel_box_tinted(Color(1.35, 0.75, 0.75)))
 	overlay.add_child(panel)
@@ -101,14 +111,21 @@ func _build_ui() -> void:
 	_kills_lbl = _lbl(panel, "Enemies Defeated:   0", 17, Color(0.8, 0.8, 0.9),
 		Vector2(80, 362), Vector2(400, 24))
 
+	# ── After-action verdict ──────────────────────────────────────────────────
+	# One sentence on HOW the last fight went, not just how much damage it did.
+	# Sits directly under the run stats because it's the line that explains them.
+	_verdict_lbl = _lbl(panel, "", 15, Color(1.0, 0.78, 0.45, 0.95),
+		Vector2(40, 396), Vector2(480, 48), true)
+	_verdict_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
 	# ── Tip ───────────────────────────────────────────────────────────────────
 	_lbl(panel, "Crystals carry over — spend them to unlock stronger heroes next run.",
-		13, Color(0.5, 0.55, 0.65, 0.7), Vector2(40, 394), Vector2(480, 22), true)
+		13, Color(0.5, 0.55, 0.65, 0.7), Vector2(40, 452), Vector2(480, 22), true)
 
 	# ── Return button ─────────────────────────────────────────────────────────
 	var btn := Button.new()
 	btn.text = "Return to Main Menu"
-	btn.position = Vector2(155, 420)
+	btn.position = Vector2(155, 478)
 	btn.size = Vector2(250, 44)
 	btn.add_theme_font_size_override("font_size", 18)
 	btn.add_theme_color_override("font_color", Color(0.9, 0.9, 1.0))

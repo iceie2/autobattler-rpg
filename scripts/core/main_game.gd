@@ -5,6 +5,7 @@ extends Node2D
 @onready var battle_grid_node = $BattleGrid
 @onready var auto_battle_manager_node = $AutoBattleManager
 @onready var background_layer = $Background
+var progression_rails: ProgressionRails
 
 # UI references
 @onready var gold_label = $UI/TopBar/GoldLabel
@@ -102,15 +103,40 @@ var enemy_units: Array = []
 var shop_open: bool = false
 var _ready_nudged: bool = false   # unspent-gold READY warning: armed once per prep
 var _panel_dragging: bool = false
+var _panel_drag_offset: Vector2 = Vector2.ZERO
 var _character_menu: CharacterMenu
 var _class_browser: ClassBrowser
 var _hero_shop: HeroShop
 var _level_up_screen: LevelUpScreen
 var _round_reward_screen: RoundRewardScreen
 var _pending_round_reward: Dictionary = {}
+# Heroes that fell this round. Their nodes are parked (invisible, off-grid, out
+# of player_units) rather than freed — _revive_downed_heroes brings them back at
+# REVIVE_HP_PCT, so a death costs you the round, never the hero (2026-07-24
+# design change). As of 2026-08-02 that revival happens at the START of the next
+# round, inside the row-bonus ceremony, instead of the instant the fight ends.
+var _downed_heroes: Array = []
+# Revived by the ceremony — skipped by the row heal so they land exactly on the
+# advertised 10%, instead of 10% + another 10-40% from their row bonus.
+var _just_revived: Array = []
+const REVIVE_HP_PCT := 0.10
+# Row bonuses measured at the end of the last round, paid out by
+# _play_round_start_ceremony at the start of this one.
+# Entries: {unit, heal:int, xp:float, front_t:float, revive:bool}
+var _pending_row_bonuses: Array = []
+var _ceremony_active: bool = false   # blocks prep input while the payout plays
+var _ceremony_skip: bool = false     # set by _input — snap everything to final values
+# Set when PLAYER_TURN arrives mid-ceremony; _enter_player_turn runs once the
+# ceremony finishes instead.
+var _player_turn_deferred: bool = false
 var _rolled_rewards: Dictionary = {}   # {difficulty: reward} — rolled once per round, shown in full
 var _wave_director := WaveDirector.new()   # wave specs + enemy creation (shared logic w/ arena)
 var _coin_system: GoldCoinSystem       # gold drops on the field (see gold_coin_system.gd)
+# Crystal + item drops (2026-07-21) — same physical toss/idle/vacuum/hover
+# model as gold coins, via the generic FieldDropSystem (see field_drop*.gd).
+var _crystal_drop_system: FieldDropSystem
+var _item_drop_system: FieldDropSystem
+const CRYSTAL_DROP_ICON: Texture2D = preload("res://assets/UI/generated/gem_label.png")
 
 # ── Combat-UI refresh throttle (perf fix 2026-07-04, see _on_unit_action) ──
 const COMBAT_UI_REFRESH_INTERVAL := 0.25
@@ -126,6 +152,8 @@ var _relic_screen: RelicScreen
 var _relic_inventory: RelicInventory
 var _relic_grid: GridContainer = null      # RELICS section in the left sidebar
 var _relic_heading: Control = null
+var _sell_zone: Panel = null               # drag-a-hero-here-to-sell drop target
+var _sell_zone_label: Label = null
 var _bench_grid: GridContainer = null      # BENCH section in the left sidebar
 var _bench_heading: Label = null
 var _hydra_element_screen: HydraElementScreen
@@ -134,6 +162,13 @@ var _hydra_element_screen: HydraElementScreen
 var _run_kills: int = 0
 # Which relic-waves (1/11/21) have already handed out their pick this run.
 var _relic_waves_done: Dictionary = {}
+# Which merchant rounds (ShopGenerator.MERCHANT_ROUNDS) have already opened the
+# event shop this run — one visit per merchant round.
+var _shop_rounds_done: Dictionary = {}
+var _shop_screen: ShopScreen
+# Live reference to the open shop's stock (same Array the screen holds/mutates),
+# so buy handlers can read each slot's price by index.
+var _shop_stock: Array = []
 # The player's pre-battle element pick for the wave-30 Hydra (a UnitBase.Element
 # value); -1 = not chosen yet this run (defaults to Normal — see
 # WaveScaler.boss_code_for). Picked once, right before the wave-30 fight.
@@ -167,6 +202,13 @@ var _item_tip_stats_vb:  VBoxContainer = null
 var _item_tip_passive_lbl:  Label = null
 var _item_tip_passive_desc: Label = null
 var _item_tip_hint_lbl:     Label = null   # optional footer, e.g. "Click to unequip"
+
+var _relic_tip_layer: CanvasLayer = null
+var _relic_tip:          PanelContainer = null
+var _relic_tip_name_lbl: Label = null
+var _relic_tip_desc_lbl: Label = null
+const RELIC_TIP_NAME_FONT_SIZE := 30
+const RELIC_TIP_DESC_FONT_SIZE := 28
 var _badge_tip_active: bool = false   # item tooltip is currently shown by a board badge hover
 # Bag drag-to-equip state
 var _drag_candidate: EquipmentItem = null
@@ -246,6 +288,7 @@ func save_run() -> void:
 		"event_team_size": _event_team_size_bonus,
 		"relics": _relic_inventory.owned.duplicate(true),
 		"relic_waves_done": _relic_waves_done.duplicate(),
+		"shop_rounds_done": _shop_rounds_done.duplicate(),
 		"hydra_element": _hydra_chosen_element,
 		"hydra_chosen": _hydra_element_chosen,
 		"call_pending": _call_to_arms_pending,
@@ -269,6 +312,7 @@ func _resume_run() -> void:
 	_relic_inventory.owned = d.get("relics", [])
 	_relic_inventory._next_acq = _relic_inventory.owned.size()
 	_relic_waves_done = d.get("relic_waves_done", {})
+	_shop_rounds_done = d.get("shop_rounds_done", {})
 	_hydra_chosen_element = int(d.get("hydra_element", -1))
 	_hydra_element_chosen = bool(d.get("hydra_chosen", false))
 	_call_to_arms_pending = bool(d.get("call_pending", false))
@@ -330,7 +374,11 @@ func _restore_hero(d: Dictionary) -> void:
 	if _relic_inventory:
 		_relic_inventory.apply_all_to_unit(u)
 	for idict in d.get("equipment", []):
-		_equipment_inventory.apply_to_hero(_item_from_dict(idict), u)
+		var saved_item := _item_from_dict(idict)
+		# If the slot cap shrank since the save (e.g. a crystal respec), the
+		# overflow goes back to the bag instead of vanishing.
+		if not _equipment_inventory.apply_to_hero(saved_item, u):
+			_equipment_inventory.add_item(saved_item)
 	u.max_hp = int(d["max_hp"]);        u.current_hp = int(d["current_hp"])
 	u.max_mana = int(d["max_mana"]);    u.current_mana = int(d["current_mana"])
 	u.attack_damage = int(d["atk"]);    u.magic_power = int(d["magic"])
@@ -374,7 +422,7 @@ func _item_to_dict(it: EquipmentItem) -> Dictionary:
 	return {
 		"id": it.id, "name": it.name, "description": it.description,
 		"rarity": int(it.rarity), "stat_bonus": it.stat_bonus.duplicate(),
-		"passive_effect": it.passive_effect, "effect_value": it.effect_value,
+		"passives": it.passives.duplicate(true),
 		"icon_color": it.icon_color,
 	}
 
@@ -383,8 +431,11 @@ func _item_from_dict(d: Dictionary) -> EquipmentItem:
 	it.id = str(d.get("id", ""))
 	it.description = str(d.get("description", ""))
 	it.stat_bonus = d.get("stat_bonus", {})
-	it.passive_effect = str(d.get("passive_effect", ""))
-	it.effect_value = float(d.get("effect_value", 0.0))
+	if d.has("passives"):
+		for p in d["passives"]:
+			it.add_passive(str(p["name"]), float(p["value"]))
+	elif str(d.get("passive_effect", "")) != "":
+		it.add_passive(str(d.get("passive_effect", "")), float(d.get("effect_value", 0.0)))
 	it.icon_color = d.get("icon_color", Color.WHITE)
 	return it
 
@@ -401,11 +452,20 @@ func _center_battlefield() -> void:
 	var origin   := Vector2(origin_x, origin_y).round()
 	background_layer.position = origin
 	battle_grid_node.position = origin
+	if progression_rails:
+		progression_rails.position = origin
 
 func initialize_game_components() -> void:
 	# Create and attach GameState
 	game_state = GameState.new()
 	game_state_node.add_child(game_state)
+
+	# Journey rails in the strips either side of the arena (biome progress on the
+	# left, waves-within-biome on the right). Added here rather than in the scene
+	# so it lands after Background in tree order and draws over the biome art.
+	progression_rails = ProgressionRails.new()
+	progression_rails.name = "ProgressionRails"
+	add_child(progression_rails)
 	
 	# Create and attach BattleGrid
 	battle_grid = BattleGrid.new()
@@ -436,6 +496,18 @@ func initialize_game_components() -> void:
 	_coin_system.battle_grid = battle_grid
 	_coin_system.coin_collected.connect(_on_coin_collected)
 
+	# Crystal + item drops (2026-07-21) — physical field pickups, same model as
+	# gold coins above.
+	_crystal_drop_system = FieldDropSystem.new()
+	_crystal_drop_system.name = "CrystalDropSystem"
+	battle_grid_node.add_child(_crystal_drop_system)
+	_crystal_drop_system.item_collected.connect(_on_crystal_drop_collected)
+
+	_item_drop_system = FieldDropSystem.new()
+	_item_drop_system.name = "ItemDropSystem"
+	battle_grid_node.add_child(_item_drop_system)
+	_item_drop_system.item_collected.connect(_on_item_drop_collected)
+
 	# Create and attach AutoBattleManager
 	auto_battle_manager = AutoBattleManager.new()
 	auto_battle_manager_node.add_child(auto_battle_manager)
@@ -451,6 +523,7 @@ func connect_signals() -> void:
 	game_state.state_changed.connect(_on_state_changed)
 	game_state.battle_round_started.connect(_on_battle_round_started)
 	game_state.battle_round_started.connect(func(round_num): background_layer.set_biome_from_round(round_num))
+	game_state.battle_round_started.connect(func(round_num): progression_rails.set_round(round_num))
 	game_state.player_leveled_up.connect(_on_player_leveled_up)
 	
 	# Battle manager signals
@@ -472,6 +545,7 @@ func connect_signals() -> void:
 	classes_btn.pressed.connect(_on_classes_pressed)
 	roster_btn.pressed.connect(_on_roster_pressed)
 	ready_btn.pressed.connect(_on_ready_pressed)
+	_build_intent_toggle()
 	details_close_btn.pressed.connect(_on_details_close_pressed)
 	unit_details_panel.gui_input.connect(_on_details_panel_input)
 	# Cache the action panel's stylebox so we can re-apply it after every offset
@@ -500,6 +574,7 @@ func connect_signals() -> void:
 	damage_meter_panel.gui_input.connect(_make_panel_drag_handler(damage_meter_panel))
 
 	_build_battle_controls()
+	_build_sell_zone()
 
 	var cm_scene := load("res://scenes/character_menu.tscn") as PackedScene
 	_character_menu = cm_scene.instantiate() as CharacterMenu
@@ -520,6 +595,7 @@ func connect_signals() -> void:
 	add_child(_level_up_screen)
 
 	_round_reward_screen = RoundRewardScreen.new()
+	_round_reward_screen.layer = 3   # draws above the event shop (layer 2) for stat-buy picks
 	add_child(_round_reward_screen)
 
 	_equipment_inventory = EquipmentInventory.new()
@@ -537,6 +613,19 @@ func connect_signals() -> void:
 	_relic_screen = RelicScreen.new()
 	_relic_screen.chosen.connect(_on_relic_chosen)
 	add_child(_relic_screen)
+
+	# Event shop (2026-07-20). Its own CanvasLayer modal opened at merchant rounds.
+	# Layer 2 so the stat-buy "pick a hero" reward screen (layer 3 below) draws
+	# ON TOP of the open shop.
+	_shop_screen = ShopScreen.new()
+	_shop_screen.layer = 2
+	_shop_screen.buy_hero.connect(_on_shop_buy_hero)
+	_shop_screen.buy_stat.connect(_on_shop_buy_stat)
+	_shop_screen.buy_item.connect(_on_shop_buy_item)
+	_shop_screen.buy_relic.connect(_on_shop_buy_relic)
+	_shop_screen.reroll_requested.connect(_on_shop_screen_reroll)
+	_shop_screen.closed.connect(_on_shop_closed)
+	add_child(_shop_screen)
 
 	_hydra_element_screen = HydraElementScreen.new()
 	_hydra_element_screen.chosen.connect(_on_hydra_element_chosen)
@@ -633,6 +722,25 @@ func _on_player_leveled_up(new_level: int) -> void:
 # Wave locking system
 var _current_wave_spec: Array = []  # locked enemy roster for this wave (before instantiation)
 var _locked_difficulty: int = -1    # locked difficulty for this wave (-1 = not locked yet)
+# Balance-baseline instrumentation (2026-08-03, see BALANCE_PLAN.md). Snapshotted
+# at run START (not at death) because the crystal wallet changes mid-run — asking
+# Progression at the game-over screen would report the post-run state and make
+# every entry self-referential. The difficulty trace records the player's actual
+# per-round risk appetite, which is a real input to the power curve here: Easy/
+# Normal/Hard is a per-wave choice with escalating round rewards, not a mode.
+var _run_start_nodes: int = 0
+var _run_start_spent: int = 0
+var _run_difficulty_choices: Array = []
+# One spec per difficulty, generated at most once per round (2026-07-27). Same
+# reasoning as _rolled_rewards below it: generate_wave_spec() ends in a
+# randi()%3 for enemy levels (WaveScaler.enemy_level_for_round), and it used to
+# be called fresh on every difficulty preview AND again on READY — so the wave
+# you positioned against was never quite the wave you fought (levels drifted by
+# up to ±2 after you committed). Caching makes the preview a promise while
+# leaving the difficulty CHOICE fully live: flipping difficulty still shows that
+# tier's real roster, it just stops re-rolling the one you already saw.
+var _wave_specs: Dictionary = {}    # difficulty → spec Array, cleared each round
+var _intent_overlay: IntentOverlay = null   # prep-phase enemy intent arrows
 
 func start_new_game() -> void:
 	# Economy v3 (2026-07-03): 50 → 10 starting gold, heroes cost 10 — the whole
@@ -640,15 +748,23 @@ func start_new_game() -> void:
 	# 2026-07-10: Call to Arms (the crystal-shop tree's always-active root node)
 	# replaces the flat starting-gold baseline — every run now starts with 1
 	# free recruited hero instead of gold. Head Start pays after every ROUND
-	# now (2026-07-16 economy pair rework), so runs begin at 0 gold.
-	game_state.gold = 0
+	# now (2026-07-16 economy pair rework). 2026-08-01: the new "Starting Gold"
+	# upgrade (key "starting gold", distinct from Head Start's "starting_gold")
+	# is a genuine flat run-start bonus, so runs no longer strictly begin at 0.
+	game_state.gold = Progression.get_bonus("starting gold")
 	game_state.crystals = 0
 	_run_kills = 0
+	# Balance baseline (2026-08-03): snapshot meta investment before the run can
+	# change it. See BALANCE_PLAN.md — death wave is fitted against _run_start_nodes.
+	_run_start_nodes = Progression.nodes_owned()
+	_run_start_spent = Progression.total_spent()
+	_run_difficulty_choices = []
 	game_state.reset_player_level()
 	_event_team_size_bonus = 0
 	_recompute_max_player_units()
 	_relic_inventory = RelicInventory.new()
 	_relic_waves_done.clear()
+	_shop_rounds_done.clear()
 	_hydra_chosen_element = -1
 	_hydra_element_chosen = false
 	_rebuild_relic_bar()
@@ -719,15 +835,18 @@ func _on_state_changed(new_state: GameState.State) -> void:
 	
 	match new_state:
 		GameState.State.PLAYER_TURN:
-			_ready_nudged = false   # fresh prep phase — re-arm the unspent-gold warning
-			if not shop_open:
-				open_shop()
-			enable_unit_dragging(true)
-			background_layer.set_enemy_zone_visible(true)
-			info_label.text = "Your turn! Buy units, drag them to position (bottom 4 rows), and click READY."
+			# GameState flips to PLAYER_TURN the moment battle_round_started's
+			# handler yields, which is while the row-bonus ceremony is still
+			# playing. Hold the prep phase back until it's done — otherwise the
+			# shop pops over the heals and units are draggable mid-payout.
+			if _ceremony_active:
+				_player_turn_deferred = true
+			else:
+				_enter_player_turn()
 		GameState.State.AUTO_BATTLE:
 			enable_unit_dragging(false)
 			background_layer.set_enemy_zone_visible(false)
+			_set_intent_overlay(false)
 			info_label.text = "Auto battle in progress... No player actions allowed."
 			if _battle_controls:
 				_battle_controls.visible = true
@@ -741,14 +860,36 @@ func _on_state_changed(new_state: GameState.State) -> void:
 		_battle_controls.visible = false
 
 
+# The prep phase proper. Split out of _on_state_changed so the round-start
+# ceremony can hold it back and run it itself once the payout finishes.
+func _enter_player_turn() -> void:
+	_player_turn_deferred = false
+	_ready_nudged = false   # fresh prep phase — re-arm the unspent-gold warning
+	# A hero roll shouldn't survive into a new round (stats/economy have
+	# moved on) — see reopen()/has_pending_offer() in hero_shop.gd.
+	if _hero_shop:
+		_hero_shop.clear_offers()
+	if not shop_open:
+		open_shop()
+	enable_unit_dragging(true)
+	background_layer.set_enemy_zone_visible(true)
+	_set_intent_overlay(true)
+	info_label.text = "Your turn! Buy units, drag them to position (bottom 4 rows), and click READY."
+
+
 # ── BATTLE ROUND LIFECYCLE ─────────────────────────────────────────────────
 func _on_battle_round_started(round_number: int) -> void:
 	update_ui()
 	print("Battle round %d started!" % round_number)
+	# Pay out last round's row bonuses first — revives, heals, XP bars — before
+	# the new wave spawns and before any modal (relic / shop / hydra) opens.
+	# This awaits, so everything below happens once the ceremony is done.
+	await _play_round_start_ceremony()
 	# Generate and lock wave 1 at EASY difficulty
 	_locked_difficulty = WaveScaler.Difficulty.EASY
 	current_difficulty = WaveScaler.Difficulty.EASY
-	_current_wave_spec = _generate_wave_spec(_locked_difficulty)
+	_wave_specs.clear()   # fresh rolls for the new round; stable within it
+	_current_wave_spec = _wave_spec_for(_locked_difficulty)
 	_instantiate_wave_from_spec(_current_wave_spec)
 	# Roll this round's reward for ALL 3 difficulties up front and show them in
 	# full — the player picks a difficulty knowing exactly what they'd win, not
@@ -763,6 +904,7 @@ func _on_battle_round_started(round_number: int) -> void:
 		difficulty_panel.current_difficulty = current_difficulty
 		difficulty_panel.update_display(_all_difficulty_power(), _rolled_rewards)
 		difficulty_panel.set_panel_visible(true)
+		_refresh_wave_dossier()
 
 	if WaveScaler.is_boss_round(round_number):
 		info_label.text = "⚠ BOSS WAVE %d — a towering Hill Giant leads the assault. Prepare!" % round_number
@@ -777,6 +919,14 @@ func _on_battle_round_started(round_number: int) -> void:
 			_relic_screen.present(offers, round_number)
 		else:
 			_maybe_open_call_to_arms_picker()
+
+	# Event shop at the start of merchant rounds (ShopGenerator.MERCHANT_ROUNDS) —
+	# a modal over the prep phase, like the relic screen. Player shops, then
+	# positions/preps as normal, then hits READY. One visit per merchant round.
+	if ShopGenerator.is_merchant_round(round_number) and not _shop_rounds_done.has(round_number):
+		_shop_rounds_done[round_number] = true
+		_shop_stock = ShopGenerator.roll_stock(round_number, _relic_inventory.owned_ids())
+		_shop_screen.open(round_number, game_state.gold, _shop_stock)
 
 	# Hydra element pick at the start of wave 30 (the final boss) — a modal over
 	# the prep phase, same shape as the relic screen above. The pick is a
@@ -848,8 +998,11 @@ func _rebuild_relic_bar() -> void:
 		cs.set_border_width_all(2)
 		cs.set_corner_radius_all(5)
 		slot.add_theme_stylebox_override("panel", cs)
-		slot.tooltip_text = "%s  [%s-rank]\n%s" % [r.get("name", ""), grade, r.get("desc", "")]
 		slot.mouse_filter = Control.MOUSE_FILTER_STOP
+		var relic_name: String = r.get("name", "")
+		var relic_desc: String = r.get("desc", "")
+		slot.mouse_entered.connect(func(): _show_relic_tooltip(relic_name, grade, relic_desc, get_viewport().get_mouse_position()))
+		slot.mouse_exited.connect(func(): _hide_relic_tooltip())
 
 		var icon_path: String = Relic.icon_path(r)
 		if icon_path != "":
@@ -924,6 +1077,75 @@ func _rebuild_bench_bar() -> void:
 			btn.disabled = true
 			btn.tooltip_text = "Empty bench slot — right-click a fielded hero to store it."
 		_bench_grid.add_child(btn)
+
+# ── Drag-to-sell drop zone (2026-07-24) ───────────────────────────────────────
+# A bottom-centre target that only appears while you're dragging a fielded hero
+# during prep. VisualUnit hit-tests it on drop and calls _sell_fielded_hero.
+const SELL_ZONE_SIZE := Vector2(300, 96)
+
+func _build_sell_zone() -> void:
+	_sell_zone = Panel.new()
+	_sell_zone.name = "SellZone"
+	_sell_zone.size = SELL_ZONE_SIZE
+	_sell_zone.add_theme_stylebox_override("panel", UITheme.panel_box())
+	_sell_zone.visible = false
+	# Never eat mouse input — the hero being dragged owns the cursor, and this
+	# is polled by rect test, not by clicks.
+	_sell_zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	$UI.add_child(_sell_zone)
+
+	_sell_zone_label = Label.new()
+	_sell_zone_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_sell_zone_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sell_zone_label.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
+	_sell_zone_label.add_theme_font_size_override("font_size", UITheme.body_font(22))
+	_sell_zone_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	_sell_zone_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sell_zone_label.text = "SELL  +%dg" % Balance.SELL_REFUND
+	_sell_zone.add_child(_sell_zone_label)
+
+	_position_sell_zone()
+	# Register with VisualUnit — one shared target for every hero on the board.
+	VisualUnit.sell_zone = _sell_zone
+	VisualUnit.sell_handler = _sell_fielded_hero
+
+func _position_sell_zone() -> void:
+	if not _sell_zone:
+		return
+	var vp := get_viewport_rect().size
+	_sell_zone.position = Vector2((vp.x - SELL_ZONE_SIZE.x) / 2.0, vp.y - SELL_ZONE_SIZE.y - 24.0)
+
+# Called by VisualUnit when a hero is dropped on the sell zone.
+func _sell_fielded_hero(unit: VisualUnit) -> void:
+	if _sell_zone:
+		_sell_zone.visible = false
+	if not (unit and is_instance_valid(unit)):
+		return
+	# Guard rails: prep phase only, and never sell your last hero — that would
+	# be an unrecoverable board (READY refuses an empty team anyway).
+	if game_state.current_state != GameState.State.PLAYER_TURN:
+		info_label.text = "You can only sell heroes between rounds."
+		unit._snap_to_grid_cell()
+		return
+	if player_units.size() <= 1 and bench_units.is_empty():
+		info_label.text = "Can't sell your last hero!"
+		unit._snap_to_grid_cell()
+		return
+
+	var nm := unit.unit_name
+	if _equipment_inventory:
+		_equipment_inventory.return_all_from_hero(unit)   # gear returns to the bag, never lost
+	battle_grid.remove_unit(unit.grid_position)
+	player_units.erase(unit)
+	_downed_heroes.erase(unit)
+	unit.queue_free()
+	game_state.add_gold(Balance.SELL_REFUND)
+	info_label.text = "Sold %s for %dg." % [nm, Balance.SELL_REFUND]
+	_rebuild_inventory_grid()
+	_rebuild_synergy_display()
+	update_team_health_bars()
+	update_ui()
+	save_run()
 
 func _on_battle_started() -> void:
 	if difficulty_panel:
@@ -1005,6 +1227,89 @@ func _on_difficulty_panel_selected(diff: int) -> void:
 	# Preview only — show what enemies would spawn at this difficulty, but don't lock it
 	spawn_enemies(current_difficulty)
 	difficulty_panel.update_display(_all_difficulty_power(), _rolled_rewards)
+	_refresh_wave_dossier()
+
+# Prep-phase readout of what the player is about to fight — the wave's name plus
+# a melee/ranged/support/large breakdown of the roster actually on the grid.
+# Re-run on every difficulty change: harder tiers add bodies, so the composition
+# the player is reading has to be the composition they'll face.
+# ── Enemy intent arrows ───────────────────────────────────────────────────────
+# Read-only prep-phase overlay (see intent_overlay.gd), behind a player toggle
+# that DEFAULTS OFF: a board full of arrows is exactly the help some players want
+# and exactly the clutter others don't, so it's opt-in and remembered.
+# Two independent conditions gate it — the prep phase (arrows are meaningless
+# once units move and taunts override nearest-target) and the player's setting.
+const SETTINGS_PATH := "user://settings.json"
+
+var _show_intent_arrows: bool = false
+var _in_prep_phase: bool = false
+var _intent_toggle: CheckButton = null
+
+func _build_intent_toggle() -> void:
+	_show_intent_arrows = bool(_load_settings().get("intent_arrows", false))
+	var vbox: Node = ready_btn.get_parent()
+	if vbox == null:
+		return
+	_intent_toggle = CheckButton.new()
+	_intent_toggle.text = "Enemy Targets"
+	_intent_toggle.tooltip_text = \
+			"Show which hero each enemy will attack first. Updates as you reposition."
+	_intent_toggle.button_pressed = _show_intent_arrows
+	_intent_toggle.toggled.connect(_on_intent_toggled)
+	# Parented to the legacy ActionPanel shell like the other action buttons;
+	# _build_left_panel reparents the whole group into the real sidebar.
+	vbox.add_child(_intent_toggle)
+
+func _on_intent_toggled(pressed: bool) -> void:
+	_show_intent_arrows = pressed
+	_save_setting("intent_arrows", pressed)
+	_refresh_intent_overlay()
+	if _intent_toggle:
+		_intent_toggle.release_focus()
+
+# Called on prep/battle transitions; the overlay itself is created lazily so a
+# player who never turns it on never pays for it.
+func _set_intent_overlay(on: bool) -> void:
+	_in_prep_phase = on
+	_refresh_intent_overlay()
+
+func _refresh_intent_overlay() -> void:
+	var want: bool = _in_prep_phase and _show_intent_arrows
+	if _intent_overlay == null:
+		if not want:
+			return
+		_intent_overlay = IntentOverlay.new()
+		battle_grid_node.add_child(_intent_overlay)
+	_intent_overlay.enemies = enemy_units
+	_intent_overlay.players = player_units
+	_intent_overlay.battle_manager = auto_battle_manager
+	_intent_overlay.set_active(want)
+
+# ── Settings (shared file with main_menu.gd's window mode) ────────────────────
+# Read-modify-write so the two writers never clobber each other's keys.
+func _load_settings() -> Dictionary:
+	if not FileAccess.file_exists(SETTINGS_PATH):
+		return {}
+	var f := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
+	if f == null:
+		return {}
+	var parsed = JSON.parse_string(f.get_as_text())
+	return parsed if parsed is Dictionary else {}
+
+func _save_setting(key: String, value) -> void:
+	var d: Dictionary = _load_settings()
+	d[key] = value
+	var f := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(d))
+
+func _refresh_wave_dossier() -> void:
+	if not difficulty_panel:
+		return
+	var round: int = game_state.battle_round
+	difficulty_panel.set_dossier(
+			WaveData.name_for(round),
+			WaveScaler.threat_profile(_wave_spec_for(current_difficulty)))
 
 # Power for all 3 difficulties at once (dry-run — no units touch the battlefield)
 # so the panel can show every option side by side instead of just the active preview.
@@ -1034,6 +1339,115 @@ func _vacuum_all_coins() -> void:
 	if _coin_system:
 		_coin_system.vacuum_all(gold_label.get_global_rect().get_center())
 
+# ── Crystal + item drops (2026-07-21) ─────────────────────────────────────────
+# Same pattern as gold coins above, via the generic FieldDropSystem: spawn a
+# physical drop on kill, credit/add it only when the drop actually arrives
+# (hover-collected early, or swept up by the round-end vacuum).
+func _on_crystal_drop_collected(payload) -> void:
+	game_state.add_crystals(int(payload))
+	update_ui()
+
+func _on_item_drop_collected(payload) -> void:
+	var item: EquipmentItem = payload
+	if item and _equipment_inventory:
+		_equipment_inventory.add_item(item)
+		info_label.text = "%s (%s) added to your bag!" % [item.name, item.get_rarity_name()]
+		_rebuild_inventory_grid()
+
+func _vacuum_all_crystals() -> void:
+	if _crystal_drop_system:
+		_crystal_drop_system.vacuum_all(crystals_label.get_global_rect().get_center())
+
+# Items vacuum toward the bag grid if it's open and on screen; otherwise toward
+# the info label, where the "item added" message shows up anyway.
+func _item_drop_target() -> Vector2:
+	if _inventory_grid and _inventory_grid.is_visible_in_tree():
+		return _inventory_grid.get_global_rect().get_center()
+	return info_label.get_global_rect().get_center()
+
+func _vacuum_all_items() -> void:
+	if _item_drop_system:
+		_item_drop_system.vacuum_all(_item_drop_target())
+
+# ── After-action verdict (2026-07-27) ─────────────────────────────────────────
+# One sentence explaining how the fight actually went, from the per-hero rows
+# AutoBattleManager snapshots during combat. A defeat currently teaches nothing:
+# the run just ends on a stats screen that says how much damage you dealt, never
+# why it wasn't enough.
+#
+# The checks are ordered by how actionable they are. Arena measurement found the
+# top cause of losses is defeat-in-detail — heroes engaging piecemeal while the
+# front line dies alone — which a damage total cannot show (a hero idle for 8s
+# then finally swinging looks perfectly healthy in a damage column). So
+# never-engaged and late-engaged are tested first, and only then the
+# one-hero-carried-everything case.
+const AA_LATE_JOIN_SECONDS := 4.0     # spread before a team reads as piecemeal
+const AA_CARRY_SHARE := 0.55          # damage share before one hero "carried it"
+
+# Damage the team dealt in the battle just fought, from the manager's snapshot.
+# Summing player_units instead (as the run-summary used to) UNDER-REPORTS: dead
+# heroes are erased from that array, so a defeat — where every hero is dead —
+# always reported 0 total damage on the game-over screen.
+func _last_battle_damage() -> int:
+	var total: int = 0
+	if auto_battle_manager:
+		for r: Dictionary in auto_battle_manager.after_action_rows():
+			total += int(r.get("damage", 0))
+	return total
+
+# Hero classes still fielded when the run ended (2026-08-03, balance baseline).
+# Names, not enum ints, so the log stays readable if the enum is ever reordered.
+# Dead heroes are already gone from player_units, so this is the survivors —
+# which is the honest answer to "what was still standing when the run ended".
+func _run_team_classes() -> Array:
+	var out: Array = []
+	for u in player_units:
+		if is_instance_valid(u):
+			out.append(UnitBase.UnitClass.keys()[u.unit_class])
+	return out
+
+func _build_after_action_verdict() -> String:
+	var rows: Array = auto_battle_manager.after_action_rows() if auto_battle_manager else []
+	if rows.size() < 2:
+		return ""
+	var never: Array = []
+	var firsts: Array = []
+	var total: int = 0
+	var best_name: String = ""
+	var best_dmg: int = -1
+	for r: Dictionary in rows:
+		var f: float = float(r.get("first", -1.0))
+		var d: int = int(r.get("damage", 0))
+		total += d
+		if f < 0.0: never.append(String(r.get("name", "?")))
+		else:       firsts.append(f)
+		if d > best_dmg:
+			best_dmg = d
+			best_name = String(r.get("name", "?"))
+
+	# Every line below is a plain FACT about the fight. Deliberately no causal
+	# claims ("your line fought piecemeal", "they never reached the fight"):
+	# arena traces showed the obvious explanations don't hold up — heroes engage
+	# within ~2s in both winning and losing formations, and damage-absorbed
+	# concentration is HIGHER in the formation that wins. Asserting a cause we
+	# haven't verified would teach players the wrong lesson with full confidence.
+	var share: int = int(round(float(best_dmg) / float(maxi(total, 1)) * 100.0))
+	if never.size() >= 2:
+		return "%d of your heroes never landed a blow this fight." % never.size()
+	if never.size() == 1:
+		return "%s never landed a blow this fight." % never[0]
+	if firsts.size() >= 2:
+		firsts.sort()
+		var spread: float = firsts[firsts.size() - 1] - firsts[0]
+		if spread >= AA_LATE_JOIN_SECONDS:
+			return "Your last hero joined the fight %.1fs after the first." % spread
+	if total > 0 and float(best_dmg) / float(total) >= AA_CARRY_SHARE:
+		return "%s dealt %d%% of your damage." % [best_name, share]
+	if total > 0:
+		return "%s led your damage with %d%% — the rest was spread across the team." \
+				% [best_name, share]
+	return ""
+
 func _on_battle_ended(player_won: bool) -> void:
 	# Strip the battle-only synergy bonuses first so between-round stats/displays
 	# show base values (they recompute fresh next fight).
@@ -1043,13 +1457,13 @@ func _on_battle_ended(player_won: bool) -> void:
 		if game_state.battle_round >= VICTORY_ROUND:
 			Progression.add_crystals(game_state.crystals)
 			RunSave.clear()
-			var total_dmg := 0
-			for pu in player_units:
-				if pu and is_instance_valid(pu):
-					total_dmg += pu.damage_dealt
-			RunHistory.record(true, game_state.battle_round, _run_kills, total_dmg, game_state.crystals)
+			var total_dmg := _last_battle_damage()
+			RunHistory.record(true, game_state.battle_round, _run_kills, total_dmg,
+					game_state.crystals, _run_start_nodes, _run_start_spent,
+					_run_difficulty_choices, _run_team_classes())
 			_game_over_screen.show_victory(
-				game_state.crystals, game_state.battle_round, total_dmg, _run_kills)
+				game_state.crystals, game_state.battle_round, total_dmg, _run_kills,
+				_build_after_action_verdict())
 			return
 
 		# Economy v3 (2026-07-03, per user): gold is now PHYSICAL — kills dropped
@@ -1061,7 +1475,14 @@ func _on_battle_ended(player_won: bool) -> void:
 		# Crystal-shop meta income (2026-07-16 pair rework): Head Start gold
 		# rains with the round-win coins; Crystal Tithe credits directly
 		# (crystals were never physical).
-		_spawn_coin_burst(ROUND_WIN_GOLD + relic_gold + Progression.get_bonus("starting_gold"))
+		# Interest (2026-08-03): 10% of gold on hand, capped — a save-vs-spend
+		# lever, so it is computed BEFORE the round's coins land rather than on
+		# top of them. Base cap 5 (so 50 gold earns the full amount); Deep
+		# Coffers raises the cap by 1 per node, to 15.
+		var interest: int = mini(int(floor(float(game_state.gold) * INTEREST_RATE)),
+			INTEREST_BASE_CAP + Progression.get_bonus("interest_cap"))
+		_spawn_coin_burst(ROUND_WIN_GOLD + relic_gold + interest
+			+ Progression.get_bonus("starting_gold"))
 		var tithe: int = Progression.get_bonus("crystal_per_round")
 		if tithe > 0:
 			game_state.add_crystals(tithe)
@@ -1075,41 +1496,52 @@ func _on_battle_ended(player_won: bool) -> void:
 					% [ROUND_WIN_GOLD + relic_gold + reward_gold, relic_gold, reward_gold]
 		else:
 			info_label.text = "Victory! Collecting the spoils..."
+		# Nudge on a WON round too, but only when the fight actually showed a
+		# problem — a run is ~29 wins to 1 loss, so waiting for the defeat screen
+		# would mean the report almost never teaches anything. The "engaged
+		# together" fallback is suppressed so this stays signal, not chatter.
+		var round_verdict: String = _build_after_action_verdict()
+		if round_verdict != "" and not round_verdict.contains("spread across the team"):
+			info_label.text += "  " + round_verdict
 		clear_enemy_units()
 		_despawn_summons()
+		# Row bonuses are measured off the positions that were just fought in, but
+		# paid out at the START of the next round (_play_round_start_ceremony) —
+		# revives, heals and XP bars all land there as one visible beat. Fallen
+		# heroes stay down through the shop; the ceremony stands them back up.
+		_snapshot_between_round_bonuses()
 		reset_player_positions()
-		_grant_between_round_bonuses()
-		# THE vacuum: every coin on the field spirals into the gold counter.
-		await get_tree().create_timer(0.7).timeout   # a beat to see the field of gold
+		# THE vacuum: everything left on the field — coins, crystals, items the
+		# player didn't already hover-collect mid-fight — spirals home.
+		await get_tree().create_timer(0.7).timeout   # a beat to see the field of loot
 		_vacuum_all_coins()
+		_vacuum_all_crystals()
+		_vacuum_all_items()
 	else:
 		# Save crystals earned this run to the persistent wallet
 		Progression.add_crystals(game_state.crystals)
 		RunSave.clear()
 
-		var total_dmg := 0
-		for pu in player_units:
-			if pu and is_instance_valid(pu):
-				total_dmg += pu.damage_dealt
+		var total_dmg := _last_battle_damage()
 
-		RunHistory.record(false, game_state.battle_round, _run_kills, total_dmg, game_state.crystals)
+		RunHistory.record(false, game_state.battle_round, _run_kills, total_dmg,
+				game_state.crystals, _run_start_nodes, _run_start_spent,
+				_run_difficulty_choices, _run_team_classes())
 		_game_over_screen.show_defeat(
 			game_state.crystals,       # earned this run
 			game_state.battle_round,
 			total_dmg,
-			_run_kills
+			_run_kills,
+			_build_after_action_verdict()
 		)
 		return
 
 	update_ui()
 	await get_tree().create_timer(2.0).timeout
 	await _grant_round_reward()
-	# Show level-up perk choices for any hero that leveled up this round
-	var leveled: Array = player_units.filter(
-		func(u): return u and is_instance_valid(u) and u.perk_points > 0)
-	if not leveled.is_empty():
-		_level_up_screen.present(leveled)
-		await _level_up_screen.all_done
+	# NOTE: level-up perk choices used to be presented here. XP is no longer
+	# granted at round end — it's paid out by the round-start ceremony, so the
+	# perk screen follows it there (see _play_round_start_ceremony).
 	game_state.start_battle_round()
 
 # Grants the reward rolled at "Ready for Battle" time for the round that was
@@ -1362,18 +1794,117 @@ func _on_shop_reroll() -> void:
 	else:
 		info_label.text = "Not enough gold to reroll."
 
+# ── EVENT SHOP (merchant-round modal, 2026-07-20) ──────────────────────────────
+# Each buy handler is charged the slot's pre-rolled price (read from _shop_stock
+# by index), fulfils the purchase, then tells the screen to mark that slot SOLD.
+# A purchase that can't complete (e.g. hero with no roster room) refunds and does
+# NOT mark the slot, so it stays buyable.
+func _shop_price(idx: int) -> int:
+	if idx < 0 or idx >= _shop_stock.size():
+		return -1
+	return int(_shop_stock[idx].get("price", 0))
+
+func _on_shop_buy_hero(idx: int, cls: int, element: int, rolls: Dictionary) -> void:
+	var price := _shop_price(idx)
+	if price < 0:
+		return
+	if not game_state.spend_gold(price):
+		info_label.text = "Not enough gold!"
+		return
+	if not _recruit_hero(cls, element, rolls):
+		game_state.add_gold(price)   # refund — field AND bench are full
+		info_label.text = "No room — field and bench are full!"
+		return
+	_shop_screen.mark_sold(idx)
+	_shop_screen.refresh(game_state.gold)
+	update_ui()
+	save_run()
+
+func _on_shop_buy_stat(idx: int, perk: Dictionary) -> void:
+	var price := _shop_price(idx)
+	if price < 0:
+		return
+	var alive_units: Array = player_units.filter(
+		func(u): return u and is_instance_valid(u))
+	if alive_units.is_empty():
+		info_label.text = "You need a hero to receive the bonus!"
+		return
+	if not game_state.spend_gold(price):
+		info_label.text = "Not enough gold!"
+		return
+	_shop_screen.mark_sold(idx)
+	_shop_screen.refresh(game_state.gold)
+	# Reuse the round-reward "pick which hero" screen (layer 3 → draws over the
+	# shop). The perk is already fully rolled, so there's only the unit to choose.
+	_round_reward_screen.present({"type": RoundReward.Type.STAT_BONUS, "perk": perk}, alive_units)
+	await _round_reward_screen.done
+	update_ui()
+	save_run()
+
+func _on_shop_buy_item(idx: int, item: EquipmentItem) -> void:
+	var price := _shop_price(idx)
+	if price < 0:
+		return
+	if not game_state.spend_gold(price):
+		info_label.text = "Not enough gold!"
+		return
+	_equipment_inventory.add_item(item)
+	_shop_screen.mark_sold(idx)
+	_shop_screen.refresh(game_state.gold)
+	info_label.text = "Bought %s — equip it from the Equipment panel." % item.name
+	update_ui()
+	save_run()
+
+func _on_shop_buy_relic(idx: int, relic: Dictionary) -> void:
+	var price := _shop_price(idx)
+	if price < 0:
+		return
+	if not game_state.spend_gold(price):
+		info_label.text = "Not enough gold!"
+		return
+	_on_relic_chosen(relic)   # stores + applies retroactively (also saves/updates UI)
+	_shop_screen.mark_sold(idx)
+	_shop_screen.refresh(game_state.gold)
+
+func _on_shop_screen_reroll() -> void:
+	var cost := _shop_screen.current_reroll_cost()
+	if not game_state.spend_gold(cost):
+		info_label.text = "Not enough gold to reroll."
+		return
+	_shop_stock = ShopGenerator.roll_stock(game_state.battle_round, _relic_inventory.owned_ids())
+	_shop_screen.set_stock(game_state.gold, _shop_stock)
+	update_ui()
+
+func _on_shop_closed() -> void:
+	update_ui()
+	save_run()
+
 func _on_spawn_hero_pressed() -> void:
 	if not shop_open:
 		info_label.text = "Shop is closed!"
 		return
-	if game_state.gold < HeroShop.HERO_COST:
+	# Cancel doesn't discard your paid roll anymore (2026-07-24 user request):
+	# if you already rolled this prep phase and just backed out to check your
+	# field/bag, pressing Buy Hero again re-shows those SAME 3 offers for free
+	# instead of charging you again or silently re-rolling. Only a genuinely
+	# fresh roll (no pending offer) charges HERO_COST. clear_offers() (called
+	# from _on_hero_chosen and on prep-phase start) is what ends a pending
+	# roll, so it can't be reused across a pick or into the next round.
+	if _hero_shop.has_pending_offer():
+		_hero_shop.reopen(game_state.gold)
+		return
+	if not game_state.spend_gold(HeroShop.HERO_COST):
 		info_label.text = "Not enough gold! Need %d gold." % HeroShop.HERO_COST
 		return
 	var shop_slots: int = 3 + (_relic_inventory.shop_slot_bonus() if _relic_inventory else 0)
 	_hero_shop.open(game_state.gold, shop_slots)
+	update_ui()
 
 func _apply_progression_bonuses(unit: VisualUnit) -> void:
-	var hp_bonus: int = Progression.get_bonus("team_hp")
+	# 2026-08-01: every stat below now sums its tier-1 AND tier-2 (independent
+	# second copy, see progression.gd's "_2" upgrade family) upgrade levels —
+	# the two tracks stack additively rather than one extending the other.
+	var hp_bonus: int = Progression.get_bonus("team_hp") + Progression.get_bonus("team_hp_2")
 	if hp_bonus > 0:
 		unit.max_hp += hp_bonus
 		unit.current_hp += hp_bonus
@@ -1382,20 +1913,38 @@ func _apply_progression_bonuses(unit: VisualUnit) -> void:
 	# team_hp above. elemental_attunement is the one exception: it's read live
 	# from UnitFactory.natural_aspect() instead of applied here, since that's
 	# a multiplier computed fresh every time a skill fires, not a base stat.
-	var mana_bonus: int = Progression.get_bonus("mana_well")
+	var mana_bonus: int = Progression.get_bonus("mana_well") + Progression.get_bonus("mana_well_2")
 	if mana_bonus > 0:
 		unit.max_mana += mana_bonus
 		unit.current_mana += mana_bonus
-	unit.magic_power    += Progression.get_bonus("spellpower")
-	unit.attack_damage   += Progression.get_bonus("might")
-	unit.resistance       += Progression.get_bonus("bulwark")   # defense split 2026-07-16
-	unit.magic_resist     += Progression.get_bonus("warding")
-	unit.attack_speed     += Progression.get_bonus_float("fleetfoot")
-	unit.hp_regen         += Progression.get_bonus_float("vitality_flow")
-	unit.mana_regen       += Progression.get_bonus_float("mana_flow")
-	unit.movement_speed   += Progression.get_bonus("swiftness")
-	unit.crit_chance      += float(Progression.get_bonus("lethality")) / 100.0
-	unit.crit_damage      += float(Progression.get_bonus("killing_blow")) / 100.0
+	unit.magic_power    += Progression.get_bonus("spellpower") + Progression.get_bonus("spellpower_2")
+	unit.attack_damage   += Progression.get_bonus("might") + Progression.get_bonus("might_2")
+	unit.resistance       += Progression.get_bonus("bulwark") + Progression.get_bonus("bulwark_2")   # defense split 2026-07-16
+	unit.magic_resist     += Progression.get_bonus("warding") + Progression.get_bonus("warding_2")
+	unit.attack_speed     += Progression.get_bonus_float("fleetfoot") + Progression.get_bonus_float("fleetfoot_2")
+	unit.hp_regen         += Progression.get_bonus_float("vitality_flow") + Progression.get_bonus_float("vitality_flow_2")
+	unit.mana_regen       += Progression.get_bonus_float("mana_flow") + Progression.get_bonus_float("mana_flow_2")
+	unit.movement_speed   += Progression.get_bonus("swiftness") + Progression.get_bonus("swiftness_2")
+	unit.crit_chance      += float(Progression.get_bonus("lethality") + Progression.get_bonus("lethality_2")) / 100.0
+	unit.crit_damage      += float(Progression.get_bonus("killing_blow") + Progression.get_bonus("killing_blow_2")) / 100.0
+
+	# Elemental defensive affinity (2026-08-03, the per-element grids on every
+	# spoke). Applied per ATTACKING element rather than as a flat block: buying
+	# the fire grid makes the whole team take less damage FROM fire, which is
+	# what the per-element dictionary already models. 100 is neutral and higher
+	# is tankier (see UnitBase.get_defense_multiplier), so these are +1 steps
+	# on that rating, 20 per element at full investment.
+	for e in UnitBase.Element.values():
+		var aff: int = Progression.get_bonus("def_affinity_%s" % _ELEMENT_KEY[e])
+		if aff > 0:
+			unit.defensive_affinity[e] = unit.defensive_affinity.get(e, 100.0) + float(aff)
+
+# Element enum -> the lowercase name used in crystal-tree keys.
+const _ELEMENT_KEY: Dictionary = {
+	UnitBase.Element.NORMAL: "normal", UnitBase.Element.FIRE: "fire",
+	UnitBase.Element.WATER: "water", UnitBase.Element.EARTH: "earth",
+	UnitBase.Element.AIR: "air", UnitBase.Element.LIGHTNING: "lightning",
+}
 
 func _on_hero_chosen(unit_class: UnitBase.UnitClass, element: UnitBase.Element, rolls: Dictionary) -> void:
 	if _awaiting_call_to_arms_pick:
@@ -1403,12 +1952,14 @@ func _on_hero_chosen(unit_class: UnitBase.UnitClass, element: UnitBase.Element, 
 		_recruit_hero(unit_class, element, rolls)   # free — field is guaranteed empty at run start
 		update_ui()
 		return
-	if not game_state.spend_gold(HeroShop.HERO_COST):
-		info_label.text = "Not enough gold!"
-		return
+	# HERO_COST was already paid in _on_spawn_hero_pressed when this roll was
+	# opened — picking one of the 3 offers is free, nothing to charge here.
+	# Either way this roll is now spent — clear it so the next Buy Hero press
+	# pays for and generates a genuinely fresh roll instead of re-showing these.
+	_hero_shop.clear_offers()
 	if not _recruit_hero(unit_class, element, rolls):
 		info_label.text = "Field AND bench are full!"
-		game_state.add_gold(HeroShop.HERO_COST)   # refund
+		game_state.add_gold(HeroShop.HERO_COST)   # refund the roll — no hero was actually gained
 		return
 	update_ui()
 	save_run()   # checkpoint: keep prep purchases if the player quits/crashes
@@ -1423,6 +1974,12 @@ func _recruit_hero(unit_class: UnitBase.UnitClass, element: UnitBase.Element, ro
 	var unit := UnitFactory.create_unit(unit_class, element, true)
 	UnitFactory.apply_recruit_rolls(unit, rolls)
 	_apply_progression_bonuses(unit)
+	# Veteran Recruits (2026-08-03): every hero joins above level 1. Applied
+	# after the stat bonuses so set_level() scales off the finished base, and
+	# clamped by the usual cap so it can't outrun Max Hero Level.
+	var start_level: int = 1 + Progression.get_bonus("hero_start_level")
+	if start_level > 1:
+		unit.set_level(mini(start_level, Progression.hero_level_cap()))
 	# Grant every relic picked so far to this new hire (each applies at most once).
 	if _relic_inventory:
 		_relic_inventory.apply_all_to_unit(unit)
@@ -1551,7 +2108,8 @@ func _maybe_open_call_to_arms_picker() -> void:
 		return
 	_call_to_arms_pending = false
 	_awaiting_call_to_arms_pick = true
-	_hero_shop.open(0, 3, true)
+	var shop_slots: int = 3 + (_relic_inventory.shop_slot_bonus() if _relic_inventory else 0)
+	_hero_shop.open(0, shop_slots, true)
 
 
 func _on_use_items_pressed() -> void:
@@ -1589,6 +2147,14 @@ func _choice_is_gain(effects: Dictionary) -> bool:
 	return true
 
 func _on_event_resolved() -> void:
+	# Events like "Invest in training" can grant perk points immediately
+	# (unlike XP from combat) — roll that level-up screen right now instead
+	# of leaving it queued until after the next round's battle ends.
+	var leveled: Array = player_units.filter(
+		func(u): return u and is_instance_valid(u) and u.perk_points > 0)
+	if not leveled.is_empty():
+		_level_up_screen.present(leveled)
+		await _level_up_screen.all_done
 	game_state.player_ready_for_battle()
 
 # Effect application, separated from the panel callback so the headless event
@@ -1660,6 +2226,7 @@ func _apply_event_effects(effects: Dictionary) -> String:
 			if unit and is_instance_valid(unit):
 				for _i in range(int(effects["max_level"])):
 					unit.level_up()
+					unit.perk_points += 1
 
 	# Gamble: 50/50 roll between the win and lose payouts.
 	if effects.has("gold_if_win") or effects.has("gold_if_lose"):
@@ -1692,7 +2259,10 @@ func _on_ready_pressed() -> void:
 
 	# Lock in the currently selected difficulty and generate+instantiate the final wave roster
 	_locked_difficulty = current_difficulty
-	_current_wave_spec = _generate_wave_spec(_locked_difficulty)
+	_run_difficulty_choices.append(_locked_difficulty)   # risk-appetite trace
+	# Reuse the spec the player has been looking at all prep phase — do NOT
+	# re-generate here (that was the ±2 level drift; see _wave_specs).
+	_current_wave_spec = _wave_spec_for(_locked_difficulty)
 	_instantiate_wave_from_spec(_current_wave_spec)
 
 	# Use the reward already rolled (and shown) for this difficulty when the
@@ -1702,7 +2272,7 @@ func _on_ready_pressed() -> void:
 
 	# Trigger random event between rounds (25% chance)
 	if randf() < 0.25 and game_state.battle_round > 1:
-		var event = EventGenerator.generate_event(game_state.battle_round)
+		var event = EventGenerator.generate_event(game_state.battle_round, game_state.gold)
 		_event_panel.show_event(event)
 	else:
 		game_state.player_ready_for_battle()
@@ -1892,10 +2462,27 @@ func _set_team_panel_content_visible(show: bool) -> void:
 		vbox.get_child(i).visible = show
 
 func _on_details_panel_input(event: InputEvent) -> void:
+	# Drag by grab-offset, not by accumulating event.relative: the panel keeps the
+	# exact point you grabbed under the cursor, so it can never "run away" from the
+	# mouse. Release is also handled globally in _input() — a mouse-up that lands
+	# outside the panel never reaches this gui_input handler, and before that the
+	# stuck _panel_dragging flag made the panel follow the cursor with no button held.
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_panel_dragging = event.pressed
+		if event.pressed:
+			_panel_drag_offset = unit_details_panel.global_position - get_viewport().get_mouse_position()
 	elif event is InputEventMouseMotion and _panel_dragging:
-		unit_details_panel.position += event.relative
+		_move_details_panel_to(get_viewport().get_mouse_position() + _panel_drag_offset)
+
+# Keep the panel inside the window so it can never be pushed off-screen and lost.
+func _move_details_panel_to(target: Vector2) -> void:
+	var view: Vector2 = get_viewport_rect().size
+	var psize: Vector2 = unit_details_panel.size
+	var keep: float = 120.0   # always leave this much of the panel grabbable
+	unit_details_panel.global_position = Vector2(
+		clampf(target.x, keep - psize.x, view.x - keep),
+		clampf(target.y, 0.0, view.y - keep)
+	)
 
 # Shop and spawning functions
 
@@ -1941,9 +2528,17 @@ func _generate_wave_spec(difficulty: int) -> Array:
 	return _wave_director.generate_wave_spec(
 			game_state.battle_round, difficulty, battle_grid.grid_width, _hydra_chosen_element)
 
+# This round's spec for `difficulty` — generated once, then reused for every
+# later preview and for the committed wave. See _wave_specs.
+func _wave_spec_for(difficulty: int) -> Array:
+	if not _wave_specs.has(difficulty):
+		_wave_specs[difficulty] = _generate_wave_spec(difficulty)
+	return _wave_specs[difficulty]
+
 func _estimate_wave_power(difficulty: int) -> float:
-	return _wave_director.estimate_wave_power(
-			game_state.battle_round, difficulty, battle_grid.grid_width, _hydra_chosen_element)
+	# Score the cached spec, so the number on the panel describes the roster the
+	# player can actually see on the grid (see _wave_specs).
+	return _wave_director.score_spec(_wave_spec_for(difficulty), game_state.battle_round)
 
 # Instantiate a wave spec onto the board. roll_item=false for the difficulty
 # preview (so scouting can't free-reroll held-item drops); true for the real
@@ -1962,9 +2557,9 @@ func _instantiate_wave_from_spec(spec: Array, roll_item: bool = true) -> void:
 			_place_enemy(unit, roll_item)
 
 func spawn_enemies(difficulty: int = WaveScaler.Difficulty.EASY) -> void:
-	# Difficulty PREVIEW — same spec generator as the real wave (so boss rounds and
-	# every difficulty preview exactly), but never rolls held items.
-	_instantiate_wave_from_spec(_generate_wave_spec(difficulty), false)
+	# Difficulty PREVIEW — the SAME cached spec the wave will actually use (so the
+	# preview is exact, not a fresh roll), but never rolls held items.
+	_instantiate_wave_from_spec(_wave_spec_for(difficulty), false)
 
 # Place any unit at an explicit grid position (respects cell_size for 2×2 units).
 # roll_item=false is used by the difficulty PREVIEW so switching difficulty back
@@ -1973,9 +2568,12 @@ func spawn_enemies(difficulty: int = WaveScaler.Difficulty.EASY) -> void:
 func _place_at(unit: VisualUnit, grid_pos: Vector2i, roll_item: bool = true) -> void:
 	unit.grid_position = grid_pos
 	var world := battle_grid.grid_to_world(grid_pos)
-	# 2×2 units: offset visual centre so sprite aligns to the middle of the 2×2 block
-	if unit.cell_size == 2:
-		world += Vector2(battle_grid.cell_size * 0.5, battle_grid.cell_size * 0.5)
+	# Multi-cell units: offset the visual centre onto the middle of their block.
+	# N×N formula (was hardcoded to 2×2) — same result at size 2, correct for the
+	# 3×3 Architect. Mirrors AutoBattleManager._world_pos_for.
+	if unit.cell_size > 1:
+		var off: float = battle_grid.cell_size * (unit.cell_size - 1) * 0.5
+		world += Vector2(off, off)
 	unit.position = world
 	battle_grid_node.add_child(unit)
 	if battle_grid.place_unit(unit, grid_pos):
@@ -1990,11 +2588,30 @@ func _place_at(unit: VisualUnit, grid_pos: Vector2i, roll_item: bool = true) -> 
 
 # Enemies can spawn already wielding a dropped item — stat bonuses apply for the
 # whole fight, and the exact same item drops on death (what you see is what you loot).
-const HELD_ITEM_BASE_CHANCE := 0.12
+# Gold interest (2026-08-03): a flat 10% of gold on hand at each round win,
+# capped so hoarding has a ceiling. Deep Coffers raises the cap, 5 -> 15.
+const INTEREST_RATE := 0.10
+const INTEREST_BASE_CAP := 5
+
+# Equipment volume nerf (2026-08-04, BALANCE_PLAN.md §1.7-1.8). Was 0.12 +
+# round*0.015, which hit 42% per enemy by round 20 and SATURATED AT 100% by
+# round 59 — a normal run banked enough commons to fuse ~4 Epics, and one Epic
+# is roughly an 8x DPS multiplier. Base and slope both cut ~3x, and the slope
+# specifically so the curve never saturates (round 100 tops out near 55%).
+# The base game is now deliberately loot-poor: the Armory spoke's loot nodes are
+# what RESTORE equipment volume, which is the whole point — power moves out of
+# free drops and into the crystal tree.
+const HELD_ITEM_BASE_CHANCE := 0.08
+const HELD_ITEM_CHANCE_PER_ROUND := 0.008
 func _roll_held_item(unit: VisualUnit) -> void:
 	if unit.is_player_unit:
 		return
-	var chance: float = HELD_ITEM_BASE_CHANCE + game_state.battle_round * 0.015
+	# Well Stocked (2026-08-03, Armory spoke): +3% per node that an enemy spawns
+	# carrying something at all. The rarity of what it carries is a separate
+	# pair of upgrades — see EquipmentManager._roll_rarity.
+	var chance: float = HELD_ITEM_BASE_CHANCE \
+		+ game_state.battle_round * HELD_ITEM_CHANCE_PER_ROUND \
+		+ float(Progression.get_bonus("loot_drop_chance")) / 100.0
 	if randf() >= chance:
 		return
 	var item := EquipmentManager.generate_item(game_state.battle_round, EquipmentItem.Rarity.RARE)
@@ -2073,6 +2690,33 @@ func clear_enemy_units() -> void:
 			unit.queue_free()
 	enemy_units.clear()
 
+# Bring every hero that fell this round back at REVIVE_HP_PCT (2026-07-24
+# design change: heroes are never permanently lost). Their nodes were parked
+# invisible by VisualUnit.die() rather than freed, so this restores the very
+# same object — level, XP, recruit rolls and equipment all survive untouched.
+# Runs on a WON round only; a lost round ends the run anyway.
+func _revive_downed_heroes() -> void:
+	_just_revived.clear()
+	for unit in _downed_heroes:
+		if not (unit and is_instance_valid(unit)):
+			continue
+		# Doc's Field Surgery may already have put this hero back on their feet
+		# mid-fight — don't yank a healthy survivor back down to 10%.
+		if unit.current_hp > 0:
+			continue
+		unit.revive(REVIVE_HP_PCT)
+		if unit not in player_units:
+			player_units.append(unit)
+		_just_revived.append(unit)
+	_downed_heroes.clear()
+	if not _just_revived.is_empty():
+		var names: Array[String] = []
+		for u in _just_revived:
+			names.append(u.unit_name)
+		_on_action_logged("Revived at %d%% HP: %s" % [
+				int(REVIVE_HP_PCT * 100.0), ", ".join(names)], true)
+	_rebuild_synergy_display()
+
 func reset_player_positions() -> void:
 	# Clear stale battle-manager path cache
 	auto_battle_manager.unit_paths.clear()
@@ -2113,7 +2757,19 @@ func reset_player_positions() -> void:
 
 
 # ── BETWEEN-ROUND BONUSES ──────────────────────────────────────────────────
-func _grant_between_round_bonuses() -> void:
+# Row bonuses are MEASURED here, at the end of the round that earned them, off
+# the positions the player actually fought in — but they are not applied yet
+# (2026-08-02 redesign). The heal and XP sit in _pending_row_bonuses until the
+# NEXT round opens, where _play_round_start_ceremony pays them out as a visible
+# beat: revives first, then healing numbers, then XP bars filling. Values are
+# unchanged from the old instant version; only the timing and staging moved.
+#
+# Heroes that fell this round are measured too (they're in _downed_heroes, not
+# player_units, since revival is deferred as well): they earn the XP their
+# damage bought, but no heal — the ceremony stands them up at exactly
+# REVIVE_HP_PCT, which is the whole point of the "a death costs you the round"
+# rule. That matches the old ordering, where _just_revived was heal-exempt.
+func _snapshot_between_round_bonuses() -> void:
 	# Player zone: y=5 (front, closest to middle) to y=8 (back, farthest from middle).
 	# Front row: 10% heal, +40% XP.  Back row: 40% heal, +10% XP.
 	const PLAYER_Y_FRONT   := 5          # grid row closest to the middle dividing line
@@ -2124,26 +2780,42 @@ func _grant_between_round_bonuses() -> void:
 	const XP_MULT_FRONT    := 1.40
 	const XP_PER_DMG       := 8          # 1 XP per N damage dealt
 
+	_pending_row_bonuses.clear()
+
+	var measured: Array = []
 	for unit in player_units:
+		measured.append(unit)
+	for unit in _downed_heroes:
+		if unit not in measured:
+			measured.append(unit)
+
+	for unit in measured:
 		if not (unit and is_instance_valid(unit)):
+			continue
+		# Summons don't survive the round (_despawn_summons), so there's nobody
+		# left to pay at ceremony time.
+		if unit.is_summoned:
 			continue
 
 		var row_y: int     = clampi(unit.home_position.y, PLAYER_Y_FRONT, PLAYER_Y_BACK)
 		# front_t 1.0 = front row (low heal, high XP), 0.0 = back row (high heal, low XP)
 		var front_t: float = float(PLAYER_Y_BACK - row_y) / float(PLAYER_Y_BACK - PLAYER_Y_FRONT)
 
-		# Heal
-		var heal_pct: float = lerpf(HEAL_BACK, HEAL_FRONT, front_t)
-		var heal_amt: int   = int(unit.max_hp * heal_pct)
-		unit.current_hp = min(unit.current_hp + heal_amt, unit.max_hp)
+		var is_downed: bool = unit in _downed_heroes
+		var heal_amt: int = 0
+		if not is_downed:
+			var heal_pct: float = lerpf(HEAL_BACK, HEAL_FRONT, front_t)
+			heal_amt = int(unit.max_hp * heal_pct)
 
 		# XP from output this battle
 		var xp_mult: float = lerpf(XP_MULT_BACK, XP_MULT_FRONT, front_t)
 		var base_xp: float = float(unit.damage_dealt) / float(XP_PER_DMG) + unit.kill_xp
 		var xp_gained: float = base_xp * xp_mult
-		if xp_gained > 0:
-			unit.grant_xp(xp_gained)
-		_log_between_round(unit, heal_amt, xp_gained, front_t)
+
+		_pending_row_bonuses.append({
+			"unit": unit, "heal": heal_amt, "xp": xp_gained,
+			"front_t": front_t, "revive": is_downed,
+		})
 
 		# Reset per-battle trackers for next round
 		unit.damage_dealt = 0
@@ -2152,6 +2824,170 @@ func _grant_between_round_bonuses() -> void:
 
 	update_team_health_bars()
 	_rebuild_damage_meter()
+
+
+# ── ROUND-START CEREMONY ───────────────────────────────────────────────────
+# The payout beat for last round's row bonuses (2026-08-02). Runs at the top of
+# _on_battle_round_started, before the new wave spawns and before any modal, on
+# a locked board:
+#   1. every hero that fell stands back up at REVIVE_HP_PCT
+#   2. row heals tick up with a green "+N" over each hero
+#   3. a temporary XP bar under each hero fills with what their row earned,
+#      wrapping (and flashing LEVEL UP!) on each level gained
+# Any click or key fast-forwards the whole thing to its final values.
+const CEREMONY_STAGGER   := 0.10   # delay between heroes starting their payout
+const CEREMONY_HEAL_TIME := 0.45
+const CEREMONY_XP_TIME   := 0.60
+const CEREMONY_HOLD      := 0.45   # how long the filled XP bar lingers
+const CEREMONY_XP_BAR_Y  := 86.0   # below the player health bar stack (offset_y 60)
+
+var _ceremony_running: int = 0   # hero payouts still animating
+
+func _play_round_start_ceremony() -> void:
+	if _pending_row_bonuses.is_empty() and _downed_heroes.is_empty():
+		return
+
+	_ceremony_active = true
+	_ceremony_skip   = false
+	_ceremony_running = 0
+	enable_unit_dragging(false)
+	_set_intent_overlay(false)
+
+	# 1 — Revives. Fallen heroes have been down since the fight ended; they get
+	# back up here, then reset_player_positions slots them at home_position so
+	# they're on the board for their own XP payout below.
+	_revive_downed_heroes()
+	reset_player_positions()
+	update_team_health_bars()
+	if not _just_revived.is_empty():
+		info_label.text = "%d hero%s back on their feet at %d%% HP." % [
+			_just_revived.size(), "" if _just_revived.size() == 1 else "es",
+			int(REVIVE_HP_PCT * 100.0)]
+		await _ceremony_wait(0.5)
+
+	# 2 + 3 — Heals and XP, staggered across the team so it reads as a sweep
+	# rather than one simultaneous blur.
+	info_label.text = "Recovering — front rows trained harder, back rows rested better."
+	for entry in _pending_row_bonuses:
+		var unit = entry.get("unit")
+		if not (unit and is_instance_valid(unit)):
+			continue
+		_animate_hero_payout(unit, int(entry.get("heal", 0)), float(entry.get("xp", 0.0)))
+		if not _ceremony_skip:
+			await _ceremony_wait(CEREMONY_STAGGER)
+	while _ceremony_running > 0:
+		await get_tree().process_frame
+
+	for entry in _pending_row_bonuses:
+		var u = entry.get("unit")
+		if u and is_instance_valid(u):
+			_log_between_round(u, int(entry.get("heal", 0)), float(entry.get("xp", 0.0)),
+					float(entry.get("front_t", 0.0)))
+	_pending_row_bonuses.clear()
+
+	update_team_health_bars()
+	_rebuild_synergy_display()
+	update_ui()
+	_ceremony_active = false
+	_ceremony_skip   = false
+
+	# Perk picks for anything that leveled during the ceremony. These used to
+	# fire at round end, back when XP was granted there.
+	var leveled: Array = player_units.filter(
+		func(u): return u and is_instance_valid(u) and u.perk_points > 0)
+	if not leveled.is_empty():
+		_level_up_screen.present(leveled)
+		await _level_up_screen.all_done
+
+	# GameState already flipped to PLAYER_TURN while we were animating; open the
+	# prep phase now that the board is settled.
+	if _player_turn_deferred:
+		_enter_player_turn()
+
+
+# One hero's heal + XP animation. Started fire-and-forget (no await) by the
+# ceremony so heroes overlap, with _ceremony_running as the join counter.
+func _animate_hero_payout(unit, heal: int, xp: float) -> void:
+	_ceremony_running += 1
+
+	# ── Heal ──
+	var applied: int = mini(heal, maxi(0, unit.max_hp - unit.current_hp))
+	if applied > 0:
+		unit.spawn_heal_text(applied)
+		var from_hp: int = unit.current_hp
+		var to_hp: int   = from_hp + applied
+		var t: float = 0.0
+		while t < CEREMONY_HEAL_TIME and not _ceremony_skip:
+			t += get_process_delta_time()
+			if not is_instance_valid(unit):
+				_ceremony_running -= 1
+				return
+			# current_hp's setter emits health_changed, so the bar follows.
+			unit.current_hp = int(lerpf(float(from_hp), float(to_hp),
+					clampf(t / CEREMONY_HEAL_TIME, 0.0, 1.0)))
+			await get_tree().process_frame
+		if is_instance_valid(unit):
+			unit.current_hp = to_hp
+
+	if not is_instance_valid(unit):
+		_ceremony_running -= 1
+		return
+
+	# ── XP ──
+	if xp > 0.0:
+		var bar := XPGainBar.new()
+		bar.position = Vector2(0, CEREMONY_XP_BAR_Y)
+		bar.set_label("+%s XP" % _xp_str(xp))
+		unit.add_child(bar)
+
+		# The grant is authoritative and immediate; the bar replays it. Simulating
+		# the wraps visually (rather than reading unit.current_xp each frame) is
+		# what lets multi-level gains show every level-up instead of one jump.
+		var shown: float = unit.current_xp
+		var need:  float = unit.xp_to_level
+		unit.grant_xp(xp)
+
+		bar.set_fill(shown / maxf(1.0, need))
+		var t2: float = 0.0
+		var levels_shown: int = 0   # so a wrap pops exactly once, not every frame after it
+		while t2 < CEREMONY_XP_TIME and not _ceremony_skip:
+			t2 += get_process_delta_time()
+			var delivered: float = xp * clampf(t2 / CEREMONY_XP_TIME, 0.0, 1.0)
+			var cur: float = shown + delivered
+			var n: float = need
+			var wraps: int = 0
+			while cur >= n:
+				cur -= n
+				n *= 1.5
+				wraps += 1
+			if not is_instance_valid(bar):
+				break
+			if wraps > levels_shown:
+				levels_shown = wraps
+				bar.pop_level()
+			bar.set_fill(cur / maxf(1.0, n))
+			await get_tree().process_frame
+
+		if is_instance_valid(bar):
+			# Land on the hero's real post-grant values — this also covers the
+			# hero-level cap, where grant_xp zeroes the leftover XP.
+			bar.set_fill(unit.current_xp / maxf(1.0, unit.xp_to_level))
+			await _ceremony_wait(CEREMONY_HOLD)
+			bar.queue_free()
+
+	_ceremony_running -= 1
+
+
+# A wait that collapses the moment the player skips the ceremony.
+func _ceremony_wait(seconds: float) -> void:
+	var t: float = 0.0
+	while t < seconds and not _ceremony_skip:
+		t += get_process_delta_time()
+		await get_tree().process_frame
+
+
+func _xp_str(xp: float) -> String:
+	return ("%.1f" % xp) if xp != float(int(xp)) else str(int(xp))
 
 
 func _log_between_round(unit: UnitBase, heal: int, xp: float, front_t: float) -> void:
@@ -2171,20 +3007,31 @@ func _on_unit_died(unit) -> void:
 
 	player_units.erase(unit)
 	enemy_units.erase(unit)
+	# AutoBattleManager keeps its OWN roster arrays (built in collect_units), so
+	# erasing from main_game's alone leaves the unit in the fight. That used to
+	# self-correct because the node got freed and check_battle_end filtered on
+	# is_instance_valid — but fallen heroes are parked for revival now, so
+	# without this the corpse kept acting as an invisible ghost: attacking,
+	# being targeted, and keeping player_units non-empty so a wipe never
+	# registered as a defeat (2026-07-24). The arena harness already did this,
+	# which is exactly why no sim caught it.
+	if auto_battle_manager:
+		auto_battle_manager.player_units.erase(unit)
+		auto_battle_manager.enemy_units.erase(unit)
 	_rebuild_synergy_display()
 	if unit and is_instance_valid(unit):
 		battle_grid.remove_unit(unit.grid_position)
 
-	# A player hero that dies is gone for good (only survivors are restored),
-	# so its gear would be lost with it — return every equipped item to the bag
-	# instead (2026-07-17 user request). Summons carry no bag equipment.
+	# A fallen player hero is NOT lost anymore (2026-07-24 design change): its
+	# node is parked invisible by VisualUnit.die() and revived at 10% HP once
+	# the round ends (_revive_downed_heroes). So it keeps its gear equipped —
+	# the old "return everything to the bag" salvage existed only because death
+	# used to be permanent, and stripping a hero that's coming back would just
+	# force the player to re-equip it every single round.
 	if not was_enemy and unit and is_instance_valid(unit) and not unit.is_summoned:
-		if _equipment_inventory:
-			var recovered: int = _equipment_inventory.get_hero_equipment(unit).size()
-			if recovered > 0:
-				_equipment_inventory.return_all_from_hero(unit)
-				info_label.text = "%s fell — recovered %d item(s) to your bag." % [unit.unit_name, recovered]
-				_rebuild_inventory_grid()
+		if unit not in _downed_heroes:
+			_downed_heroes.append(unit)
+		info_label.text = "%s fell — they'll be back at 10%% HP after this round." % unit.unit_name
 
 	if was_enemy and unit and is_instance_valid(unit):
 		_run_kills += 1
@@ -2199,15 +3046,32 @@ func _on_unit_died(unit) -> void:
 		# visible board (2026-07-04 user report).
 		_spawn_gold_coins(unit.position,
 				WaveScaler.gold_drops_for_unit(unit, game_state.battle_round))
-		# Bounty (crystal-shop meta): every kill drops ONE extra coin worth the
-		# full bonus, instead of `bonus` separate coin nodes.
-		var bounty: int = Progression.get_bonus("gold_per_kill")
-		if bounty > 0 and _coin_system:
-			_coin_system.spawn_coins(unit.position, 1, bounty)
-		var crystal_bonus: int = Progression.get_bonus("crystal_drop")
-		var crystals: int = WaveScaler.crystals_for_unit(unit) + crystal_bonus
-		if crystals > 0:
-			game_state.add_crystals(crystals)
+		# Bounty (crystal-shop meta, reworked 2026-07-31): each level is an
+		# INDEPENDENT 25% chance to drop one extra gold coin per kill — a single
+		# roll against level*25%, not a flat add — so max level (4 => 100%)
+		# guarantees exactly +1 coin per kill. Decoupled from the base
+		# gold-per-kill drop rate entirely; this is its own roll on top.
+		# Clamped: an old save can carry more levels than the current max
+		# (e.g. the pre-rework cap of 5) — clamp rather than let the roll
+		# exceed 100% chance.
+		var bounty_chance: float = clampf(float(Progression.get_bonus("gold_per_kill")) / 100.0, 0.0, 1.0)
+		if bounty_chance > 0.0 and randf() < bounty_chance and _coin_system:
+			_coin_system.spawn_coins(unit.position, 1, 1)
+		# Crystals are physical too (2026-07-21, matches gold coins): tossed on
+		# the field, hover-collectible mid-fight, swept up by the round-end
+		# vacuum otherwise. Nothing is credited until a drop actually arrives.
+		# Crystal Surge (reworked 2026-07-31, mirrors Bounty above): independent
+		# 25%-per-level roll for +1 crystal, decoupled from the base per-enemy
+		# crystal drop rate (WaveScaler.crystals_for_unit) rather than added
+		# into the same roll.
+		var surge_chance: float = clampf(float(Progression.get_bonus("crystal_drop")) / 100.0, 0.0, 1.0)
+		var surge_bonus: int = 1 if (surge_chance > 0.0 and randf() < surge_chance) else 0
+		var crystals: int = WaveScaler.crystals_for_unit(unit) + surge_bonus
+		if crystals > 0 and _crystal_drop_system:
+			# gem_label.png is a ~250x230 UI label icon (vs. gold's/item's ~64px
+			# sources), so it needs a much smaller scale to land at the same
+			# on-field size as coins/items — 0.08 puts it at ~20px, matching.
+			_crystal_drop_system.spawn(unit.position, crystals, CRYSTAL_DROP_ICON, 0.08)
 		update_ui()
 		# Kill credit goes to whoever dealt the most damage to this enemy
 		var _mdl = unit.most_damage_dealer if is_instance_valid(unit) else null
@@ -2226,22 +3090,43 @@ func _on_unit_died(unit) -> void:
 			# player_xp pool below, since that curve was hand-tuned to a
 			# specific round target (see GameState.player_xp_to_level) and this
 			# upgrade shouldn't silently blow through it.
-			var xp_mult: float = 1.0 + float(Progression.get_bonus("bonus_xp")) / 100.0
+			# 2026-08-03: hero battle XP now rides "quick_learner" (the Mentor
+			# spoke). "bonus_xp" was this upgrade's old key and has been
+			# repurposed for account XP below, which had no upgrade at all.
+			var xp_mult: float = 1.0 + float(Progression.get_bonus("quick_learner")) / 100.0
 			var xp_per_hero: float = float(unit.xp_reward) / float(living_heroes) * xp_mult
+			# Tutelage: heroes behind your best hero learn faster, so a late
+			# pickup can catch up instead of staying dead weight all run.
+			var top_level: int = 1
 			for hero in player_units:
 				if hero and is_instance_valid(hero):
-					hero.kill_xp += xp_per_hero
+					top_level = maxi(top_level, hero.level)
+			var catch_up: float = 1.0 + float(Progression.get_bonus("catch_up_xp")) / 100.0
+			for hero in player_units:
+				if hero and is_instance_valid(hero):
+					hero.kill_xp += xp_per_hero * (catch_up if hero.level < top_level else 1.0)
 
 		# Player/account level (2026-07-04): a SHARE of every kill's total XP also
 		# feeds the account-wide pool that grows team size — see game_state.gd.
-		game_state.add_player_xp(float(unit.xp_reward) * PLAYER_XP_SHARE)
+		# Scholar (2026-08-03) is the only multiplier on the account pool. The
+		# curve is hand-tuned to a round target (GameState.player_xp_to_level),
+		# so the per-node step is deliberately smaller than hero XP's.
+		game_state.add_player_xp(float(unit.xp_reward) * PLAYER_XP_SHARE
+			* (1.0 + float(Progression.get_bonus("bonus_xp")) / 100.0))
 
 		# Loot ONLY drops from enemies that were actually wielding an item — the
 		# exact item you saw on it mid-fight, no re-roll. Enemies that spawned
-		# empty-handed drop nothing (no separate random death-drop roll).
+		# empty-handed drop nothing (no separate random death-drop roll). Items
+		# are physical too (2026-07-21) — tossed on the field like gold/crystals,
+		# added to the bag only when a drop actually arrives.
 		if not unit.held_items.is_empty():
 			for held in unit.held_items:
-				_equipment_inventory.add_item(held)
+				var ipath: String = EquipmentManager.ITEM_ICONS.get(held.name, "")
+				var itex: Texture2D = (load(ipath) as Texture2D) if ipath != "" else null
+				if itex and _item_drop_system:
+					_item_drop_system.spawn(unit.position, held, itex, 0.3, held.icon_color)
+				else:
+					_equipment_inventory.add_item(held)   # no icon art — fall back to instant credit
 
 	update_team_health_bars()
 
@@ -2295,6 +3180,7 @@ func _process(_delta: float) -> void:
 	_update_details_panel()
 	_update_bag_drag()
 	_update_held_item_tooltip()
+	_update_field_drop_hover()
 	# Throttled combat-UI refresh (see _on_unit_action perf note): rebuild the
 	# heavy lists at most 4x/sec, and each rebuilder skips panels that aren't
 	# visible. During battle actions fire constantly, so a panel expanded
@@ -2314,6 +3200,17 @@ func _process(_delta: float) -> void:
 				Performance.get_monitor(Performance.TIME_FPS),
 				Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
 				Performance.get_monitor(Performance.OBJECT_NODE_COUNT)]
+
+# Hover-collect (2026-07-21): hovering a gold coin, crystal, or item drop on
+# the battlefield picks it up immediately instead of waiting for round end.
+func _update_field_drop_hover() -> void:
+	var mouse: Vector2 = get_viewport().get_mouse_position()
+	if _coin_system:
+		_coin_system.check_hover(mouse, gold_label.get_global_rect().get_center())
+	if _crystal_drop_system:
+		_crystal_drop_system.check_hover(mouse, crystals_label.get_global_rect().get_center())
+	if _item_drop_system:
+		_item_drop_system.check_hover(mouse, _item_drop_target())
 
 # Hovering an enemy's held-item badge on the battlefield shows the same item
 # tooltip (name / rarity / stats / passive) as the Unit Details bag. The badge is
@@ -2347,11 +3244,27 @@ func _update_held_item_tooltip() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Any click / key during the round-start ceremony fast-forwards it. It plays
+	# up to 100 times a run, so sitting through the full stagger every time is a
+	# tax on anyone who already knows what their rows pay.
+	if _ceremony_active and not _ceremony_skip:
+		var pressed_click: bool = event is InputEventMouseButton and event.pressed
+		var pressed_key: bool = event is InputEventKey and event.pressed and not event.echo
+		if pressed_click or pressed_key:
+			_ceremony_skip = true
+			get_viewport().set_input_as_handled()
+			return
+
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
 		if _dragged_item:
 			_end_item_drag()
 		else:
 			_drag_candidate = null
+
+	# Always end a details-panel drag on mouse-up, wherever the cursor is — the
+	# panel's own gui_input never sees a release that lands outside its rect.
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		_panel_dragging = false
 
 	# Click-away-to-close (2026-07-06 user request): any left click that lands
 	# outside the details panel's own rect closes it — the panel's title-bar
@@ -2506,6 +3419,8 @@ func _update_bag_drag() -> void:
 	# Keep item tooltip positioned under cursor
 	if _item_tip and _item_tip.visible and not _dragged_item:
 		_reposition_item_tooltip(get_viewport().get_mouse_position())
+	if _relic_tip and _relic_tip.visible:
+		_reposition_relic_tooltip(get_viewport().get_mouse_position())
 
 
 func _update_details_panel() -> void:
@@ -2585,7 +3500,9 @@ func _update_row_tooltip() -> void:
 	_row_tip_title.text = row_name
 	_row_tip.size.y = 76   # restore the three-line height after unit-hover mode
 
-	_row_tip_heal.text  = "Heal  %d%%  per round" % heal_pct
+	# "next round" wording (2026-08-02): row bonuses are measured on the round
+	# fought and paid out by the ceremony when the NEXT round opens.
+	_row_tip_heal.text  = "Heal  %d%%  next round" % heal_pct
 	_row_tip_xp.text    = "XP  +%d%%  bonus" % xp_bonus
 
 	# Lerp heal label from green (safe) → orange (risky)
@@ -2631,6 +3548,7 @@ func _build_new_layout() -> void:
 	_build_left_panel()
 	_build_right_panel()
 	_build_item_tooltip()
+	_build_relic_tooltip()
 
 
 func _position_sidebars() -> void:
@@ -2643,6 +3561,7 @@ func _position_sidebars() -> void:
 	_right_panel.set_size(Vector2(SIDEBAR_W, vp.y))
 	if battle_grid:
 		_center_battlefield()
+	_position_sell_zone()
 
 
 # ── Left panel: synergies + bag ──────────────────────────────────────────────
@@ -2805,6 +3724,11 @@ func _build_right_panel() -> void:
 		# mid-letter hard clip, if a button's text ever outgrows 285px again.
 		btn.clip_text = true
 		btn.reparent(act_body)
+	# Enemy Targets toggle rides along with the action buttons — it's built in
+	# _ready against the old (now hidden) ActionPanel shell, like they are.
+	if _intent_toggle:
+		_intent_toggle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_intent_toggle.reparent(act_body)
 	sv.add_child(_sb_sep())
 
 	# ── Team Status (fresh native widgets — scene nodes have fixed sizes) ─────
@@ -3127,7 +4051,7 @@ func _build_item_tooltip() -> void:
 	add_child(_item_tip_layer)
 
 	_item_tip = PanelContainer.new()
-	_item_tip.custom_minimum_size = Vector2(190, 0)
+	_item_tip.custom_minimum_size = Vector2(320, 0)
 	_item_tip.visible = false
 	var s := StyleBoxFlat.new()
 	s.bg_color     = Color(0.06, 0.05, 0.10, 0.97)
@@ -3171,7 +4095,7 @@ func _build_item_tooltip() -> void:
 	_item_tip_passive_desc.add_theme_font_size_override("font_size", 22)
 	_item_tip_passive_desc.add_theme_color_override("font_color", Color(0.70, 0.70, 0.82))
 	_item_tip_passive_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_item_tip_passive_desc.custom_minimum_size = Vector2(174, 0)
+	_item_tip_passive_desc.custom_minimum_size = Vector2(304, 0)
 	_item_tip_passive_desc.visible = false
 	vb.add_child(_item_tip_passive_desc)
 
@@ -3190,17 +4114,25 @@ func _show_item_tooltip(item: EquipmentItem, mouse_pos: Vector2, hint: String = 
 
 	for c in _item_tip_stats_vb.get_children():
 		c.free()
+	# Long-form labels for the bag tooltip (the shop uses the short _STAT_DISPLAY
+	# codes). Crit/crit-damage are included here too — they used to be silently
+	# dropped from this tooltip even though items roll them.
 	const STAT_NAMES := {
 		"hp": "HP", "mana": "Mana", "atk": "ATK",
 		"magic": "Magic Power", "res": "Defense",
-		"aspd": "Attack Speed", "hpregen": "HP Regen", "manaregen": "MP Regen"
+		"aspd": "Attack Speed", "hpregen": "HP Regen", "manaregen": "MP Regen",
+		"crit": "Crit Chance", "critdmg": "Crit Damage",
 	}
 	const FLOAT_STATS := ["aspd", "hpregen", "manaregen"]
-	for stat in ["hp", "mana", "atk", "magic", "res", "aspd", "hpregen", "manaregen"]:
+	for stat in ["hp", "mana", "atk", "magic", "res", "aspd", "hpregen", "manaregen", "crit", "critdmg"]:
 		var raw: float = float(item.stat_bonus.get(stat, 0))
 		if raw > 0:
 			var lbl := Label.new()
-			if stat in FLOAT_STATS:
+			if stat == "crit":
+				lbl.text = "+%d%%  %s" % [int(round(raw * 100.0)), STAT_NAMES[stat]]
+			elif stat == "critdmg":
+				lbl.text = "+%.2fx  %s" % [raw, STAT_NAMES[stat]]
+			elif stat in FLOAT_STATS:
 				lbl.text = "+%.2f  %s" % [raw, STAT_NAMES.get(stat, stat.to_upper())]
 			else:
 				lbl.text = "+%d  %s" % [int(raw), STAT_NAMES.get(stat, stat.to_upper())]
@@ -3208,10 +4140,12 @@ func _show_item_tooltip(item: EquipmentItem, mouse_pos: Vector2, hint: String = 
 			lbl.add_theme_color_override("font_color", Color(0.82, 0.96, 0.72))
 			_item_tip_stats_vb.add_child(lbl)
 
-	if item.passive_effect != "":
-		_item_tip_passive_lbl.text = "◆ " + item.passive_effect
+	# Every passive spelled out with its own rolled numbers, one per line — a
+	# fused item listing "Evasion, Thorns" told the player nothing (2026-08-02).
+	if not item.passives.is_empty():
+		_item_tip_passive_lbl.text = "◆ Passives"
 		_item_tip_passive_lbl.visible = true
-		_item_tip_passive_desc.text = item.description
+		_item_tip_passive_desc.text = "\n".join(item.get_passive_lines())
 		_item_tip_passive_desc.visible = true
 	else:
 		_item_tip_passive_lbl.visible = false
@@ -3227,6 +4161,72 @@ func _show_item_tooltip(item: EquipmentItem, mouse_pos: Vector2, hint: String = 
 func _hide_item_tooltip() -> void:
 	if _item_tip:
 		_item_tip.visible = false
+
+
+func _build_relic_tooltip() -> void:
+	_relic_tip_layer = CanvasLayer.new()
+	_relic_tip_layer.layer = 28
+	add_child(_relic_tip_layer)
+
+	_relic_tip = PanelContainer.new()
+	_relic_tip.custom_minimum_size = Vector2(190, 0)
+	_relic_tip.visible = false
+	var s := StyleBoxFlat.new()
+	s.bg_color     = Color(0.06, 0.05, 0.10, 0.97)
+	s.border_color = Color(0.50, 0.42, 0.72, 0.9)
+	s.set_border_width_all(1)
+	s.corner_radius_top_left = 5; s.corner_radius_top_right = 5
+	s.corner_radius_bottom_left = 5; s.corner_radius_bottom_right = 5
+	_relic_tip.add_theme_stylebox_override("panel", s)
+	_relic_tip_layer.add_child(_relic_tip)
+
+	var mg := MarginContainer.new()
+	for k in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
+		mg.add_theme_constant_override(k, 8)
+	_relic_tip.add_child(mg)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 5)
+	mg.add_child(vb)
+
+	_relic_tip_name_lbl = Label.new()
+	_relic_tip_name_lbl.add_theme_font_size_override("font_size", RELIC_TIP_NAME_FONT_SIZE)
+	_relic_tip_name_lbl.add_theme_color_override("font_color", Color(0.90, 0.86, 0.74))
+	vb.add_child(_relic_tip_name_lbl)
+
+	_relic_tip_desc_lbl = Label.new()
+	_relic_tip_desc_lbl.add_theme_font_size_override("font_size", RELIC_TIP_DESC_FONT_SIZE)
+	_relic_tip_desc_lbl.add_theme_color_override("font_color", Color(0.70, 0.70, 0.82))
+	_relic_tip_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_relic_tip_desc_lbl.custom_minimum_size = Vector2(174, 0)
+	vb.add_child(_relic_tip_desc_lbl)
+
+
+func _show_relic_tooltip(relic_name: String, grade: String, desc: String, mouse_pos: Vector2) -> void:
+	if not _relic_tip:
+		return
+	_relic_tip_name_lbl.text = "%s  [%s-rank]" % [relic_name, grade]
+	_relic_tip_desc_lbl.text = desc
+	_relic_tip.visible = true
+	_reposition_relic_tooltip(mouse_pos)
+
+
+func _hide_relic_tooltip() -> void:
+	if _relic_tip:
+		_relic_tip.visible = false
+
+
+func _reposition_relic_tooltip(mouse_pos: Vector2) -> void:
+	if not _relic_tip:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var ts := _relic_tip.size
+	if ts == Vector2.ZERO:
+		ts = _relic_tip.get_minimum_size()
+	var pos := mouse_pos + Vector2(16, -ts.y * 0.5)
+	pos.x = clamp(pos.x, 4, vp.x - ts.x - 4)
+	pos.y = clamp(pos.y, 4, vp.y - ts.y - 4)
+	_relic_tip.position = pos
 
 
 func _reposition_item_tooltip(mouse_pos: Vector2) -> void:
@@ -3300,7 +4300,7 @@ func _end_item_drag() -> void:
 	var unit = battle_grid.get_unit_at(Vector2i(cx, cy))
 	if unit and is_instance_valid(unit) and unit.is_player_unit:
 		if not _equipment_inventory.apply_to_hero(item, unit):
-			info_label.text = "%s already has 6 items!" % unit.unit_name
+			info_label.text = "%s has no free equipment slot (%d)!" % [unit.unit_name, _equipment_inventory.hero_item_cap()]
 	else:
 		info_label.text = "Drop on a hero to equip."
 

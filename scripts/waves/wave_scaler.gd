@@ -65,15 +65,66 @@ const CODE_ROLE: Dictionary = {
 	"SS": Role.FRONT,  # Stat Stealer (1×1 elite)
 	"AH": Role.BOSS,   # Ant Hill (2×2 — stationary spawner)
 	"KHA": Role.BOSS,  # Khagan (2×2 while mounted — phase 1)
+	"SKR": Role.BOSS,   # Skyrender (2×2 — wave-20 Air boss)
+	"DMW": Role.BOSS,   # The Drowned Maw (2×2 — wave-30 Water boss)
+	"CLT": Role.BOSS,   # Cloven Titan (2×2 — wave-40 Earth boss)
+	"EMB": Role.BOSS,   # Emberhollow (2×2 — wave-50 Fire boss)
+	"ARC": Role.BOSS,   # Arcfang (2×2 — wave-60 Lightning boss)
+	"GRV": Role.BOSS,   # The Gravekeeper (2×2 — wave-90 mixed boss)
+	"ARCH": Role.BOSS,  # The Architect (3×3 — the wave-100 finale)
+	"EMH": Role.FRONT,  # Ember Heart — FRONT on purpose: it must stand between the player and Emberhollow so nearest-targeting engages it first
 	"HYN": Role.BOSS, "HYF": Role.BOSS, "HYW": Role.BOSS,   # Hydra (all 6 elements, 2×2 final boss)
 	"HYE": Role.BOSS, "HYA": Role.BOSS, "HYL": Role.BOSS,
+	# Beast tier (2026-07-24) — 1×1 heavies, all melee frontline.
+	"OG": Role.FRONT,  # Ogre
+	"MT": Role.FRONT,  # Minotaur
+	"GY": Role.FRONT,  # Gargoyle
+	"SG": Role.FRONT,  # Stone Golem
+	# Earth-decade variety (2026-07-24, wave 31-40).
+	"CC": Role.FRONT,  # Crystal Crab
+	"RW": Role.BACK,   # Root Walker
+	# Fire-decade roster (2026-07-24, wave 41-50).
+	"FG": Role.BOSS,   # Fire Giant (2×2 — centered like every other large body)
+	"HH": Role.FRONT,  # Hellhound
+	"EP": Role.BACK,   # Ember Phoenix
+	# Lightning-decade roster (2026-07-24, wave 51-60).
+	"STG": Role.BOSS,  # Storm Giant (2×2)
+	"SC": Role.BACK,   # Storm Crow
+	# Air/Water-decade anchors (2026-08-02, wave 11-20 / 21-30).
+	"WY": Role.BOSS,   # Sky Wyvern (2×2 — the Air decade's anchor)
+	"TH": Role.BOSS,   # Tidepool Horror (2×2 — the Water decade's anchor)
+	"HRP": Role.FRONT, # Harpy (fast melee harasser — foreshadows the Gale Warden's evasion)
+	"CH": Role.FRONT,  # Coral Husk (slow wall — foreshadows the Tidecaller's shields)
+	# Elemental elites (2026-07-27) — one per decade, see ELITE_BY_ROUND.
+	"GW": Role.FRONT,  # Gale Warden (1×1 evasive skirmisher)
+	"TC": Role.BACK,   # Tidecaller (1×1 support elite — hangs back behind its escort)
+	"TCC": Role.BOSS,  # Terracotta Colossus (2×2 — centered like every other large body)
+	"MH": Role.BOSS,   # Magma Heart (2×2 stationary vent)
+	"TPC": Role.BACK,  # Tempest Conduit (1×1 ranged chain-caster)
+	"MW": Role.BOSS,   # Mirrorplate Warden (2×2 reflector)
+	"AD": Role.BOSS,   # Aspect Devourer (2×2 element-cycling capstone)
 }
 
 # Codes that occupy a 2×2 cell block
 const CODE_IS_LARGE: Dictionary = {
 	"G": true,
+	"FG": true,   # Fire Giant — the Fire decade's 2×2 anchor (2026-07-24)
+	"STG": true,  # Storm Giant — the Lightning decade's 2×2 anchor (2026-07-24)
+	"WY": true,   # Sky Wyvern — the Air decade's 2×2 anchor (2026-08-02)
+	"TH": true,   # Tidepool Horror — the Water decade's 2×2 anchor (2026-08-02)
 	"AH": true,
+	"TCC": true,  # Terracotta Colossus — the Earth decade's elite wall (2026-07-27)
+	"MH": true,   # Magma Heart — the Fire decade's elite vent (2026-07-27)
+	"MW": true,   # Mirrorplate Warden — round-85 elite (2026-07-27)
+	"AD": true,   # Aspect Devourer — round-95 capstone elite (2026-07-27)
 	"KHA": true,
+	"SKR": true,   # Skyrender — wave-20 Air boss (2026-07-27)
+	"DMW": true,   # The Drowned Maw — wave-30 Water boss (2026-07-28)
+	"CLT": true,   # Cloven Titan — wave-40 Earth boss (2026-07-28)
+	"EMB": true,   # Emberhollow — wave-50 Fire boss (2026-07-28)
+	"ARC": true,   # Arcfang — wave-60 Lightning boss (2026-07-29)
+	"GRV": true,   # The Gravekeeper — wave-90 mixed boss (2026-07-29)
+	"ARCH": true,  # The Architect — wave-100 finale; 3×3, see cell_size_for_code
 	"HYN": true, "HYF": true, "HYW": true, "HYE": true, "HYA": true, "HYL": true,
 }
 
@@ -92,19 +143,63 @@ const UNIT_POWER: Dictionary = {
 	"B":  95, "BN": 95, "BF": 95, "BW": 95, "BA": 95, "BL": 95,  # Orc (all 6 elements)
 	"BRN": 100, "BRF": 100, "BRW": 100, "BRE": 100, "BRA": 100, "BRL": 100,  # Bear (all 6 elements) — beefiest 1×1 HP pool, but low damage output
 	"WUN": 90, "WUF": 90, "WUW": 90, "WUE": 90, "WUA": 90, "WUL": 90,  # Wind-Up Bot (all 6 elements) — light melee striker, hit + stun
+	# Beast tier (2026-07-24) — 1×1 heavies, one notch above Bear/Wind-Up Bot
+	# (90-100), below the elite-heavy tier (Hill Giant 300 / Stat Stealer 150).
+	"OG": 150,  # Ogre         — bruiser, Bloodrage below 50% hp
+	"MT": 145,  # Minotaur     — faster bruiser, Savage Charge aspd ramp
+	"GY": 140,  # Gargoyle     — tanky bleed-applier, self-regen
+	"SG": 170,  # Stone Golem  — pure wall, self-shield, no passive
+	"CC": 105,  # Crystal Crab — basic-mob band, self-shield + aspd ramp
+	"RW": 75,   # Root Walker  — basic-mob band, slow + ally regen aura
+	# Fire decade (2026-07-24). FG is priced at ~60% of Hill Giant's 300 because
+	# its statline is built at 60% of G's (G gets demoted by HEAVY_STAT_MULT in
+	# normal waves; FG isn't an elite so it spawns full — same effective slot).
+	"FG": 180,  # Fire Giant   — the Fire decade's 2×2 anchor
+	"HH": 95,   # Hellhound    — fast pack melee, burn bite
+	"EP": 110,  # Ember Phoenix — ranged burst + self-regen
+	# Lightning decade (2026-07-24) — STG priced like FG, same anchor slot.
+	"STG": 180, # Storm Giant  — the Lightning decade's 2×2 anchor
+	"SC": 90,   # Storm Crow   — fast ranged harasser, flock aspd
+	# Air/Water decades (2026-08-02) — priced like FG/STG, same anchor slot.
+	"WY": 180,  # Sky Wyvern      — the Air decade's 2×2 anchor
+	"TH": 180,  # Tidepool Horror — the Water decade's 2×2 anchor
+	"HRP": 90,  # Harpy      — basic-mob band (Storm Crow's slot); evasion is
+				# effective-HP score_unit can't see, but 12% is small enough to ignore
+	"CH": 105,  # Coral Husk — basic-mob band (Crystal Crab's slot), self-shield wall
 	"G":  300,  # Hill Giant  — elite-tier
 	"TRI": 350, # The Triarch — 3-phase final boss
 	"SS": 150,  # Stat Stealer — elite-tier
 	"AH": 250,  # Ant Hill — elite-tier (tanky spawner; the ants are the real threat, uncounted here)
+	# Elemental elites (2026-07-27). Priced in the Stat Stealer's 1×1 elite band;
+	# GW's evasion is effective-HP the score can't see, so it sits a notch above.
+	"GW": 170,  # Gale Warden — elite-tier (evasive skirmisher, formation breaker)
+	"TC": 190,  # Tidecaller — elite-tier (support; its regen/shield output is
+				# force-multiplier power score_unit can't see, hence the premium)
+	"TCC": 320, # Terracotta Colossus — elite-tier 2×2, priced just above Hill Giant
+	"MH": 340,  # Magma Heart — elite-tier 2×2 (zero attack, but its team-wide
+				# escalating burn is threat score_unit reads as nearly nothing)
+	"TPC": 260, # Tempest Conduit — elite-tier 1×1; its real output depends on the
+				# player's own formation, so treat this as a mid-clump estimate
+	"MW": 480,  # Mirrorplate Warden — round-85 elite 2×2
+	"AD": 560,  # Aspect Devourer — round-95 capstone elite 2×2, the strongest
+				# non-boss body in the game (it stands one wave before the finale)
 	"KHA": 300, # Khagan — wave-10 boss (mount-swap fight)
+	"SKR": 380,  # Skyrender — wave-20 Air boss (aloft windows add effective bulk)
+	"DMW": 420,  # The Drowned Maw — wave-30 Water boss (attrition; the heal-cut aura is uncounted here)
+	"CLT": 460,  # Cloven Titan — wave-40 Earth boss (the two halves it leaves behind are uncounted here)
+	"EMB": 480,  # Emberhollow — wave-50 Fire boss (its one revival is uncounted here)
+	"EMH": 45,   # Ember Heart — barely fights; its value is gating the revive
+	"ARC": 500,  # Arcfang — wave-60 Lightning boss (glass cannon; the blink is uncounted here)
+	"GRV": 520,  # The Gravekeeper — wave-90 mixed boss (the shades it raises are uncounted here)
+	"ARCH": 900, # The Architect — the finale; 3×3 body, three reprised mechanics
 	"HYN": 400, "HYF": 400, "HYW": 400, "HYE": 400, "HYA": 400, "HYL": 400,  # Hydra — wave-30 final boss (all 6 elements)
 }
 
 # Ordered strong → weak. _fill_budget() prefers the top of this list.
 const FILLER_POOL: Array[String] = [
-	"G", "BRN", "BRF", "BRW", "BRE", "BRA", "BRL",
+	"G", "FG", "STG", "WY", "TH", "SG", "OG", "MT", "GY", "EP", "CC", "BRN", "BRF", "BRW", "BRE", "BRA", "BRL",
 	"B", "BN", "BF", "BW", "BA", "BL",
-	"S", "GSN", "GSW", "GSE", "GSA", "GSL", "TLN", "TLF", "TLW", "TLE", "TLA", "TLL",
+	"S", "GSN", "GSW", "GSE", "GSA", "GSL", "TLN", "TLF", "TLW", "TLE", "TLA", "TLL", "HH", "SC", "RW", "HRP", "CH",
 	"WUN", "WUF", "WUW", "WUE", "WUA", "WUL",
 	"LZN", "LZF", "LZW", "LZE", "LZA", "LZL", "A", "M", "SK",
 	"SL", "SLN", "SLF", "SLE", "SLA", "SLL",
@@ -117,6 +212,46 @@ const ROLE_ROWS: Dictionary = {
 	Role.BACK:  [0, 1, 2, 3],
 }
 
+# ── Wave threat profile (prep-phase dossier) ──────────────────────────────────
+# Added 2026-07-27. Arena measurement showed placement swings win rate from 0%
+# to ~85% on an identical team, and that the BEST formation flips depending on
+# whether the wave's damage is melee or ranged — but the player was never shown
+# which they were facing. This turns a spec into the handful of counts that
+# decision actually needs, without instantiating a single unit.
+#
+# Support = anything whose job isn't raw damage (heals, regen, attack-speed
+# auras). Kept separate from "ranged" because it reads differently to a player:
+# a shaman behind the line is a reason the fight drags, not a reason to spread.
+const SUSTAIN_CODES: Array[String] = [
+	"S", "GSN", "GSW", "GSE", "GSA", "GSL",        # goblin shamans — heal + aura
+	"TLN", "TLF", "TLW", "TLE", "TLA", "TLL",      # trolls — regen + attack-speed buff
+	"EP", "RW",                                     # ember phoenix, root walker
+	"TC",                                           # Tidecaller elite — heals its own wave
+]
+
+# "melee" | "ranged" | "support" for one wave code. Single source of truth for
+# BOTH the dossier counts and the per-unit role badges on the battlefield, so a
+# badge can never disagree with the line the player read in the panel.
+static func role_tag_for_code(code: String) -> String:
+	if code in SUSTAIN_CODES:
+		return "support"
+	if CODE_ROLE.get(code, Role.FRONT) == Role.BACK:
+		return "ranged"
+	# Role.FRONT and Role.BOSS both fight in melee; BOSS only means "placed
+	# centrally" (the 2×2 bodies), not "attacks at range".
+	return "melee"
+
+# {melee, ranged, support, large, total} for a generated wave spec.
+static func threat_profile(spec: Array) -> Dictionary:
+	var out: Dictionary = {"melee": 0, "ranged": 0, "support": 0, "large": 0, "total": 0}
+	for entry: Dictionary in spec:
+		var code: String = String(entry.get("code", ""))
+		out["total"] += 1
+		if CODE_IS_LARGE.get(code, false):
+			out["large"] += 1
+		out[role_tag_for_code(code)] += 1
+	return out
+
 # ── Live unit scoring (for reward calculation and power display) ───────────────
 static func score_unit(unit: UnitBase) -> float:
 	var s: float = (float(unit.max_hp)         * 0.15
@@ -126,8 +261,11 @@ static func score_unit(unit: UnitBase) -> float:
 				  + float(unit.resistance)     * 5.0)
 	if unit.attack_range > 1:
 		s *= 1.25
-	if unit.cell_size == 2:
-		s *= 2.5
+	# Large bodies carry disproportionate power (they soak a whole block and can't
+	# be surrounded as easily). Generalised from a flat ×2.5 at size 2 to an N×N
+	# ramp — identical at size 2, ×4.0 for the 3×3 Architect.
+	if unit.cell_size > 1:
+		s *= 1.0 + (unit.cell_size - 1) * 1.5
 	return s
 
 # LEGACY (pre coin-drop economy) — kept only for anything still displaying a
@@ -157,6 +295,13 @@ static func gold_drops_for_unit(unit: UnitBase, round: int) -> int:
 	return 1 if randf() < chance else 0
 
 static func crystals_for_unit(unit: UnitBase) -> int:
+	# Heavy-tier demotion (2026-07-23): elite mobs (G/AH/SS) recurring as normal
+	# heavy units in later waves must NOT pay their elite crystal bounty — crystals
+	# are score-based, and a leveled 2×2 Giant scores >800 every time, so without
+	# this gate a wave with a couple of Giants becomes a crystal printer. The
+	# wave_heavy meta is stamped in WaveDirector.create_enemy_for_entry.
+	if unit.has_meta("wave_heavy"):
+		return 0
 	var s := score_unit(unit)
 	if s >= 800.0: return 2
 	if s >= 400.0: return 1
@@ -265,22 +410,30 @@ static func _auto_place(counts: Dictionary, grid_width: int) -> Array:
 static func _place_bosses(codes: Array, occupied: Dictionary, grid_width: int) -> Array:
 	var result: Array = []
 	var n := codes.size()
-	# Valid anchor-x positions for 2-wide units (x and x+1 must be in-grid)
+	# Widest body in this batch decides the anchor range — generalised from a
+	# hardcoded 2-wide block 2026-07-29 so the 3×3 Architect can be placed.
+	var max_w := 2
+	for c in codes:
+		max_w = maxi(max_w, cell_size_for_code(c))
 	var valid_x: Array = []
-	for x in range(grid_width - 1):
+	for x in range(maxi(grid_width - max_w + 1, 1)):
 		valid_x.append(x)
 	var chosen_x: Array = _even_pick(valid_x, n)
 
 	for i in range(codes.size()):
-		var x: int = chosen_x[i]
-		# Try row pairs top-to-bottom: [1,2] preferred, then [0,1], [2,3]
-		for row_pair: Array in [[1, 2], [0, 1], [2, 3]]:
-			var r0: int = row_pair[0]
-			var r1: int = row_pair[1]
-			var cells: Array = [
-				Vector2i(x,   r0), Vector2i(x+1, r0),
-				Vector2i(x,   r1), Vector2i(x+1, r1),
-			]
+		var size: int = cell_size_for_code(codes[i])
+		var x: int = mini(int(chosen_x[i]), maxi(grid_width - size, 0))
+		# Candidate top rows, preferring a centred band and falling back outward.
+		# A size-N body needs rows r0 .. r0+N-1 to all sit inside the 4 enemy rows.
+		var row_starts: Array = []
+		for r0 in [1, 0, 2, 3]:
+			if r0 + size <= 4:
+				row_starts.append(r0)
+		for r0: int in row_starts:
+			var cells: Array = []
+			for dy in range(size):
+				for dx in range(size):
+					cells.append(Vector2i(x + dx, r0 + dy))
 			var clear := true
 			for c: Vector2i in cells:
 				if occupied.has(c):
@@ -293,6 +446,14 @@ static func _place_bosses(codes: Array, occupied: Dictionary, grid_width: int) -
 				break
 
 	return result
+
+# Footprint width of a wave code. 3 only for the 3×3 finale; everything flagged
+# in CODE_IS_LARGE is 2×2; everything else is a single cell. Keep this in sync
+# with the cell_size each factory sets.
+static func cell_size_for_code(code: String) -> int:
+	if code == "ARCH":
+		return 3
+	return 2 if CODE_IS_LARGE.get(code, false) else 1
 
 # Fill a list of units across rows in priority order, evenly spacing per row.
 static func _fill_rows(codes: Array, row_priority: Array, occupied: Dictionary, grid_width: int) -> Array:
@@ -357,23 +518,52 @@ static func boss_tier(round: int) -> int:
 # beatable with no crystal upgrades; the Triarch (10) needs a stars-align
 # no-upgrade run; the Hydra (18) is meant to be unbeatable without them.
 # (Old 3/6/9 curve: arena sims had a frozen level-5 team killing the Hydra.)
+# Tiers 1-3 keep their hand-tuned anchors. Tier 4+ (rounds 40-100, added
+# 2026-07-24 when the run was extended past 30) continues the curve instead of
+# flat-lining at 22 — it tracks enemy_level_for_round so a boss always outranks
+# the fodder of its own round by a clear margin.
 static func boss_level(round: int) -> int:
 	match boss_tier(round):
 		1:  return 3
 		2:  return 14
-		_:  return 22
+		3:  return 22
+		_:  return 22 + int(float(round - 30) * 0.85)
 
 # Which boss code fights at a given round. Hill Giant was reclassified to an
 # elite (2026-07-02, now spawns in rounds 5/15/25 instead — see is_elite_round).
-# Wave 10: Khagan (mount-swap fight). Wave 20: The Triarch (3-phase fight).
-# Wave 30: the Hydra — the true final boss, fighting as whichever element the
-# player picked pre-battle (see main_game.gd's element-pick screen); defaults
-# to Normal if no pick was ever recorded (e.g. the arena harness, which never
-# shows that screen). chosen_element takes a UnitBase.Element value.
+#
+# BOSS/DECADE ALIGNMENT (2026-07-27): each decade's boss now matches that
+# decade's element, the same principle the elemental elites follow (see
+# ELITE_BY_ROUND). The Triarch and Hydra are archetype/element-agnostic fights
+# with no decade identity, so they move OUT to the mixed endgame (61-100) where
+# "no fixed element" is thematically correct, and get re-tuned for their new
+# rounds by the boss_level curve.
+#
+#   10  Normal     Khagan             mount-swap → timed possession
+#   20  Air        Skyrender   aloft windows ......... reach check
+#   30  Water      The Drowned Maw    heal-cut aura ......... sustain check
+#   40  Earth      Cloven Titan       splits on death ....... finish-the-job
+#   50  Fire       Emberhollow        revives unless Hearts die . kill order
+#   60  Lightning  Arcfang            blinks to your carry .. backline check
+#   70  mixed      The Triarch        relocated from 20, re-tuned by boss_level
+#   80  mixed      (TODO)             — Hydra moves here with its element picker
+#   90  mixed      The Gravekeeper    fallen rise as shades . attrition capstone
+#   100 mixed      The Architect      3×3; reprises 3 trials . the finale
+#
+# Un-built slots deliberately fall through to the Hydra rather than to nothing,
+# so every boss round stays a real encounter while the rest are built.
+# chosen_element takes a UnitBase.Element value and only matters for the Hydra.
 static func boss_code_for(round: int, chosen_element: int = -1) -> String:
 	match boss_tier(round):
 		1: return "KHA"
-		2: return "TRI"
+		2: return "SKR"
+		3: return "DMW"
+		4: return "CLT"
+		5: return "EMB"
+		6: return "ARC"
+		9: return "GRV"
+		10: return "ARCH"
+		7: return "TRI"
 		_:
 			match chosen_element:
 				UnitBase.Element.FIRE:      return "HYF"
@@ -402,17 +592,46 @@ static func build_boss_formation(round: int, difficulty: int, grid_width: int = 
 		counts["TLN"] = 2                                   # attack-speed buffers
 		counts["GSN"] = 2
 		counts["LZN"] = 2                                   # backline snipers
+	# Boss-specific escort additions. Emberhollow's two Ember Hearts aren't
+	# support — they're the fight's win condition. They're FRONT role, so
+	# _auto_place puts them in rows 3→2, physically between the player and the
+	# boss: nearest-enemy targeting then walks the team into them without the
+	# player needing a targeting lever they don't have.
+	if boss_code_for(round, chosen_element) == "EMB":
+		counts["EMH"] = 2
 	return _auto_place(counts, grid_width)
 
-# ── Elite waves (rounds 5 / 15 / 25 — the gaps between boss rounds) ──────────
-# A mini-boss (Hill Giant or Stat Stealer) plus light fodder support. Weaker
-# than a full boss encounter, but a real step up from normal fodder.
+# ── Elite waves (every round ending in 5 — the gaps between boss rounds) ─────
+# A mini-boss plus light fodder support. Weaker than a full boss encounter, but
+# a real step up from normal fodder.
 const ELITE_ROUNDS: Array[int] = Balance.ELITE_ROUNDS   # tune in balance.gd
-const ELITE_POOL: Array[String] = ["G", "SS", "AH"]   # Hill Giant, Stat Stealer, Ant Hill
+const ELITE_POOL: Array[String] = ["G", "SS", "AH", "GW", "TC", "TCC", "MH", "TPC", "MW", "AD"]
 # Fixed assignment (2026-07-15 user decision, replaces the random pool pick):
 # each elite owns ONE round so its stats can be balanced against that round's
 # team power instead of having to work at three different power levels.
-const ELITE_BY_ROUND := {5: "G", 15: "AH", 25: "SS"}
+#
+# 2026-07-27 elemental-elite pass: each decade's elite now MATCHES that decade's
+# element, so the round-5/15/25/… encounters teach the element the next ten waves
+# are built on. Ant Hill and Stat Stealer moved out to the mixed endgame rounds
+# (65/75) where they get re-tuned; Hill Giant stays at 5 because "G" is the
+# structural 2×2 anchor of nearly every built wave from 11 to 39 and can't move.
+#
+# All ten slots are now real bespoke encounters — the elite_code_for() fallback
+# that used to re-cycle the three original elites through rounds 35-95 is gone.
+#   5  Normal    Hill Giant           big dumb body — the tutorial elite
+#   15 Air       Gale Warden          evasion + shove ....... formation check
+#   25 Water     Tidecaller           heals its own wave .... target-priority check
+#   35 Earth     Terracotta Colossus  armor ramps ........... burst check
+#   45 Fire      Magma Heart          escalating team burn .. race check
+#   55 Lightning Tempest Conduit      chains between heroes . spacing check
+#   65 mixed     Ant Hill             ant swarm ............. DPS check
+#   75 mixed     Stat Stealer         steals a stat ......... attrition check
+#   85 mixed     Mirrorplate Warden   reflects damage ....... overkill check
+#   95 mixed     Aspect Devourer      cycles element ........ damage-type capstone
+const ELITE_BY_ROUND := {
+	5: "G", 15: "GW", 25: "TC", 35: "TCC", 45: "MH",
+	55: "TPC", 65: "AH", 75: "SS", 85: "MW", 95: "AD",
+}
 
 static func is_elite_round(round: int) -> bool:
 	return round in ELITE_ROUNDS
@@ -451,17 +670,34 @@ static func enemy_roll_bias(round: int) -> float:
 # enemy_level_for_round), a step below the next boss. Re-anchored 2026-07-12
 # alongside the steeper round-11+ level curve — the old 2/4/6 would have made
 # the wave-15/25 elites WEAKER than their own escort fodder.
+# Rounds 5/15/25 keep their hand-tuned anchors. Round 35+ (added 2026-07-24 with
+# the run extension) continues the curve rather than flat-lining at 16, which
+# would have left every late elite WEAKER than its own escort fodder — the exact
+# bug the 2026-07-12 re-anchor above fixed for rounds 15/25.
 static func elite_level(round: int) -> int:
-	match ELITE_ROUNDS.find(round):
-		0:  return 2    # round 5  — fodder is lvl 1-2
-		1:  return 9    # round 15 — fodder is lvl 7-9
-		_:  return 16   # round 25 — fodder is lvl 15-17
+	match round:
+		5:  return 2    # fodder is lvl 1-2
+		15: return 9    # fodder is lvl 7-9
+		25: return 16   # fodder is lvl 15-17
+		_:  return 16 + int(float(round - 25) * 0.8)
 
 # The elite for a round is fixed by ELITE_BY_ROUND, so regenerating the spec
 # (formation preview, then again on Ready) always yields the same pick — the
 # old random pool needed a per-round lock cache in wave_director for that.
+#
+# The 2026-07-24 PLACEHOLDER (undefined rounds deterministically re-cycling the
+# three original elites) is GONE as of 2026-07-27 — all ten elite rounds now name
+# a real bespoke encounter. The ELITE_POOL fallback is kept only as a defensive
+# default for a round somehow outside the table; it should never be reached.
+static func elite_code_for(round: int) -> String:
+	if ELITE_BY_ROUND.has(round):
+		return ELITE_BY_ROUND[round]
+	push_warning("elite_code_for: round %d has no ELITE_BY_ROUND entry" % round)
+	return ELITE_POOL[int(round / 10) % ELITE_POOL.size()]
+
 static func build_elite_formation(round: int, difficulty: int, grid_width: int = 9) -> Array:
-	var code: String = ELITE_BY_ROUND.get(round, "G")
-	var counts: Dictionary = {code: 1}
-	counts["M"] = 1 + difficulty   # light fodder support
+	var counts: Dictionary = {elite_code_for(round): 1}
+	# Escort scales with the round — a flat 1-3 goblins is noise next to a
+	# round-95 elite. Still deliberately light: the elite IS the encounter.
+	counts["M"] = 1 + difficulty + int(round / 15)
 	return _auto_place(counts, grid_width)

@@ -30,9 +30,12 @@ var combat_grid: GridContainer
 var affinity_grid: GridContainer
 var growth_grid: GridContainer
 var item_bag: GridContainer
+# Contents-hash of the bag as last built, so the per-frame refresh can skip the
+# rebuild and leave hovered slot buttons (and their tooltips) alive.
+var _bag_signature: String = ""
 var skill_icon_rect: TextureRect
 var skill_name_lbl: Label
-var skill_desc_lbl: Label
+var skill_desc_lbl: RichTextLabel
 
 # Skill icons keyed by skill_name — the display name shown in SkillName/kit[0],
 # so it works identically for heroes and enemies alike (both hero factories in
@@ -382,11 +385,22 @@ func _refresh() -> void:
 	# match the "Warrior" hero's flavor text, so only player heroes take this
 	# path; enemies and summons (ZOMBIE/BAT, not in CLASSES) keep using their
 	# own skill_name/skill_description straight off the unit, unchanged. ──
+	# 2026-08-02: the blurb is now GENERATED from AbilityFormulas against THIS
+	# unit, so the panel shows what this hero — at its level, with its gear and
+	# its rolled stats — actually hits for, instead of the curated ClassBrowser
+	# prose whose percentages were hand-written and already drifting from the
+	# code. ClassBrowser text remains the fallback for anything the registry does
+	# not cover (enemies, summons, legacy base classes).
 	var kit := _hero_kit_text(unit)
 	if skill_name_lbl:
 		skill_name_lbl.text = kit[0] if kit[0] != "" else (unit.skill_name if unit.skill_name != "" else "-")
 	if skill_desc_lbl:
-		skill_desc_lbl.text = kit[1] if kit[1] != "" else (unit.skill_description if unit.skill_description != "" else "-")
+		var resolved := _kit_numbers_text(unit)
+		if resolved != "":
+			skill_desc_lbl.text = resolved
+		else:
+			var fallback: String = kit[1] if kit[1] != "" else (unit.skill_description if unit.skill_description != "" else "-")
+			skill_desc_lbl.text = fallback
 	if skill_icon_rect:
 		# Keyed on unit.skill_name specifically (NOT kit[0]) — kit[0] is the
 		# curated "Passive / Active / Ultimate" combo label for heroes (see
@@ -406,6 +420,41 @@ func _refresh() -> void:
 # Returns [skill_label, skill_desc] from ClassBrowser.CLASSES for player heroes
 # whose unit_class is a real recruitable class, else ["", ""] so the caller
 # falls back to the unit's own skill_name/skill_description.
+# Slot colours match the level-up screen's ability panel so the two readouts of
+# the same kit look like the same thing.
+const KIT_SLOT_COLORS := ["#8cc7f2", "#f2cc6b", "#d98cfa"]
+const KIT_SLOT_LABELS := ["PASSIVE", "ACTIVE", "ULTIMATE"]
+const KIT_VALUE_COLOR := "#eef0ff"
+# Sized rather than bolded: [b] makes RichTextLabel fall back to a bold face that
+# renders denser and reads smaller than the body text around it.
+const KIT_VALUE_FONT := 20
+
+# Builds the passive/active/ultimate blurb with THIS unit's resolved numbers.
+# Returns "" when the unit has no AbilityFormulas entry (enemies, summons, the
+# legacy base classes) so the caller can fall back to the curated prose.
+func _kit_numbers_text(unit: UnitBase) -> String:
+	if not unit.is_player_unit:
+		return ""
+	if not AbilityFormulas.has_entry(unit.unit_class, AbilityFormulas.PASSIVE):
+		return ""
+	var slots := [AbilityFormulas.PASSIVE, AbilityFormulas.ACTIVE, AbilityFormulas.ULTIMATE]
+	var out: Array[String] = []
+	for i in 3:
+		var r := AbilityFormulas.resolve(unit, slots[i])
+		if r["terms"].is_empty():
+			continue
+		var body: String = str(r["template"])
+		for t in r["terms"]:
+			body = body.replace("{%s}" % t["id"],
+				"[font_size=%d][color=%s]%s[/color][/font_size]"
+					% [UITheme.body_font(KIT_VALUE_FONT), KIT_VALUE_COLOR, t["display"]])
+		out.append("[color=%s]%s[/color]  [color=%s]%s[/color]\n%s" % [
+			KIT_SLOT_COLORS[i], KIT_SLOT_LABELS[i],
+			KIT_SLOT_COLORS[i], str(r["name"]), body])
+	if out.is_empty():
+		return ""
+	return "\n\n".join(out)
+
 func _hero_kit_text(unit: UnitBase) -> Array:
 	if not unit.is_player_unit:
 		return ["", ""]
@@ -452,13 +501,34 @@ func _aff_color(pct: int, higher_is_good: bool) -> Color:
 func _update_bag(unit: UnitBase) -> void:
 	if not item_bag:
 		return
-	for c in item_bag.get_children():
-		c.queue_free()
 
 	var items: Array = get_unit_held_items(unit)
+
+	# Player heroes show exactly as many slots as the crystal tree has unlocked
+	# (1 by default — see EquipmentInventory.hero_item_cap); enemies just show
+	# however many items they spawned wielding.
+	var slot_count: int = clampi(items.size(), 1, DETAILS_BAG_SLOTS)
+	if unit.is_player_unit and game._equipment_inventory:
+		slot_count = game._equipment_inventory.hero_item_cap()
+
+	# _refresh() runs every frame from refresh_live(), so an unconditional rebuild
+	# used to queue_free() the very button the mouse was hovering — mouse_entered
+	# fired, then the node died, and the item tooltip never stayed up. Only rebuild
+	# when the bag's actual contents change (2026-08-02).
+	var sig := "%d|" % unit.get_instance_id()
+	for it in items:
+		sig += "%d," % (it as EquipmentItem).get_instance_id()
+	if sig == _bag_signature and item_bag.get_child_count() == slot_count:
+		return
+	_bag_signature = sig
+
+	for c in item_bag.get_children():
+		item_bag.remove_child(c)
+		c.queue_free()
+
 	const SLOT_SIZE := Vector2(26, 26)
 
-	for i in range(DETAILS_BAG_SLOTS):
+	for i in range(slot_count):
 		var slot_bg := StyleBoxFlat.new()
 		slot_bg.corner_radius_top_left     = 4
 		slot_bg.corner_radius_top_right    = 4

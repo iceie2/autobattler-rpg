@@ -35,9 +35,9 @@ const HERO_SPRITES: Dictionary = {
 
 # ── Radar chart (inner class) ─────────────────────────────────────────────────
 class RadarChart extends Control:
-	const SPOKES := 7
+	const SPOKES := 9
 	const RADIUS := 75.0
-	const LABELS := ["ATK", "MAG", "DEF", "HP", "MP", "SPD", "AS"]
+	const LABELS := ["ATK", "MAG", "DEF", "HP", "MP", "SPD", "AS", "CRIT", "CDMG"]
 
 	var base:    Array = []
 	var preview: Array = []
@@ -125,6 +125,14 @@ const PERKS: Array[Dictionary] = [
 	 desc="Moves faster, reaching targets and repositioning more often.",
 	 color=Color(0.88, 0.85, 0.18),
 	 weights={0:1, 1:1, 2:2, 3:3, 4:1, 5:1}},
+	{id="crit",  label="CRIT",  stat="crit_chance",    value=0.04,
+	 desc="Chance for attacks to land a critical hit for extra damage.",
+	 color=Color(0.95, 0.78, 0.25),
+	 weights={0:1, 1:1, 2:3, 3:3, 4:1, 5:1}},
+	{id="critdmg", label="CRIT DMG", stat="crit_damage", value=0.15,
+	 desc="Increases the damage multiplier of your critical hits.",
+	 color=Color(0.95, 0.55, 0.20),
+	 weights={0:1, 1:2, 2:3, 3:3, 4:1, 5:2}},
 ]
 
 # ── Perk grade roll (gacha-style — how much of the perk's stat you actually get) ──
@@ -162,20 +170,26 @@ static func _roll_perk_grade() -> Dictionary:
 
 # Stat rows shown in the info panel (order matches radar axes ATK/MAG/DEF/HP/MP/SPD/AS)
 const STAT_DEFS := [
-	{id="atk",  label="ATK"},
-	{id="mag",  label="MAG"},
-	{id="def",  label="DEF"},
-	{id="hp",   label="HP "},
-	{id="mana", label="MP "},
-	{id="spd",  label="SPD"},
-	{id="aspd", label="AS "},
+	{id="atk",    label="ATK"},
+	{id="mag",    label="MAG"},
+	{id="def",    label="DEF"},
+	{id="hp",     label="HP "},
+	{id="mana",   label="MP "},
+	{id="spd",    label="SPD"},
+	{id="aspd",   label="AS "},
+	{id="crit",   label="CRT"},
+	{id="cdmg",   label="CDM"},
 ]
 
-# Radar normalisation maxima [ATK, MAG, DEF, HP, MP, SPD, AS]
-const RADAR_MAX := [40.0, 30.0, 30.0, 2000.0, 1000.0, 7.0, 2.0]
+# Radar normalisation maxima [ATK, MAG, DEF, HP, MP, SPD, AS, CRIT, CDMG]
+const RADAR_MAX := [40.0, 30.0, 30.0, 2000.0, 1000.0, 7.0, 2.0, 0.6, 4.0]
 
-const PANEL_W := 1060.0
-const PANEL_H := 640.0
+# Optional custom background — drop a PNG here and it replaces the flat panel
+# background automatically (falls back to UITheme.panel_box() if absent).
+const CUSTOM_BG_PATH := "res://assets/using/level_up_bg.png"
+
+const PANEL_W := 1100.0
+const PANEL_H := 700.0
 const CARD_W  := 318.0
 const CARD_H  := 308.0
 const INFO_Y  := 78.0
@@ -190,6 +204,7 @@ var _radar:      RadarChart  = null
 var _card_btns:  Array       = []
 var _cur_offers: Array       = []
 var _cur_unit:   UnitBase    = null
+var _cur_level_ups: int      = 1   # pending level-ups this unit banked — one pick grants ×this value
 
 func _ready() -> void:
 	_build_ui()
@@ -219,8 +234,17 @@ func _next() -> void:
 # ── Per-hero display ──────────────────────────────────────────────────────────
 func _show_hero(unit: UnitBase) -> void:
 	_cur_unit = unit
+	# Bank ALL of this unit's pending level-ups into a single pick (2026-07-23):
+	# a unit that gained 3 levels this round picks ONE perk worth 3× its rolled
+	# value, instead of being shown the screen once per level. One roll, one
+	# reveal, whole reward.
+	_cur_level_ups = maxi(1, unit.perk_points)
 	_hero_lbl.text  = unit.unit_name.to_upper() + " — LEVEL UP!"
-	_level_lbl.text = "Now level %d  ·  Choose a bonus stat" % unit.level
+	if _cur_level_ups > 1:
+		_level_lbl.text = "Now level %d  ·  Leveled up %d× — choose a bonus (×%d value)" \
+			% [unit.level, _cur_level_ups, _cur_level_ups]
+	else:
+		_level_lbl.text = "Now level %d  ·  Choose a bonus stat" % unit.level
 
 	# Load sprite — TextureRect is 250×250 with STRETCH_KEEP_ASPECT_CENTERED
 	var sprite_path: String = HERO_SPRITES.get(unit.unit_class, "")
@@ -228,15 +252,22 @@ func _show_hero(unit: UnitBase) -> void:
 		var tex := load(sprite_path) as Texture2D
 		if tex:
 			_portrait.texture = tex
-			var portrait_r = _portrait.get_meta("portrait_r")
-			if portrait_r:
-				portrait_r.texture = tex
 
 	var stats := _compute_stats(unit)
 	_refresh_stat_display(stats, stats, Color.WHITE)
 	_radar.set_base(_stats_to_radar(stats))
+	_refresh_ability_panel({}, Color.WHITE)
 
 	_cur_offers = _pick_perks(unit.trait_class, 3)
+	# Scale each offer by the number of banked level-ups so the single pick pays
+	# out the full stack. rolled_value drives both the reveal and the applied
+	# bonus; value drives the reveal's fake-number flicker pool and the preview
+	# fallback — scale both so the whole card reads consistently at ×N. Offers
+	# are per-call duplicates (see roll_perk_offer), so mutating them is safe.
+	if _cur_level_ups > 1:
+		for offer: Dictionary in _cur_offers:
+			offer["rolled_value"] = _scale_perk_value(offer, offer.get("grade_mult", 1.0) * _cur_level_ups)
+			offer["value"] = float(offer.get("value", 1.0)) * _cur_level_ups
 	_rebuild_cards()
 
 # ── Stat computation ──────────────────────────────────────────────────────────
@@ -249,6 +280,8 @@ func _compute_stats(u: UnitBase) -> Dictionary:
 		"def":  u.resistance,
 		"spd":  u.movement_speed,
 		"aspd": u.attack_speed,
+		"crit": u.crit_chance,
+		"cdmg": u.crit_damage,
 	}
 
 func _preview_stats(u: UnitBase, perk: Dictionary) -> Dictionary:
@@ -269,6 +302,10 @@ func _preview_stats(u: UnitBase, perk: Dictionary) -> Dictionary:
 			pass   # regen isn't shown on the stat rows/radar; no preview delta
 		"spd":
 			s["spd"] = mini(u.movement_speed + int(v), 8)
+		"crit":
+			s["crit"] = u.crit_chance + v
+		"critdmg":
+			s["cdmg"] = u.crit_damage + v
 	return s
 
 func _stats_to_radar(s: Dictionary) -> Array:
@@ -280,6 +317,8 @@ func _stats_to_radar(s: Dictionary) -> Array:
 		s.get("mana", 0) / RADAR_MAX[4],
 		s.get("spd", 0)  / RADAR_MAX[5],
 		s.get("aspd", 0) / RADAR_MAX[6],
+		s.get("crit", 0) / RADAR_MAX[7],
+		s.get("cdmg", 0) / RADAR_MAX[8],
 	]
 
 # ── Stat display (live update) ────────────────────────────────────────────────
@@ -289,14 +328,20 @@ func _refresh_stat_display(base: Dictionary, preview: Dictionary, perk_col: Colo
 		var row: Dictionary = _stat_rows[i]
 		var bv: float = base.get(id, 0)
 		var pv: float = preview.get(id, 0)
-		var is_float: bool = (id == "aspd")
-		row.val_lbl.text = ("%.2f" % bv) if is_float else str(int(bv))
+		row.val_lbl.text = _format_stat(id, bv)
 		if pv != bv:
-			row.prev_lbl.text = ("→ %.2f" % pv) if is_float else ("→ %d" % int(pv))
+			row.prev_lbl.text = "→ " + _format_stat(id, pv)
 			row.prev_lbl.add_theme_color_override("font_color", perk_col)
 			row.prev_lbl.visible = true
 		else:
 			row.prev_lbl.visible = false
+
+func _format_stat(id: String, v: float) -> String:
+	match id:
+		"aspd":  return "%.2f" % v
+		"crit":  return "%d%%" % int(round(v * 100.0))
+		"cdmg":  return "%.2fx" % v
+		_:       return str(int(v))
 
 func _clear_stat_preview() -> void:
 	if not _cur_unit or not is_instance_valid(_cur_unit):
@@ -304,6 +349,129 @@ func _clear_stat_preview() -> void:
 	var s := _compute_stats(_cur_unit)
 	_refresh_stat_display(s, s, Color.WHITE)
 	_radar.clear_preview()
+	_refresh_ability_panel({}, Color.WHITE)
+
+# ── Ability panel (left slot) ─────────────────────────────────────────────────
+# Shows the hero's passive/active/ultimate with the numbers AbilityFormulas will
+# actually produce in the next fight. Hovering a perk card re-resolves all three
+# against the previewed stats and recolours only the values that moved — so
+# hovering SPD on a mage visibly does nothing to its kit, which is itself the
+# answer the player came for.
+
+const ABIL_X := 40.0
+# Widened 300 -> 340 when the body font went to body_font(16) (=24px): at 300 the
+# longer kits wrapped to a third line and spilled into the row below. The 40px
+# came off the radar, which has slack around its 75px radius.
+const ABIL_W := 340.0
+# Row budget: the perk cards start at PANEL_H - CARD_H - 16 = 376, and the panel
+# starts at INFO_Y - 30 = 48. 26 (header) + 3*98 = 320 lands at 368 — 8px clear.
+const ABIL_ROW_H := 98.0
+# Badge and ability name share the title line; the badge column is fixed so all
+# three names left-align regardless of "PASSIVE" vs "ULTIMATE".
+const BADGE_W := 84.0
+const TITLE_H := 24.0
+# Explicit size for the resolved numbers, in the project's font convention (20 =
+# the standing "value text" size; UITheme.body_font maps it to pixels). The old
+# markup bolded them instead, which made RichTextLabel swap to a fallback bold
+# face that renders denser and reads SMALLER than the body around it — the
+# opposite of the emphasis intended. Sizing keeps one font and puts the variables
+# above the description text, which is the whole reason they're called out.
+const ABIL_VALUE_FONT := 18
+
+const SLOT_LABELS := ["PASSIVE", "ACTIVE", "ULTIMATE"]
+const SLOT_COLORS := [
+	Color(0.55, 0.78, 0.95),   # passive — cool blue, always-on
+	Color(0.95, 0.80, 0.42),   # active  — gold, on cooldown
+	Color(0.85, 0.55, 0.98),   # ultimate — violet, the big one
+]
+# Numbers at rest. Hover overrides changed ones with the perk's grade color.
+const ABIL_VALUE_COL := Color(0.92, 0.94, 1.0)
+
+var _ability_rows: Array = []   # [{name_lbl, desc_rt}] one per slot
+
+func _build_ability_panel() -> void:
+	var bg := ColorRect.new()
+	bg.position     = Vector2(ABIL_X, INFO_Y - 30)
+	bg.size         = Vector2(ABIL_W, ABIL_ROW_H * 3.0 + 26.0)
+	bg.color        = Color(0.05, 0.05, 0.10, 0.5)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(bg)
+
+	_lbl(_panel, "ABILITIES", 12, Color(0.48, 0.50, 0.70),
+		Vector2(ABIL_X + 10, INFO_Y - 26), Vector2(ABIL_W, 18))
+
+	_ability_rows.clear()
+	for i in 3:
+		var ry := INFO_Y - 4.0 + i * ABIL_ROW_H
+
+		# Slot badge and ability name share ONE line (2026-08-02, user request):
+		# stacking them cost a row of vertical space the descriptions need, and
+		# "PASSIVE  Glass Cannon" reads as a single title anyway. The badge sits in
+		# a fixed-width column so all three names start at the same x.
+		var badge := _lbl(_panel, SLOT_LABELS[i], 10, SLOT_COLORS[i],
+			Vector2(ABIL_X + 10, ry), Vector2(BADGE_W, TITLE_H))
+
+		var name_lbl := _lbl(_panel, "", 15, SLOT_COLORS[i],
+			Vector2(ABIL_X + 10 + BADGE_W, ry), Vector2(ABIL_W - 20 - BADGE_W, TITLE_H))
+
+		# RichTextLabel rather than Label: individual numbers get coloured
+		# independently when a hovered perk would change them.
+		var desc := RichTextLabel.new()
+		desc.bbcode_enabled  = true
+		desc.fit_content     = false
+		desc.scroll_active   = false
+		desc.position        = Vector2(ABIL_X + 10, ry + TITLE_H + 2.0)
+		desc.size            = Vector2(ABIL_W - 20, ABIL_ROW_H - TITLE_H - 6.0)
+		desc.mouse_filter    = Control.MOUSE_FILTER_IGNORE
+		desc.add_theme_font_size_override("normal_font_size", UITheme.body_font(16))
+		desc.add_theme_color_override("default_color", Color(0.68, 0.70, 0.84))
+		_panel.add_child(desc)
+
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_ability_rows.append({name_lbl = name_lbl, desc_rt = desc})
+
+# Maps a perk offer onto the ABSOLUTE stat values AbilityFormulas expects. Only
+# the stats that actually appear in ability formulas are worth previewing —
+# hovering SPD or attack speed correctly produces an empty override, so every
+# number stays grey and the player learns those picks don't touch the kit.
+func _ability_overrides(u: UnitBase, perk: Dictionary) -> Dictionary:
+	var v: float = perk.get("rolled_value", perk.value)
+	match perk.id:
+		"atk":   return {"attack_damage": float(u.attack_damage) + int(v)}
+		"magic": return {"magic_power":   float(u.magic_power)   + int(v)}
+		"hp":    return {"max_hp":        float(u.max_hp)        + int(v)}
+		"res":   return {"resistance":    float(u.resistance)    + int(v)}
+	return {}
+
+func _refresh_ability_panel(overrides: Dictionary, hi_col: Color) -> void:
+	if not _cur_unit or not is_instance_valid(_cur_unit):
+		return
+	var slots := [AbilityFormulas.PASSIVE, AbilityFormulas.ACTIVE, AbilityFormulas.ULTIMATE]
+	for i in 3:
+		var row: Dictionary = _ability_rows[i]
+		var base := AbilityFormulas.resolve(_cur_unit, slots[i])
+		if base["terms"].is_empty():
+			row.name_lbl.text = ""
+			row.desc_rt.text  = ""
+			continue
+		row.name_lbl.text = str(base["name"])
+
+		var preview := base
+		if not overrides.is_empty():
+			preview = AbilityFormulas.resolve(_cur_unit, slots[i], overrides)
+
+		# Substitute term-by-term so each number can carry its own colour.
+		var body: String = str(base["template"])
+		for j in base["terms"].size():
+			var bt: Dictionary = base["terms"][j]
+			var pt: Dictionary = preview["terms"][j]
+			var changed: bool = str(pt["display"]) != str(bt["display"])
+			var col: Color = hi_col if changed else ABIL_VALUE_COL
+			var shown: String = str(pt["display"]) if changed else str(bt["display"])
+			var chunk := "[font_size=%d][color=#%s]%s[/color][/font_size]" \
+				% [UITheme.body_font(ABIL_VALUE_FONT), col.to_html(false), shown]
+			body = body.replace("{%s}" % bt["id"], chunk)
+		row.desc_rt.text = body
 
 # ── Hover handlers ────────────────────────────────────────────────────────────
 func _on_perk_hover(perk: Dictionary) -> void:
@@ -313,6 +481,7 @@ func _on_perk_hover(perk: Dictionary) -> void:
 	var preview := _preview_stats(_cur_unit, perk)
 	_refresh_stat_display(base, preview, perk.color)
 	_radar.set_preview(_stats_to_radar(preview))
+	_refresh_ability_panel(_ability_overrides(_cur_unit, perk), perk.color)
 
 func _on_perk_unhover() -> void:
 	_clear_stat_preview()
@@ -356,6 +525,10 @@ static func _scale_perk_value(perk: Dictionary, mult: float) -> float:
 	match perk.id:
 		"aspd":
 			return snappedf(max(0.02, scaled), 0.01)
+		"crit":
+			return snappedf(max(0.01, scaled), 0.01)   # crit CHANCE delta (unit space, 0.04 = +4%)
+		"critdmg":
+			return snappedf(max(0.02, scaled), 0.01)   # crit-damage multiplier delta (+0.15x)
 		"regen":
 			return snappedf(max(0.05, 0.3 * mult), 0.01)   # HP regen/sec; mana regen derived as 2x in apply_perk_to_unit
 		_:
@@ -393,6 +566,8 @@ static func apply_perk_to_unit(unit: UnitBase, perk: Dictionary) -> void:
 			unit.hp_regen   += v
 			unit.mana_regen += v * 2.0
 		"movement_speed": unit.movement_speed = mini(unit.movement_speed + int(v), 8)
+		"crit_chance":    unit.crit_chance += v
+		"crit_damage":    unit.crit_damage += v
 	unit.update_visuals()
 
 func _apply_perk(perk: Dictionary) -> void:
@@ -400,9 +575,10 @@ func _apply_perk(perk: Dictionary) -> void:
 		_next()
 		return
 	apply_perk_to_unit(_cur_unit, perk)
-	_cur_unit.perk_points -= 1
-	if _cur_unit.perk_points > 0:
-		_queue.push_front(_cur_unit)
+	# The offer's rolled_value was already multiplied by _cur_level_ups in
+	# _show_hero, so this single pick pays out every banked level-up at once —
+	# consume them all rather than re-queuing the unit for another screen.
+	_cur_unit.perk_points = 0
 	_next()
 
 # ── Card builder ──────────────────────────────────────────────────────────────
@@ -418,11 +594,46 @@ func _rebuild_cards() -> void:
 	var card_y  := PANEL_H - CARD_H - 16.0
 
 	for i in range(_cur_offers.size()):
-		var card := _make_card(_cur_offers[i], Vector2(start_x + i * (CARD_W + gap), card_y))
+		var card := _make_card(_cur_offers[i], Vector2(start_x + i * (CARD_W + gap), card_y), i)
 		_panel.add_child(card)
 		_card_btns.append(card)
 
-func _make_card(perk: Dictionary, pos: Vector2) -> Button:
+# Perk id → STAT_ICONS key (regen/spd don't have a 1:1 icon yet, use the
+# closest match). Class-level so both _make_card and the identity-roll's
+# random-candidate icon lookup share one mapping.
+const PERK_ICON_KEY := {
+	"atk": "atk", "aspd": "aspd", "magic": "magic", "hp": "hp",
+	"res": "res", "regen": "hpregen", "spd": "move",
+	"crit": "crit_chance", "critdmg": "crit_damage",
+}
+
+# Shared "+value" formatter for a rolled perk offer so every UI (level-up reveal,
+# round-reward panel, shop tooltip/summary) renders crit-as-% and crit-damage-as-x
+# consistently. crit chance lives in 0–1 unit space; show it as whole percent.
+static func format_perk_value(perk: Dictionary) -> String:
+	var v: float = perk.get("rolled_value", perk.get("value", 0))
+	match perk.get("id", ""):
+		"crit":          return "+%d%%" % int(round(v * 100.0))
+		"critdmg":       return "+%.2fx" % v
+		"aspd", "regen": return "+%.2f" % v
+		_:               return "+%d" % int(v)
+
+# ── Slot-machine reveal pacing (2026-07-21, restaggered same day) — shared
+# with hero_shop/relic_screen. Three reels per card: identity (icon+stat
+# label), rank (badge+card tint), rolled value — each fully awaited in turn
+# (see _run_card_reveal), so REEL_DURATION*3 is one card's full cascade time.
+# CARD_STAGGER is HALF that, so cards overlap like real slot reels: card 2
+# starts while card 1 is still spinning, card 3 comes on right as card 1
+# finishes, then card 2 lands, then card 3 shortly after — all settle in a
+# tight cluster instead of waiting each other out in full (too slow).
+const NEUTRAL_COL   := Color(0.14, 0.14, 0.19)
+const REEL_TICKS    := 8
+const REEL_START    := 0.035
+const REEL_GROWTH   := 1.22
+const REEL_DURATION := 0.62
+const CARD_STAGGER  := REEL_DURATION * 3.0 / 2.0   # half the identity+rank+value cascade
+
+func _make_card(perk: Dictionary, pos: Vector2, idx: int) -> Button:
 	var btn := Button.new()
 	btn.position = pos
 	btn.size     = Vector2(CARD_W, CARD_H)
@@ -432,28 +643,22 @@ func _make_card(perk: Dictionary, pos: Vector2) -> Button:
 	var grade_col: Color = perk.get("grade_color", Color(0.72, 0.72, 0.72))
 	var rolled_value: float = perk.get("rolled_value", perk.value)
 
-	# Whole card tinted by its rolled grade (gacha-style) — same treatment as the
-	# hero recruit cards, so an "S" perk visually screams for attention.
-	var bg_base: Color = grade_col.darkened(0.82)
-	btn.add_theme_stylebox_override("normal",
-		_flat(bg_base, grade_col, 3, 12))
-	btn.add_theme_stylebox_override("hover",
-		_flat(bg_base.lightened(0.10), grade_col.lightened(0.25), 4, 12))
-	btn.add_theme_stylebox_override("pressed",
-		_flat(bg_base.darkened(0.15), grade_col.lightened(0.1), 4, 12))
-	btn.add_theme_stylebox_override("focus",
-		_flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
+	# Card stays neutral-tinted until its OWN rank reel lands (2026-07-21) —
+	# same treatment as hero_shop's recruit cards, so the color rolls WITH the
+	# badge instead of spoiling the grade before the reel even spins.
+	_paint_card_grade(btn, NEUTRAL_COL)
+	btn.visible = false
 
 	# Grade badge (top-right)
 	var badge_bg := ColorRect.new()
 	badge_bg.position = Vector2(CARD_W - 40, 8)
 	badge_bg.size     = Vector2(32, 32)
-	badge_bg.color    = grade_col.darkened(0.4)
+	badge_bg.color    = NEUTRAL_COL.darkened(0.3)
 	badge_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(badge_bg)
 
 	var badge_lbl := Label.new()
-	badge_lbl.text = grade
+	badge_lbl.text = ""
 	badge_lbl.position = badge_bg.position
 	badge_lbl.size     = badge_bg.size
 	badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -463,12 +668,6 @@ func _make_card(perk: Dictionary, pos: Vector2) -> Button:
 	badge_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(badge_lbl)
 
-	# Perk id → STAT_ICONS key (regen/spd don't have a 1:1 icon yet, use the
-	# closest match).
-	const PERK_ICON_KEY := {
-		"atk": "atk", "aspd": "aspd", "magic": "magic", "hp": "hp",
-		"res": "res", "regen": "hpregen", "spd": "move",
-	}
 	# Icon + big number get the freed-up middle of the card; label and
 	# description are anchored to the bottom so the number can grow.
 	const DESC_H := 76.0
@@ -476,18 +675,25 @@ func _make_card(perk: Dictionary, pos: Vector2) -> Button:
 	var desc_y: float  = CARD_H - 16.0 - DESC_H
 	var label_y: float = desc_y - LABEL_H - 4.0
 
-	_add_perk_icon(btn, PERK_ICON_KEY.get(perk.id, ""), Vector2((CARD_W - 44) / 2.0, 8), 44.0)
+	# Icon built inline (not via _add_perk_icon) so the identity reel keeps a
+	# stable reference to repaint each tick.
+	var icon := TextureRect.new()
+	icon.expand_mode  = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.position     = Vector2((CARD_W - 44) / 2.0, 8)
+	icon.size         = Vector2(44, 44)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(icon)
 
-	var value_str: String = ("+%.2f" % rolled_value) if perk.id in ["aspd", "regen"] else ("+%d" % int(rolled_value))
-	_lbl(btn, value_str, 58, grade_col,
+	var value_lbl := _lbl(btn, "", 58, grade_col,
 		Vector2(0, 58), Vector2(CARD_W, label_y - 58.0), true)
-	_lbl(btn, perk.label.to_upper(), 14, Color(0.92, 0.90, 1.0),
+	var label_lbl := _lbl(btn, "", 14, Color(0.92, 0.90, 1.0),
 		Vector2(0, label_y), Vector2(CARD_W, LABEL_H), true)
 
 	var desc := Label.new()
 	desc.position             = Vector2(16, desc_y)
 	desc.size                 = Vector2(CARD_W - 32, DESC_H)
-	desc.add_theme_font_size_override("font_size", 28)
+	desc.add_theme_font_size_override("font_size", 18)
 	desc.add_theme_color_override("font_color", Color(0.72, 0.70, 0.82))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.vertical_alignment   = VERTICAL_ALIGNMENT_TOP
@@ -499,7 +705,80 @@ func _make_card(perk: Dictionary, pos: Vector2) -> Button:
 	btn.mouse_entered.connect(_on_perk_hover.bind(perk))
 	btn.mouse_exited.connect(_on_perk_unhover)
 	btn.pressed.connect(_apply_perk.bind(perk))
+	_run_card_reveal(idx * CARD_STAGGER, btn, icon, label_lbl, value_lbl,
+		badge_lbl, badge_bg, perk, grade, rolled_value)
 	return btn
+
+# Repaints a card's normal/hover/pressed background+border — called once with
+# NEUTRAL_COL at build time, then on every tick of the rank reel.
+func _paint_card_grade(btn: Button, col: Color) -> void:
+	var bg_base: Color = col.darkened(0.82)
+	btn.add_theme_stylebox_override("normal",  _flat(bg_base, col, 3, 12))
+	btn.add_theme_stylebox_override("hover",   _flat(bg_base.lightened(0.10), col.lightened(0.25), 4, 12))
+	btn.add_theme_stylebox_override("pressed", _flat(bg_base.darkened(0.15), col.lightened(0.1), 4, 12))
+	btn.add_theme_stylebox_override("focus",   _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
+
+# Wait for this card's turn -> reveal -> identity reel (icon+stat label cycle
+# through OTHER perk types) -> rank reel (badge+card tint) -> rolled-value
+# reel, each fully awaited before the next starts.
+func _run_card_reveal(delay: float, btn: Button, icon: TextureRect,
+		label_lbl: Label, value_lbl: Label, badge_lbl: Label, badge_bg: ColorRect,
+		perk: Dictionary, final_grade: String, final_value: float) -> void:
+	var tree := get_tree()
+	if not tree:
+		return
+	if delay > 0.0:
+		await tree.create_timer(delay).timeout
+	if not is_instance_valid(btn):
+		return
+	btn.visible = true
+
+	# Reel 1: perk identity — icon and stat label change TOGETHER each tick,
+	# landing on the true perk (the 3 offered perks were already chosen in
+	# _pick_perks; this cycles through the wider 7-perk pool for the reveal).
+	var identity_pool: Array = PERKS.duplicate()
+	var paint_identity := func(v: Dictionary) -> void:
+		var ipath: String = UnitFactory.STAT_ICONS.get(PERK_ICON_KEY.get(v.id, ""), "")
+		icon.texture = (load(ipath) as Texture2D) if ipath != "" else null
+		label_lbl.text = str(v.label).to_upper()
+	var punch_identity := func() -> void: GradeRoll.land_punch(icon)
+	await GradeRoll.spin(btn, identity_pool, perk, paint_identity,
+		0.0, REEL_TICKS, REEL_START, REEL_GROWTH, punch_identity)
+	if not is_instance_valid(btn):
+		return
+
+	# Reel 2: rank badge + card/badge background tint.
+	var paint_rank := func(g: String) -> void:
+		var gcol: Color = PERK_GRADE_COLORS.get(g, Color(0.72, 0.72, 0.72))
+		badge_lbl.text = g
+		badge_lbl.add_theme_color_override("font_color", gcol)
+		badge_bg.color = gcol.darkened(0.4)
+		_paint_card_grade(btn, gcol)
+	var punch_rank := func() -> void: GradeRoll.land_punch(badge_lbl)
+	var grade_pool: Array = []
+	for g in PERK_GRADE_TABLE:
+		grade_pool.append(str(g.grade))
+	await GradeRoll.spin(btn, grade_pool, final_grade, paint_rank,
+		0.0, REEL_TICKS, REEL_START, REEL_GROWTH, punch_rank)
+	if not is_instance_valid(btn):
+		return
+
+	# Reel 3: rolled value — fake values scaled off this perk's own base
+	# value (same 0.5x-2.2x span as the real F-S grade multiplier table) so
+	# a HP perk flickers through plausible HP numbers, not tiny aspd deltas.
+	var pid: String = perk.get("id", "")
+	var is_small_float: bool = pid in ["aspd", "regen"]
+	var base_value: float = float(perk.get("value", 1.0))
+	var value_pool: Array = []
+	for _i in range(8):
+		value_pool.append(base_value * randf_range(0.5, 2.2))
+	var paint_value := func(v: float) -> void:
+		match pid:
+			"crit":    value_lbl.text = "+%d%%" % int(round(v * 100.0))
+			"critdmg": value_lbl.text = "+%.2fx" % v
+			_:         value_lbl.text = ("+%.2f" % v) if is_small_float else ("+%d" % int(v))
+	await GradeRoll.spin(value_lbl, value_pool, final_value, paint_value,
+		0.0, REEL_TICKS, REEL_START, REEL_GROWTH)
 
 # ── UI shell (built once) ─────────────────────────────────────────────────────
 func _build_ui() -> void:
@@ -511,9 +790,31 @@ func _build_ui() -> void:
 
 	_panel = Panel.new()
 	_panel.size = Vector2(PANEL_W, PANEL_H)
-	# UI theme pass 2026-07-04: dobo card panel instead of flat navy box.
-	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+
+	# Custom background art — when CUSTOM_BG_PATH exists it IS the panel's
+	# entire background, full stop: no theme frame texture and no flat panel
+	# color showing anywhere behind/around it. Native-size centering (tried
+	# previously) left the flat panel color exposed wherever the 650x450 art
+	# fell short of the 1100x700 panel — that read as a second background.
+	# Cover-and-crop instead so the art itself fills every pixel of the panel.
+	var bg_tex: Texture2D = load(CUSTOM_BG_PATH) as Texture2D if ResourceLoader.exists(CUSTOM_BG_PATH) else null
+	if bg_tex:
+		_panel.add_theme_stylebox_override("panel", _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
+	else:
+		# UI theme pass 2026-07-04: dobo card panel instead of flat navy box.
+		_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
 	overlay.add_child(_panel)
+
+	if bg_tex:
+		var bg := TextureRect.new()
+		bg.texture       = bg_tex
+		bg.position      = Vector2.ZERO
+		bg.size          = Vector2(PANEL_W, PANEL_H)
+		bg.expand_mode   = TextureRect.EXPAND_IGNORE_SIZE
+		bg.stretch_mode  = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		bg.clip_contents = true
+		bg.mouse_filter  = Control.MOUSE_FILTER_IGNORE
+		_panel.add_child(bg)
 
 	# Header
 	_hero_lbl = _lbl(_panel, "", 28, Color(1.0, 0.88, 0.45),
@@ -521,48 +822,41 @@ func _build_ui() -> void:
 	_level_lbl = _lbl(_panel, "", 15, Color(0.75, 0.72, 0.90, 0.85),
 		Vector2(0, 52), Vector2(PANEL_W, 22), true)
 
-	# Info section — portrait | stat list | radar
-
-	# Portrait on left
-	var pbg := ColorRect.new()
-	pbg.position     = Vector2(55, INFO_Y - 30)
-	pbg.size         = Vector2(250, 250)
-	pbg.color        = Color(0.05, 0.05, 0.10, 0.5)
-	pbg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_panel.add_child(pbg)
-
-	_portrait = TextureRect.new()
-	_portrait.position     = pbg.position
-	_portrait.size         = pbg.size
-	_portrait.expand_mode  = TextureRect.EXPAND_IGNORE_SIZE
-	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_panel.add_child(_portrait)
+	# Info section — ability list | radar | stat list | portrait
+	#
+	# The left slot used to hold a mirrored copy of the same hero sprite already
+	# shown on the right. Two identical sprites told the player nothing, so the
+	# space now carries the hero's actual kit (2026-08-02): all three abilities
+	# with their real resolved numbers, which re-resolve live while a perk card is
+	# hovered. See _refresh_ability_panel — that is the whole point of the change.
+	_build_ability_panel()
 
 	# Radar chart (center)
 	_radar = RadarChart.new()
-	_radar.position     = Vector2(360, INFO_Y - 10)
-	_radar.size         = Vector2(280, 208)
+	_radar.position     = Vector2(395, INFO_Y - 10)
+	_radar.size         = Vector2(240, 208)
 	_radar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_child(_radar)
 
-	# Portrait right (mirror)
+	# Portrait — now the ONLY hero sprite on the screen (see _build_ability_panel).
+	# Narrowed from 250 to 200 and pushed right: the old 755 box ran under the
+	# stat column's "→ N" preview labels, which only became visible once a stat
+	# actually changed on hover. Removing the duplicate sprite freed the room to
+	# fix it properly rather than clipping the preview.
 	var pbg_r := ColorRect.new()
-	pbg_r.position     = Vector2(755, INFO_Y - 30)
-	pbg_r.size         = Vector2(250, 250)
+	pbg_r.position     = Vector2(805, INFO_Y - 30)
+	pbg_r.size         = Vector2(200, 200)
 	pbg_r.color        = Color(0.05, 0.05, 0.10, 0.3)
 	pbg_r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_child(pbg_r)
 
-	var portrait_r := TextureRect.new()
-	portrait_r.position     = pbg_r.position
-	portrait_r.size         = pbg_r.size
-	portrait_r.expand_mode  = TextureRect.EXPAND_IGNORE_SIZE
-	portrait_r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	portrait_r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	portrait_r.flip_h       = true
-	_panel.add_child(portrait_r)
-	_portrait.set_meta("portrait_r", portrait_r)
+	_portrait = TextureRect.new()
+	_portrait.position     = pbg_r.position
+	_portrait.size         = pbg_r.size
+	_portrait.expand_mode  = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(_portrait)
 
 	# Stat list on right
 	const STAT_X  := 650.0
@@ -576,13 +870,13 @@ func _build_ui() -> void:
 		var ry := INFO_Y + 22.0 + i * ROW_H
 
 		_lbl(_panel, sd.label, 13, Color(0.52, 0.54, 0.72),
-			Vector2(STAT_X, ry), Vector2(36, ROW_H))
+			Vector2(STAT_X, ry), Vector2(34, ROW_H))
 
 		var val_lbl := _lbl(_panel, "0", 15, Color(0.90, 0.90, 1.0),
-			Vector2(STAT_X + 40, ry), Vector2(54, ROW_H))
+			Vector2(STAT_X + 36, ry), Vector2(48, ROW_H))
 
 		var prev_lbl := _lbl(_panel, "", 14, Color(0.35, 0.92, 0.45),
-			Vector2(STAT_X + 96, ry), Vector2(80, ROW_H))
+			Vector2(STAT_X + 86, ry), Vector2(66, ROW_H))
 		prev_lbl.visible = false
 
 		_stat_rows.append({val_lbl = val_lbl, prev_lbl = prev_lbl})
@@ -615,21 +909,3 @@ func _lbl(parent: Control, text: String, size: int, color: Color,
 	l.mouse_filter         = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(l)
 	return l
-
-# Small stat icon (see UnitFactory.STAT_ICONS) — silently does nothing if that
-# stat doesn't have an icon yet.
-func _add_perk_icon(parent: Control, stat_key: String, pos: Vector2, size: float) -> void:
-	var path: String = UnitFactory.STAT_ICONS.get(stat_key, "")
-	if path == "":
-		return
-	var tex: Texture2D = load(path) as Texture2D
-	if not tex:
-		return
-	var icon := TextureRect.new()
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.texture = tex
-	icon.position = pos
-	icon.size = Vector2(size, size)
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(icon)

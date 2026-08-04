@@ -1269,9 +1269,11 @@ theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
 theme_override_font_sizes/font_size = 24
 text = "-"
 
-[node name="SkillDesc" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow/SkillTextCol"]
+[node name="SkillDesc" type="RichTextLabel" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow/SkillTextCol"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.82, 0.82, 0.9, 1)
-theme_override_font_sizes/font_size = 20
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+theme_override_colors/default_color = Color(0.82, 0.82, 0.9, 1)
+theme_override_font_sizes/normal_font_size = 20
 text = "-"
-autowrap_mode = 3

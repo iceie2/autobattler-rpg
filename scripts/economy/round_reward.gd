@@ -12,10 +12,14 @@ enum Type { NOTHING, GOLD, ITEM, STAT_BONUS }
 
 # Odds per difficulty (weights, need not sum to 100). Higher difficulty skews
 # away from "nothing" and toward the rarer item/stat-bonus rewards.
+# Balance 2026-07-24 (user request): fighting the harder wave for NORMAL/HARD
+# must always pay off — NOTHING only exists on EASY now. Its old NORMAL/HARD
+# weight (20 / 5) folded proportionally into GOLD/ITEM/STAT_BONUS so those
+# tables still sum the same as before, just with the whiff removed.
 const ODDS := {
 	WaveScaler.Difficulty.EASY:   {Type.NOTHING: 40, Type.GOLD: 40, Type.ITEM: 15, Type.STAT_BONUS: 5},
-	WaveScaler.Difficulty.NORMAL: {Type.NOTHING: 20, Type.GOLD: 35, Type.ITEM: 30, Type.STAT_BONUS: 15},
-	WaveScaler.Difficulty.HARD:   {Type.NOTHING: 5,  Type.GOLD: 25, Type.ITEM: 40, Type.STAT_BONUS: 30},
+	WaveScaler.Difficulty.NORMAL: {Type.GOLD: 44, Type.ITEM: 38, Type.STAT_BONUS: 18},
+	WaveScaler.Difficulty.HARD:   {Type.GOLD: 26, Type.ITEM: 42, Type.STAT_BONUS: 32},
 }
 
 const TYPE_NAMES := {
@@ -40,8 +44,8 @@ static func describe(reward: Dictionary) -> String:
 			var p: Dictionary = reward.get("perk", {})
 			if p.is_empty():
 				return "Stat Bonus"
-			var v: float = p.get("rolled_value", p.get("value", 0))
-			var val_str: String = ("+%.2f" % v) if p.get("id", "") in ["aspd", "regen"] else ("+%d" % int(v))
+			var _v: float = p.get("rolled_value", p.get("value", 0))
+			var val_str: String = LevelUpScreen.format_perk_value(p)
 			return "%s %s (%s)" % [p.get("label", "?"), val_str, p.get("grade", "?")]
 		_:
 			return ""

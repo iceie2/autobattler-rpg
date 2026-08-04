@@ -33,9 +33,7 @@ func present(reward: Dictionary, player_units: Array) -> void:
 func _show_unit_step(player_units: Array) -> void:
 	_title_lbl.text = "ROUND REWARD — STAT BONUS"
 
-	var perk_id: String = _chosen_perk.get("id", "")
-	var v: float = _chosen_perk.get("rolled_value", _chosen_perk.get("value", 0))
-	var value_str: String = ("+%.2f" % v) if perk_id in ["aspd", "regen"] else ("+%d" % int(v))
+	var value_str: String = LevelUpScreen.format_perk_value(_chosen_perk)
 
 	_sub_lbl.text = "Who receives %s %s?" % [value_str, _chosen_perk.get("label", "?")]
 	_unit_grid.visible = true
@@ -163,11 +161,16 @@ func _get_unit_stat_value(unit: UnitBase, _perk_id: String) -> float:
 const PERK_STAT_ICON := {
 	"atk": "atk", "aspd": "aspd", "magic": "magic", "hp": "hp",
 	"res": "res", "regen": "hpregen", "spd": "move",
+	"crit": "crit_chance", "critdmg": "crit_damage",
 }
 
 
 func _format_idle_stat(perk_id: String, value: float) -> String:
 	var short_name := _short_stat_name(perk_id)
+	if perk_id == "crit":
+		return "%s %d%%" % [short_name, int(round(value * 100.0))]
+	if perk_id == "critdmg":
+		return "%s %.2fx" % [short_name, value]
 	if perk_id in ["aspd", "regen"]:
 		return "%s %.2f" % [short_name, value]
 	return "%s %d" % [short_name, int(value)]
@@ -175,6 +178,10 @@ func _format_idle_stat(perk_id: String, value: float) -> String:
 
 func _format_hover_stat(perk_id: String, from_value: float, to_value: float) -> String:
 	var short_name := _short_stat_name(perk_id)
+	if perk_id == "crit":
+		return "%s %d%% -> %d%%" % [short_name, int(round(from_value * 100.0)), int(round(to_value * 100.0))]
+	if perk_id == "critdmg":
+		return "%s %.2fx -> %.2fx" % [short_name, from_value, to_value]
 	if perk_id in ["aspd", "regen"]:
 		return "%s %.2f -> %.2f" % [short_name, from_value, to_value]
 	return "%s %d -> %d" % [short_name, int(from_value), int(to_value)]
@@ -194,6 +201,10 @@ func _short_stat_name(perk_id: String) -> String:
 			return "ARM"
 		"health":
 			return "HP"
+		"crit":
+			return "CRIT"
+		"critdmg":
+			return "CRITDMG"
 		_:
 			return perk_id.to_upper()
 
@@ -249,7 +260,7 @@ func _build_ui() -> void:
 
 	_sub_lbl = Label.new()
 	_sub_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_sub_lbl.add_theme_font_size_override("font_size", 20)
+	_sub_lbl.add_theme_font_size_override("font_size", 30)
 	_sub_lbl.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85))
 	_sub_lbl.position = Vector2(0, 58)
 	_sub_lbl.size = Vector2(PANEL_W, 26)
