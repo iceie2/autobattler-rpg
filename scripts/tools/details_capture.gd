@@ -7,7 +7,7 @@ extends Node
 #
 #   godot --path . res://scenes/_details_capture.tscn -- --hero=STATIC
 #
-# Writes res://_details_check.png (a build artifact — don't commit it).
+# Writes user://_details_check.png (a build artifact — don't commit it).
 # Needs a real window, so no --headless.
 
 func _ready() -> void:
@@ -79,7 +79,7 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(
-		ProjectSettings.globalize_path("res://_details_check.png"))
+		ProjectSettings.globalize_path("user://_details_check.png"))
 	print("CAPTURED details — hero=%s level=%d MAG=%d ATK=%d"
 		% [hero, u.level, u.magic_power, u.attack_damage])
 	get_tree().quit()

@@ -1,11 +1,16 @@
 extends Node
 class_name WaveScaler
 
-enum Difficulty { EASY, NORMAL, HARD }
+# Renamed 2026-08-07 (user): tiers were EASY/NORMAL/HARD, but tier 0 IS the
+# baseline everyone plays — calling it "easy" implied a concession and made
+# "normal" ambiguous between the baseline and the first scaled tier (it caused
+# real target-slippage during the team-size retune). Tier 0 is now NORMAL; the
+# two scaled-up tiers are VETERAN and BRUTAL.
+enum Difficulty { NORMAL, VETERAN, BRUTAL }
 enum Role      { FRONT, BACK, BOSS }
 
-# Total-power multiplier relative to the easy base wave.
-# Easy base power × this mult = total power budget for Normal/Hard.
+# Total-power multiplier relative to the baseline (Normal) wave.
+# Normal base power × this mult = total power budget for Veteran/Brutal.
 const DIFFICULTY_MULT: Array[float] = [1.0, 1.75, 3.5]
 
 # ── Role registry ─────────────────────────────────────────────────────────────
@@ -129,7 +134,7 @@ const CODE_IS_LARGE: Dictionary = {
 }
 
 # ── Power costs (rough unit strength used for budget system) ──────────────────
-# Easy wave power is the baseline. Normal/Hard spend their leftover budget on
+# Normal (baseline) wave power is the reference. Veteran/Brutal spend their leftover budget on
 # random filler units pulled from FILLER_POOL (ordered strongest → weakest).
 const UNIT_POWER: Dictionary = {
 	"R":  15,   # Rat         — very cheap swarm
@@ -285,14 +290,14 @@ static func gold_drops_for_unit(unit: UnitBase, round: int) -> int:
 	if unit.is_elite:
 		return Balance.ELITE_COIN_DROP \
 				+ (1 if round >= Balance.ELITE_COIN_LATE_BONUS_ROUND else 0)
-	# EV-modeled 2026-07-03: hits the user's early curve (2nd hero ~wave 3,
-	# 3rd ~wave 5, ~5 by wave 8-10 on Easy). Capped to soften the late-game
-	# re-acceleration; the planned TFT-style player-level/team-size system is
-	# the intended structural gate past wave ~12 (user's idea). Tune in balance.gd.
-	var chance: float = clampf(
-			Balance.COIN_CHANCE_BASE + float(round) * Balance.COIN_CHANCE_PER_ROUND,
-			Balance.COIN_CHANCE_BASE, Balance.COIN_CHANCE_CAP)
-	return 1 if randf() < chance else 0
+	# FIXED chance, same at wave 1 and wave 100 (2026-08-07 user spec: "coin and
+	# crystal drops should both be fixed"; the old round-scaled ramp is the
+	# mechanism a prior pass identified as the "so much gold" cause — see
+	# Balance.COIN_CHANCE_BASE). The only way to raise this is the Bounty
+	# crystal-tree node, itself a flat per-level chance (main_game.gd's
+	# gold_per_kill roll) — not round-scaled either. `round` is now unused but
+	# kept as a param for call-site compatibility.
+	return 1 if randf() < Balance.COIN_CHANCE_BASE else 0
 
 static func crystals_for_unit(unit: UnitBase) -> int:
 	# Heavy-tier demotion (2026-07-23): elite mobs (G/AH/SS) recurring as normal
@@ -311,18 +316,18 @@ static func crystals_for_unit(unit: UnitBase) -> int:
 # Returns Array of {"code": String, "pos": Vector2i} ready for spawn_enemies().
 # Returns [] for procedural rounds (round 11+).
 #
-# Easy:         fixed wave from WaveData — no changes.
-# Normal/Hard:  easy base guaranteed + random filler units up to the power budget.
+# Normal:         fixed wave from WaveData — no changes.
+# Veteran/Brutal: normal base guaranteed + random filler units up to the power budget.
 #               Filler prefers 1 strong unit over several weak ones (70/30 bias).
 static func build_formation(round: int, difficulty: int, grid_width: int = 9) -> Array:
 	var base_counts: Dictionary = WaveData.get_wave(round)
 	if base_counts.is_empty():
 		return []
 
-	if difficulty == Difficulty.EASY:
+	if difficulty == Difficulty.NORMAL:
 		return _auto_place(base_counts, grid_width)
 
-	# Normal / Hard: start with easy base, add power-budget filler.
+	# Veteran / Brutal: start with the normal base, add power-budget filler.
 	var base_power: int = _count_power(base_counts)
 	var mult: float = DIFFICULTY_MULT[difficulty]
 	var total_budget: int = int(float(base_power) * mult)
@@ -422,7 +427,11 @@ static func _place_bosses(codes: Array, occupied: Dictionary, grid_width: int) -
 
 	for i in range(codes.size()):
 		var size: int = cell_size_for_code(codes[i])
-		var x: int = mini(int(chosen_x[i]), maxi(grid_width - size, 0))
+		# _even_pick returns at most valid_x.size() anchors, which can be fewer
+		# than the number of bodies — wrap so wide/crowded batches still place.
+		if chosen_x.is_empty():
+			break
+		var x: int = mini(int(chosen_x[i % chosen_x.size()]), maxi(grid_width - size, 0))
 		# Candidate top rows, preferring a centred band and falling back outward.
 		# A size-N body needs rows r0 .. r0+N-1 to all sit inside the 4 enemy rows.
 		var row_starts: Array = []
@@ -576,6 +585,9 @@ static func boss_code_for(round: int, chosen_element: int = -1) -> String:
 static func build_boss_formation(round: int, difficulty: int, grid_width: int = 9, chosen_element: int = -1) -> Array:
 	var tier: int = boss_tier(round)
 	var counts: Dictionary = {boss_code_for(round, chosen_element): 1}      # the boss
+	# Normal: boss-only encounter, no escort — every 10 rounds is just the boss.
+	if difficulty == Difficulty.NORMAL:
+		return _auto_place(counts, grid_width)
 	counts["M"] = 2 + tier + difficulty                     # goblin fodder
 	# Honor guard grows with the boss tier (2026-07-12: a lone boss just gets
 	# focus-fired down by a full late-game roster — arena sims had 10 heroes
@@ -676,7 +688,7 @@ static func enemy_roll_bias(round: int) -> float:
 # bug the 2026-07-12 re-anchor above fixed for rounds 15/25.
 static func elite_level(round: int) -> int:
 	match round:
-		5:  return 2    # fodder is lvl 1-2
+		5:  return 1    # fodder is lvl 1-2
 		15: return 9    # fodder is lvl 7-9
 		25: return 16   # fodder is lvl 15-17
 		_:  return 16 + int(float(round - 25) * 0.8)

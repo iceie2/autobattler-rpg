@@ -1,0 +1,97 @@
+{
+  "version": 2,
+  "hero": "cross",
+  "video": "cross_hit.mp4",
+  "animations": {
+    "walk_north": {
+      "folder": "walk_north",
+      "anim": "walk_north",
+      "totalFrames": 240,
+      "pickedOrder": [
+        80,
+        84,
+        88,
+        92,
+        97,
+        101,
+        105,
+        109
+      ],
+      "offsets": {}
+    },
+    "walk_east": {
+      "folder": "walk_east",
+      "anim": "walk_east",
+      "totalFrames": 240,
+      "pickedOrder": [
+        80,
+        84,
+        89,
+        93,
+        98,
+        102,
+        107,
+        111
+      ],
+      "offsets": {}
+    },
+    "idle_south": {
+      "folder": "idle_south",
+      "anim": "idle_south",
+      "totalFrames": 240,
+      "pickedOrder": [
+        80,
+        81,
+        82,
+        83,
+        85,
+        86,
+        87,
+        88
+      ],
+      "offsets": {}
+    },
+    "hurt": {
+      "folder": "hurt",
+      "anim": "hurt",
+      "totalFrames": 240,
+      "pickedOrder": [
+        70,
+        72,
+        73,
+        74,
+        76,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        92,
+        94,
+        97,
+        99,
+        101,
+        103,
+        105
+      ],
+      "offsets": {}
+    },
+    "attack": {
+      "folder": "attack",
+      "anim": "attack",
+      "totalFrames": 240,
+      "pickedOrder": [
+        0,
+        34,
+        68,
+        102,
+        137,
+        171,
+        205,
+        239
+      ],
+      "offsets": {}
+    }
+  }
+}

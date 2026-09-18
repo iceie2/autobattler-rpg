@@ -17,6 +17,7 @@ class_name CrystalTree
 
 const DATA_PATH := "res://data/crystal_tree.json"
 const ICON_DIR := "res://assets/icons/crystalshop/"
+const RELIC_ICON_DIR := "res://assets/icons/Relics/"
 const DEFAULT_ICON := "head_start.png"
 const DEFAULT_SIZE := 96.0
 
@@ -27,12 +28,17 @@ class TreeNode extends RefCounted:
 	# keys of other nodes this one hangs off of (multi-parent support,
 	# 2026-08-01). A node with several parents draws one connector line per
 	# parent (see CrystalShop._build_tree/_refresh) — this is purely a visual
-	# layout relationship, NOT a hard gameplay prerequisite gate (that's a
-	# separate mechanism: Progression.UPGRADES[i].requires).
+	# layout relationship AND (since 2026-08-04) the gameplay prerequisite
+	# gate: a node unlocks once ANY of its parents has at least one level.
+	# See Progression.is_locked; UPGRADES[i].requires still applies on top.
 	var parents: Array[String] = []
 	var pos: Vector2 = Vector2.ZERO
 	var size: float = DEFAULT_SIZE
-	var icon: String = DEFAULT_ICON   # filename inside ICON_DIR
+	# Bare filename inside ICON_DIR, or a full "res://" path for art that lives
+	# outside the crystal-shop set — the relic-unlock nodes point straight at
+	# assets/icons/Relics so a node shows the relic it actually unlocks
+	# (2026-08-05) instead of duplicating 46 PNGs into the shop folder.
+	var icon: String = DEFAULT_ICON
 	# 0 = inherit whatever Progression.UPGRADES says for this key. Any other
 	# value overrides it, so node depth can be tuned in the editor without
 	# editing the upgrade catalogue. See Progression.max_level().
@@ -44,6 +50,8 @@ class TreeNode extends RefCounted:
 	var desc_override: String = ""
 
 	func icon_path() -> String:
+		if icon.begins_with("res://"):
+			return icon
 		return ICON_DIR + icon
 
 	func to_dict() -> Dictionary:
@@ -304,6 +312,12 @@ func overrides() -> Dictionary:
 	var max_lv := {}
 	var names := {}
 	var descs := {}
+	# 2026-08-04: the layout's parent links ARE the gameplay prerequisite gate
+	# (they used to be purely visual, which meant every generated node was
+	# buyable from turn one — see Progression.is_locked). Only nodes with at
+	# least one parent appear here; an empty parents array = hangs off the hub
+	# and is available from the start.
+	var parents := {}
 	for n in nodes:
 		if n.max_level > 0:
 			max_lv[n.key] = n.max_level
@@ -311,22 +325,30 @@ func overrides() -> Dictionary:
 			names[n.key] = n.name_override
 		if n.desc_override != "":
 			descs[n.key] = n.desc_override
-	return {"max_level": max_lv, "name": names, "desc": descs}
+		if not n.parents.is_empty():
+			parents[n.key] = n.parents.duplicate()
+	return {"max_level": max_lv, "name": names, "desc": descs, "parents": parents}
 
-# Every icon file available to the editor's icon picker.
+# Every icon file available to the editor's icon picker. The crystal-shop set
+# is listed as bare filenames; the relic set is listed as full "res://" paths so
+# the relic-unlock nodes can be re-picked in the editor without their art being
+# copied into the shop folder (see TreeNode.icon_path).
 static func available_icons() -> PackedStringArray:
 	var out := PackedStringArray()
-	var dir := DirAccess.open(ICON_DIR)
-	if dir == null:
-		return out
-	for f in dir.get_files():
-		# Godot's exported/imported filesystem serves .png.import alongside the
-		# source; strip the suffix so both source and exported runs agree.
-		if f.ends_with(".png.import"):
-			f = f.trim_suffix(".import")
-		elif not f.ends_with(".png"):
+	for d in [ICON_DIR, RELIC_ICON_DIR]:
+		var dir := DirAccess.open(d)
+		if dir == null:
 			continue
-		if not out.has(f):
-			out.append(f)
+		for f in dir.get_files():
+			# Godot's exported/imported filesystem serves .png.import alongside
+			# the source; strip the suffix so both source and exported runs
+			# agree.
+			if f.ends_with(".png.import"):
+				f = f.trim_suffix(".import")
+			elif not f.ends_with(".png"):
+				continue
+			var entry: String = f if d == ICON_DIR else d + f
+			if not out.has(entry):
+				out.append(entry)
 	out.sort()
 	return out

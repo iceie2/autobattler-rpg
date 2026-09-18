@@ -1,0 +1,31 @@
+{
+  "frame_w": 256,
+  "frame_h": 256,
+  "count": 16,
+  "cols": 16,
+  "rows": 1,
+  "fps": 12,
+  "hero": "headhunter",
+  "anim": "walk_east",
+  "source_video": "HH-walk_east.mp4",
+  "oneshot": false,
+  "source_picks": [
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95
+  ],
+  "auto_selected": true
+}

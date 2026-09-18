@@ -15,6 +15,7 @@ var _icons_ready: bool = false
 var panel: Control
 var portrait_frame: PanelContainer
 var portrait: TextureRect
+var hero_portrait_anim: HeroPortrait
 var unit_name_lbl: Label
 var class_lbl: Label
 var element_icon: TextureRect
@@ -50,7 +51,8 @@ const SKILL_ICONS: Dictionary = {
 
 # Combat-stat grid cells (node name -> STAT_ICONS key) and affinity element order
 const _COMBAT_CELLS := [
-	["CellAtk", "atk"], ["CellDef", "res"], ["CellMagRes", "mres"], ["CellMag", "magic"], ["CellAspd", "aspd"],
+	["CellAtk", "atk"], ["CellDef", "res"], ["CellMagRes", "mres"], ["CellTenacity", "ten"],
+	["CellMag", "magic"], ["CellAspd", "aspd"],
 	["CellHpRegen", "hpregen"], ["CellMpRegen", "manaregen"], ["CellMove", "move"], ["CellRange", "range"],
 	["CellCritChance", "crit_chance"], ["CellCritDamage", "crit_damage"],
 ]
@@ -69,6 +71,19 @@ const _GROWTH_CELLS := [
 # a whole-number roll — see UnitFactory.apply_recruit_rolls.
 const _GROWTH_FLOAT_STATS := ["aspd", "hpregen", "manaregen"]
 
+# Short on-panel labels so a new player can tell stats apart without hovering
+# a 16px icon for a tooltip (2026-09-16 redesign — armor/magic-armor used to
+# share the same gold-shield icon and render as two bare numbers).
+const _COMBAT_ABBR := {
+	"CellAtk": "ATK", "CellDef": "ARM", "CellMagRes": "MR", "CellTenacity": "TEN",
+	"CellMag": "MAG", "CellAspd": "ASPD", "CellHpRegen": "HP+", "CellMpRegen": "MP+",
+	"CellMove": "SPD", "CellRange": "RNG", "CellCritChance": "CRIT", "CellCritDamage": "CDMG",
+}
+const _GROWTH_ABBR := {
+	"hp": "HP", "atk": "ATK", "mana": "MP", "magic": "MAG",
+	"res": "ARM", "aspd": "ASPD", "hpregen": "HP+", "manaregen": "MP+",
+}
+
 const DETAILS_BAG_SLOTS := 6
 
 func _init(p_game) -> void:
@@ -77,6 +92,11 @@ func _init(p_game) -> void:
 	var root: Control = game._dpanel_root
 	portrait_frame = root.get_node("Header/PortraitFrame")
 	portrait       = root.get_node("Header/PortraitFrame/Portrait")
+	hero_portrait_anim = HeroPortrait.new()
+	hero_portrait_anim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hero_portrait_anim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait.get_parent().add_child(hero_portrait_anim)
+	hero_portrait_anim.visible = false
 	unit_name_lbl  = root.get_node("Header/HeaderInfo/UnitName")
 	class_lbl      = root.get_node("Header/HeaderInfo/ChipRow/ClassChip/ClassLabel")
 	element_icon   = root.get_node("Header/HeaderInfo/ChipRow/ElementChip/EChipRow/ElementIcon")
@@ -137,7 +157,7 @@ func _ensure_icons() -> void:
 	# built) — create them at runtime, matching the existing CellAtk/etc.
 	# HBoxContainer+Icon+Value structure exactly, so _set_combat_cell's
 	# "%s/Value" lookup finds them too. CellMagRes is moved up beside CellDef.
-	for crit_cell in ["CellMagRes", "CellCritChance", "CellCritDamage"]:
+	for crit_cell in ["CellMagRes", "CellTenacity", "CellCritChance", "CellCritDamage"]:
 		if combat_grid.get_node_or_null(crit_cell):
 			continue
 		var cell := HBoxContainer.new()
@@ -153,12 +173,14 @@ func _ensure_icons() -> void:
 		cell.add_child(icon)
 		var val := Label.new()
 		val.name = "Value"
-		val.add_theme_font_size_override("font_size", 24)
+		UITheme.apply_font(val, UITheme.FONT_VALUE)
 		val.text = "-"
 		cell.add_child(val)
 		combat_grid.add_child(cell)
 		if crit_cell == "CellMagRes":
 			combat_grid.move_child(cell, 2)   # sit right beside CellDef (armor)
+		elif crit_cell == "CellTenacity":
+			combat_grid.move_child(cell, 3)   # third defensive stat, next to magic armor
 	for pair in _COMBAT_CELLS:
 		var stat_key: String = pair[1]
 		var path: String = UnitFactory.STAT_ICONS.get(stat_key, "")
@@ -291,18 +313,26 @@ func _refresh() -> void:
 		return
 
 	# ── Header: portrait, name, chips ──
-	var ptex := _get_portrait_texture(unit)
-	portrait.texture = ptex
-	portrait_frame.visible = ptex != null
+	if VisualUnit.HERO_SPRITE_PATHS.has(unit.unit_class):
+		hero_portrait_anim.setup(unit.unit_class)
+		hero_portrait_anim.visible = true
+		portrait.visible = false
+		portrait_frame.visible = true
+	else:
+		hero_portrait_anim.visible = false
+		portrait.visible = true
+		var ptex := _get_portrait_texture(unit)
+		portrait.texture = ptex
+		portrait_frame.visible = ptex != null
 	unit_name_lbl.text = unit.unit_name
 	class_lbl.text = unit.get_class_name_string()
-	class_lbl.add_theme_font_size_override("font_size", 24)
+	UITheme.apply_font(class_lbl, UITheme.FONT_VALUE)
 	element_lbl.text = unit.get_element_name_string()
 	element_lbl.add_theme_color_override("font_color", Color(element_color_hex(unit.current_element)))
-	element_lbl.add_theme_font_size_override("font_size", 28)
+	UITheme.apply_font(element_lbl, UITheme.FONT_VALUE)
 	element_icon.texture = load(UnitFactory.ELEMENT_ICONS.get(unit.current_element, "")) as Texture2D
 	level_lbl.text = "Lv %d" % unit.level
-	level_lbl.add_theme_font_size_override("font_size", 28)
+	UITheme.apply_font(level_lbl, UITheme.FONT_VALUE)
 
 	var eq := _sum_equipment_stats(unit)
 	var shop := _shop_bonuses(unit)
@@ -351,6 +381,10 @@ func _refresh() -> void:
 	_set_combat_cell("CellAtk", _cell_int_text(int(round(atk[0])), atk[1]), atk[1] > 0)
 	_set_combat_cell("CellDef", _cell_int_text(int(round(def[0])), def[1]), def[1] > 0)
 	_set_combat_cell("CellMagRes", _cell_int_text(int(round(mres[0])), mres[1]), mres[1] > 0)
+	# Tenacity shows the raw stat AND what it actually buys, because the number
+	# alone means nothing to a player: 60 → "60 (·0.63)" = CC lasts 63% as long.
+	_set_combat_cell("CellTenacity",
+		"%d (x%.2f)" % [unit.tenacity, unit.status_duration_mult()], false)
 	_set_combat_cell("CellMag", _cell_int_text(int(round(mag[0])), mag[1]), mag[1] > 0)
 	_set_combat_cell("CellAspd", _cell_float_text(aspd[0], aspd[1]), aspd[1] > 0)
 	_set_combat_cell("CellHpRegen", _cell_float_text(unit.hp_regen, hpreg_b), hpreg_b > 0)
@@ -373,7 +407,9 @@ func _refresh() -> void:
 		if not glbl:
 			continue
 		var amount: float = unit.stat_growth(pair[1])
-		glbl.text = ("+%.2f" % amount) if pair[1] in _GROWTH_FLOAT_STATS else ("+%d" % int(round(amount)))
+		var gabbr: String = _GROWTH_ABBR.get(pair[1], "")
+		var gnum: String = ("+%.2f" % amount) if pair[1] in _GROWTH_FLOAT_STATS else ("+%d" % int(round(amount)))
+		glbl.text = "%s  %s" % [gabbr, gnum] if gabbr != "" else gnum
 
 	# ── Skill (2026-07-06 user report: heroes have a passive + active + ultimate,
 	# but unit.skill_name/skill_description only ever held the ACTIVE one — Rush
@@ -467,7 +503,8 @@ func _set_combat_cell(cell: String, text: String, buffed: bool) -> void:
 	var lbl := combat_grid.get_node_or_null("%s/Value" % cell) as Label
 	if not lbl:
 		return
-	lbl.text = text
+	var abbr: String = _COMBAT_ABBR.get(cell, "")
+	lbl.text = "%s  %s" % [abbr, text] if abbr != "" else text
 	lbl.add_theme_color_override("font_color", Color(0.4, 0.95, 0.5) if buffed else Color(0.9, 0.9, 0.95))
 
 func _refresh_affinity(unit: UnitBase) -> void:
@@ -575,11 +612,9 @@ func _update_bag(unit: UnitBase) -> void:
 		else:
 			var ph := Panel.new()
 			ph.custom_minimum_size = SLOT_SIZE
-			slot_bg.bg_color     = Color(0.10, 0.10, 0.16, 0.6)
-			slot_bg.border_color = Color(0.22, 0.22, 0.32, 0.5)
-			slot_bg.set_border_width_all(1)
-			ph.add_theme_stylebox_override("panel", slot_bg)
+			ph.add_theme_stylebox_override("panel", UITheme.slot_box())
 			ph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			ph.tooltip_text = "Empty equipment slot"
 			item_bag.add_child(ph)
 
 static func element_color_hex(element: UnitBase.Element) -> String:

@@ -62,7 +62,7 @@ func _build_ui() -> void:
 	# %APPDATA%, so this drops a dated copy on their Desktop and opens the folder.
 	var export_btn := Button.new()
 	export_btn.text = "⇩  Export Runs"; export_btn.position = Vector2(150, 566); export_btn.size = Vector2(220, 40)
-	export_btn.add_theme_font_size_override("font_size", 14)
+	UITheme.apply_font(export_btn, UITheme.FONT_HEADER)
 	export_btn.tooltip_text = "Save this run history to your Desktop as a .json file."
 	UITheme.style_button(export_btn)
 	export_btn.pressed.connect(_on_export)
@@ -72,7 +72,7 @@ func _build_ui() -> void:
 
 	var close_btn := Button.new()
 	close_btn.text = "✕  Close"; close_btn.position = Vector2(390, 566); close_btn.size = Vector2(220, 40)
-	close_btn.add_theme_font_size_override("font_size", 14)
+	UITheme.apply_font(close_btn, UITheme.FONT_HEADER)
 	UITheme.style_button(close_btn)
 	close_btn.pressed.connect(_close)
 	_panel.add_child(close_btn)
@@ -131,7 +131,7 @@ func _close() -> void:
 func _lbl(parent: Node, text: String, sz: int, col: Color, pos: Vector2, size: Vector2, center := false) -> Label:
 	var l := Label.new()
 	l.text = text; l.position = pos; l.size = size
-	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
+	UITheme.apply_font(l, UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", col)
 	if center: l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	parent.add_child(l)

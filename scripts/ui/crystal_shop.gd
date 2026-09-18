@@ -58,10 +58,50 @@ class NodeRing extends Control:
 		if selected:
 			draw_arc(c, r + 6.0, 0.0, TAU, 48, SELECT, 2.5, true)
 
-# Zoom-out goes far enough to see a tree several times the size of the view;
-# the old 0.6 floor assumed a hub-sized tree.
-const ZOOM_MIN := 0.2
+# Zoom-out goes far enough to see a tree several times the size of the view.
+# The floor has to clear the WHOLE tree, not just "several times the view":
+# the generated ring tree spans ~11600 canvas px against a 1468 px view, so a
+# 0.2 floor made frame_all() a lie — it stopped at 0.2 and still cropped the
+# outer rings. 0.08 is the first value that actually fits.
+const ZOOM_MIN := 0.08
 const ZOOM_MAX := 2.0
+
+# ── Node size tiers (2026-09-15) ──────────────────────────────────────────────
+# data/crystal_tree.json carries TWELVE distinct `size` values (56, 68, 76, 80,
+# 82, 90, 96, 100, 104, 128, 132, 172) because the generator sized each node by
+# its role. On screen that reads as noise, not hierarchy: a 56 px node renders
+# its internal art too small to identify, while a 104 and a 132 look like the
+# same tier. Rendering normalises to exactly two, so "big = landmark" is the
+# only size signal the eye has to learn. The JSON is untouched (it is edited
+# in-game via F9, never by hand) — this is purely a presentation mapping.
+const SIZE_MAJOR := 132.0
+const SIZE_MINOR := 76.0
+const MAJOR_THRESHOLD := 100.0   # data size at/above this draws as a major node
+
+# ── Spoke labels (2026-09-15) ─────────────────────────────────────────────────
+# The six spokes are the six nodes with no parent (they hang off the hub). The
+# names come from the generator's SPOKES table in tools/crystal_tree/
+# gen_crystal_tree.py, which is where the groupings were authored; a root key
+# that is ever renamed falls back to its Progression display name rather than
+# vanishing.
+const SPOKE_NAMES := {
+	"starting_gold": "FORTUNE",
+	"crystal_per_round": "ARCANA",
+	"+1 Reroll": "MARKET",
+	"+1 Equipment": "ARMORY",
+	"quick_learner": "MENTOR",
+	"bonus_xp": "SCHOLAR",
+}
+# Canvas-space distance from the hub. ~2600 is the median node radius, so a
+# label sits in the thick of its own spoke rather than out past the last ring.
+const SPOKE_LABEL_RADIUS := 2600.0
+const SPOKE_FONT := 260          # canvas-space, so it shrinks with zoom
+const SPOKE_FADE_IN := 0.50      # at/below this zoom the labels are fully opaque
+const SPOKE_FADE_OUT := 0.90     # at/above this zoom they are gone
+const COL_SPOKE := Color(1.0, 0.88, 0.58)
+
+# How long _select()'s pan-to-node takes.
+const FOCUS_TIME := 0.25
 # How much of the tree's bounding box must stay inside the view. Clamping
 # against the CONTENT rect (not the hub) is what makes distant nodes reachable
 # — the old hub-based clamp put a hard wall a few hundred px out.
@@ -73,15 +113,17 @@ var _nodes: Array = []        # [{button, key, icon, ring, glow, badge}, ...]
 var _connectors: Array = []   # [{line: Line2D, parent: String}, ...]
 var _connector_layer: Node2D
 var _glow_layer: Control
+var _spoke_layer: Control     # the six big branch names, faded in when zoomed out
+var _pan_tween: Tween         # the _select() fly-to; killed before a new one starts
 var _selected_key := ""       # "" = nothing, "call_to_arms" = the center node
 
 var _tree_view: Control       # clipped window the tree is seen through
 var _canvas: Control          # everything tree-shaped lives here; pan = move it, zoom = scale it
-var _canvas_home := Vector2.ZERO
 var _dragging := false
 
 var _reset_btn: Button
 var _reset_armed := false
+var _sfx_player: AudioStreamPlayer
 
 var _editor: CrystalTreeEditor   # null until F9 in a dev build
 
@@ -91,6 +133,8 @@ var _detail_icon: TextureRect
 var _detail_name: Label
 var _detail_desc: Label
 var _detail_stats: Label
+var _detail_ladder_hdr: Label
+var _detail_ladder: Array[Label] = []   # two columns of the per-level breakdown
 var _buy_btn: Button
 
 func _ready() -> void:
@@ -113,8 +157,14 @@ func open() -> void:
 	if OS.has_feature("editor"):
 		_load_tree()      # pick up editor saves without restarting the game
 		_build_tree()
-	_canvas.position = _canvas_home   # reset any pan/zoom from last visit
+	# Center on the hub rather than trusting _canvas_home: with data-driven
+	# layouts the tree's center doesn't line up with the panel's top-left
+	# origin, so the old fixed offset could open with a node clipped at the
+	# view's edge.
 	_canvas.scale = Vector2.ONE
+	_canvas.position = _tree_view.size / 2.0 - _tree.center
+	_clamp_canvas()
+	_update_spoke_alpha()
 	_refresh()
 	visible = true
 
@@ -125,6 +175,13 @@ func _build_ui() -> void:
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	overlay.gui_input.connect(_on_overlay_input)
 	add_child(overlay)
+
+	# Unlock ding — synthesized at runtime (no audio assets exist in the
+	# project yet), so there's nothing on disk to ship or keep in sync.
+	_sfx_player = AudioStreamPlayer.new()
+	_sfx_player.stream = _make_unlock_ding()
+	_sfx_player.volume_db = -3.0
+	add_child(_sfx_player)
 
 	var panel := Panel.new()
 	panel.size = PANEL_SIZE
@@ -138,9 +195,17 @@ func _build_ui() -> void:
 	_lbl(panel, "Upgrades persist between runs.", 12, COL_SUBTITLE,
 		Vector2(38, 64), Vector2(560, 22))
 	var gem := UITheme.currency_icon("gem")
-	gem.position = Vector2(PANEL_SIZE.x - 214, 18)
+	gem.position = Vector2(PANEL_SIZE.x - 234, 18)
 	panel.add_child(gem)
-	_wallet_lbl = _lbl(panel, "0", 26, COL_WALLET, Vector2(PANEL_SIZE.x - 152, 26), Vector2(120, 40))
+	_wallet_lbl = _lbl(panel, "0", 26, COL_WALLET, Vector2(PANEL_SIZE.x - 172, 26), Vector2(120, 40))
+
+	# frame_all() has existed since the tree went data-driven but had no way to
+	# reach it from the game — with 650 nodes, "I panned into the dark and can't
+	# find my way back" is the default state, so it needs a button.
+	var fit_btn := _btn("⤢  Fit", Rect2(PANEL_SIZE.x - 400, 20, 150, 44))
+	fit_btn.pressed.connect(frame_all)
+	fit_btn.tooltip_text = "Zoom out to show the whole tree"
+	panel.add_child(fit_btn)
 
 	# The tree lives on a pannable/zoomable canvas seen through a clipped
 	# view: drag an empty spot to pan, mouse-wheel to zoom toward the cursor.
@@ -154,13 +219,21 @@ func _build_ui() -> void:
 
 	_canvas = Control.new()
 	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE   # never eat clicks meant for the view/nodes
-	_canvas_home = -_tree_view.position   # canvas coords == panel coords at home position
-	_canvas.position = _canvas_home
 	_tree_view.add_child(_canvas)
 
 	# Draw order: ambient backdrop glow, connector lines, per-node glows,
 	# then the node buttons themselves (added by _build_tree).
 	_build_tree()
+
+	# Soft edge vignette over the clipped view: darkens toward the border so a
+	# node or connector cut off by clip_contents reads as "more tree past the
+	# edge" instead of an abrupt, disorienting hard cut.
+	var vignette := TextureRect.new()
+	vignette.texture = _edge_vignette_tex()
+	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tree_view.add_child(vignette)
+
 	_build_detail_bar(panel)
 
 	var close_btn := _btn("✕  Close", Rect2((PANEL_SIZE.x - 200) / 2.0, PANEL_SIZE.y - 56, 200, 40))
@@ -206,17 +279,54 @@ func _zoom_at(factor: float, mouse_pos: Vector2) -> void:
 	_canvas.position = mouse_pos - (mouse_pos - _canvas.position) * (new_scale / old)
 	_canvas.scale = Vector2.ONE * new_scale
 	_clamp_canvas()
+	_update_spoke_alpha()
 
 # Keep the tree's bounding box overlapping the view by at least PAN_MARGIN, so
 # every node can be brought on screen but the canvas can't be flung into empty
 # space. The allowed range grows with the tree, which the old hub-anchored
 # clamp did not.
 func _clamp_canvas() -> void:
-	var s: float = _canvas.scale.x
+	_canvas.position = _clamped_pos(_canvas.position, _canvas.scale.x)
+
+# The clamp as a pure function, so _focus_on() can clamp a DESTINATION it has
+# not moved to yet. Panning live and flying to a node must obey the same rule,
+# or the animation lands somewhere the user could never have dragged to and the
+# next drag snaps it back.
+func _clamped_pos(pos: Vector2, s: float) -> Vector2:
 	var b: Rect2 = _tree.bounds()
 	var lo := Vector2(PAN_MARGIN, PAN_MARGIN) - b.end * s
 	var hi := _tree_view.size - Vector2(PAN_MARGIN, PAN_MARGIN) - b.position * s
-	_canvas.position = _canvas.position.clamp(lo.min(hi), hi.max(lo))
+	return pos.clamp(lo.min(hi), hi.max(lo))
+
+# Bring a node into view (2026-09-15). Selecting used to fill the detail bar
+# while leaving the node itself off screen — with 650 nodes the selection ring
+# was regularly nowhere on the player's screen, so a click produced no visible
+# feedback at all. Centres the node at the current zoom, animated so the player
+# keeps their bearings instead of being teleported.
+func _focus_on(key: String) -> void:
+	if _canvas == null or _tree_view == null or _tree == null:
+		return
+	var target: Vector2 = _tree.center
+	if key != "call_to_arms":
+		var n := _tree.find(key)
+		if n == null:
+			return
+		target = n.pos
+	var s: float = _canvas.scale.x
+	var want := _clamped_pos(_tree_view.size / 2.0 - target * s, s)
+	if want.distance_to(_canvas.position) < 1.0:
+		return
+	if _pan_tween != null and _pan_tween.is_valid():
+		_pan_tween.kill()
+	_pan_tween = create_tween()
+	_pan_tween.tween_property(_canvas, "position", want, FOCUS_TIME) 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+# Instant version of the same move — used by the capture harness and by any
+# caller that must not wait on a tween.
+func focus_on_now(key: String) -> void:
+	_focus_on(key)
+	if _pan_tween != null and _pan_tween.is_valid():
+		_pan_tween.custom_step(FOCUS_TIME)
 
 # Fit the whole tree in the view. The bigger the tree gets, the more this is
 # the only practical way to find your way back to it.
@@ -226,9 +336,12 @@ func frame_all() -> void:
 		return
 	var s: float = clampf(minf(_tree_view.size.x / b.size.x, _tree_view.size.y / b.size.y),
 			ZOOM_MIN, ZOOM_MAX)
+	if _pan_tween != null and _pan_tween.is_valid():
+		_pan_tween.kill()
 	_canvas.scale = Vector2.ONE * s
 	_canvas.position = _tree_view.size / 2.0 - b.get_center() * s
 	_clamp_canvas()
+	_update_spoke_alpha()
 
 # ── Tree construction ─────────────────────────────────────────────────────────
 # Rebuildable from scratch: the editor calls this after every structural edit,
@@ -250,6 +363,9 @@ func _build_tree() -> void:
 	var ambient := _make_glow(_tree.center, 380.0, Color(1.0, 0.85, 0.5, 0.055))
 	ambient.visible = true
 	_glow_layer.move_child(ambient, 0)
+	# Below the node buttons on purpose: these are backdrop lettering, and they
+	# have already faded out by the zoom level where nodes are legible.
+	_build_spoke_labels()
 
 	for n in _tree.nodes:
 		# One connector per parent link (a node may now hang off several
@@ -259,7 +375,7 @@ func _build_tree() -> void:
 			parent_keys.append("")
 		for parent_key in parent_keys:
 			var line := Line2D.new()
-			line.points = PackedVector2Array([_tree.position_of(parent_key), n.pos])
+			line.points = _trimmed_points(parent_key, n.key)
 			line.width = 6.0 if parent_key == "" else 4.0
 			line.default_color = CONN_DIM
 			_connector_layer.add_child(line)
@@ -286,6 +402,7 @@ func _make_icon_button(parent: Control, icon_path: String, pos: Vector2, size: f
 	var btn := Button.new()
 	btn.position = pos - Vector2.ONE * size / 2.0
 	btn.size = Vector2.ONE * size
+	btn.pivot_offset = Vector2.ONE * size / 2.0   # so unlock-pulse scaling grows from center, not the corner
 	btn.focus_mode = Control.FOCUS_NONE
 	var empty := StyleBoxEmpty.new()
 	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
@@ -318,6 +435,20 @@ func _make_glow(pos: Vector2, node_size: float, col: Color, glow_scale := 1.55) 
 	_glow_layer.add_child(g)
 	return g
 
+static func _edge_vignette_tex() -> GradientTexture2D:
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0, 0, 0, 0.0))
+	grad.set_color(1, Color(0, 0, 0, 0.55))
+	grad.add_point(0.78, Color(0, 0, 0, 0.0))
+	var tex := GradientTexture2D.new()
+	tex.gradient = grad
+	tex.width = 256
+	tex.height = 256
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(1.0, 0.5)
+	return tex
+
 static func _radial_glow_tex(col: Color) -> GradientTexture2D:
 	var grad := Gradient.new()
 	grad.set_color(0, col)
@@ -331,12 +462,56 @@ static func _radial_glow_tex(col: Color) -> GradientTexture2D:
 	tex.fill_to = Vector2(0.5, 0.0)
 	return tex
 
+# Data size -> one of exactly two rendered sizes. See the SIZE_* constants.
+static func render_size(data_size: float) -> float:
+	return SIZE_MAJOR if data_size >= MAJOR_THRESHOLD else SIZE_MINOR
+
+# ── Spoke labels ──────────────────────────────────────────────────────────────
+# One oversized name per spoke, sitting out along that spoke's axis. Drawn in
+# canvas space so they scale with the tree, and cross-faded against zoom: at a
+# zoom where you can read a node's icon they are gone, and at a zoom where the
+# tree is a field of dots they are the only thing you can read.
+func _build_spoke_labels() -> void:
+	_spoke_layer = Control.new()
+	_spoke_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_canvas.add_child(_spoke_layer)
+	for n in _tree.nodes:
+		if not n.parents.is_empty():
+			continue          # only the six hub-attached roots head a spoke
+		var dir: Vector2 = n.pos - _tree.center
+		if dir.length() < 1.0:
+			continue
+		var text: String = String(SPOKE_NAMES.get(n.key, Progression.display_name(n.key))).to_upper()
+		var at: Vector2 = _tree.center + dir.normalized() * SPOKE_LABEL_RADIUS
+		var l := Label.new()
+		l.text = text
+		l.size = Vector2(3200, 400)
+		l.position = at - l.size / 2.0
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		UITheme.apply_font(l, SPOKE_FONT)
+		l.add_theme_color_override("font_color", COL_SPOKE)
+		l.add_theme_color_override("font_outline_color", Color(0.06, 0.04, 0.01, 0.95))
+		l.add_theme_constant_override("outline_size", 40)
+		_spoke_layer.add_child(l)
+	_update_spoke_alpha()
+
+func _update_spoke_alpha() -> void:
+	if _spoke_layer == null or not is_instance_valid(_spoke_layer):
+		return
+	var z: float = _canvas.scale.x
+	# 1 when zoomed out past SPOKE_FADE_IN, 0 once zoomed in past SPOKE_FADE_OUT.
+	var a: float = 1.0 - clampf(inverse_lerp(SPOKE_FADE_IN, SPOKE_FADE_OUT, z), 0.0, 1.0)
+	_spoke_layer.modulate.a = a
+	_spoke_layer.visible = a > 0.01
+
 # One purchasable node: bare icon + progress ring + afford-glow + MAX badge.
 # Click = select (the detail bar handles buying).
 func _add_upgrade_node(canvas: Control, n: CrystalTree.TreeNode) -> void:
 	var key: String = n.key
 	var pos: Vector2 = n.pos
-	var size: float = n.size
+	var size: float = render_size(n.size)
 	var glow := _make_glow(pos, size, GLOW_GOLD)
 	var icon_path: String = n.icon_path() if ResourceLoader.exists(n.icon_path()) else PLACEHOLDER_ICON
 	var btn := _make_icon_button(canvas, icon_path, pos, size)
@@ -352,7 +527,7 @@ func _add_upgrade_node(canvas: Control, n: CrystalTree.TreeNode) -> void:
 	badge.anchor_top = 1.0; badge.anchor_bottom = 1.0; badge.anchor_right = 1.0
 	badge.offset_top = 0; badge.offset_bottom = 18
 	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	badge.add_theme_font_size_override("font_size", UITheme.body_font(20))
+	UITheme.apply_font(badge, UITheme.body_font(20))
 	badge.add_theme_color_override("font_color", COL_MAXED)
 	_outline(badge)
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -383,14 +558,92 @@ func _build_detail_bar(panel: Panel) -> void:
 	_detail_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	bar.add_child(_detail_icon)
 
-	_detail_name = _lbl(bar, "", 20, UITheme.TEXT_HEADER, Vector2(160, 16), Vector2(700, 34))
-	_detail_desc = _lbl(bar, "", 13, UITheme.TEXT_BODY, Vector2(160, 56), Vector2(700, 54))
+	# The bar is 1200x168 and used to hold one sentence in its left third, so
+	# two thirds of it were empty even with a node selected (2026-09-15). Filling
+	# it beat shrinking it: what a player actually wants before spending is what
+	# the NEXT levels buy, and that is the one thing the tree can never show.
+	_detail_name = _lbl(bar, "", 20, UITheme.TEXT_HEADER, Vector2(160, 16), Vector2(440, 34))
+	_detail_desc = _lbl(bar, "", 13, UITheme.TEXT_BODY, Vector2(160, 56), Vector2(440, 54))
 	_detail_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail_stats = _lbl(bar, "", 14, Color(0.55, 0.38, 0.1), Vector2(160, 114), Vector2(700, 30))
+	_detail_stats = _lbl(bar, "", 14, Color(0.55, 0.38, 0.1), Vector2(160, 114), Vector2(440, 30))
 
-	_buy_btn = _btn("Buy", Rect2(910, 54, 250, 60))
+	_detail_ladder_hdr = _lbl(bar, "PER LEVEL", 13, Color(0.5, 0.35, 0.1), Vector2(620, 14), Vector2(320, 22))
+	_detail_ladder.clear()
+	for i in range(2):
+		var col := _lbl(bar, "", 13, UITheme.TEXT_BODY,
+			Vector2(620 + i * 165, 40), Vector2(160, 120))
+		_detail_ladder.append(col)
+
+	_buy_btn = _btn("Buy", Rect2(950, 54, 220, 60))
 	_buy_btn.pressed.connect(_on_buy)
 	bar.add_child(_buy_btn)
+
+# Rows for the per-level ladder: "Lv n  value", current level marked. A node can
+# cap at 100 levels, so long ladders are sampled evenly — but the current level
+# and the one being sold are always in the list, because those are the two rows
+# the Buy button is actually about.
+const LADDER_ROWS := 6
+
+func _ladder_levels(lvl: int, max_lvl: int) -> Array[int]:
+	var out: Array[int] = []
+	if max_lvl <= LADDER_ROWS:
+		for i in range(1, max_lvl + 1):
+			out.append(i)
+		return out
+	var must: Array[int] = [1, max_lvl]
+	if lvl >= 1:
+		must.append(lvl)
+	if lvl + 1 <= max_lvl:
+		must.append(lvl + 1)
+	for i in range(LADDER_ROWS):
+		var v: int = int(round(lerpf(1.0, float(max_lvl), float(i) / float(LADDER_ROWS - 1))))
+		if not must.has(v):
+			must.append(v)
+	must.sort()
+	for v in must:
+		if out.size() >= LADDER_ROWS:
+			break
+		if not out.has(v):
+			out.append(v)
+	return out
+
+# 649 of the 650 generated nodes cap at ONE level — the ring tree splits every
+# deep upgrade into a chain of 1-level nodes — so a pure per-level ladder would
+# be a single row on almost every selection and the right side would still read
+# as empty. The right panel therefore always carries a fact block (cost, what
+# the level actually grants, what gates it), and the multi-level ladder only
+# takes over the second column on the rare node that has depth.
+func _fill_ladder(upgrade: Dictionary, lvl: int, max_lvl: int) -> void:
+	var is_float: bool = upgrade.get("is_float", false)
+	var per: float = float(upgrade["effect_per_level"])
+	var eff_fmt: String = upgrade.get("effect", "%d")
+	var cost: int = Progression.next_cost(_selected_key)
+	var full: String = (eff_fmt % (per * max_lvl)) if is_float else (eff_fmt % int(per * max_lvl))
+
+	var facts := PackedStringArray()
+	facts.append("Cost        %s" % ("— (maxed)" if cost < 0 else "%d ✦" % cost))
+	facts.append("At max      %s" % full)
+	if Progression.is_locked(_selected_key):
+		facts.append("Requires    %s" % Progression.prereq_names(_selected_key))
+
+	var deep: bool = max_lvl > 1
+	_detail_ladder_hdr.text = "PER LEVEL" if deep else "DETAILS"
+	# Narrow twin columns for a ladder, one wide column for the fact block.
+	_detail_ladder[0].size = Vector2(160.0 if deep else 330.0, 120.0)
+	_detail_ladder[0].text = "
+".join(facts)
+	_detail_ladder[1].text = ""
+	if not deep:
+		return
+
+	var rows := PackedStringArray()
+	for v in _ladder_levels(lvl, max_lvl):
+		var val: String = (eff_fmt % (per * v)) if is_float else (eff_fmt % int(per * v))
+		var mark: String = "▸" if v == lvl + 1 else ("•" if v == lvl else " ")
+		rows.append("%s Lv %-3d %s" % [mark, v, val])
+	# The ladder gets the second column; the facts keep the first.
+	_detail_ladder[1].text = "
+".join(rows)
 
 # ── Refresh (node states + connectors + wallet + detail bar) ──────────────────
 func _refresh() -> void:
@@ -428,10 +681,8 @@ func _refresh_node(entry: Dictionary) -> void:
 	(entry["glow"] as TextureRect).visible = affordable
 	(entry["badge"] as Label).visible = maxed
 	if locked:
-		var req_key := String(upgrade.get("requires", ""))
-		var req_name := Progression.display_name(req_key) if req_key != "" else "?"
 		(entry["button"] as Button).tooltip_text = "%s — locked (requires %s)" % [
-			Progression.display_name(key), req_name]
+			Progression.display_name(key), Progression.prereq_names(key)]
 	else:
 		(entry["button"] as Button).tooltip_text = "%s — %d/%d" % [Progression.display_name(key), lvl, max_lvl]
 
@@ -442,6 +693,9 @@ func _refresh_detail() -> void:
 	_detail_name.visible = has_selection
 	_detail_desc.visible = has_selection
 	_detail_stats.visible = has_selection
+	_detail_ladder_hdr.visible = has_selection
+	for col in _detail_ladder:
+		col.visible = has_selection
 	_buy_btn.visible = has_selection
 	if not has_selection:
 		return
@@ -451,6 +705,9 @@ func _refresh_detail() -> void:
 		_detail_name.text = "Call to Arms"
 		_detail_desc.text = "Every run starts with 1 free recruited hero instead of starting gold."
 		_detail_stats.text = "Always active — the heart of the tree."
+		_detail_ladder_hdr.visible = false
+		for col in _detail_ladder:
+			col.text = ""
 		_buy_btn.visible = false
 		return
 
@@ -466,6 +723,7 @@ func _refresh_detail() -> void:
 	var cur_txt: String = (eff_fmt % (per * lvl)) if is_float else (eff_fmt % int(per * lvl))
 	var next_txt: String = (eff_fmt % (per * (lvl + 1))) if is_float else (eff_fmt % int(per * (lvl + 1)))
 
+	_fill_ladder(upgrade, lvl, max_lvl)
 	_detail_icon.texture = load(_icon_path_for(_selected_key))
 	_detail_name.text = "%s  —  Level %d/%d" % [Progression.display_name(_selected_key), lvl, max_lvl]
 	_detail_desc.text = Progression.display_desc(_selected_key)
@@ -474,15 +732,79 @@ func _refresh_detail() -> void:
 		_buy_btn.text = "MAXED"
 		_buy_btn.disabled = true
 	elif Progression.is_locked(_selected_key):
-		var req_key := String(upgrade.get("requires", ""))
-		var req_name := Progression.display_name(req_key) if req_key != "" else "?"
-		_detail_stats.text = "Locked — buy a level of %s first." % req_name
+		_detail_stats.text = "Locked — buy a level of %s first." % Progression.prereq_names(_selected_key)
 		_buy_btn.text = "LOCKED"
 		_buy_btn.disabled = true
 	else:
 		_detail_stats.text = "%s   →   %s" % [cur_txt, next_txt]
 		_buy_btn.text = "Buy — %d crystals" % cost
 		_buy_btn.disabled = not Progression.can_afford(_selected_key)
+
+# Punchy first-buy feedback: the node blinks bright, bounces bigger-then-
+# smaller-then-settles, its glow flares, and an anvil-ish ding plays.
+func _play_unlock_effect(key: String) -> void:
+	var entry: Dictionary = {}
+	for e: Dictionary in _nodes:
+		if e["key"] == key:
+			entry = e
+			break
+	if entry.is_empty():
+		return
+
+	var btn: Button = entry["button"]
+	var icon: TextureRect = entry["icon"]
+	var glow: TextureRect = entry["glow"]
+
+	btn.scale = Vector2.ONE
+	var pop := create_tween()
+	pop.tween_property(btn, "scale", Vector2.ONE * 1.45, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	pop.tween_property(btn, "scale", Vector2.ONE * 0.88, 0.10).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	pop.tween_property(btn, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+	icon.modulate = Color.WHITE
+	var blink := create_tween()
+	blink.tween_property(icon, "modulate", Color(2.6, 2.4, 1.6), 0.05)
+	blink.tween_property(icon, "modulate", Color.WHITE, 0.09)
+	blink.tween_property(icon, "modulate", Color(2.2, 2.0, 1.4), 0.05)
+	blink.tween_property(icon, "modulate", Color.WHITE, 0.12)
+
+	glow.visible = true
+	glow.modulate = Color(1, 1, 1, 1)
+	var flare := create_tween()
+	flare.tween_property(glow, "modulate:a", 3.2, 0.05)
+	flare.tween_property(glow, "modulate:a", 1.0, 0.35)
+
+	_sfx_player.play()
+
+# Short metallic "clang → ring" built in-memory: an impact click at t=0 plus a
+# few decaying inharmonic sine partials, the classic bell/anvil shape. Nothing
+# to load from disk since there are no audio assets in the project yet.
+func _make_unlock_ding() -> AudioStreamWAV:
+	var sr := 44100
+	var dur := 0.4
+	var n := int(sr * dur)
+	var partials := [180.0, 410.0, 730.0, 1100.0]
+	var amps := [1.0, 0.55, 0.35, 0.2]
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	for i in range(n):
+		var t: float = float(i) / sr
+		var env: float = exp(-t * 9.0)
+		var s := 0.0
+		for p in range(partials.size()):
+			s += amps[p] * sin(TAU * partials[p] * t)
+		s *= env
+		if t < 0.008:
+			s += (randf() * 2.0 - 1.0) * (1.0 - t / 0.008) * 0.8   # strike transient
+		var sample: int = int(clampf(s * 0.5, -1.0, 1.0) * 32767.0)
+		data[i * 2] = sample & 0xFF
+		data[i * 2 + 1] = (sample >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sr
+	stream.stereo = false
+	stream.data = data
+	return stream
 
 func _icon_path_for(key: String) -> String:
 	var n := _tree.find(key)
@@ -492,11 +814,17 @@ func _icon_path_for(key: String) -> String:
 
 func _select(key: String) -> void:
 	_selected_key = key
+	_focus_on(key)
 	_refresh()
 
 func _on_buy() -> void:
-	if _selected_key != "" and Progression.buy(_selected_key):
+	if _selected_key == "":
+		return
+	var was_new: bool = Progression.get_level(_selected_key) == 0   # unlock, not just a level-up
+	if Progression.buy(_selected_key):
 		_refresh()
+		if was_new:
+			_play_unlock_effect(_selected_key)
 
 func _on_reset_pressed() -> void:
 	if not _reset_armed:
@@ -584,7 +912,7 @@ func node_at(canvas_pos: Vector2) -> String:
 		var n := _tree.find(entry["key"])
 		if n == null:
 			continue
-		if canvas_pos.distance_to(n.pos) <= n.size / 2.0:
+		if canvas_pos.distance_to(n.pos) <= render_size(n.size) / 2.0:
 			return n.key
 	return ""
 
@@ -599,7 +927,7 @@ func move_node_visual(key: String, pos: Vector2) -> void:
 		if entry["key"] != key:
 			continue
 		var btn: Button = entry["button"]
-		btn.position = pos - Vector2.ONE * n.size / 2.0
+		btn.position = pos - Vector2.ONE * render_size(n.size) / 2.0
 		var glow: TextureRect = entry["glow"]
 		glow.position = pos - glow.size / 2.0
 		break
@@ -611,11 +939,26 @@ func move_node_visual(key: String, pos: Vector2) -> void:
 # up 1:1.
 func refresh_connectors() -> void:
 	for c: Dictionary in _connectors:
-		var n := _tree.find(String(c["child"]))
-		if n == null:
-			continue
-		(c["line"] as Line2D).points = PackedVector2Array([
-			_tree.position_of(String(c["parent"])), n.pos])
+		(c["line"] as Line2D).points = _trimmed_points(String(c["parent"]), String(c["child"]))
+
+# Endpoints pulled back to each node's edge (rather than its center) so a
+# connector terminates at the icon's boundary instead of drawing a line
+# straight into the middle of the art it's connecting.
+func _trimmed_points(parent_key: String, child_key: String) -> PackedVector2Array:
+	var from_pos: Vector2 = _tree.position_of(parent_key)
+	var parent_node := _tree.find(parent_key)
+	var from_size: float = _tree.center_size if parent_key == "" or parent_node == null else render_size(parent_node.size)
+	var n := _tree.find(child_key)
+	var to_pos: Vector2 = n.pos if n != null else from_pos
+	var to_size: float = render_size(n.size) if n != null else 0.0
+	var delta := to_pos - from_pos
+	var dist := delta.length()
+	if dist < 1.0:
+		return PackedVector2Array([from_pos, to_pos])
+	var dir := delta / dist
+	var start := from_pos + dir * (from_size / 2.0)
+	var end := to_pos - dir * (to_size / 2.0)
+	return PackedVector2Array([start, end])
 
 # In edit mode the buttons must stop eating clicks so the tree view's input
 # handler can run drag/hit-test logic uniformly over every node.
@@ -654,7 +997,7 @@ func _lbl(parent: Node, text: String, sz: int, col: Color,
 		pos: Vector2, size: Vector2, center: bool = false) -> Label:
 	var l := Label.new()
 	l.text = text; l.position = pos; l.size = size
-	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
+	UITheme.apply_font(l, UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", col)
 	if center: l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	parent.add_child(l)
@@ -663,6 +1006,6 @@ func _lbl(parent: Node, text: String, sz: int, col: Color,
 func _btn(text: String, rect: Rect2) -> Button:
 	var b := Button.new()
 	b.text = text; b.position = rect.position; b.size = rect.size
-	b.add_theme_font_size_override("font_size", 22)
+	UITheme.apply_font(b, UITheme.FONT_HEADER)
 	UITheme.style_button(b)
 	return b

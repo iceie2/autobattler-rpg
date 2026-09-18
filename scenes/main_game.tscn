@@ -179,21 +179,21 @@ corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 
 [sub_resource type="StyleBoxFlat" id="DBarHP"]
-bg_color = Color(0.18, 0.75, 0.28, 1)
+bg_color = Color(0.2, 0.78, 0.3, 1)
 corner_radius_top_left = 3
 corner_radius_top_right = 3
 corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 
 [sub_resource type="StyleBoxFlat" id="DBarMP"]
-bg_color = Color(0.22, 0.45, 0.9, 1)
+bg_color = Color(0.25, 0.4, 0.9, 1)
 corner_radius_top_left = 3
 corner_radius_top_right = 3
 corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 
 [sub_resource type="StyleBoxFlat" id="DBarXP"]
-bg_color = Color(0.83, 0.69, 0.22, 1)
+bg_color = Color(0.85, 0.65, 0.1, 1)
 corner_radius_top_left = 3
 corner_radius_top_right = 3
 corner_radius_bottom_right = 3
@@ -286,7 +286,7 @@ theme_override_constants/separation = 10
 [node name="ActionToggleBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("ButtonNormal")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_styles/hover = SubResource("ButtonHover")
@@ -295,7 +295,7 @@ text = "PLAYER ACTIONS  ▼"
 [node name="spawn_heroBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.9, 1, 1)
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("ButtonNormal")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_styles/hover = SubResource("ButtonHover")
@@ -304,7 +304,7 @@ text = "Buy Hero (10g) [B]"
 [node name="UseItemsBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.9, 1, 1)
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("ButtonNormal")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_styles/hover = SubResource("ButtonHover")
@@ -313,7 +313,7 @@ text = "Use Items"
 [node name="ClassesBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.85, 1, 1)
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("ButtonNormal")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_styles/hover = SubResource("ButtonHover")
@@ -322,7 +322,7 @@ text = "View Classes"
 [node name="RosterBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.85, 1, 1)
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("ButtonNormal")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_styles/hover = SubResource("ButtonHover")
@@ -363,7 +363,7 @@ theme_override_constants/separation = 5
 [node name="TeamToggleBtn" type="Button" parent="UI/TeamStatsPanel/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("ButtonNormal")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_styles/hover = SubResource("ButtonHover")
@@ -389,7 +389,7 @@ show_percentage = false
 [node name="PlayerHPLabel" type="Label" parent="UI/TeamStatsPanel/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.65, 0.9, 0.65, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 20
 text = "— / — HP  (0 units)"
 horizontal_alignment = 1
 
@@ -403,7 +403,7 @@ layout_mode = 2
 [node name="EnemyTeamLabel" type="Label" parent="UI/TeamStatsPanel/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.38, 0.38, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 22
 text = "Enemy Team"
 
 [node name="EnemyHPBar" type="ProgressBar" parent="UI/TeamStatsPanel/VBox"]
@@ -417,7 +417,7 @@ show_percentage = false
 [node name="EnemyHPLabel" type="Label" parent="UI/TeamStatsPanel/VBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.65, 0.65, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 20
 text = "— / — HP  (0 units)"
 horizontal_alignment = 1
 
@@ -448,7 +448,7 @@ theme_override_constants/separation = 4
 [node name="DMToggleBtn" type="Button" parent="UI/DamageMeterPanel/DMVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.75, 0.3, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("ButtonNormal")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_styles/hover = SubResource("ButtonHover")
@@ -462,7 +462,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.35, 0.92, 0.45, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 20
 theme_override_styles/normal = SubResource("ButtonNormal")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_styles/hover = SubResource("ButtonHover")
@@ -472,7 +472,7 @@ text = "Allies"
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.95, 0.38, 0.38, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 20
 theme_override_styles/normal = SubResource("ButtonNormal")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_styles/hover = SubResource("ButtonHover")
@@ -511,7 +511,7 @@ theme_override_constants/separation = 4
 [node name="EHToggleBtn" type="Button" parent="UI/EventHistoryPanel/EHVBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = SubResource("ButtonNormal")
 theme_override_styles/pressed = SubResource("ButtonPressed")
 theme_override_styles/hover = SubResource("ButtonHover")
@@ -521,6 +521,7 @@ text = "EVENT HISTORY  ▶"
 visible = false
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
 [node name="EHList" type="VBoxContainer" parent="UI/EventHistoryPanel/EHVBox/EHScroll"]
 layout_mode = 2
@@ -546,17 +547,17 @@ offset_bottom = -5.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_color = Color(0.85, 0.85, 1, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 20
 text = "Click on the grid to place units. Use action buttons during your turn."
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="UnitDetailsPanel" type="Panel" parent="UI"]
 visible = false
-offset_left = 250.0
-offset_top = 80.0
-offset_right = 810.0
-offset_bottom = 600.0
+offset_left = 190.0
+offset_top = 40.0
+offset_right = 850.0
+offset_bottom = 1040.0
 theme_override_styles/panel = SubResource("DetailsPanelStyle")
 
 [node name="Margin" type="MarginContainer" parent="UI/UnitDetailsPanel"]
@@ -568,7 +569,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 12
+theme_override_constants/margin_right = 24
 theme_override_constants/margin_bottom = 10
 
 [node name="ScrollContainer" type="ScrollContainer" parent="UI/UnitDetailsPanel/Margin"]
@@ -587,7 +588,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 22
 text = "Unit Details"
 
 [node name="CloseBtn" type="Button" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/TitleBar"]
@@ -624,7 +625,7 @@ theme_override_constants/separation = 5
 [node name="UnitName" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.9, 0.6, 1)
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 22
 text = "Unit Name"
 
 [node name="ChipRow" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo"]
@@ -639,7 +640,7 @@ theme_override_styles/panel = SubResource("DChip")
 [node name="ClassLabel" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow/ClassChip"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.85, 0.85, 1, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 20
 text = "Class"
 
 [node name="ElementChip" type="PanelContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow"]
@@ -660,7 +661,7 @@ stretch_mode = 5
 
 [node name="ElementLabel" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow/ElementChip/EChipRow"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 20
 text = "Element"
 
 [node name="LevelChip" type="PanelContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow"]
@@ -671,7 +672,7 @@ theme_override_styles/panel = SubResource("DChip")
 [node name="LevelLabel" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow/LevelChip"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 20
 text = "Lv 1"
 
 [node name="ChipSpacer" type="Control" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow"]
@@ -756,12 +757,50 @@ grow_vertical = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 0.85)
 theme_override_constants/outline_size = 3
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 20
 text = "XP"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="Sep2" type="HSeparator" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+
+[node name="SkillHeader" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.8, 1)
+theme_override_font_sizes/font_size = 22
+text = "SKILL"
+
+[node name="SkillRow" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SkillIcon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow"]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="SkillTextCol" type="VBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SkillName" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow/SkillTextCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
+theme_override_font_sizes/font_size = 22
+text = "-"
+
+[node name="SkillDesc" type="RichTextLabel" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow/SkillTextCol"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+theme_override_colors/default_color = Color(0.82, 0.82, 0.9, 1)
+theme_override_font_sizes/normal_font_size = 20
+text = "-"
+[node name="Sep3" type="HSeparator" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
 layout_mode = 2
 
 [node name="CombatHeader" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
@@ -912,7 +951,7 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "-"
 
-[node name="Sep3" type="HSeparator" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+[node name="Sep4" type="HSeparator" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
 layout_mode = 2
 
 [node name="AffinityRow" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
@@ -979,7 +1018,7 @@ stretch_mode = 5
 custom_minimum_size = Vector2(30, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.55, 0.75, 1)
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 16
 text = "ATK"
 vertical_alignment = 1
 
@@ -1029,7 +1068,7 @@ horizontal_alignment = 1
 custom_minimum_size = Vector2(30, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.55, 0.75, 1)
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 16
 text = "DEF"
 vertical_alignment = 1
 
@@ -1239,41 +1278,3 @@ theme_override_colors/font_color = Color(0.5, 0.85, 0.55, 1)
 theme_override_font_sizes/font_size = 20
 text = "-"
 
-[node name="Sep4" type="HSeparator" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
-layout_mode = 2
-
-[node name="SkillHeader" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.6, 0.8, 1)
-theme_override_font_sizes/font_size = 22
-text = "SKILL"
-
-[node name="SkillRow" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="SkillIcon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow"]
-custom_minimum_size = Vector2(48, 48)
-layout_mode = 2
-size_flags_vertical = 4
-expand_mode = 1
-stretch_mode = 5
-
-[node name="SkillTextCol" type="VBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="SkillName" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow/SkillTextCol"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
-theme_override_font_sizes/font_size = 24
-text = "-"
-
-[node name="SkillDesc" type="RichTextLabel" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow/SkillTextCol"]
-layout_mode = 2
-bbcode_enabled = true
-fit_content = true
-scroll_active = false
-theme_override_colors/default_color = Color(0.82, 0.82, 0.9, 1)
-theme_override_font_sizes/normal_font_size = 20
-text = "-"

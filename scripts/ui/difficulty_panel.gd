@@ -5,7 +5,7 @@ signal difficulty_selected(difficulty: int)
 
 @export var font: Font = preload("res://assets/Fonts/LeagueGothic-Regular.otf")
 
-var current_difficulty: int = WaveScaler.Difficulty.EASY
+var current_difficulty: int = WaveScaler.Difficulty.NORMAL
 var _diff_btns: Array = []
 var _power_by_diff: Dictionary = {}
 var _rewards_by_diff: Dictionary = {}
@@ -33,7 +33,10 @@ const _DIFF_ART := [
 	{"normal": "diff_hard_normal.png",   "pressed": "diff_hard_pressed.png"},
 ]
 const _DIFF_ART_PATH := "res://assets/UI/generated/"
-const _DIFF_NAMES := ["Easy", "Medium", "Hard"]
+# Renamed 2026-08-07 (user): tier 0 is the baseline everyone plays, so calling
+# it "Easy" framed the default as a concession. Art filenames still say
+# easy/medium/hard — the textures are unchanged, only the wording moved.
+const _DIFF_NAMES := ["Normal", "Veteran", "Brutal"]
 # Margins found by sampling the source pixel art directly (see session notes):
 # the left/right end-caps end by ~x=20 of the 192px-wide (3x) texture, and
 # rows 40-55 of the 96px-tall texture sit inside a single flat-color band, so
@@ -90,7 +93,7 @@ func _build_ui() -> void:
 	_dossier_name = Label.new()
 	if font:
 		_dossier_name.add_theme_font_override("font", font)
-	_dossier_name.add_theme_font_size_override("font_size", 22)
+	UITheme.apply_font(_dossier_name, UITheme.FONT_HEADER)
 	_dossier_name.add_theme_color_override("font_color", Color(0.90, 0.86, 0.74, 1.0))
 	_dossier_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_dossier_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -100,7 +103,7 @@ func _build_ui() -> void:
 	_dossier_comp = Label.new()
 	if font:
 		_dossier_comp.add_theme_font_override("font", font)
-	_dossier_comp.add_theme_font_size_override("font_size", 20)
+	UITheme.apply_font(_dossier_comp, UITheme.FONT_VALUE)
 	_dossier_comp.add_theme_color_override("font_color", Color(0.62, 0.70, 0.78, 1.0))
 	_dossier_comp.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_dossier_comp.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -112,7 +115,7 @@ func _build_ui() -> void:
 	heading.text = "ENEMY DIFFICULTY"
 	if font:
 		heading.add_theme_font_override("font", font)
-	heading.add_theme_font_size_override("font_size", 26)
+	UITheme.apply_font(heading, UITheme.FONT_HEADER)
 	heading.add_theme_color_override("font_color", Color(0.83, 0.69, 0.22, 1.0))
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(heading)
@@ -144,7 +147,7 @@ func _build_ui() -> void:
 			btn.add_theme_font_override("font", font)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.custom_minimum_size = Vector2(0, 56)
-		btn.add_theme_font_size_override("font_size", 22)
+		UITheme.apply_font(btn, UITheme.FONT_HEADER)
 		btn.add_theme_color_override("font_color", Color(0.10, 0.08, 0.04))
 		btn.add_theme_color_override("font_hover_color", Color(0.10, 0.08, 0.04))
 		btn.add_theme_color_override("font_pressed_color", Color(0.05, 0.04, 0.02))
@@ -169,7 +172,7 @@ func _build_ui() -> void:
 		name_lbl.text = _DIFF_NAMES[i]
 		if font:
 			name_lbl.add_theme_font_override("font", font)
-		name_lbl.add_theme_font_size_override("font_size", 30)
+		UITheme.apply_font(name_lbl, UITheme.FONT_HEADER)
 		name_lbl.add_theme_color_override("font_color", Color(0.78, 0.78, 0.88))
 		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(name_lbl)
@@ -207,7 +210,7 @@ func _build_ui() -> void:
 	if font:
 		_reward_lbl.add_theme_font_override("font", font)
 	_reward_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_reward_lbl.add_theme_font_size_override("font_size", 28)
+	UITheme.apply_font(_reward_lbl, UITheme.FONT_HEADER)
 	_reward_lbl.add_theme_color_override("font_color", Color(0.83, 0.69, 0.22, 0.95))
 	_reward_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_reward_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -330,7 +333,7 @@ func _build_tooltip() -> void:
 	mg.add_child(vb)
 
 	_tip_name_lbl = Label.new()
-	_tip_name_lbl.add_theme_font_size_override("font_size", 28)
+	UITheme.apply_font(_tip_name_lbl, UITheme.FONT_HEADER)
 	vb.add_child(_tip_name_lbl)
 
 	var sep := HSeparator.new()
@@ -344,13 +347,13 @@ func _build_tooltip() -> void:
 	vb.add_child(_tip_stats_vb)
 
 	_tip_passive_lbl = Label.new()
-	_tip_passive_lbl.add_theme_font_size_override("font_size", 28)
+	UITheme.apply_font(_tip_passive_lbl, UITheme.FONT_HEADER)
 	_tip_passive_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.30))
 	_tip_passive_lbl.visible = false
 	vb.add_child(_tip_passive_lbl)
 
 	_tip_passive_desc = Label.new()
-	_tip_passive_desc.add_theme_font_size_override("font_size", 28)
+	UITheme.apply_font(_tip_passive_desc, UITheme.FONT_VALUE)
 	_tip_passive_desc.add_theme_color_override("font_color", Color(0.70, 0.70, 0.82))
 	_tip_passive_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_tip_passive_desc.custom_minimum_size = Vector2(304, 0)
@@ -383,7 +386,7 @@ func _on_reward_icon_hover() -> void:
 			else:
 				lbl.text = ("+%.2f  %s" % [v, STAT_NAMES.get(stat, stat.to_upper())]) if stat in FLOAT_STATS \
 					else ("+%d  %s" % [int(v), STAT_NAMES.get(stat, stat.to_upper())])
-			lbl.add_theme_font_size_override("font_size", 28)
+			UITheme.apply_font(lbl, UITheme.FONT_VALUE)
 			lbl.add_theme_color_override("font_color", Color(0.82, 0.96, 0.72))
 			_tip_stats_vb.add_child(lbl)
 

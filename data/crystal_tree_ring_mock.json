@@ -767,6 +767,17 @@
       "y": -821.0
     },
     {
+      "icon": "hero_riot.png",
+      "key": "hero_unlock_riot",
+      "max_level": 1,
+      "parents": [
+        "max_level_2_3_2"
+      ],
+      "size": 96.0,
+      "x": 861.4,
+      "y": -940.0
+    },
+    {
       "icon": "lightning_def_aff.png",
       "key": "def_affinity_lightning",
       "max_level": 1,
@@ -1333,8 +1344,8 @@
       "y": 235.9
     },
     {
-      "icon": "hero_riot.png",
-      "key": "hero_unlock_riot",
+      "icon": "hero_stitch.png",
+      "key": "hero_unlock_stitch",
       "max_level": 1,
       "parents": [
         "max_level_market_1"
@@ -1344,17 +1355,6 @@
       "y": 72.7
     },
     {
-      "icon": "hero_stitch.png",
-      "key": "hero_unlock_stitch",
-      "max_level": 1,
-      "parents": [
-        "max_level_market_1"
-      ],
-      "size": 96.0,
-      "x": 1198.8,
-      "y": 434.3
-    },
-    {
       "icon": "hero_cross.png",
       "key": "hero_unlock_cross",
       "max_level": 1,
@@ -1362,8 +1362,8 @@
         "max_level_market_1"
       ],
       "size": 96.0,
-      "x": 1244.8,
-      "y": 276.0
+      "x": 1198.8,
+      "y": 434.3
     },
     {
       "icon": "normal_def_affinity.png",

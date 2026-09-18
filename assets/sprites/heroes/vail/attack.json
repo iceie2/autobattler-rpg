@@ -1,0 +1,23 @@
+{
+  "frame_w": 256,
+  "frame_h": 256,
+  "count": 8,
+  "cols": 8,
+  "rows": 1,
+  "fps": 12,
+  "hero": "vail",
+  "anim": "attack",
+  "source_video": "vail_attack.mp4",
+  "oneshot": true,
+  "source_picks": [
+    0,
+    34,
+    68,
+    102,
+    137,
+    171,
+    205,
+    239
+  ],
+  "auto_selected": true
+}

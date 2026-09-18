@@ -6,7 +6,7 @@ extends Node
 #
 #   godot --path . res://scenes/_levelup_capture.tscn -- --hero=STATIC --perk=magic
 #
-# Writes res://_levelup_rest.png and res://_levelup_hover.png (both gitignored
+# Writes user://_levelup_rest.png and user://_levelup_hover.png (both gitignored
 # build artifacts — delete them after looking, don't commit them).
 #
 # NOTE: needs a real window, so no --headless here. Any hero name from
@@ -50,7 +50,7 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(
-		ProjectSettings.globalize_path("res://_levelup_rest.png"))
+		ProjectSettings.globalize_path("user://_levelup_rest.png"))
 	print("CAPTURED rest — hero=%s level=%d MAG=%d ATK=%d"
 		% [hero, unit.level, unit.magic_power, unit.attack_damage])
 
@@ -75,7 +75,7 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(
-		ProjectSettings.globalize_path("res://_levelup_hover.png"))
+		ProjectSettings.globalize_path("user://_levelup_hover.png"))
 	print("CAPTURED hover — perk=%s value=%s"
 		% [perk_id, offer.get("rolled_value", offer.get("value", 0))])
 	get_tree().quit()

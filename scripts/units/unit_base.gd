@@ -118,6 +118,18 @@ enum TraitClass {
 # split itself is balance-neutral until an archetype tuning pass.
 @export var resistance: int = 10     # flat ARMOR — mitigates physical damage
 @export var magic_resist: int = 10   # flat MAGIC ARMOR — mitigates magic damage
+# Flat TENACITY — the third defensive stat (2026-08-07). Shortens incoming
+# crowd control (stun / root / taunt / slow) exactly the way armor blunts
+# damage, on the same diminishing-returns family so a player who reads "armor"
+# reads this for free: duration_mult = 100 / (100 + tenacity).
+#   0 → 1.00x    20 → 0.83x    60 → 0.63x    150 → 0.40x    200 → 0.33x
+# The curve is asymptotic to zero and NEVER reaches it: tenacity can never make
+# a unit CC-immune, which is the explicit design constraint. Applied ONCE at the
+# moment a status is applied (see AutoBattleManager.apply_stun/root/taunt/slow),
+# never on the per-frame decay — decay-side scaling would make the remaining-
+# duration UI lie and would double-dip when two sources refresh one status.
+# Heroes are 0 by default; enemies get tier values in EnemyFactory.
+@export var tenacity: int = 0
 @export var attack_speed: float = 0.7   # base attacks per second (before speed_modifier())
 @export var hp_regen: float = 0.5    # HP restored per second
 @export var mana_regen: float = 1.0  # mana restored per second
@@ -134,6 +146,10 @@ enum TraitClass {
 
 # Movement interpolation
 var is_moving: bool = false
+# One-shot movement_speed override for the current step only (e.g. Shauna's
+# Kite reposition, which reads as an instant dodge-step regardless of her
+# actual speed stat). 0 = unused, falls back to movement_speed as normal.
+var move_speed_override: int = 0
 var move_start_pos: Vector2 = Vector2.ZERO
 var move_target_pos: Vector2 = Vector2.ZERO
 var move_progress: float = 0.0
@@ -246,6 +262,16 @@ const PROGRESSION_GROWTH_KEYS: Dictionary = {
 	"armor": "armor_per_lvl",
 }
 
+# ── Tenacity ──────────────────────────────────────────────────────────────────
+# Multiplier applied to the duration of any incoming crowd control. Same shape
+# as the armor curve; asymptotic to zero so it can never fully block a status.
+func status_duration_mult() -> float:
+	return 100.0 / (100.0 + maxf(0.0, float(tenacity)))
+
+# Convenience: the duration `dur` as this unit actually experiences it.
+func tenacity_scaled(dur: float) -> float:
+	return dur * status_duration_mult()
+
 func stat_growth(stat_key: String) -> float:
 	var total: float = growth_base.get(stat_key, 0.0) + growth_bonus.get(stat_key, 0.0)
 	if is_player_unit and PROGRESSION_GROWTH_KEYS.has(stat_key):
@@ -329,6 +355,12 @@ var next_attack_boosted: bool = false  # Shauna active: next hit +50% DMG
 var frenzy_active: bool = false    # Bloodhound passive
 var most_damage_dealer = null      # ref to unit that dealt most dmg to self
 var damage_taken_from: Dictionary = {}   # unit → total damage dealt to self
+# Count of hits this unit has TAKEN, from any source. damage_taken_from only
+# records hits that carry an attacker, so several real sources never appear in
+# it — Static's Grid field, reflect damage, and any DoT whose source has since
+# died all pass null. Anything asking "has this unit been hit recently?" must
+# read this instead (see the Lizard's Cold Blood), or it silently ignores them.
+var times_hit: int = 0
 
 # ── Real-time combat timers (seconds) ────────────────────────────────────────
 # The battle runs in real time: each unit acts on its own clocks rather than in a
@@ -354,6 +386,12 @@ var burn_time: float = 0.0         # >0 = burning; deals burn_dps per second
 var burn_dps: float = 0.0
 var burn_accum: float = 0.0        # fractional burn carried between frames
 var burn_source = null             # who lit the burn (for damage credit)
+# What the burn LOOKS like. The burn timer is shared plumbing reused for several
+# different fictions (the Rat's disease, the Sky Wyvern's venom, real fire), and
+# every one of them used to render as the same orange puff. Purely presentational
+# — it never touches damage, duration or stacking. "fire" keeps the original look,
+# so anything that does not pass a flavour is unchanged.
+var burn_flavor: String = "fire"
 
 var bleed_time: float = 0.0        # >0 = bleeding; deals bleed_dps per second,
 var bleed_dps: float = 0.0         # doubled (BLEED_MOVE_MULT in auto_battle_manager)
@@ -371,18 +409,34 @@ var untargetable_time: float = 0.0 # >0 = cannot be selected as a target
 var outgoing_dmg_mult: float = 1.0 # multiplies damage this unit deals (Pastor buff/Damnation)
 var outgoing_dmg_time: float = 0.0 # 0 with mult!=1 = lasts rest of round; >0 = timed
 
-var bonus_aspd_pct: float = 0.0    # Vail Tailwind / Pastor sermon — attack & move haste
+var bonus_aspd_pct: float = 0.0    # Pastor sermon / Zolt enrage — attack & move haste
+# What the haste LOOKS like. Third instance of the same pattern as burn_flavor /
+# weaken_flavor: this timer is shared plumbing (Pastor's sermon, Vail's gust and
+# the Troll's Enrage all ride it), so a visual keyed on the timer alone would
+# paint troll sinew on a hero. "" = no dedicated visual (existing behaviour).
+var aspd_flavor: String = ""
 var bonus_aspd_time: float = 0.0
+
+var bonus_regen_amt: float = 0.0   # Vail Updraft — flat HP/sec while active
+var bonus_regen_time: float = 0.0
 
 var weakened_pct: float = 0.0      # Coal post-Meltdown self-debuff
 var weakened_time: float = 0.0
+# What the weaken LOOKS like. Same reasoning as burn_flavor: this timer is shared
+# plumbing — Coal's own post-Meltdown burnout AND the Slime's Corrosive Goo both
+# live on it. Purely presentational, never touches the multiplier or duration.
+# "" = no dedicated visual (Coal's existing behaviour, unchanged).
+var weaken_flavor: String = ""
 
 var spore_stacks: float = 0.0      # Spore passive accumulation
 var spore_tick_accum: float = 0.0
 
 var momentum_stacks: int = 0       # Sable: each shot empowers the next
 
-var link_partner = null            # Stitch Link: shares damage with this unit
+var link_partner = null            # Legacy Stitch Link field; retained for compatibility
+var link_group: Array = []         # Stitch Link network, snapshotted when cast
+var link_share: float = 0.0        # MAG-scaled share for this network
+var link_owner: UnitBase = null     # Stitch who receives Threadguard shielding
 var puppet_time: float = 0.0       # Stitch Puppet: temporarily fights its own team
 
 var stoke_charges: int = 0         # Coal Stoke: next N hits apply double burn
@@ -413,6 +467,22 @@ var relic_free_first_ult: bool = false   # start each battle with ult charged
 var relic_revive_pct: float = 0.0        # cheat death once/battle, revive at this frac
 var relic_revive_used: bool = false      # per-battle guard for relic_revive_pct
 var relic_on_kill_atk: float = 0.0       # each kill permanently grants +frac attack dmg
+var relic_execute_threshold: float = 0.0 # target hp% (0-1) below which execute_pct kicks in
+var relic_execute_bonus: float = 0.0     # bonus outgoing dmg mult while target is below threshold
+var relic_first_strike_crit: bool = false # first attack each fight is a guaranteed crit
+var relic_first_strike_used: bool = false # per-battle guard for relic_first_strike_crit
+var relic_first_strike_crit_mult: float = 2.0 # damage mult applied on that guaranteed first crit (own magnitude, independent of crit_damage)
+var relic_row_front_mult: float = 1.0    # outgoing dmg mult while in the front row
+var relic_row_back_mult: float = 1.0     # outgoing dmg mult while in the back row
+var relic_opening_burst_pct: float = 0.0 # bonus outgoing dmg mult for the opening window
+var relic_opening_burst_window: float = 0.0 # seconds the opening window lasts
+var relic_opening_burst_remaining: float = 0.0 # per-battle countdown for the window above
+var relic_ult_refund_kill: float = 0.0   # killing blow refunds this frac of max ult charge
+var relic_gold_scaling_dmg: float = 0.0  # bonus outgoing dmg mult per gold currently held
+var relic_momentum_pct_per_sec: float = 0.0 # attack speed ramp per second survived in a fight
+var relic_momentum_time: float = 0.0     # per-battle seconds-survived accumulator
+var relic_underdog_dmg_per_dead: float = 0.0 # bonus outgoing dmg mult per dead ally
+var relic_underdog_res_per_dead: float = 0.0 # incoming dmg reduction per dead ally
 
 # True on boss enemies (Orc Brute / The Triarch / future bosses) — read by the
 # Executioner relic's vs-boss damage bonus.
@@ -467,6 +537,9 @@ func speed_modifier() -> float:
 		m *= (1.0 - clampf(slow_pct, 0.0, 0.9))
 	if bonus_aspd_time > 0.0:
 		m *= (1.0 + bonus_aspd_pct)
+	# Relic "Momentum": attack speed ramps up the longer this fight has gone.
+	if relic_momentum_pct_per_sec > 0.0:
+		m *= (1.0 + minf(relic_momentum_time * relic_momentum_pct_per_sec, 1.0))
 	return m
 
 # Multiplier applied to damage this unit deals (buffs, debuffs, Sable momentum).
@@ -485,7 +558,19 @@ func outgoing_damage_multiplier() -> float:
 	var mob_dmg_bonus: float = get_meta("mob_dmg_bonus", 0.0)
 	if mob_dmg_bonus != 0.0:
 		m *= (1.0 + mob_dmg_bonus)
+	# Relic "Opening Burst": bonus damage for a short window at the start of each fight.
+	if relic_opening_burst_remaining > 0.0:
+		m *= (1.0 + relic_opening_burst_pct)
+	# Relic "Underdog": bonus damage scaling with dead teammates this fight.
+	if relic_underdog_dmg_per_dead > 0.0 and battle_manager:
+		m *= (1.0 + relic_underdog_dmg_per_dead * battle_manager.fallen_allies.size())
 	return m
+
+# Row position at battle start (home_position.y), used by row_stat_mult relics.
+# PLAYER_Y_FRONT/BACK live in main_game.gd (5..8); the midpoint below avoids a
+# cross-file const dependency for this one read.
+func is_front_row() -> bool:
+	return home_position.y <= 6
 
 func get_defense_multiplier(attacking_element: Element = Element.NORMAL) -> float:
 	# Rating-based (2026-07-16): below 100 the shortfall is added to damage
@@ -500,6 +585,11 @@ func get_defense_multiplier(attacking_element: Element = Element.NORMAL) -> floa
 func get_attack_multiplier(target_element: Element = Element.NORMAL) -> float:
 	# Offensive rating / 100 (140 rating = ×1.4, matching the displayed %).
 	return offensive_affinity.get(target_element, 100.0) / 100.0
+
+# Name of whatever landed this unit's killing blow, for the run export's death
+# cause. Set in take_damage() right before die(); "" if never damaged fatally
+# by a tracked attacker (e.g. a DoT tick with no attacker ref).
+var last_killed_by: String = ""
 
 # Signals
 signal health_changed(current: int, maximum: int)
@@ -528,6 +618,10 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 	if not true_damage and amount > 0:
 		var ev: float = equipment_passives.get("Evasion", 0.0)
 		if ev > 0.0 and randf() < ev:
+			# Announce it. This used to be a bare `return`: no damage number, no
+			# flash, nothing — so a dodged hit was indistinguishable from a bug.
+			if battle_manager and battle_manager.has_method("spawn_evade"):
+				battle_manager.spawn_evade(self)
 			return
 
 	var modified_damage := amount
@@ -546,6 +640,10 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 	# Relic: fragile-but-deadly picks (e.g. Glass Cannon) raise incoming damage.
 	if relic_dmg_taken_mult != 1.0:
 		modified_damage = int(round(modified_damage * relic_dmg_taken_mult))
+	# Relic "Underdog": takes less damage the more teammates have fallen this fight.
+	if relic_underdog_res_per_dead > 0.0 and battle_manager:
+		var underdog_cut: float = minf(0.8, relic_underdog_res_per_dead * battle_manager.fallen_allies.size())
+		modified_damage = int(round(modified_damage * (1.0 - underdog_cut)))
 	modified_damage = max(1, modified_damage)
 	# Ant Hill swarm bite stacks: added AFTER the flat resistance subtraction and
 	# max(1,...) floor above, as true damage. Bite stacks are a snowballing DPS
@@ -587,6 +685,7 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 	if not true_damage and (element == Element.FIRE or element == Element.LIGHTNING) \
 			and has_meta("mob_passive") and str(get_meta("mob_passive")) == "troll_regen":
 		set_meta("troll_regen_block_t", 2.0)
+	times_hit += 1
 	took_damage.emit(modified_damage, attacker)   # drives the hit reaction (flash + recoil)
 	_charge_ultimate(modified_damage)
 	# Track who dealt damage to us (for Bloodhound ultimate)
@@ -594,11 +693,15 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		var prev: int = damage_taken_from.get(attacker, 0)
 		damage_taken_from[attacker] = prev + modified_damage
 
-	# Stitch mechanics: Link (share with bound partner) + Loose Threads (team bleed).
+	# Stitch mechanics: propagate Link damage; its owner receives Threadguard.
 	if battle_manager and modified_damage > 0 and battle_manager.has_method("propagate_damage_links"):
 		battle_manager.propagate_damage_links(self, modified_damage, attacker)
 
 	if current_hp <= 0:
+		# Balance export (2026-08-05): who/what landed the killing blow, read by
+		# main_game's death-cause tracker so the run export can say what ended it.
+		if attacker != null and attacker is UnitBase:
+			last_killed_by = str(attacker.unit_name)
 		die()
 
 # (The old hardcoded 1.5x rock-paper-scissors matchup table lived here until
@@ -665,6 +768,11 @@ func apply_stat_growth() -> void:
 	# Magic armor rides the same "res" growth roll until it gets its own table
 	# entry (defense split 2026-07-16 — keeps leveling balance-neutral).
 	magic_resist   = maxi(0, magic_resist   + int(stat_growth("res")))
+	# Tenacity has no per-class growth roll (no entry in CLASS_GROWTH_PER_LEVEL)
+	# — the "ten" key exists so gear/crystal-tree sources can grant per-level
+	# tenacity later without another special case here. int() is safe today
+	# because nothing feeds it a fraction yet; give it a carry bucket if one does.
+	tenacity       = maxi(0, tenacity       + int(stat_growth("ten")))
 	attack_speed   = maxf(0.05, attack_speed + stat_growth("aspd"))
 	hp_regen       = maxf(0.0,  hp_regen     + stat_growth("hpregen"))
 	mana_regen     = maxf(0.0,  mana_regen   + stat_growth("manaregen"))
@@ -673,7 +781,17 @@ func apply_stat_growth() -> void:
 	crit_chance    = maxf(0.0, crit_chance   + stat_growth("crit"))
 	crit_damage    = maxf(0.0, crit_damage   + stat_growth("critdmg"))
 
-func level_up() -> void:
+# `allow_past_cap` exists for exactly one caller: the debug round-warp, which
+# deliberately fields over-levelled heroes so a warped-to boss reads honestly.
+# Everything else is capped HERE rather than at each call site (2026-08-07):
+# grant_xp and set_level both checked the cap, but the "Invest in training"
+# event called this raw and pushed a tester to level 16 on a tree with no Max
+# Hero Level nodes. Guarding the primitive means the next new caller inherits
+# the rule instead of having to remember it.
+func level_up(allow_past_cap: bool = false) -> void:
+	if is_player_unit and not allow_past_cap \
+			and level >= Progression.hero_level_cap():
+		return
 	level += 1
 	apply_stat_growth()
 	current_hp = max_hp
@@ -705,6 +823,16 @@ func attack(target) -> void:
 		damage = int(damage * relic_outgoing_mult)
 	if relic_vs_boss_mult != 1.0 and target is UnitBase and target.is_boss:
 		damage = int(damage * relic_vs_boss_mult)
+	# Relic "Row" mult: front-row vs back-row heroes hit differently.
+	if relic_row_front_mult != 1.0 or relic_row_back_mult != 1.0:
+		damage = int(damage * (relic_row_front_mult if is_front_row() else relic_row_back_mult))
+	# Relic "Execute": bonus damage while the target is below an HP% threshold.
+	if relic_execute_bonus > 0.0 and target is UnitBase and target.max_hp > 0 \
+			and float(target.current_hp) / float(target.max_hp) <= relic_execute_threshold:
+		damage = int(damage * (1.0 + relic_execute_bonus))
+	# Relic "Gold-scaling": bonus damage scaling with the run's current gold total.
+	if relic_gold_scaling_dmg > 0.0 and battle_manager and battle_manager.game_state:
+		damage = int(damage * (1.0 + relic_gold_scaling_dmg * float(battle_manager.game_state.gold)))
 	# Ant Hill swarm (2026-07-24 rework): the bonus is now a GLOBAL swarm-rage
 	# counter (AutoBattleManager.ant_swarm_stacks), not a per-victim one. Every
 	# landed Ant bite — on ANY target — ramps up EVERY Ant's damage against
@@ -732,11 +860,19 @@ func attack(target) -> void:
 	if crit_chance > 0.0 and randf() < crit_chance:
 		damage = int(damage * crit_damage)
 		did_crit = true
+	# Relic "First Strike": the first attack each fight is a guaranteed crit.
+	if relic_first_strike_crit and not relic_first_strike_used:
+		relic_first_strike_used = true
+		if not did_crit:
+			damage = int(damage * relic_first_strike_crit_mult)
+			did_crit = true
 	# Headhunter "Seventh Shot" — numbers from AbilityFormulas, see that file.
+	var is_seventh_shot := false
 	if unit_class == UnitClass.HEADHUNTER \
 			and hit_counter % int(AbilityFormulas.flat(unit_class, AbilityFormulas.PASSIVE, "every")) == 0:
 		damage = int(damage * AbilityFormulas.flat(unit_class, AbilityFormulas.PASSIVE, "mult"))
 		did_crit = true
+		is_seventh_shot = true
 	# Shauna: next attack boosted from the Kite active
 	var is_boosted := next_attack_boosted
 	if is_boosted:
@@ -747,11 +883,51 @@ func attack(target) -> void:
 	var is_true_dmg := (unit_class == UnitClass.SHAUNA \
 			and hit_counter % int(AbilityFormulas.flat(unit_class, AbilityFormulas.PASSIVE, "every")) == 0)
 
+	# The Hill Giant's club uses its real attack sheet. Resolve the hit on the
+	# authored contact frame instead of dealing damage before the swing begins.
+	if str(get_meta("sprite_folder", "")) == "hill_giant" and battle_manager \
+			and battle_manager.has_method("begin_hill_giant_auto"):
+		battle_manager.begin_hill_giant_auto(self, target, damage, did_crit, is_true_dmg)
+		pending_attack_log_damage += damage
+		attacked.emit(target)
+		return
+	# The Wind-Up Bot has no authored attack sheet (static PNG art), so its swing
+	# is VisualUnit.play_attack's procedural lunge. Resolve the hit at that
+	# lunge's forward extent instead of before the body has moved — previously
+	# the damage number appeared, then the bot leaned forward afterwards.
+	if (bool(get_meta("windup_bot", false)) or str(get_meta("dot_flavor", "")) == "disease") \
+			and battle_manager and battle_manager.has_method("begin_windup_auto"):
+		battle_manager.begin_windup_auto(self, target, damage, did_crit, is_true_dmg)
+		pending_attack_log_damage += damage
+		attacked.emit(target)
+		return
+	# Sheildor's authored greatshield push has a clear contact beat. Queue the
+	# complete landed-hit package so damage, relics and impact VFX all occur on
+	# the shield collision rather than before his body starts moving.
+	# June's strike is a two-beat lash: her LEFT hand leads to peak reach at 23%
+	# of the clip and the right follows at 48% (measured on june_v002.glb with
+	# measure_june_contact.py). Damage resolves on the lead contact.
+	if unit_class == UnitClass.JUNE and battle_manager \
+			and battle_manager.has_method("begin_june_auto"):
+		battle_manager.begin_june_auto(self, target, damage, did_crit, is_true_dmg,
+			(1.0 / attacks_per_second) * 0.23)
+		pending_attack_log_damage += damage
+		attacked.emit(target)
+		return
+	if unit_class == UnitClass.SHEILDOR and battle_manager \
+			and battle_manager.has_method("begin_sheildor_auto"):
+		var attack_duration := 1.0 / attacks_per_second
+		battle_manager.begin_sheildor_auto(self, target, damage, did_crit,
+			is_true_dmg, attack_duration * 0.48)
+		pending_attack_log_damage += damage
+		attacked.emit(target)
+		return
+
 	# Headhunter active bonus range already applied by battle manager
 
 	# Bouncer is a melee brawler despite having range 2 (grab/pull reach) — no projectile.
 	if attack_range > 1 and unit_class != UnitClass.BOUNCER:
-		spawn_projectile(target, damage, false, did_crit)
+		spawn_projectile(target, damage, false, did_crit, is_seventh_shot, is_true_dmg)
 		pending_attack_log_damage += damage   # intended damage (mitigated on hit)
 	else:
 		var pre_hp: int = target.current_hp
@@ -774,6 +950,11 @@ func apply_relic_on_hit(target, actual: int, was_alive: bool) -> void:
 		heal(int(round(actual * relic_lifesteal)))
 	if relic_on_kill_atk > 0.0 and was_alive and target is UnitBase and target.current_hp <= 0:
 		attack_damage = maxi(1, int(round(attack_damage * (1.0 + relic_on_kill_atk))))
+	if relic_ult_refund_kill > 0.0 and was_alive and target is UnitBase and target.current_hp <= 0 \
+			and ultimate_charge_max > 0 and not ultimate_ready:
+		ultimate_charge = mini(ultimate_charge_max, ultimate_charge + int(round(ultimate_charge_max * relic_ult_refund_kill)))
+		if ultimate_charge >= ultimate_charge_max:
+			ultimate_ready = true
 
 func _charge_ultimate(amount: int) -> void:
 	if ultimate_charge_max <= 0 or ultimate_ready or ult_active_time > 0.0:
@@ -803,7 +984,23 @@ func set_level(target_level: int) -> void:
 	while level < target_level and level < cap:
 		level_up()
 
-func spawn_projectile(target, damage: int, is_magic: bool = false, is_crit: bool = false) -> void:
+# Per-hero delay between the attack call and the bullet actually leaving the
+# muzzle, so it launches on the attack sheet's fire frame instead of the
+# instant the attack triggers (which used to be before the character even
+# finished raising the weapon). Real seconds, matching that hero's attack
+# sheet fps/frame count — 0.0 (unlisted) reproduces the old immediate-launch
+# behavior. Add an entry here for any other ranged hero whose attack sheet
+# has a visible aim/fire beat once it's confirmed the anim is really playing.
+## Where in Sear's attack interval the bolt leaves his hand. One constant so the
+## projectile's spawn_delay and the caster's flame-gather beat are driven by the
+## same number instead of two hand-tuned ones that drift apart.
+const SEAR_MUZZLE_FRAC := 0.30
+
+const PROJECTILE_MUZZLE_DELAY := {
+	UnitClass.HEADHUNTER: 0.83,   # attack.json: 12fps, flash starts ~frame 10
+}
+
+func spawn_projectile(target, damage: int, is_magic: bool = false, is_crit: bool = false, is_seventh_shot: bool = false, is_true_dmg: bool = false) -> void:
 	if not battle_manager:
 		return
 
@@ -814,10 +1011,82 @@ func spawn_projectile(target, damage: int, is_magic: bool = false, is_crit: bool
 	projectile.setup(start_pos, end_pos, damage, current_element, target)
 	projectile.is_magic = is_magic
 	projectile.is_crit = is_crit
+	projectile.is_seventh_shot = is_seventh_shot
+	projectile.is_true_damage = is_true_dmg
 	projectile.caster = self   # so on_reach_target can credit damage_dealt
+	projectile.is_goblin_arrow = str(get_meta("sprite_folder", "")) == "goblin_archer"
+	projectile.is_goblin_shaman_orb = str(get_meta("sprite_folder", "")).begins_with("goblin_shaman_")
+	projectile.focus_stacks = int(get_meta("ff_stacks", 0)) if projectile.is_goblin_arrow else 0
+	projectile.spawn_delay = PROJECTILE_MUZZLE_DELAY.get(unit_class, 0.0)
+	if unit_class == UnitClass.STATIC:
+		projectile.is_static_arc = true
+		projectile.speed = 900.0
+		projectile.spawn_delay = 0.22
+	elif unit_class == UnitClass.ZOLT:
+		projectile.is_zolt_arc = true
+		projectile.speed = 780.0
+		# Zolt's hands reach their authored release pose 12% into the attack.
+		# Both this delay and VisualUnit's clip duration derive from the same live
+		# APS, so haste/slow can never pull the projectile away from the gesture.
+		projectile.spawn_delay = (1.0 / attacks_per_second) * 0.12
+	elif unit_class == UnitClass.SEAR:
+		projectile.is_sear_bolt = true
+		projectile.speed = 760.0
+		# Shared with VisualUnit._sear_cast_beat so the bolt leaves on the same
+		# beat the flame gathers, at every attack speed.
+		projectile.spawn_delay = (1.0 / attacks_per_second) * SEAR_MUZZLE_FRAC
+	elif unit_class == UnitClass.RIFT:
+		projectile.is_rift_void = true
+		projectile.speed = 720.0
+		projectile.spawn_delay = (1.0 / attacks_per_second) * 0.34
+
+	# Per-hero auto-attack sprite override — see Projectile.sprite_tex. Every
+	# other hero keeps the plain colored circle.
+	if unit_class == UnitClass.NEMI:
+		var auto_tex: Texture2D = load("res://assets/particle/heroes/nemi/nemi_auto.png") as Texture2D
+		if auto_tex:
+			projectile.sprite_tex = auto_tex
+			projectile.sprite_frame_w = 25
+			projectile.sprite_frame_h = 30
+			projectile.sprite_frame_count = 8
+			projectile.sprite_fps = 14.0
+			projectile.sprite_display_size = Vector2(46, 56)
+	elif unit_class == UnitClass.HEADHUNTER:
+		var bullet_tex: Texture2D = load("res://assets/particle/heroes/headhunter/headhunter_auto.png") as Texture2D
+		if bullet_tex:
+			projectile.sprite_tex = bullet_tex
+			projectile.sprite_frame_w = 25
+			projectile.sprite_frame_h = 20
+			projectile.sprite_frame_count = 8
+			projectile.sprite_fps = 14.0
+			projectile.sprite_display_size = Vector2(40, 32)
+	elif unit_class == UnitClass.SHAUNA:
+		var frames: Array[Texture2D] = []
+		for i in range(1, 9):
+			var tex := load("res://assets/particle/heroes/shauna/shauna_auto_%d.png" % i) as Texture2D
+			if tex:
+				frames.append(tex)
+		if not frames.is_empty():
+			projectile.sprite_frames = frames
+			projectile.sprite_fps = 14.0
+			projectile.sprite_display_size = Vector2(28, 35)
 
 	if battle_manager.has_method("add_projectile"):
 		battle_manager.add_projectile(projectile)
+
+func spawn_crippling_arrow(target, damage: int, slow_pct: float, slow_duration: float) -> void:
+	if not battle_manager:
+		return
+	var projectile := Projectile.new()
+	projectile.setup(global_position, target.global_position if target else global_position,
+		damage, current_element, target)
+	projectile.caster = self
+	projectile.is_goblin_arrow = true
+	projectile.is_crippling_arrow = true
+	projectile.slow_pct = slow_pct
+	projectile.slow_duration = slow_duration
+	projectile.speed = 720.0
+	battle_manager.add_projectile(projectile)
 
 func die() -> void:
 	# Khagan's puppet: bursting it to 0 HP frees it EARLY (clamps to 1 HP instead

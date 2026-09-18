@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/model3d_fight_capture.gd" id="1_fcap"]
+
+[node name="Model3DFightCapture" type="Node"]
+script = ExtResource("1_fcap")

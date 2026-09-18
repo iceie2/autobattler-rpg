@@ -33,21 +33,19 @@ var crystals: int = 0
 # replacing the old flat cap — team size now grows WITH you instead of being
 # available in full from turn one.
 #
-# Curve re-tuned 2026-07-09 (user spec): level 2 before round 5 starts, level 3
-# before round 10 starts, on EASY with full clears — hand-derived from
-# WaveData's round 1-9 fodder + the round-5 elite/round-10 boss formations
-# (~1030 cumulative player XP — at PLAYER_XP_SHARE=0.5 — by end of round 8,
-# ~1390 by end of round 9). 300 crosses during round 4 (level 2 locked in
-# before round 5); 300+960=1260 crosses during round 9 (level 3 locked in
-# before round 10). Growth then keeps compounding hard on purpose — level 4+
-# via kills alone is meant to take a long time; further growth past level 3
-# is meant to come from other systems (roguelite/roguelike meta-upgrades),
-# not this base curve. Hand-derived, not simulated — needs a real playtest
-# pass to confirm (see balance_journal convention).
+# Curve re-tuned 2026-08-07 (user spec) and now MEASURED, not hand-derived —
+# see Balance.PLAYER_XP_GROWTH for the fitted numbers and the
+# `--mode=xpcurve` harness that produced them. The 2026-07-09 hand-derived
+# pass assumed growth past level 3 would come from "other systems" that never
+# arrived, so ×3.2 compounding left the whole upper ladder unreachable.
+#
+# This curve IS the team-size gate: there is no player-level cap upgrade. A
+# fresh account tops out around level 8 because it runs out of XP, not because
+# a constant stops it. The crystal tree sells XP RATE (bonus_xp) and SLOTS
+# (hero_slots) — never a ceiling.
 var player_level: int = 1
 var player_xp: float = 0.0
-var player_xp_to_level: float = 300.0
-const PLAYER_XP_TO_LEVEL_GROWTH := 3.2
+var player_xp_to_level: float = Balance.PLAYER_XP_BASE
 
 signal player_leveled_up(new_level: int)
 
@@ -113,14 +111,22 @@ func spend_crystals(amount: int) -> bool:
 func reset_player_level() -> void:
 	player_level = 1
 	player_xp = 0.0
-	player_xp_to_level = 300.0
+	player_xp_to_level = Balance.PLAYER_XP_BASE
 
 # Called with a SHARE of each kill's hero XP (see main_game._on_unit_died) —
 # a single account-wide pool, not divided per-hero like combat XP is.
 func add_player_xp(amount: float) -> void:
 	player_xp += amount
+	# Player level is UNCAPPED (2026-08-07 user spec: "make it so the player can
+	# go higher level but there is a hard cap of team size of 20"). The ladder
+	# keeps paying out — it just stops buying board slots once the clamp is hit,
+	# so a monster run still shows progress instead of a dead XP bar.
+	#
+	# The loop terminates without a cap because player_xp_to_level grows by
+	# PLAYER_XP_GROWTH (>1) every level, so each level costs strictly more than
+	# the last against a finite XP grant.
 	while player_xp >= player_xp_to_level:
 		player_xp -= player_xp_to_level
 		player_level += 1
-		player_xp_to_level *= PLAYER_XP_TO_LEVEL_GROWTH
+		player_xp_to_level *= Balance.PLAYER_XP_GROWTH
 		player_leveled_up.emit(player_level)

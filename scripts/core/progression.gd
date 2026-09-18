@@ -8,6 +8,12 @@ var crystals: int = 0
 # upgrade_levels maps upgrade key → current level (0 = not bought)
 var upgrade_levels: Dictionary = {}
 
+# Running ledger of crystals actually charged by buy(), so a reset refunds
+# what was truly paid — independent of any later cost_mult rebalance or tree
+# key regen making total_spent()'s replay drift from history (2026-08-06 fix,
+# see reset_all()).
+var crystals_spent: int = 0
+
 # ── Upgrade catalogue ─────────────────────────────────────────────────────────
 # Each entry: { key, name, desc, max_level, effect_per_level }
 # effect_per_level is used by the game to query the bonus value.
@@ -41,10 +47,17 @@ const UPGRADES: Array = [
 		"desc": "+10 max HP to all heroes at the start of every run per level.",
 		"effect": "Team HP +%d", "max_level": 20, "effect_per_level": 10,
 	},
+	# "Ascension" (player_level_cap) lived here and was REMOVED 2026-08-07: it
+	# was never in the spec. The tree does not sell a player-level ceiling — it
+	# sells XP rate (bonus_xp) and slots (hero_slots). See Balance.MAX_TEAM_SIZE.
 	{
 		"key": "hero_slots", "name": "Roster Expansion",
 		"desc": "+1 hero you can field per level (stacks with your player level).",
-		"effect": "Hero Slots: %d", "max_level": 5, "effect_per_level": 1,
+		# 5 → 6 (2026-08-07 user spec: "we can buy +6 in the crystal tree").
+		# This is an EARLY-GAME boost, not a permanent +6: team size clamps at
+		# Balance.MAX_TEAM_SIZE (20), so once player level reaches 14+ these
+		# nodes buy nothing. They front-load the board instead of raising it.
+		"effect": "Hero Slots: %d", "max_level": 6, "effect_per_level": 1,
 	},
 	{
 		# Cheap half of the crystal pair (2026-07-16, mirrors Head Start/Bounty).
@@ -239,6 +252,252 @@ const UPGRADES: Array = [
 		"desc": "Adds Rift to the recruitment pool.",
 		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
 	},
+	# ── Relic unlocks (2026-08-04) ──────────────────────────────────────────────
+	# Mirrors hero_unlock_* above: one-shot (max_level 1) purchases that let a
+	# build-defining relic appear in the gacha pool. See Relic.POOL for the
+	# relics themselves and Progression.RELIC_UNLOCK_KEYS / is_relic_unlocked()
+	# for the gate. Relics not listed there are always available.
+	{
+		"key": "relic_unlock_c_execute", "name": "Unlock Coup de Grace",
+		"desc": "Adds Coup de Grace to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 2.0,
+	},
+	{
+		"key": "relic_unlock_c_firststrike", "name": "Unlock Ambush Blade",
+		"desc": "Adds Ambush Blade to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 2.0,
+	},
+	{
+		"key": "relic_unlock_c_row", "name": "Unlock Vanguard Standard",
+		"desc": "Adds Vanguard Standard to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 2.0,
+	},
+	{
+		"key": "relic_unlock_b_execute", "name": "Unlock Executioner's Whisper",
+		"desc": "Adds Executioner's Whisper to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 3.0,
+	},
+	{
+		"key": "relic_unlock_b_firststrike", "name": "Unlock First Blood",
+		"desc": "Adds First Blood to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 3.0,
+	},
+	{
+		"key": "relic_unlock_b_row", "name": "Unlock Phalanx Core",
+		"desc": "Adds Phalanx Core to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 3.0,
+	},
+	{
+		"key": "relic_unlock_b_opening", "name": "Unlock Opening Gambit",
+		"desc": "Adds Opening Gambit to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 3.0,
+	},
+	{
+		"key": "relic_unlock_b_momentum", "name": "Unlock Flywheel",
+		"desc": "Adds Flywheel to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 3.0,
+	},
+	{
+		"key": "relic_unlock_b_ultrefund", "name": "Unlock Soulsiphon Blade",
+		"desc": "Adds Soulsiphon Blade to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 3.0,
+	},
+	{
+		"key": "relic_unlock_a_execute", "name": "Unlock Culling Blade",
+		"desc": "Adds Culling Blade to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 5.0,
+	},
+	{
+		"key": "relic_unlock_a_row", "name": "Unlock Battleline Discipline",
+		"desc": "Adds Battleline Discipline to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 5.0,
+	},
+	{
+		"key": "relic_unlock_a_opening", "name": "Unlock Alpha Strike",
+		"desc": "Adds Alpha Strike to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 5.0,
+	},
+	{
+		"key": "relic_unlock_a_momentum", "name": "Unlock Overdrive Engine",
+		"desc": "Adds Overdrive Engine to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 5.0,
+	},
+	{
+		"key": "relic_unlock_a_ultrefund", "name": "Unlock Reaper's Bargain",
+		"desc": "Adds Reaper's Bargain to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 5.0,
+	},
+	{
+		"key": "relic_unlock_a_underdog", "name": "Unlock Martyr's Resolve",
+		"desc": "Adds Martyr's Resolve to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 5.0,
+	},
+	{
+		"key": "relic_unlock_a_goldscale", "name": "Unlock Midas Touch",
+		"desc": "Adds Midas Touch to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 5.0,
+	},
+	{
+		"key": "relic_unlock_s_execute", "name": "Unlock Deathmark",
+		"desc": "Adds Deathmark to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 8.0,
+	},
+	{
+		"key": "relic_unlock_s_row", "name": "Unlock Immortal Formation",
+		"desc": "Adds Immortal Formation to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 8.0,
+	},
+	{
+		"key": "relic_unlock_s_opening", "name": "Unlock First Light",
+		"desc": "Adds First Light to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 8.0,
+	},
+	{
+		"key": "relic_unlock_s_momentum", "name": "Unlock Perpetual Motion",
+		"desc": "Adds Perpetual Motion to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 8.0,
+	},
+	{
+		"key": "relic_unlock_s_ultrefund", "name": "Unlock Endless Reaping",
+		"desc": "Adds Endless Reaping to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 8.0,
+	},
+	{
+		"key": "relic_unlock_s_underdog", "name": "Unlock Last Light",
+		"desc": "Adds Last Light to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 8.0,
+	},
+	{
+		"key": "relic_unlock_s_goldscale", "name": "Unlock Dragon's Avarice",
+		"desc": "Adds Dragon's Avarice to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 8.0,
+	},
+	# ── New mechanic low rungs (2026-08-05 ladder pass) ─────────────────────────
+	# Same per-id gating convention as their ladder's existing low rung (see
+	# RELIC_UNLOCK_KEYS below for which ladders are gated at all).
+	{
+		"key": "relic_unlock_d_execute", "name": "Unlock Grazing Cut",
+		"desc": "Adds Grazing Cut to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 1.2,
+	},
+	{
+		"key": "relic_unlock_d_firststrike", "name": "Unlock First Nick",
+		"desc": "Adds First Nick to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 1.2,
+	},
+	{
+		"key": "relic_unlock_d_row", "name": "Unlock Skirmish Line",
+		"desc": "Adds Skirmish Line to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 1.2,
+	},
+	{
+		"key": "relic_unlock_d_opening", "name": "Unlock Quickdraw",
+		"desc": "Adds Quickdraw to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 1.2,
+	},
+	{
+		"key": "relic_unlock_c_opening", "name": "Unlock Rising Tempo",
+		"desc": "Adds Rising Tempo to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 2.0,
+	},
+	{
+		"key": "relic_unlock_d_momentum", "name": "Unlock Warmup",
+		"desc": "Adds Warmup to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 1.2,
+	},
+	{
+		"key": "relic_unlock_c_momentum", "name": "Unlock Gathering Speed",
+		"desc": "Adds Gathering Speed to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 2.0,
+	},
+	{
+		"key": "relic_unlock_d_ultrefund", "name": "Unlock Spark of Vengeance",
+		"desc": "Adds Spark of Vengeance to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 1.2,
+	},
+	{
+		"key": "relic_unlock_c_ultrefund", "name": "Unlock Reaper's Trickle",
+		"desc": "Adds Reaper's Trickle to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 2.0,
+	},
+	# d_goldscale/c_goldscale/d_underdog/c_underdog are NOT gated — their
+	# ladder's existing low rung (b_goldscale/b_underdog) was never gated
+	# either, so the new rungs stay free per the matching-convention rule.
+	# ── Stat-ladder bundle unlocks (2026-08-05) ─────────────────────────────────
+	# One purchase per ladder unlocks every gated rung of that ladder at once
+	# (the 33-relic ladder-fill pass — see Relic.POOL "ladder"/"ladder_gated"
+	# fields and Relic._draw_one). Priced well above a single mechanic unlock
+	# since each bundle covers several relics.
+	{
+		"key": "relic_unlock_ladder_max_hp", "name": "Unlock HP Ladder",
+		"desc": "Adds the higher-tier max HP relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_atk_dmg", "name": "Unlock Attack Ladder",
+		"desc": "Adds the higher-tier attack damage relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_magic_power", "name": "Unlock Magic Ladder",
+		"desc": "Adds the higher-tier magic power relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_attack_speed", "name": "Unlock Speed Ladder",
+		"desc": "Adds the higher-tier attack speed relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_crit_chance", "name": "Unlock Crit Chance Ladder",
+		"desc": "Adds the higher-tier crit chance relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_crit_damage", "name": "Unlock Crit Damage Ladder",
+		"desc": "Adds the higher-tier crit damage relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_armor_dual", "name": "Unlock Armor Ladder",
+		"desc": "Adds the higher-tier armor relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_lifesteal", "name": "Unlock Lifesteal Ladder",
+		"desc": "Adds the higher-tier lifesteal relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_gold_econ", "name": "Unlock Gold Ladder",
+		"desc": "Adds the higher-tier gold economy relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_vs_boss", "name": "Unlock Boss Damage Ladder",
+		"desc": "Adds the higher-tier vs-boss relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_double_atk", "name": "Unlock Double Attack Ladder",
+		"desc": "Adds the higher-tier double attack relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_on_kill_atk", "name": "Unlock On-Kill Ladder",
+		"desc": "Adds the higher-tier on-kill attack relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_start_shield", "name": "Unlock Shield Ladder",
+		"desc": "Adds the higher-tier battle-start shield relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
+	{
+		"key": "relic_unlock_ladder_ult_charge", "name": "Unlock Ult Charge Ladder",
+		"desc": "Adds the higher-tier ultimate charge relics to the relic pool.",
+		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0, "cost_mult": 14.0,
+	},
 	# ── Run-start gold (2026-08-01 user spec) ──────────────────────────────────
 	# Distinct from "starting_gold"/Head Start above (which despite its key
 	# actually pays out every ROUND, not at run start — see that entry's
@@ -384,9 +643,11 @@ const UPGRADES: Array = [
 	# ── Hero level cap (2026-08-01 user spec) ──────────────────────────────────
 	# Base hero level cap is 10 (see HERO_LEVEL_CAP_BASE/hero_level_cap() below
 	# and UnitBase.grant_xp()'s cap check) — heroes simply stop leveling once
-	# they hit it. Each of these 7 nodes independently raises that cap by
-	# +1/level, 5 levels each (35 max total), so a fully-invested run can push
-	# the cap to 45. Seven separate purchase points (rather than one deep
+	# they hit it. These 7 authored entries are REPLACED at boot by the split
+	# one-level nodes in crystal_upgrades.json; the live total is 40 across 39
+	# feeders + the base node, so a fully-invested tree lands the cap on exactly
+	# 50 (verified 2026-08-07 against the data files, not this comment — the
+	# old "45" here was stale). Seven separate purchase points (rather than one deep
 	# track) so the cap rises gradually as you branch out across the tree,
 	# same shape as the tier-2 stat family above.
 	{
@@ -431,7 +692,21 @@ const UPGRADES: Array = [
 # cannot level past hero_level_cap() — see UnitBase.grant_xp()/set_level().
 const HERO_LEVEL_CAP_BASE: int = 10
 
+# Harness-only override (2026-08-07). The arena runs against a FRESH profile, so
+# hero_level_cap() there is the base 10 — which meant every "--team=SABLE:17" sim
+# silently clamped to 10 and the harness could not reproduce a real late-run team
+# at all (a tester's winning run fielded levels 14-17; a maxed tree goes far
+# higher). Set via the arena's --hero-cap= flag. -1 = off, i.e. normal game rules.
+# Nothing in the shipping game writes this.
+var hero_level_cap_override: int = -1
+
+# NOTE (2026-08-07): PLAYER_LEVEL_CAP_BASE / player_level_cap() were removed.
+# Player level is gated by the XP curve, not a ceiling — see
+# Balance.PLAYER_XP_GROWTH and Balance.MAX_TEAM_SIZE.
+
 func hero_level_cap() -> int:
+	if hero_level_cap_override >= 0:
+		return hero_level_cap_override
 	# Every level-cap node (30 on the spokes, 10 in the web) feeds "max_level",
 	# so this is one aggregated read rather than a hardcoded key list.
 	return HERO_LEVEL_CAP_BASE + get_bonus("max_level")
@@ -482,6 +757,60 @@ func is_hero_unlocked(unit_class) -> bool:
 	var key: String = HERO_UNLOCK_KEYS.get(unit_class, "")
 	return key != "" and get_level(key) >= 1
 
+# Relic id -> relic_unlock_* upgrade key, for the ~half of the 2026-08-04 relic
+# expansion gated behind a crystal tree purchase. A relic id absent here is not
+# gated — see is_relic_unlocked() and Relic.POOL.
+const RELIC_UNLOCK_KEYS: Dictionary = {
+	"c_execute": "relic_unlock_c_execute",
+	"c_firststrike": "relic_unlock_c_firststrike",
+	"c_row": "relic_unlock_c_row",
+	"b_execute": "relic_unlock_b_execute",
+	"b_firststrike": "relic_unlock_b_firststrike",
+	"b_row": "relic_unlock_b_row",
+	"b_opening": "relic_unlock_b_opening",
+	"b_momentum": "relic_unlock_b_momentum",
+	"b_ultrefund": "relic_unlock_b_ultrefund",
+	"a_execute": "relic_unlock_a_execute",
+	"a_row": "relic_unlock_a_row",
+	"a_opening": "relic_unlock_a_opening",
+	"a_momentum": "relic_unlock_a_momentum",
+	"a_ultrefund": "relic_unlock_a_ultrefund",
+	"a_underdog": "relic_unlock_a_underdog",
+	"a_goldscale": "relic_unlock_a_goldscale",
+	"s_execute": "relic_unlock_s_execute",
+	"s_row": "relic_unlock_s_row",
+	"s_opening": "relic_unlock_s_opening",
+	"s_momentum": "relic_unlock_s_momentum",
+	"s_ultrefund": "relic_unlock_s_ultrefund",
+	"s_underdog": "relic_unlock_s_underdog",
+	"s_goldscale": "relic_unlock_s_goldscale",
+	# ── 2026-08-05 mechanic low rungs (gated to match their ladder's existing
+	# low rung — see Relic.POOL comment). gold_scaling_dmg and underdog were
+	# never gated at their existing low rung (b_goldscale/b_underdog are free),
+	# so their new d_/c_ rungs stay out of this map (free) on purpose.
+	"d_execute": "relic_unlock_d_execute",
+	"d_firststrike": "relic_unlock_d_firststrike",
+	"d_row": "relic_unlock_d_row",
+	"d_opening": "relic_unlock_d_opening",
+	"c_opening": "relic_unlock_c_opening",
+	"d_momentum": "relic_unlock_d_momentum",
+	"c_momentum": "relic_unlock_c_momentum",
+	"d_ultrefund": "relic_unlock_d_ultrefund",
+	"c_ultrefund": "relic_unlock_c_ultrefund",
+}
+
+# True if this relic id may appear in the gacha pool: not gated, or its
+# relic_unlock_* upgrade has been bought (level >= 1). Mirrors is_hero_unlocked.
+func is_relic_unlocked(relic_id: String) -> bool:
+	var key: String = RELIC_UNLOCK_KEYS.get(relic_id, "")
+	return key == "" or get_level(key) >= 1
+
+# True if the stat-ladder bundle for `ladder_key` (e.g. "max_hp", "double_atk")
+# has been purchased. Gates every relic in Relic.POOL tagged
+# "ladder_gated": true with that "ladder" key — see Relic._draw_one.
+func is_ladder_unlocked(ladder_key: String) -> bool:
+	return get_level("relic_unlock_ladder_" + ladder_key) >= 1
+
 # Per-node overrides from data/crystal_tree.json (2026-07-31: max_level;
 # 2026-08-01: name/desc), so node depth AND wording are tunable from the F9
 # tree editor instead of requiring a script edit. Empty = every upgrade uses
@@ -489,6 +818,10 @@ func is_hero_unlocked(unit_class) -> bool:
 var _max_level_overrides: Dictionary = {}
 var _name_overrides: Dictionary = {}
 var _desc_overrides: Dictionary = {}
+# {key: [parent_key, ...]} straight from the tree layout — the prerequisite
+# gate (see is_locked). A key absent here hangs off the hub and is always
+# available.
+var _tree_parents: Dictionary = {}
 
 # ── Generated catalogue (2026-08-03) ──────────────────────────────────────────
 # The crystal tree grew from ~70 upgrades to ~600, because multi-level upgrades
@@ -565,6 +898,7 @@ func apply_tree_overrides(tree: CrystalTree) -> void:
 	_max_level_overrides = o["max_level"]
 	_name_overrides = o["name"]
 	_desc_overrides = o["desc"]
+	_tree_parents = o.get("parents", {})
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -615,6 +949,13 @@ func display_name(key: String) -> String:
 func display_desc(key: String) -> String:
 	if _desc_overrides.has(key):
 		return String(_desc_overrides[key])
+	# Relic-unlock nodes read their blurb straight off the relic pool, so the
+	# tree always quotes the live numbers instead of a stale copy. Falls back to
+	# the catalogue text if the pool has nothing to say (see Relic.unlock_desc).
+	if key.begins_with("relic_unlock_"):
+		var from_pool := Relic.unlock_desc(key)
+		if from_pool != "":
+			return from_pool
 	var upgrade := _find(key)
 	return String(upgrade.get("desc", ""))
 
@@ -631,9 +972,37 @@ func next_cost(key: String) -> int:
 
 # Hard prerequisite gate (2026-07-16): an upgrade with a "requires" key can't
 # be bought until that prerequisite has at least 1 level.
+#
+# 2026-08-04: the generated ring tree (586 nodes) never filled in "requires",
+# so every node in it was buyable from the hub on turn one. The tree layout's
+# parent links are now the real gate — a node unlocks once ANY one of its
+# parents has a level (any, not all: a multi-parent node is a join between two
+# routes, and reaching it by either route should open it).
 func is_locked(key: String) -> bool:
 	var req: String = _find(key).get("requires", "")
-	return req != "" and get_level(req) == 0
+	if req != "" and get_level(req) == 0:
+		return true
+	if not _tree_parents.has(key):
+		return false      # hub-attached (or not placed in the tree at all)
+	for p: Variant in _tree_parents[key]:
+		if get_level(String(p)) > 0:
+			return false
+	return true
+
+# Human-readable "what do I need first" for the locked tooltip / detail bar:
+# the unmet prerequisites, catalogue "requires" first, then the tree parents.
+func prereq_names(key: String) -> String:
+	var out: PackedStringArray = []
+	var req: String = _find(key).get("requires", "")
+	if req != "" and get_level(req) == 0:
+		out.append(display_name(req))
+	for p: Variant in _tree_parents.get(key, []):
+		var pk := String(p)
+		if get_level(pk) == 0 and not out.has(display_name(pk)):
+			out.append(display_name(pk))
+	if out.is_empty():
+		return "?"
+	return " or ".join(out)
 
 func can_afford(key: String) -> bool:
 	if is_locked(key):
@@ -644,13 +1013,18 @@ func can_afford(key: String) -> bool:
 func buy(key: String) -> bool:
 	if not can_afford(key):
 		return false
-	crystals -= next_cost(key)
+	var cost := next_cost(key)
+	crystals -= cost
+	crystals_spent += cost
 	upgrade_levels[key] = get_level(key) + 1
 	save_data()
 	return true
 
-# Total crystals ever spent on current upgrade levels — replays the exact
-# cost curve (incl. per-node cost_mult) so a reset refunds to the crystal.
+# Total crystals ever spent on current upgrade levels, REPLAYED from the
+# current cost curve. This is an estimate only (cost_mult rebalances and tree
+# key regens make it drift from what was actually paid) — kept for the shop's
+# pre-reset confirmation display where an estimate is fine. Actual refunds use
+# crystals_spent, the real ledger. See reset_all().
 func total_spent() -> int:
 	var spent := 0
 	for u in _catalogue:
@@ -661,12 +1035,28 @@ func total_spent() -> int:
 
 # Full respec (2026-07-17 user request): wipe every upgrade level and refund
 # every crystal spent. Returns the refund amount for UI feedback.
+#
+# Refunds from crystals_spent (the real ledger of what buy() charged), not
+# total_spent()'s replay — the replay reads *current* cost_mult and *current*
+# catalogue keys, so it silently shortchanges the player if a node's cost_mult
+# was rebalanced after purchase, or if the tree was regenerated and a bought
+# node's key no longer exists in the catalogue (2026-08-06 fix).
 func reset_all() -> int:
-	var refund := total_spent()
+	var refund := crystals_spent
 	upgrade_levels.clear()
 	crystals += refund
+	crystals_spent = 0
 	save_data()
 	return refund
+
+# Full save wipe (2026-08-05 user request, options menu "Reset Save Data"):
+# unlike reset_all(), this does NOT refund — crystals go to zero along with
+# every upgrade level, since the point is starting over from nothing.
+func wipe_all() -> void:
+	upgrade_levels.clear()
+	crystals = 0
+	crystals_spent = 0
+	save_data()
 
 func add_crystals(amount: int) -> void:
 	if amount <= 0:
@@ -704,6 +1094,7 @@ func save_data() -> void:
 	file.store_string(JSON.stringify({
 		"crystals":        crystals,
 		"upgrade_levels":  upgrade_levels,
+		"crystals_spent":  crystals_spent,
 	}))
 
 func load_data() -> void:
@@ -717,6 +1108,14 @@ func load_data() -> void:
 		return
 	crystals        = int(parsed.get("crystals", 0))
 	upgrade_levels  = parsed.get("upgrade_levels", {})
+	# Migration: saves from before crystals_spent existed have no ledger yet.
+	# Seed it from the current-cost replay (best available estimate) so a
+	# reset on an old save still refunds something close to correct instead
+	# of 0 — from here on buy()/reset_all() keep it exact.
+	if parsed.has("crystals_spent"):
+		crystals_spent = int(parsed["crystals_spent"])
+	else:
+		crystals_spent = total_spent()
 
 func _find(key: String) -> Dictionary:
 	return _by_key.get(key, {})

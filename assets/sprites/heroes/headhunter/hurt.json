@@ -1,0 +1,24 @@
+{
+  "frame_w": 256,
+  "frame_h": 256,
+  "count": 10,
+  "cols": 10,
+  "rows": 1,
+  "fps": 12,
+  "hero": "headhunter",
+  "anim": "hurt",
+  "source_video": "HH_hit.mp4",
+  "oneshot": true,
+  "source_picks": [
+    24,
+    30,
+    33,
+    36,
+    39,
+    42,
+    45,
+    48,
+    51,
+    54
+  ]
+}

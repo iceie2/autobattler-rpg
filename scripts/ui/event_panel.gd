@@ -173,7 +173,7 @@ func _make_choice_button(choice, index: int) -> Button:
 	var title := Label.new()
 	title.text = choice.text
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", UITheme.body_font(15))
+	UITheme.apply_font(title, UITheme.body_font(15))
 	title.add_theme_color_override("font_color", UITheme.TEXT_BTN)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(title)
@@ -182,7 +182,7 @@ func _make_choice_button(choice, index: int) -> Button:
 		var outcome := Label.new()
 		outcome.text = choice.description
 		outcome.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		outcome.add_theme_font_size_override("font_size", UITheme.body_font(11))
+		UITheme.apply_font(outcome, UITheme.body_font(11))
 		outcome.add_theme_color_override("font_color", _outcome_color(choice.effects))
 		outcome.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		col.add_child(outcome)
@@ -243,7 +243,7 @@ func _lbl(parent: Node, text: String, sz: int, col: Color,
 	l.text = text
 	l.position = pos
 	l.size = size
-	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
+	UITheme.apply_font(l, UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", col)
 	if center:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

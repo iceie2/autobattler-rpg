@@ -1,15 +1,15 @@
-extends RefCounted
+﻿extends RefCounted
 class_name RelicInventory
 
 # Holds the relics picked this run and applies their run-wide effects. Stat
-# effects are applied per-unit exactly once — guarded by a per-unit applied-set
-# of unique acquisition ids — so heroes bought at different waves each receive
+# effects are applied per-unit exactly once â€” guarded by a per-unit applied-set
+# of unique acquisition ids â€” so heroes bought at different waves each receive
 # every owned relic exactly once, and a relic is never double-stacked on a unit.
 
 signal relics_changed()
 
 # Stats treated as floats (never int-rounded). Everything else multiplies as int.
-const FLOAT_STATS: Array[String] = ["attack_speed", "hp_regen", "mana_regen"]
+const FLOAT_STATS: Array[String] = ["attack_speed", "hp_regen", "mana_regen", "crit_chance", "crit_damage"]
 
 var owned: Array = []          # Array of relic dicts, each tagged with "_acq"
 var _next_acq: int = 0
@@ -65,13 +65,13 @@ func apply_all_to_unit(unit) -> void:
 	for r in owned:
 		_apply_one(unit, r)
 
-# Apply one already-owned (tagged) relic to a list of units — used when a relic
+# Apply one already-owned (tagged) relic to a list of units â€” used when a relic
 # is freshly acquired so heroes already on the team get it retroactively.
 func apply_relic_to_units(relic: Dictionary, units: Array) -> void:
 	for u in units:
 		_apply_one(u, relic)
 
-# ── Internals ─────────────────────────────────────────────────────────────────
+# â”€â”€ Internals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 func _apply_one(unit, relic: Dictionary) -> void:
 	if not (unit and is_instance_valid(unit)):
 		return
@@ -99,7 +99,7 @@ func _apply_effect(unit, e: Dictionary) -> void:
 			var matched: bool = int(unit.current_element) == int(e.get("element", -1))
 			var m: float = float(e.get("matched", 1.0)) if matched else float(e.get("base", 1.0))
 			_mult_stat(unit, e.get("stat", ""), m)
-		# ── Per-unit combat modifier fields (read by UnitBase / battle manager) ──
+		# â”€â”€ Per-unit combat modifier fields (read by UnitBase / battle manager) â”€â”€
 		"lifesteal":
 			unit.relic_lifesteal += float(e.get("value", 0.0))
 		"outgoing":
@@ -122,8 +122,29 @@ func _apply_effect(unit, e: Dictionary) -> void:
 			unit.relic_revive_pct = maxf(unit.relic_revive_pct, float(e.get("value", 0.0)))
 		"on_kill_atk":
 			unit.relic_on_kill_atk += float(e.get("value", 0.0))
+		"execute_pct":
+			unit.relic_execute_threshold = maxf(unit.relic_execute_threshold, float(e.get("hp_threshold_pct", 0.0)))
+			unit.relic_execute_bonus += float(e.get("dmg_bonus_pct", 0.0))
+		"first_strike_crit":
+			unit.relic_first_strike_crit = true
+			unit.relic_first_strike_crit_mult = maxf(unit.relic_first_strike_crit_mult, float(e.get("mult", 2.0)))
+		"row_stat_mult":
+			unit.relic_row_front_mult *= float(e.get("front_mult", 1.0))
+			unit.relic_row_back_mult *= float(e.get("back_mult", 1.0))
+		"battle_start_dmg_window":
+			unit.relic_opening_burst_pct += float(e.get("dmg_bonus_pct", 0.0))
+			unit.relic_opening_burst_window = maxf(unit.relic_opening_burst_window, float(e.get("seconds", 0.0)))
+		"ult_refund_kill":
+			unit.relic_ult_refund_kill += float(e.get("value", 0.0))
+		"gold_scaling_dmg":
+			unit.relic_gold_scaling_dmg += float(e.get("value", 0.0))
+		"momentum":
+			unit.relic_momentum_pct_per_sec += float(e.get("pct_per_sec", 0.0))
+		"underdog":
+			unit.relic_underdog_dmg_per_dead += float(e.get("dmg_per_dead", 0.0))
+			unit.relic_underdog_res_per_dead += float(e.get("res_per_dead", 0.0))
 		# gold_round / shop_slots are run-economy effects (see gold_per_round /
-		# shop_slot_bonus) — no per-unit mutation.
+		# shop_slot_bonus) â€” no per-unit mutation.
 
 func _mult_stat(unit, stat: String, m: float) -> void:
 	if stat == "":

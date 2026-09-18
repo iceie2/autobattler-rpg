@@ -19,21 +19,40 @@ const HOVER_RADIUS := 24.0
 
 # coin_value lets meta-progression bonuses (Bounty: +gold per kill) drop ONE
 # richer coin instead of flooding the field with extra coin nodes.
-func spawn_coins(world_pos: Vector2, count: int, coin_value: int = 1) -> void:
+# Every coin now spawns EXACTLY at `world_pos` and travels out along its own
+# arc (see GoldCoin._ready). The old random offset scattered coins with no path
+# connecting them to the body, which read as "discs appeared" rather than
+# "the corpse dropped gold" (2026-09-16 report).
+func spawn_coins(world_pos: Vector2, count: int, coin_value: int = 1,
+		power: float = 1.0) -> void:
 	for i in range(count):
 		var c := GoldCoin.new()
 		c.value = coin_value
-		c.position = world_pos + Vector2(randf_range(-16.0, 16.0), randf_range(-10.0, 8.0))
+		c.position = world_pos
+		c.toss_index = i
+		c.toss_total = count
+		c.toss_power = power
 		c.collected.connect(func(v: int): coin_collected.emit(v))
 		add_child(c)
 
-# Reward gold rains across the enemy half of the board (visibly "comes down").
-func spawn_burst(count: int) -> void:
-	if not battle_grid:
+# Round-reward gold. It used to rain onto random cells across the enemy half,
+# which put lone coins in the far corners with nothing tying them to anything.
+# Now it bursts from `origin` (main_game hands us the last enemy to fall) with
+# a wider toss so a big payout still spreads instead of stacking on one point.
+# Without an origin it falls back to the centre of the enemy half.
+func spawn_burst(count: int, origin = null) -> void:
+	if count <= 0:
 		return
-	for i in range(count):
-		var cell := Vector2i(randi() % battle_grid.grid_width, randi() % 4)
-		spawn_coins(battle_grid.grid_to_world(cell), 1)
+	var from: Vector2
+	if origin is Vector2:
+		from = origin
+	elif battle_grid:
+		from = battle_grid.grid_to_world(Vector2i(battle_grid.grid_width / 2, 1))
+	else:
+		return
+	# Big payouts get a wider fan so 10+ coins still read as separate drops.
+	var power: float = clampf(1.0 + float(count) * 0.06, 1.0, 2.2)
+	spawn_coins(from, count, 1, power)
 
 # THE vacuum: every coin on the field spirals into `target` (the gold counter),
 # staggered so it reads as a wave. `target` is a GLOBAL screen position (the

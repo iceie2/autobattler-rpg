@@ -36,18 +36,111 @@ class_name UITheme
 
 const _P := "res://assets/UI/generated/"
 
-# Font size bump (2026-07-04, user request): headers +4, body text +2 over
-# whatever the surrounding code already passes to add_theme_font_size_override.
+# ══ TYPE SCALE (2026-09-16) ═══════════════════════════════════════════════════
+# FIVE steps, and only five. Before this pass scenes/main_game.tscn alone
+# carried THIRTEEN distinct font sizes (10/11/12/13/14/16/18/20/22/24/26/28/42),
+# and the drift was concentrated in exactly the places the player most needs to
+# read: the synergy list, the sidebar toggles, the combat log and the bottom
+# info strip (the game's ONLY confirmation that a hero was bought, sitting at
+# 10-12px).
+#
+# HEADER IS 22, not 26 — that keeps the pre-existing standing convention
+# ("section headers 22 / value text 20") intact and was the smaller diff:
+# 4 header sites in the scene move to 22 vs 7 that would have had to move to 26.
+#
+# NOTHING renders below FONT_BODY except a genuine caption (a column header or
+# chip that sits beside the value it labels and is never read on its own).
+const FONT_CAPTION := 12   # column heads / chips ONLY — never running text
+const FONT_BODY    := 16   # the floor for anything a player actually reads
+const FONT_VALUE   := 20   # stat values, list rows, log lines
+const FONT_HEADER  := 22   # section headers, panel titles, buttons
+const FONT_DISPLAY := 42   # one-per-screen hero text (READY, game over)
+
+const FONT_SCALE: Array[int] = [FONT_CAPTION, FONT_BODY, FONT_VALUE, FONT_HEADER, FONT_DISPLAY]
+
+# Snap an arbitrary pixel size onto the ladder. Ties round UP — when a size sits
+# exactly between two steps, the legible one wins. The result is floored at
+# FONT_BODY on purpose: captions are opt-in via FONT_CAPTION, never something a
+# helper can produce by accident, which is how the 10-13px drift happened.
+static func snap(px: int) -> int:
+	var best: int = FONT_BODY
+	var best_d: int = 1 << 30
+	for step in FONT_SCALE:
+		if step < FONT_BODY:
+			continue
+		var d: int = abs(step - px)
+		# <= makes the LARGER step win a tie, because FONT_SCALE ascends.
+		if d <= best_d:
+			best_d = d
+			best = step
+	return best
+
+# Font size bump (2026-07-04, user request), now scale-aware: these still take
+# the "base" size the call site used to pass and still bump it (+10 header /
+# +8 body), but the result is snapped onto FONT_SCALE instead of being whatever
+# arbitrary number the addition produced. That is what makes a screen land on
+# the five steps without every call site having to be rewritten.
 # WIRED via each screen's _lbl()/_clbl() label factory (body) and main_game's
-# _sb_heading()/_sb_accordion() (header) — labels built through those
-# factories get the bump automatically. (Found sitting at "+30" on 2026-07-04:
-# a test value cranked up to check whether the bump did anything — it didn't,
-# because no call site used these helpers until this wiring pass.)
+# _sb_heading()/_sb_accordion() (header) — labels built through those factories
+# get the bump automatically. Route new labels through the factory or they miss
+# it entirely (CONVENTIONS.md section 6).
 static func header_font(base: int) -> int:
-	return base + 10
+	return snap(base + 10)
 
 static func body_font(base: int) -> int:
-	return base + 8
+	return snap(base + 8)
+
+
+# ══ BODY TYPEFACE ═════════════════════════════════════════════════════════════
+# LeagueGothic (project.godot gui/theme/custom_font) is a CONDENSED DISPLAY
+# face. Condensed faces lose their counters — the enclosed white inside a, e,
+# s, g — faster than normal-width faces as the glyph shrinks, because the
+# narrowing scales with the letter. That is why the small UI text read as a
+# grey smear rather than merely small, and it is a property of the face, not
+# of the size: collapsing the type scale fixed the symptom, not the cause.
+#
+# So: LeagueGothic keeps the CHROME (headers, titles, the READY button), and a
+# normal-width companion takes the RUNNING TEXT (log lines, toasts, synergy
+# rows, stat readouts). BODY_FACE_MAX_PX is the one knob — every step at or
+# below it renders in the companion face.
+#
+# Drop the companion into assets/Fonts/ and point BODY_FACE_PATH at it. Until
+# then body_face() returns null and every helper below falls through to
+# LeagueGothic, so the game looks exactly as it does today rather than
+# erroring on a missing resource.
+const BODY_FACE_PATH := "res://assets/Fonts/Inter-Regular.ttf"
+const BODY_FACE_MAX_PX := FONT_VALUE
+
+static var _body_face_cache: Variant = null
+static var _body_face_tried := false
+
+static func body_face() -> Font:
+	if not _body_face_tried:
+		_body_face_tried = true
+		if ResourceLoader.exists(BODY_FACE_PATH):
+			_body_face_cache = load(BODY_FACE_PATH) as Font
+	return _body_face_cache as Font
+
+# The ONE call every label/button should make. Sets the size and, for the
+# running-text steps, the companion face too. Route new controls through this
+# (or through a screen's _lbl() factory, which calls it) or they keep the
+# condensed face at a size it was never drawn for.
+static func apply_font(ctrl: Control, px: int) -> Control:
+	ctrl.add_theme_font_size_override("font_size", px)
+	if px <= BODY_FACE_MAX_PX:
+		var f := body_face()
+		if f:
+			ctrl.add_theme_font_override("font", f)
+	return ctrl
+
+# RichTextLabel keys its default size off "normal_font_size", not "font_size".
+static func apply_rich_font(rt: RichTextLabel, px: int) -> RichTextLabel:
+	rt.add_theme_font_size_override("normal_font_size", px)
+	if px <= BODY_FACE_MAX_PX:
+		var f := body_face()
+		if f:
+			rt.add_theme_font_override("normal_font", f)
+	return rt
 
 
 # Dark-brown text colors for the cream/parchment surfaces.
@@ -163,6 +256,44 @@ static func style_button(b: Button) -> Button:
 	b.add_theme_color_override("font_hover_color", TEXT_BTN)
 	b.add_theme_color_override("font_pressed_color", TEXT_BTN)
 	return b
+
+# Secondary/tier-2 button (2026-09 main-menu hierarchy pass) — the same gold
+# pill art, just dimmed a touch so it visibly sits a rung below a primary
+# style_button() in the same screen (e.g. CLASSES/CRYSTAL SHOP next to a big
+# START GAME). Never use this INSTEAD of style_button() for a screen's only
+# action button — it's for when both tiers appear together.
+static func style_button_secondary(b: Button) -> Button:
+	style_button(b)
+	for key in ["normal", "hover", "pressed"]:
+		var sb: StyleBoxTexture = b.get_theme_stylebox(key) as StyleBoxTexture
+		if sb:
+			var dim := sb.duplicate() as StyleBoxTexture
+			dim.modulate_color = Color(0.82, 0.82, 0.8, 1.0)
+			b.add_theme_stylebox_override(key, dim)
+	return b
+
+# Plain text-link button (Options/Quit tier) — no plate at all, just dark-brown
+# text that reads as a link rather than a button. Caller sets focus_mode /
+# a focus stylebox override themselves if it sits in a radio-style group (see
+# CONVENTIONS.md section 6).
+static func style_text_link(b: Button) -> Button:
+	b.flat = true
+	b.add_theme_color_override("font_color", TEXT_HEADER)
+	b.add_theme_color_override("font_hover_color", Color(0.65, 0.46, 0.14))
+	b.add_theme_color_override("font_pressed_color", Color(0.32, 0.20, 0.05))
+	return b
+
+# Selection-ring overlay for a card that's the "chosen" one in a picker (e.g.
+# relic_screen) — a bright border only, layered OVER an identical background
+# to the unselected option so the unselected card never reads as broken/
+# unloaded (2026-09 fix: they used to differ in background color instead).
+static func selection_ring_box(col: Color = Color(1.0, 0.85, 0.35)) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(0, 0, 0, 0)
+	s.border_color = col
+	s.set_border_width_all(4)
+	s.set_corner_radius_all(14)
+	return s
 
 # Currency icons (2026-07-05, user's own art — Coins.png/gems.png, copied in
 # from assets/using/icons/, source untouched). These are square icons, NOT

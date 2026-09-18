@@ -1,7 +1,7 @@
 extends Node
 # Throwaway harness. Two modes controlled by SPRITE_CHECK below:
-#  false → capture the main menu   (res://_menu_capture.png)
-#  true  → spawn goblins + hill giant, capture their sprites (res://_sprite_check.png)
+#  false → capture the main menu   (user://_menu_capture.png)
+#  true  → spawn goblins + hill giant, capture their sprites (user://_sprite_check.png)
 # Run with:  godot --path . res://scenes/_menu_capture.tscn
 # Delete this + _menu_capture.tscn when done.
 
@@ -21,7 +21,7 @@ func _menu_shot() -> void:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
-	img.save_png(ProjectSettings.globalize_path("res://_menu_capture.png"))
+	img.save_png(ProjectSettings.globalize_path("user://_menu_capture.png"))
 	print("CAPTURED menu")
 	get_tree().quit()
 
@@ -40,6 +40,6 @@ func _sprite_check() -> void:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
-	img.save_png(ProjectSettings.globalize_path("res://_sprite_check.png"))
+	img.save_png(ProjectSettings.globalize_path("user://_sprite_check.png"))
 	print("SPRITECHECK saved")
 	get_tree().quit()

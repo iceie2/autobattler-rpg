@@ -61,6 +61,11 @@ var biome_tiles := [
 
 func _ready() -> void:
 	atlas = load("res://assets/terrain/terrain-v7.png")
+	# REQUIRED by the perspective ground. The base tile is drawn as trapezoids
+	# whose UVs run past 1.0 (the texture repeats at its native size across the
+	# board); with the default clamp, everything past the first tile samples the
+	# texture's edge pixel and the whole board renders as vertical smears.
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	_sync_texture_filter()
 	queue_redraw()
 
@@ -226,7 +231,21 @@ func _draw() -> void:
 func _draw_base_tiles() -> void:
 	var decade_tile := _load_arena_art(_decade_range() + "/ready/tile.png")
 	if decade_tile != null:
-		draw_texture_rect(decade_tile, Rect2(0, 0, TOTAL_W, TOTAL_H), true)
+		# Was one draw_texture_rect(tile: true) over the flat board. Now drawn as
+		# per-cell trapezoids, but with the UVs each cell WOULD have had in the
+		# flat layout — so the texture still repeats at its native size across the
+		# board (the deliberate choice documented above) and only the geometry
+		# changes. Needs texture_repeat on this node for the >1 UVs to wrap.
+		var ts: Vector2 = decade_tile.get_size()
+		for row in range(GRID_H):
+			for col in range(GRID_W):
+				var u0: float = col * CELL / ts.x
+				var v0: float = row * CELL / ts.y
+				var u1: float = (col + 1) * CELL / ts.x
+				var v1: float = (row + 1) * CELL / ts.y
+				draw_colored_polygon(_cell_quad(col, row), Color.WHITE,
+					PackedVector2Array([Vector2(u0, v0), Vector2(u1, v0),
+						Vector2(u1, v1), Vector2(u0, v1)]), decade_tile)
 		return
 
 	var tiles: Dictionary = biome_tiles[current_biome % biome_tiles.size()]
@@ -407,45 +426,90 @@ func _hash3(x: int, y: int, z: int) -> int:
 	h = (h ^ (h >> 7)) * 2654435761
 	return abs(h ^ (h >> 15)) % 100000
 
+# ── Perspective helpers ───────────────────────────────────────────────────────
+# A cell is a TRAPEZOID now, not a rect (BoardPerspective): its far edge is
+# narrower than its near one. Every grid-aligned fill below goes through these
+# so the tint, the checkerboard and the tiles can never disagree with the tile
+# geometry the units are standing on.
+
+func _cell_quad(col: int, row: int) -> PackedVector2Array:
+	return BoardPerspective.cell_quad(col, row, GRID_W, GRID_H, float(CELL))
+
+## Fill one cell with a flat colour.
+func _fill_cell(col: int, row: int, c: Color) -> void:
+	draw_colored_polygon(_cell_quad(col, row), c)
+
+## Fill a whole row band (used by the zone tints, which used to be full-width
+## rects and would otherwise stick out past the tapered board edges).
+func _fill_row(row: int, c: Color) -> void:
+	var l := _cell_quad(0, row)
+	var r := _cell_quad(GRID_W - 1, row)
+	draw_colored_polygon(PackedVector2Array([l[0], r[1], r[2], l[3]]), c)
+
+## The board's left/right edge x at a given row boundary — the zone borders and
+## the battle line have to follow the taper instead of spanning the full width.
+func _edge_span(row_edge: float) -> Vector2:
+	var s: float = BoardPerspective.row_scale(row_edge - 0.5, GRID_H)
+	var centre: float = GRID_W * CELL * 0.5
+	return Vector2(centre - GRID_W * 0.5 * CELL * s, centre + GRID_W * 0.5 * CELL * s)
+
+func _row_edge_y(row_edge: int) -> float:
+	return BoardPerspective.row_top(row_edge, GRID_H, float(CELL))
+
 func _blit_tile(col: int, row: int, tcoord: Vector2i) -> void:
-	var dest := Rect2(col * CELL, row * CELL, CELL, CELL)
+	var quad := _cell_quad(col, row)
 	if atlas == null:
 		# Fallback flat colour if the atlas hasn't imported yet
-		draw_rect(dest, Color(0.3, 0.55, 0.2))
+		draw_colored_polygon(quad, Color(0.3, 0.55, 0.2))
 		return
-	var src := Rect2(tcoord.x * TILE, tcoord.y * TILE, TILE, TILE)
-	draw_texture_rect_region(atlas, dest, src)
+	var ts: Vector2 = atlas.get_size()
+	var u0: float = tcoord.x * TILE / ts.x
+	var v0: float = tcoord.y * TILE / ts.y
+	var u1: float = (tcoord.x + 1) * TILE / ts.x
+	var v1: float = (tcoord.y + 1) * TILE / ts.y
+	var uvs := PackedVector2Array([
+		Vector2(u0, v0), Vector2(u1, v0), Vector2(u1, v1), Vector2(u0, v1)])
+	draw_colored_polygon(quad, Color.WHITE, uvs, atlas)
 
 # ── Enemy zone — rows 0..3, red tint + solid border ──────────────────────────
 func _draw_enemy_zone() -> void:
 	var biome = biomes[current_biome]
 	var enemy_color = biome["enemy_zone_color"]
 
-	# Tinted fill (gradient: darker at top, lighter at bottom edge)
+	# Tinted fill (gradient: darker at top, lighter at bottom edge).
+	# Deliberately FAINT (0.11 base, 2026-09-15): at the old 0.4 this wash was
+	# opaque enough to bury the biome art under a flat red sheet for the whole
+	# prep phase. The zone now reads from its EDGES (border + dashed top) rather
+	# than from the fill, so the ground stays visible underneath.
 	for row in range(ZONE_ROWS):
-		var alpha := 0.4 - row * 0.01
-		draw_rect(Rect2(0, row * CELL, TOTAL_W, CELL), Color(enemy_color.r, enemy_color.g, enemy_color.b, alpha))
+		var alpha := 0.11 - row * 0.01
+		_fill_row(row, Color(enemy_color.r, enemy_color.g, enemy_color.b, alpha))
 
-	# Thick bottom border marking the zone edge
-	var border_y := float(ZONE_ROWS * CELL)
-	var border_bright = enemy_color.lightened(0.5)
-	draw_line(Vector2(0, border_y), Vector2(TOTAL_W, border_y),
-		Color(border_bright.r, border_bright.g, border_bright.b, 0.9), 3.0)
-	# Faint second line for glow effect
-	draw_line(Vector2(0, border_y + 2), Vector2(TOTAL_W, border_y + 2),
-		Color(border_bright.r, border_bright.g, border_bright.b, 2.0), 10.0)
+	# Thick bottom border marking the zone edge — carries the zone now that the
+	# fill is faint, so it is drawn opaque with a soft glow line under it.
+	var border_y := _row_edge_y(ZONE_ROWS)
+	var span := _edge_span(float(ZONE_ROWS))
+	var border_bright = enemy_color.lightened(0.25)
+	draw_line(Vector2(span.x, border_y), Vector2(span.y, border_y),
+		Color(border_bright.r, border_bright.g, border_bright.b, 1.0), 4.0)
+	# Faint second line for glow effect. Alpha stays <= 1: at the old 2.0 it
+	# clamped to fully opaque and painted a solid 10px bar across the board.
+	draw_line(Vector2(span.x, border_y + 2), Vector2(span.y, border_y + 2),
+		Color(border_bright.r, border_bright.g, border_bright.b, 0.25), 4.0)
 
 	# Dashed zone pattern along the top edge
 	var dash := 24.0
 	var gap  := 12.0
-	var x    := 0.0
-	while x < TOTAL_W:
-		draw_line(Vector2(x, 2), Vector2(min(x + dash, TOTAL_W), 2),
-			Color(0.9, 0.3, 0.3, 0.6), 3.0)
+	var top_span := _edge_span(0.0)
+	var x    := top_span.x
+	while x < top_span.y:
+		draw_line(Vector2(x, 3), Vector2(min(x + dash, top_span.y), 3),
+			Color(0.95, 0.35, 0.35, 0.95), 5.0)
 		x += dash + gap
 
 	# Corner skulls (simple X marks)
-	for cx in [24.0, TOTAL_W - 24.0]:
+	# PLACEHOLDER: plain red X strokes standing in until real skull art exists.
+	for cx in [top_span.x + 24.0, top_span.y - 24.0]:
 		_draw_x_mark(Vector2(cx, 24), Color(0.85, 0.25, 0.25, 0.8), 8.0)
 
 # ── Player zone — rows 10..13, blue tint + solid border ─────────────────────
@@ -458,14 +522,15 @@ func _draw_player_zone() -> void:
 	for i in range(ZONE_ROWS):
 		var row   := GRID_H - ZONE_ROWS + i
 		var alpha := 0.4 + i * 0.01
-		draw_rect(Rect2(0, row * CELL, TOTAL_W, CELL), Color(player_color.r, player_color.g, player_color.b, alpha))
+		_fill_row(row, Color(player_color.r, player_color.g, player_color.b, alpha))
 
 	# Thick top border
-	var border_y := float(zone_start)
+	var border_y := _row_edge_y(GRID_H - ZONE_ROWS)
+	var pspan := _edge_span(float(GRID_H - ZONE_ROWS))
 	var border_bright = player_color.lightened(0.4)
-	draw_line(Vector2(0, border_y), Vector2(TOTAL_W, border_y),
+	draw_line(Vector2(pspan.x, border_y), Vector2(pspan.y, border_y),
 		Color(border_bright.r, border_bright.g, border_bright.b, 0.9), 3.0)
-	draw_line(Vector2(0, border_y - 2), Vector2(TOTAL_W, border_y - 2),
+	draw_line(Vector2(pspan.x, border_y - 2), Vector2(pspan.y, border_y - 2),
 		Color(border_bright.r, border_bright.g, border_bright.b, 0.25), 5.0)
 
 	# Dashed zone pattern along the bottom edge
@@ -488,7 +553,11 @@ func _draw_grid_dots() -> void:
 	dot_c.a = 0.55
 	for xi in range(GRID_W + 1):
 		for yi in range(GRID_H + 1):
-			draw_circle(Vector2(xi * CELL, yi * CELL), 2.5, dot_c)
+			var qc := BoardPerspective.cell_quad(
+				mini(xi, GRID_W - 1), mini(yi, GRID_H - 1), GRID_W, GRID_H, float(CELL))
+			var pt: Vector2 = qc[0] if (xi < GRID_W and yi < GRID_H) else (
+				qc[1] if yi < GRID_H else (qc[3] if xi < GRID_W else qc[2]))
+			draw_circle(pt, 2.5, dot_c)
 
 # ── Checkerboard cell shading ─────────────────────────────────────────────────
 # Alternates a very faint light/dark wash per cell — breaks up the flat terrain
@@ -497,9 +566,9 @@ func _draw_cell_shading() -> void:
 	for row in range(GRID_H):
 		for col in range(GRID_W):
 			if (row + col) % 2 == 0:
-				draw_rect(Rect2(col * CELL, row * CELL, CELL, CELL), Color(1, 1, 1, 0.055))
+				_fill_cell(col, row, Color(1, 1, 1, 0.055))
 			else:
-				draw_rect(Rect2(col * CELL, row * CELL, CELL, CELL), Color(0, 0, 0, 0.07))
+				_fill_cell(col, row, Color(0, 0, 0, 0.07))
 
 # ── Battle-line separator ─────────────────────────────────────────────────────
 # Pulsing glow at the board centre — uses the biome's zone colours so it
@@ -507,7 +576,9 @@ func _draw_cell_shading() -> void:
 func _draw_battle_line() -> void:
 	var t     := Time.get_ticks_msec() * 0.001
 	var pulse := 0.5 + 0.3 * sin(t * 1.8)
-	var mid_y := TOTAL_H * 0.5
+	# The mid row's own edge, not half the flat height — rows are not uniform.
+	var mid_y := _row_edge_y(GRID_H / 2)
+	var mid_span := _edge_span(float(GRID_H / 2))
 
 	var biome: Dictionary = biomes[current_biome]
 	var ec: Color = biome["enemy_zone_color"]
@@ -516,15 +587,15 @@ func _draw_battle_line() -> void:
 
 	# Layered soft glow (widest strip at lowest alpha, narrowing toward core)
 	for i in range(5, 0, -1):
-		draw_line(Vector2(0, mid_y), Vector2(TOTAL_W, mid_y),
+		draw_line(Vector2(mid_span.x, mid_y), Vector2(mid_span.y, mid_y),
 			Color(lc.r, lc.g, lc.b, pulse * 0.045 * i), float(i) * 7.0)
 	# Sharp core line
-	draw_line(Vector2(0, mid_y), Vector2(TOTAL_W, mid_y),
+	draw_line(Vector2(mid_span.x, mid_y), Vector2(mid_span.y, mid_y),
 		Color(lc.r, lc.g, lc.b, pulse * 0.9), 2.0)
-	# Diamond marker at each column boundary
-	var step := float(TOTAL_W) / float(GRID_W)
+	# Diamond marker at each column boundary, spaced along the tapered row
+	var step := (mid_span.y - mid_span.x) / float(GRID_W)
 	for i in range(GRID_W + 1):
-		_draw_diamond(Vector2(i * step, mid_y),
+		_draw_diamond(Vector2(mid_span.x + i * step, mid_y),
 			Color(lc.r, lc.g, lc.b, pulse * 0.75), 5.0)
 
 # ── Edge vignette ─────────────────────────────────────────────────────────────
@@ -533,48 +604,77 @@ func _draw_vignette() -> void:
 	var steps    := 10
 	var max_depth := 72.0
 	var band      := max_depth / float(steps)
+	# Concentric trapezoid rings inset from the board outline. As four square
+	# bands these spilled past the tapered board at the far corners and read as a
+	# grey rectangle hanging in the backdrop.
+	var outline := BoardPerspective.board_outline(GRID_W, GRID_H, float(CELL))
 	for i in range(steps):
 		var a := pow(float(steps - i) / float(steps), 2.0) * 0.20
 		var d := float(i) / float(steps) * max_depth
 		var c := Color(0, 0, 0, a)
-		draw_rect(Rect2(0,              d,              TOTAL_W, band), c)   # top
-		draw_rect(Rect2(0,              TOTAL_H-d-band, TOTAL_W, band), c)   # bottom
-		draw_rect(Rect2(d,              0,              band, TOTAL_H), c)   # left
-		draw_rect(Rect2(TOTAL_W-d-band, 0,              band, TOTAL_H), c)   # right
+		var ring_out := BoardPerspective.expand_quad(outline, -d)
+		var ring_in := BoardPerspective.expand_quad(outline, -(d + band))
+		for e in 4:
+			var f: int = (e + 1) % 4
+			draw_colored_polygon(PackedVector2Array(
+				[ring_out[e], ring_out[f], ring_in[f], ring_in[e]]), c)
 
 # ── Gold game-board border ────────────────────────────────────────────────────
 func _draw_border() -> void:
 	var w := BORDER_W
-	# The frame sits entirely OUTSIDE the playable grid (grid spans 0..TOTAL),
-	# so no cell is ever covered. Bars are drawn in the margin around the board.
-	draw_rect(Rect2(-w, -w, TOTAL_W + 2 * w, w), GOLD)            # top
-	draw_rect(Rect2(-w, TOTAL_H, TOTAL_W + 2 * w, w), GOLD)       # bottom
-	draw_rect(Rect2(-w, -w, w, TOTAL_H + 2 * w), GOLD)           # left
-	draw_rect(Rect2(TOTAL_W, -w, w, TOTAL_H + 2 * w), GOLD)      # right
-	# Dark outer edge for depth
-	draw_rect(Rect2(-w, -w, TOTAL_W + 2 * w, TOTAL_H + 2 * w), GOLD_DARK, false, 2.0)
-	# Bright inner edge hugging the grid
-	draw_rect(Rect2(-1, -1, TOTAL_W + 2, TOTAL_H + 2), GOLD_LIGHT, false, 2.0)
-	# Corner studs centred in the frame corners for a game-board feel
+	# The frame follows the board's TRAPEZOID, not a rect. Drawn as a square it
+	# left triangular gaps at the far corners and read as a picture frame with a
+	# tilted board floating inside it, rather than the edge of the board itself.
+	#
+	# Still sits entirely OUTSIDE the playable grid, so no cell is ever covered.
+	var inner := BoardPerspective.board_outline(GRID_W, GRID_H, float(CELL))
+	var outer := BoardPerspective.expand_quad(inner, w)
+
+	# One quad per side, between the inner outline and the expanded outer one.
+	for i in 4:
+		var j: int = (i + 1) % 4
+		draw_colored_polygon(
+			PackedVector2Array([inner[i], inner[j], outer[j], outer[i]]), GOLD)
+
+	# Dark outer edge for depth, bright inner edge hugging the grid.
+	var ring := func(p: PackedVector2Array, c: Color, width: float) -> void:
+		for i in 4:
+			draw_line(p[i], p[(i + 1) % 4], c, width)
+	ring.call(outer, GOLD_DARK, 2.0)
+	ring.call(inner, GOLD_LIGHT, 2.0)
+
+	# Corner studs, centred in the band rather than on the old rect corners.
 	var r := w * 0.5
-	for c in [Vector2(-w * 0.5, -w * 0.5), Vector2(TOTAL_W + w * 0.5, -w * 0.5),
-			Vector2(-w * 0.5, TOTAL_H + w * 0.5), Vector2(TOTAL_W + w * 0.5, TOTAL_H + w * 0.5)]:
+	for i in 4:
+		var c: Vector2 = (inner[i] + outer[i]) * 0.5
 		draw_circle(c, r, GOLD_LIGHT)
 		draw_circle(c, r * 0.55, GOLD_DARK)
 
 # ── Zone labels (only shown alongside their active zone) ───────────────────────
-func _draw_labels() -> void:
-	var font := ThemeDB.fallback_font
+const LABEL_FONT_PATH := "res://assets/Fonts/LeagueGothic-Regular.otf"
+var _label_font: Font
 
+func _draw_labels() -> void:
+	# The project font (project.godot gui/theme/custom_font), loaded explicitly
+	# rather than leaning on ThemeDB.fallback_font — that only happens to be
+	# LeagueGothic because the project setting feeds it, and silently reverts to
+	# Godot's built-in face if that setting is ever cleared.
+	if _label_font == null:
+		_label_font = load(LABEL_FONT_PATH) as Font
+	var font: Font = _label_font if _label_font != null else ThemeDB.fallback_font
+
+	# Zone centres come from the real row bands — rows are no longer a uniform
+	# CELL tall, so the old row*CELL maths put these labels off their zones.
 	if show_enemy_zone:
-		var enemy_zone_center_y := float(ZONE_ROWS * CELL) / 2.0
+		var enemy_zone_center_y := _row_edge_y(ZONE_ROWS) * 0.5
 		_draw_label_centered("ENEMY ZONE", Vector2(TOTAL_W / 2.0, enemy_zone_center_y),
-			font, 16, Color(1.0, 0.4, 0.4, 0.55))
+			font, 20, Color(1.0, 0.4, 0.4, 0.55))
 
 	if show_player_zone:
-		var player_zone_center_y := float((GRID_H - ZONE_ROWS) * CELL) + float(ZONE_ROWS * CELL) / 2.0
+		var pz_top := _row_edge_y(GRID_H - ZONE_ROWS)
+		var player_zone_center_y := pz_top + (_row_edge_y(GRID_H) - pz_top) * 0.5
 		_draw_label_centered("PLACE HERE", Vector2(TOTAL_W / 2.0, player_zone_center_y),
-			font, 16, Color(0.4, 0.7, 1.0, 0.55))
+			font, 20, Color(0.4, 0.7, 1.0, 0.55))
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 func _draw_label_centered(text: String, pos: Vector2, font: Font, size: int, color: Color) -> void:

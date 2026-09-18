@@ -12,6 +12,32 @@ const LOGO_PATH   := "res://assets/UI/menu/logo.png"
 const HERO_DIR    := "res://assets/UI/menu/heroes"   # curated menu-pose cutouts
 
 const CENTER := Vector2(960, 540)          # design-space center (1920×1080)
+
+# Menu-local button palette. This screen is the ONE place that does not use
+# UITheme's gold plate for its whole stack: the scene is entirely cold blue
+# stone, and six warm amber plates on it share no colour with anything behind
+# them. Gold is kept for the single primary button, so warm == "the action".
+#
+# This CANNOT be done by tinting the gold plate — StyleBoxTexture.modulate_color
+# multiplies, and btn_gold.png has almost no blue channel to scale up, so any
+# modulate toward blue only yields olive. Hence a screen-local StyleBoxFlat.
+# Do not copy this style to the parchment screens; it belongs to this backdrop.
+const BTN_COLD_BG       := Color(0.10, 0.13, 0.20, 0.90)
+const BTN_COLD_BG_HOVER := Color(0.17, 0.23, 0.35, 0.96)
+const BTN_COLD_RIM      := Color(0.38, 0.55, 0.78, 0.60)
+const BTN_COLD_RIM_HOVER:= Color(0.66, 0.85, 1.00, 0.95)
+const BTN_COLD_TEXT     := Color(0.79, 0.88, 1.00)
+# Primary tier. Deliberately NOT UITheme's gold plate: this scene is entirely
+# cold blue stone, and a warm amber plate was the only object on screen sharing
+# no colour with anything behind it. Hierarchy here is carried by SIZE (72px vs
+# 50px), brightness and rim luminance instead of by hue.
+const BTN_PRIME_BG       := Color(0.17, 0.29, 0.47, 0.95)
+const BTN_PRIME_BG_HOVER := Color(0.25, 0.42, 0.65, 0.98)
+const BTN_PRIME_RIM      := Color(0.62, 0.86, 1.00, 0.95)
+const BTN_PRIME_RIM_HOVER:= Color(0.88, 0.97, 1.00, 1.00)
+const BTN_PRIME_TEXT     := Color(0.96, 0.99, 1.00)
+const LINK_TEXT         := Color(0.60, 0.72, 0.90)
+const LINK_TEXT_HOVER   := Color(0.88, 0.95, 1.00)
 const CIRCLE_CENTER := Vector2(960, 250)   # biased up so its bright core backs the logo
 const PARALLAX_BG := 14.0                   # px the bg drifts with the cursor
 const PARALLAX_CIRCLE := 7.0
@@ -23,6 +49,12 @@ var _options_panel: Control
 var _class_browser: ClassBrowser
 var _crystal_shop: CrystalShop
 var _run_history: RunHistoryScreen
+
+# 3-click "are you sure" for wiping save data — one click too many to trigger
+# by accident, since there's no undo (2026-08-05 user request, after a manual
+# +100k crystal test grant needed removing).
+var _wipe_btn: Button
+var _wipe_stage := 0
 
 # animated layers
 var _bg_layer: Node2D
@@ -185,14 +217,14 @@ func _build_hero_showcase() -> void:
 	_hero_name_lbl.position = Vector2(1300, 760)
 	_hero_name_lbl.size = Vector2(400, 40)
 	_hero_name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hero_name_lbl.add_theme_font_size_override("font_size", UITheme.body_font(26))
+	UITheme.apply_font(_hero_name_lbl, UITheme.body_font(26))
 	_hero_name_lbl.add_theme_color_override("font_color", Color(0.87, 0.92, 1.0))
 
 	_hero_el_lbl = Label.new()
 	_hero_el_lbl.position = Vector2(1300, 800)
 	_hero_el_lbl.size = Vector2(400, 28)
 	_hero_el_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hero_el_lbl.add_theme_font_size_override("font_size", UITheme.body_font(16))
+	UITheme.apply_font(_hero_el_lbl, UITheme.body_font(16))
 	_hero_el_lbl.add_theme_color_override("font_color", Color(0.62, 0.78, 1.0))
 
 	_hero_index = 0
@@ -250,9 +282,8 @@ func _draw() -> void:
 
 # ── Main panel ────────────────────────────────────────────────────────────────
 func _build_main(canvas: CanvasLayer) -> void:
-	var root := _panel(canvas, Rect2(0, 0, 0, 0))
+	var root := _panel(canvas, Rect2(0, 0, 0, 0), false)
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_stylebox_override("panel", _flat(Color(0, 0, 0, 0)))
 
 	var cx := 960.0
 	# real logo if present, else the styled text title
@@ -274,52 +305,106 @@ func _build_main(canvas: CanvasLayer) -> void:
 		tr.position = Vector2(cx - lw / 2, 46)
 		tr.size = Vector2(lw, lh)
 		root.add_child(tr)
-		subtitle_y = 46.0 + lh - 4.0
+		# logo.png has an opaque (non-transparent) background fill baked into the
+		# art, not a tight alpha crop — a subtitle sitting only 4px below its
+		# bottom edge visually smeared into that plate and read as garbled
+		# illegible text (2026-09 fix: give it real breathing room instead).
+		subtitle_y = 46.0 + lh + 24.0
 	else:
 		_lbl(root, "AUTO HEROES", 60, Color(0.82, 0.88, 1.0),
 			Vector2(cx - 300, 80), Vector2(600, 80), true)
-	_lbl(root, "an autobattler rpg", 16, Color(0.5, 0.6, 0.85, 0.75),
+	# Sits over the animated rune circle, which has no clear backdrop of its
+	# own — a flat color read as smeared/illegible against the glyph rings
+	# (2026-09 fix, part 2: the gap-only fix wasn't enough on its own since the
+	# circle spans well past the logo's bottom edge). A dark shadow gives it
+	# the contrast the background can't.
+	var subtitle := _lbl(root, "an autobattler rpg", 16, Color(0.82, 0.87, 1.0, 0.95),
 		Vector2(cx - 200, subtitle_y), Vector2(400, 30), true)
+	subtitle.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.05, 0.95))
+	subtitle.add_theme_constant_override("shadow_offset_x", 1)
+	subtitle.add_theme_constant_override("shadow_offset_y", 1)
+	subtitle.add_theme_constant_override("shadow_outline_size", 3)
 
-	# accent colour per entry ties each button to its element / role
-	var ICE := Color(0.62, 0.84, 1.0)
-	var VIOLET := Color(0.60, 0.48, 1.0)
-	var MAGENTA := Color(0.85, 0.56, 1.0)
-	var btns := []
-	# A saved run gets top billing (2026-07-17 mid-run save).
+	# ── Button hierarchy (2026-09 pass, user spec) ────────────────────────────
+	# START GAME gets sole top billing; Classes/Crystal Shop/Run History are a
+	# real but visibly secondary tier; Options/Quit are plain text links; Arena
+	# (a dev/debug sandbox) only appears in a debug build. The whole stack is
+	# shifted down and to the left of screen-center so it stops sitting on top
+	# of the summoning-circle's bright core (CIRCLE_CENTER = (960, 250)).
+	#
+	# The left bias only earns its keep when the hero showcase is actually
+	# filling the right half. assets/UI/menu/heroes/ is empty today, so the
+	# showcase early-returns and the bias just leaves a dead void on the right,
+	# reading as a broken layout rather than a composition. Centre the stack
+	# until there is art to balance it against; drop the cutouts in and the
+	# intended off-centre framing comes back on its own.
+	var stack_w := 360.0
+	var showcase_on: bool = not _hero_files.is_empty()
+	var stack_x: float = 480.0 if showcase_on else CENTER.x - stack_w / 2.0
+	var by := 430.0
+
 	if RunSave.exists():
-		btns.append(["CONTINUE RUN", _on_continue, VIOLET])
-	btns.append_array([
-		["START GAME",    _on_start,       ICE],
-		["CLASSES",       _on_classes,     Color(0.50, 0.69, 1.0)],
-		["CRYSTAL SHOP",  _on_crystal_shop, MAGENTA],
-		["RUN HISTORY",   _on_run_history, Color(0.56, 0.84, 0.75)],
-		["ARENA",         _on_arena,       Color(1.0, 0.60, 0.36)],
-		["OPTIONS",       _on_options,     Color(0.60, 0.65, 0.80)],
-		["QUIT",          _on_quit,        Color(0.78, 0.54, 0.54)],
-	])
-	var by := 300.0
-	for b in btns:
-		var btn := _btn(b[0], Rect2(cx - 170, by, 340, 54), b[2])
-		btn.pressed.connect(b[1])
-		root.add_child(btn)
-		by += 66
+		# A saved run gets top billing (2026-07-17 mid-run save) — it takes the
+		# primary slot, START GAME drops to the secondary tier right under it.
+		var cont := _btn_primary("CONTINUE RUN", Vector2(stack_x, by), Vector2(stack_w, 72))
+		cont.pressed.connect(_on_continue)
+		root.add_child(cont)
+		by += 88.0
+		var start_sec := _btn_secondary("START GAME (NEW)", Vector2(stack_x + 30, by), Vector2(stack_w - 60, 50))
+		start_sec.pressed.connect(_on_start)
+		root.add_child(start_sec)
+		by += 64.0
+	else:
+		var start := _btn_primary("START GAME", Vector2(stack_x, by), Vector2(stack_w, 72))
+		start.pressed.connect(_on_start)
+		root.add_child(start)
+		by += 88.0
 
-	_lbl(root, "v0.3.1 – early development", 12, Color(0.3, 0.3, 0.4),
-		Vector2(cx - 150, by + 24), Vector2(300, 24), true)
+	by += 12.0
+	var secondary := [
+		["CLASSES",      _on_classes],
+		["CRYSTAL SHOP", _on_crystal_shop],
+		["RUN HISTORY",  _on_run_history],
+	]
+	for e in secondary:
+		var b := _btn_secondary(e[0], Vector2(stack_x + 30, by), Vector2(stack_w - 60, 50))
+		b.pressed.connect(e[1])
+		root.add_child(b)
+		by += 60.0
+
+	# Dev/debug-only sandbox — never shown in a real build (no existing debug
+	# flag/autoload in the project to reuse, so this is the minimal built-in
+	# check: OS.is_debug_build()).
+	if OS.is_debug_build():
+		var arena := _btn_secondary("ARENA (DEBUG)", Vector2(stack_x + 30, by), Vector2(stack_w - 60, 50))
+		arena.pressed.connect(_on_arena)
+		root.add_child(arena)
+		by += 60.0
+
+	by += 16.0
+	var opt := _btn_link("Options", Vector2(stack_x + 60, by), Vector2(120, 30))
+	opt.pressed.connect(_on_options)
+	root.add_child(opt)
+	var quit := _btn_link("Quit", Vector2(stack_x + 200, by), Vector2(120, 30))
+	quit.pressed.connect(_on_quit)
+	root.add_child(quit)
+	by += 40.0
+
+	_lbl(root, "v0.4.1.0 – early development", 12, Color(0.3, 0.3, 0.4),
+		Vector2(stack_x + stack_w / 2.0 - 150, by + 14), Vector2(300, 24), true)
 
 # ── Options panel ─────────────────────────────────────────────────────────────
 func _build_options(canvas: CanvasLayer) -> void:
-	_options_panel = _panel(canvas, Rect2(660, 200, 600, 380))
+	_options_panel = _panel(canvas, Rect2(660, 160, 600, 460))
 	_options_panel.visible = false
 
-	_lbl(_options_panel, "OPTIONS", 22, Color(0.8, 0.8, 1.0),
+	_lbl(_options_panel, "OPTIONS", 22, UITheme.TEXT_HEADER,
 		Vector2(0, 20), Vector2(600, 40), true)
 	var sep := HSeparator.new()
 	sep.position = Vector2(0, 68); sep.size = Vector2(600, 4)
 	_options_panel.add_child(sep)
 
-	_lbl(_options_panel, "Window Mode", 15, Color(0.7, 0.7, 0.9),
+	_lbl(_options_panel, "Window Mode", 15, UITheme.TEXT_BODY,
 		Vector2(30, 86), Vector2(240, 28))
 
 	var modes := [
@@ -329,12 +414,23 @@ func _build_options(canvas: CanvasLayer) -> void:
 	]
 	var my := 122.0
 	for m in modes:
-		var b := _btn(m[0], Rect2(30, my, 260, 44), Color(0.62, 0.84, 1.0))
+		var b := _btn_secondary(m[0], Vector2(30, my), Vector2(260, 44))
 		b.pressed.connect(_on_window_mode.bind(m[1]))
 		_options_panel.add_child(b)
 		my += 54
 
-	var close := _btn("✕  Close", Rect2(220, 326, 160, 40), Color(0.78, 0.54, 0.54))
+	var sep2 := HSeparator.new()
+	sep2.position = Vector2(0, my + 6); sep2.size = Vector2(600, 4)
+	_options_panel.add_child(sep2)
+
+	_lbl(_options_panel, "Danger Zone", 15, Color(0.62, 0.16, 0.1),
+		Vector2(30, my + 22), Vector2(300, 28))
+
+	_wipe_btn = _btn_secondary("Reset Save Data", Vector2(30, my + 56), Vector2(260, 44))
+	_wipe_btn.pressed.connect(_on_wipe_pressed)
+	_options_panel.add_child(_wipe_btn)
+
+	var close := _btn_link("✕  Close", Vector2(220, my + 122), Vector2(160, 40))
 	close.pressed.connect(func(): _options_panel.visible = false)
 	_options_panel.add_child(close)
 
@@ -369,6 +465,34 @@ func _on_run_history() -> void:
 
 func _on_quit() -> void:
 	get_tree().quit()
+
+# 3 clicks to actually wipe: two escalating warnings, then the real thing.
+# Wipes crystals/upgrades (Progression), the in-progress run checkpoint
+# (RunSave), and the run history log (RunHistory) — everything that survives
+# between sessions except the window-mode setting. Reloads the menu afterward
+# so every panel/button (e.g. CONTINUE RUN's visibility) reflects the wipe
+# instead of showing stale cached state.
+func _on_wipe_pressed() -> void:
+	if _wipe_stage == 0:
+		_wipe_stage = 1
+		_wipe_btn.text = "Sure? This is permanent"
+		get_tree().create_timer(4.0).timeout.connect(_disarm_wipe)
+		return
+	if _wipe_stage == 1:
+		_wipe_stage = 2
+		_wipe_btn.text = "Really sure? Click once more"
+		get_tree().create_timer(4.0).timeout.connect(_disarm_wipe)
+		return
+	Progression.wipe_all()
+	RunSave.clear()
+	RunHistory.clear()
+	_wipe_stage = 0
+	get_tree().reload_current_scene()
+
+func _disarm_wipe() -> void:
+	_wipe_stage = 0
+	if is_instance_valid(_wipe_btn):
+		_wipe_btn.text = "Reset Save Data"
 
 # ── Settings persistence (2026-07-17): window mode survives restarts ──────────
 const SETTINGS_PATH := "user://settings.json"
@@ -416,79 +540,110 @@ func _apply_window_mode(mode: WinMode) -> void:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 # ── UI helpers ────────────────────────────────────────────────────────────────
-func _panel(parent: Node, rect: Rect2) -> Panel:
+# themed=false gives a fully transparent full-rect backing (the root layer,
+# which just hosts the logo/buttons over the animated background) — every
+# real popup panel (Options) goes through UITheme.panel_box() instead of a
+# hand-rolled navy StyleBoxFlat (2026-09 UITheme migration pass).
+func _panel(parent: Node, rect: Rect2, themed: bool = true) -> Panel:
 	var p := Panel.new()
 	if rect.size != Vector2.ZERO:
 		p.position = rect.position; p.size = rect.size
-	p.add_theme_stylebox_override("panel",
-		_flat(Color(0.08, 0.09, 0.15, 0.96), Color(0.4, 0.4, 0.6), 2, 6))
+	if themed:
+		p.add_theme_stylebox_override("panel", UITheme.panel_box())
+	else:
+		p.add_theme_stylebox_override("panel", _flat(Color(0, 0, 0, 0)))
 	parent.add_child(p)
 	return p
 
-# Menu button with an element-accent bar, hover glow/scale, and a slide-in chevron.
-func _btn(text: String, rect: Rect2, accent: Color = Color(0.62, 0.84, 1.0)) -> Button:
+# ── Button hierarchy (2026-09 pass) ────────────────────────────────────────────
+# Primary = the one big call-to-action (START GAME / CONTINUE RUN). Secondary =
+# real buttons one rung down (Classes/Crystal Shop/Run History/Arena-debug).
+# Link = plain text, no plate (Options/Quit). All three route through UITheme
+# so this screen stops hand-rolling its own navy button boxes.
+func _btn_primary(text: String, pos: Vector2, size: Vector2) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.position = rect.position
-	b.size = rect.size
-	b.pivot_offset = rect.size * 0.5
-	b.clip_contents = false
-	b.add_theme_font_size_override("font_size", 26)
-	b.add_theme_color_override("font_color", Color(0.86, 0.9, 1.0))
-	b.add_theme_color_override("font_hover_color", Color(0.98, 0.99, 1.0))
+	b.position = pos
+	b.size = size
+	_style_prime(b)
+	UITheme.apply_font(b, UITheme.header_font(20))
+	_wire_hover_scale(b, 1.04)
+	return b
 
-	var base_bg := Color(0.09, 0.11, 0.19, 0.95)
-	var hover_bg := Color(0.15, 0.17, 0.28, 0.97)
-	var acc_dim := Color(accent.r, accent.g, accent.b, 0.55)
-	b.add_theme_stylebox_override("normal",  _flat(base_bg, Color(0.42, 0.44, 0.6, 0.7), 1, 6))
-	b.add_theme_stylebox_override("hover",   _flat(hover_bg, acc_dim, 1, 6))
-	b.add_theme_stylebox_override("pressed", _flat(Color(0.08, 0.09, 0.16), acc_dim, 1, 6))
-	b.add_theme_stylebox_override("focus",   _flat(Color(0, 0, 0, 0)))
+func _btn_secondary(text: String, pos: Vector2, size: Vector2) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.position = pos
+	b.size = size
+	_style_cold(b)
+	UITheme.apply_font(b, UITheme.body_font(16))
+	_wire_hover_scale(b, 1.03)
+	return b
 
-	# left accent bar
-	var bar := ColorRect.new()
-	bar.color = accent
-	bar.position = Vector2(0, 6)
-	bar.size = Vector2(3, rect.size.y - 12)
-	bar.modulate.a = 0.35
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	b.add_child(bar)
+func _btn_link(text: String, pos: Vector2, size: Vector2) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.position = pos
+	b.size = size
+	UITheme.style_text_link(b)
+	# UITheme's link colour is TEXT_HEADER, a parchment brown — on this
+	# near-black backdrop it is all but invisible. Cold light blue instead.
+	b.add_theme_color_override("font_color", LINK_TEXT)
+	b.add_theme_color_override("font_hover_color", LINK_TEXT_HOVER)
+	b.add_theme_color_override("font_pressed_color", LINK_TEXT_HOVER)
+	UITheme.apply_font(b, UITheme.body_font(15))
+	return b
 
-	# slide-in chevron
-	var chev := Label.new()
-	chev.text = "▶"
-	chev.add_theme_font_size_override("font_size", 18)
-	chev.add_theme_color_override("font_color", accent)
-	chev.position = Vector2(rect.size.x - 34, rect.size.y * 0.5 - 14)
-	chev.modulate.a = 0.0
-	chev.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	b.add_child(chev)
 
+# Primary plate — the brightest object in the stack, still inside the menu's
+# blue. Screen-local for the same reason as _style_cold below.
+func _style_prime(b: Button) -> void:
+	b.add_theme_stylebox_override("normal",
+		_flat(BTN_PRIME_BG, BTN_PRIME_RIM, 2, 6))
+	var hov := _flat(BTN_PRIME_BG_HOVER, BTN_PRIME_RIM_HOVER, 3, 6)
+	b.add_theme_stylebox_override("hover", hov)
+	b.add_theme_stylebox_override("pressed", hov)
+	b.add_theme_stylebox_override("focus",
+		_flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 6))
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_color_override("font_color", BTN_PRIME_TEXT)
+	b.add_theme_color_override("font_hover_color", Color(1, 1, 1))
+	b.add_theme_color_override("font_pressed_color", Color(1, 1, 1))
+
+
+# Cold slate plate for the secondary tier. Screen-local on purpose — see the
+# BTN_COLD_* block at the top of this file for why it is not a UITheme call.
+func _style_cold(b: Button) -> void:
+	b.add_theme_stylebox_override("normal",
+		_flat(BTN_COLD_BG, BTN_COLD_RIM, 2, 6))
+	var hov := _flat(BTN_COLD_BG_HOVER, BTN_COLD_RIM_HOVER, 2, 6)
+	b.add_theme_stylebox_override("hover", hov)
+	b.add_theme_stylebox_override("pressed", hov)
+	b.add_theme_stylebox_override("focus",
+		_flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 6))
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_color_override("font_color", BTN_COLD_TEXT)
+	b.add_theme_color_override("font_hover_color", Color(1, 1, 1))
+	b.add_theme_color_override("font_pressed_color", Color(1, 1, 1))
+
+func _wire_hover_scale(b: Button, hover_scale: float) -> void:
+	b.pivot_offset = b.size * 0.5
 	var enter := func():
-		var t := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		t.tween_property(b, "position:x", rect.position.x + 8, 0.16)
-		t.tween_property(b, "scale", Vector2(1.02, 1.02), 0.16)
-		t.tween_property(bar, "modulate:a", 1.0, 0.16)
-		t.tween_property(bar, "size:x", 5.0, 0.16)
-		t.tween_property(chev, "modulate:a", 0.9, 0.16)
+		var t := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		t.tween_property(b, "scale", Vector2(hover_scale, hover_scale), 0.14)
 	var leave := func():
-		var t := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		t.tween_property(b, "position:x", rect.position.x, 0.16)
-		t.tween_property(b, "scale", Vector2(1, 1), 0.16)
-		t.tween_property(bar, "modulate:a", 0.35, 0.16)
-		t.tween_property(bar, "size:x", 3.0, 0.16)
-		t.tween_property(chev, "modulate:a", 0.0, 0.16)
+		var t := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		t.tween_property(b, "scale", Vector2.ONE, 0.14)
 	b.mouse_entered.connect(enter)
 	b.mouse_exited.connect(leave)
 	b.focus_entered.connect(enter)
 	b.focus_exited.connect(leave)
-	return b
 
 func _lbl(parent: Node, text: String, sz: int, col: Color,
 		pos: Vector2, size: Vector2, center: bool = false) -> Label:
 	var l := Label.new()
 	l.text = text; l.position = pos; l.size = size
-	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
+	UITheme.apply_font(l, UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", col)
 	if center: l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	parent.add_child(l)

@@ -75,7 +75,7 @@ const SPEED_OPTIONS: Array[float] = [0.25, 1.0, 2.0, 4.0]
 
 # Wave difficulty panel
 var difficulty_panel: DifficultyPanel
-var current_difficulty: int = WaveScaler.Difficulty.EASY
+var current_difficulty: int = WaveScaler.Difficulty.NORMAL
 
 # Unit details panel
 @onready var unit_details_panel = $UI/UnitDetailsPanel
@@ -140,7 +140,21 @@ const CRYSTAL_DROP_ICON: Texture2D = preload("res://assets/UI/generated/gem_labe
 
 # ── Combat-UI refresh throttle (perf fix 2026-07-04, see _on_unit_action) ──
 const COMBAT_UI_REFRESH_INTERVAL := 0.25
+# Greyed-out tint for a unit whose death animation is still playing.
+const DYING_ROW_COLOR := Color(0.52, 0.52, 0.56, 1)
 var _combat_ui_dirty := false
+# Where the last enemy fell (local to battle_grid_node) — the origin the
+# round-reward coin burst erupts from. Null until something dies this round.
+var _last_enemy_death_pos = null
+# Enemies whose logical entry is gone but whose death animation is still
+# playing. TEAM STATUS holds a greyed row for these so the sidebar can't say
+# "No enemy units" while a corpse is still visibly toppling (2026-09-16).
+var _dying_units: Array = []
+# Hard deadline per ghost (msec). The visibility test below is the real signal;
+# this is the backstop for a death tween that never lands (killed by a battle
+# reset, a freed tween), so a stale row can't sit in the panel forever.
+var _dying_deadline: Dictionary = {}
+const DYING_ROW_MAX_MSEC := 3000
 var _eh_dirty := false
 var _ui_refresh_accum := 0.0
 var _perf_overlay_lbl: Label = null    # F3 debug overlay (FPS / frame ms / node count)
@@ -152,6 +166,8 @@ var _relic_screen: RelicScreen
 var _relic_inventory: RelicInventory
 var _relic_grid: GridContainer = null      # RELICS section in the left sidebar
 var _relic_heading: Control = null
+var _relic_screen_wave: int = 0
+var _relic_rerolls_left: int = 0
 var _sell_zone: Panel = null               # drag-a-hero-here-to-sell drop target
 var _sell_zone_label: Label = null
 var _bench_grid: GridContainer = null      # BENCH section in the left sidebar
@@ -207,8 +223,8 @@ var _relic_tip_layer: CanvasLayer = null
 var _relic_tip:          PanelContainer = null
 var _relic_tip_name_lbl: Label = null
 var _relic_tip_desc_lbl: Label = null
-const RELIC_TIP_NAME_FONT_SIZE := 30
-const RELIC_TIP_DESC_FONT_SIZE := 28
+const RELIC_TIP_NAME_FONT_SIZE := UITheme.FONT_HEADER
+const RELIC_TIP_DESC_FONT_SIZE := UITheme.FONT_VALUE
 var _badge_tip_active: bool = false   # item tooltip is currently shown by a board badge hover
 # Bag drag-to-equip state
 var _drag_candidate: EquipmentItem = null
@@ -274,6 +290,17 @@ func save_run() -> void:
 	for u in bench_units:
 		if u and is_instance_valid(u):
 			heroes.append(_hero_to_dict(u, true))
+	# Heroes that fell this round are parked invisible in _downed_heroes, not
+	# player_units, awaiting the next round-start ceremony's revival. They were
+	# never included here, so a save taken in that window (many UI actions call
+	# save_run mid-round) silently dropped them from the roster forever on the
+	# next resume — the "heroes are never permanently lost" design (2026-07-24)
+	# didn't survive a save/quit. Tag them so _restore_hero revives them.
+	for u in _downed_heroes:
+		if u and is_instance_valid(u):
+			var hd := _hero_to_dict(u, false)
+			hd["downed"] = true
+			heroes.append(hd)
 	var bag: Array = []
 	for it in _equipment_inventory.items:
 		bag.append(_item_to_dict(it))
@@ -399,6 +426,12 @@ func _restore_hero(d: Dictionary) -> void:
 	u.battle_manager = auto_battle_manager
 	u.damage_text_container = damage_text_container
 
+	# A hero saved mid-fall (see save_run) never got its end-of-round revival —
+	# stand it back up here at the same REVIVE_HP_PCT the ceremony would have
+	# used, instead of restoring it at the 0 (or negative) HP it died at.
+	if bool(d.get("downed", false)):
+		u.current_hp = maxi(1, int(round(float(u.max_hp) * REVIVE_HP_PCT)))
+
 	if bool(d.get("bench", false)):
 		battle_grid_node.add_child(u)
 		u.visible = false
@@ -452,6 +485,7 @@ func _center_battlefield() -> void:
 	var origin   := Vector2(origin_x, origin_y).round()
 	background_layer.position = origin
 	battle_grid_node.position = origin
+	_battlefield_rest_pos = origin   # authoritative "at rest" spot for the camera-punch tween to return to
 	if progression_rails:
 		progression_rails.position = origin
 
@@ -533,6 +567,7 @@ func connect_signals() -> void:
 	auto_battle_manager.action_logged.connect(_on_action_logged)
 	auto_battle_manager.pace_changed.connect(_on_pace_changed)
 	auto_battle_manager.unit_summoned.connect(_on_unit_summoned)
+	auto_battle_manager.camera_punch_requested.connect(_on_camera_punch_requested)
 	
 	# Grid signals
 	battle_grid.cell_clicked.connect(_on_cell_clicked)
@@ -603,6 +638,7 @@ func connect_signals() -> void:
 	_equipment_inventory.hero_equipment_changed.connect(_on_hero_equipment_changed)
 	_equipment_panel = EquipmentPanel.new()
 	add_child(_equipment_panel)
+	_equipment_inventory.auto_combine_pick_needed.connect(_on_auto_combine_pick_needed)
 
 	_event_panel = EventPanel.new()
 	_event_panel.event_choice_made.connect(_on_event_choice_made)
@@ -612,6 +648,7 @@ func connect_signals() -> void:
 	_relic_inventory = RelicInventory.new()
 	_relic_screen = RelicScreen.new()
 	_relic_screen.chosen.connect(_on_relic_chosen)
+	_relic_screen.reroll_requested.connect(_on_relic_reroll)
 	add_child(_relic_screen)
 
 	# Event shop (2026-07-20). Its own CanvasLayer modal opened at merchant rounds.
@@ -675,27 +712,31 @@ func _integrate_scene_units() -> void:
 				unit.update_visuals()
 
 
-var max_player_units: int = 27   # base cap; increased by Roster Expansion upgrade
+var max_player_units: int = Balance.TEAM_SIZE_BASE   # recomputed from player level
 
 # ── Player level / team-size curve (2026-07-04) ───────────────────────────────
-# Base team size at player_level 1, +1 per level, capped once the ceiling
-# matches the old flat 27 (so a long enough run always converges back to the
-# same "full roster" feeling — this just gates how much of it you start with).
 # 2026-07-10 (user report "I'm level 1, I shouldn't be able to buy another hero
 # yet"): base dropped 4 → 1 — the field cap IS your player level now. Heroes
 # bought past the cap go to the bench (see the bench section below) instead of
 # being refused, and get deployed as levels unlock slots.
-const TEAM_SIZE_BASE := 1
-const TEAM_SIZE_LEVEL_CAP := 24   # levels beyond this stop granting more slots
-
+# 2026-08-07 (user spec, second pass — the first pass mis-modelled this as a
+# tier list of level caps). There is no per-level tier table and no level-cap
+# node: team size is simply
+#     player level  +  hero_slots nodes  +  event bonuses,   clamped to 20.
+# Player level is gated by the XP CURVE (Balance.PLAYER_XP_GROWTH), which is
+# what makes a fresh account land at ~8 and a fully-invested one at 16-18.
+# The clamp is what makes the +6 slot nodes an EARLY-GAME boost rather than a
+# permanent +6: at level 16 they buy nothing, because 16+6 still clamps to 20.
 func _team_size_for_level(lvl: int) -> int:
-	return TEAM_SIZE_BASE + mini(lvl - 1, TEAM_SIZE_LEVEL_CAP - 1)
+	return Balance.TEAM_SIZE_BASE + (lvl - 1)
 
 var _event_team_size_bonus: int = 0   # persistent per-run "Reinforcements" event bonus
 
 func _recompute_max_player_units() -> void:
-	max_player_units = _team_size_for_level(game_state.player_level) \
-			+ Progression.get_bonus("hero_slots") + _event_team_size_bonus
+	max_player_units = mini(
+			_team_size_for_level(game_state.player_level)
+					+ Progression.get_bonus("hero_slots") + _event_team_size_bonus,
+			Balance.MAX_TEAM_SIZE)
 
 # ── Bench / sideboard (2026-07-10 user spec) ──────────────────────────────────
 # Heroes bought past the field cap wait here instead of being refused. Benched
@@ -708,11 +749,9 @@ var bench_units: Array = []
 func max_bench_slots() -> int:
 	return Balance.BENCH_BASE_SLOTS + Progression.get_bonus("bench_slots")
 
-# Share of a kill's hero-XP that also feeds the player-level pool. Re-tuned
-# 2026-07-09 alongside GameState's player_xp_to_level/GROWTH — see that
-# comment for the target curve (level 2 before round 5, level 3 before round
-# 10) and the derivation. Left at 0.5; the curve retune did the actual work.
-const PLAYER_XP_SHARE := 0.5
+# Share of a kill's hero-XP that also feeds the player-level pool. Moved to
+# Balance 2026-08-07 so the xpcurve harness and the game read one number.
+const PLAYER_XP_SHARE := Balance.PLAYER_XP_SHARE
 
 func _on_player_leveled_up(new_level: int) -> void:
 	_recompute_max_player_units()
@@ -731,6 +770,16 @@ var _locked_difficulty: int = -1    # locked difficulty for this wave (-1 = not 
 var _run_start_nodes: int = 0
 var _run_start_spent: int = 0
 var _run_difficulty_choices: Array = []
+# Last roster the player actually FIELDED, captured at round lock-in rather than
+# read off survivors at run end — see the snapshot site in the Ready handler.
+var _run_team_fielded: Array = []
+var _run_team_fielded_levels: Array = []
+# Last player death this run (hero/killed_by/wave), for the export's "died to
+# what" — set in _on_unit_died, empty on a win.
+var _run_last_death: Dictionary = {}
+# Passive-pick choices made at the equipment combine dialog this run: one
+# entry per fusion, {"cap": int, "picked": Array[String], "available": Array[String]}.
+var _run_passive_picks: Array = []
 # One spec per difficulty, generated at most once per round (2026-07-27). Same
 # reasoning as _rolled_rewards below it: generate_wave_spec() ends in a
 # randi()%3 for enemy levels (WaveScaler.enemy_level_for_round), and it used to
@@ -759,6 +808,10 @@ func start_new_game() -> void:
 	_run_start_nodes = Progression.nodes_owned()
 	_run_start_spent = Progression.total_spent()
 	_run_difficulty_choices = []
+	_run_team_fielded = []
+	_run_team_fielded_levels = []
+	_run_last_death = {}
+	_run_passive_picks = []
 	game_state.reset_player_level()
 	_event_team_size_bonus = 0
 	_recompute_max_player_units()
@@ -773,6 +826,20 @@ func start_new_game() -> void:
 			b.queue_free()
 	bench_units.clear()
 	_rebuild_bench_bar()
+	# Full grid reset (2026-08-07 fix): battle_grid.occupied_cells/grid_cells are
+	# NOT tied to this scene's lifetime the way player/enemy_units are — if this
+	# main_game instance survives a prior run (no scene reload) any cells left
+	# occupied by that run's units (dead-but-not-purged, or the position-keyed
+	# remove_unit() drift documented on BattleGrid.purge_unit) persist as phantom
+	# walls. A fresh run's first 2×2 placement (wave 5's Hill Giant) then silently
+	# fails place_unit()'s collision check and gets queue_free'd in _place_at,
+	# so the elite round spawns with only its escort. initialize_grid() clears
+	# both dicts outright — cheaper and more thorough than sweeping phantoms.
+	for u in enemy_units:
+		if u and is_instance_valid(u):
+			u.queue_free()
+	enemy_units.clear()
+	battle_grid.initialize_grid()
 	# Call to Arms now grants a PICKED hero, not a random one (2026-07-10 user
 	# request) — the picker opens once the round-1 relic screen resolves (see
 	# _maybe_open_call_to_arms_picker, called from both _on_relic_chosen and
@@ -847,13 +914,13 @@ func _on_state_changed(new_state: GameState.State) -> void:
 			enable_unit_dragging(false)
 			background_layer.set_enemy_zone_visible(false)
 			_set_intent_overlay(false)
-			info_label.text = "Auto battle in progress... No player actions allowed."
+			info_label.text = "The battle is under way — your heroes fight on their own."
 			if _battle_controls:
 				_battle_controls.visible = true
 		GameState.State.ENEMY_TURN:
 			enable_unit_dragging(false)
 			background_layer.set_enemy_zone_visible(false)
-			info_label.text = "Enemy turn in progress..."
+			info_label.text = "The enemy makes its move..."
 
 	# Hide battle controls outside of auto-battle
 	if new_state != GameState.State.AUTO_BATTLE and _battle_controls:
@@ -879,15 +946,18 @@ func _enter_player_turn() -> void:
 
 # ── BATTLE ROUND LIFECYCLE ─────────────────────────────────────────────────
 func _on_battle_round_started(round_number: int) -> void:
+	_last_enemy_death_pos = null
+	_dying_units.clear()
+	_dying_deadline.clear()
 	update_ui()
 	print("Battle round %d started!" % round_number)
 	# Pay out last round's row bonuses first — revives, heals, XP bars — before
 	# the new wave spawns and before any modal (relic / shop / hydra) opens.
 	# This awaits, so everything below happens once the ceremony is done.
 	await _play_round_start_ceremony()
-	# Generate and lock wave 1 at EASY difficulty
-	_locked_difficulty = WaveScaler.Difficulty.EASY
-	current_difficulty = WaveScaler.Difficulty.EASY
+	# Generate and lock wave 1 at the baseline (Normal) difficulty
+	_locked_difficulty = WaveScaler.Difficulty.NORMAL
+	current_difficulty = WaveScaler.Difficulty.NORMAL
 	_wave_specs.clear()   # fresh rolls for the new round; stable within it
 	_current_wave_spec = _wave_spec_for(_locked_difficulty)
 	_instantiate_wave_from_spec(_current_wave_spec)
@@ -896,9 +966,9 @@ func _on_battle_round_started(round_number: int) -> void:
 	# just vague odds. The roll doesn't change no matter how many times you flip
 	# between difficulties this round.
 	_rolled_rewards = {
-		WaveScaler.Difficulty.EASY:   RoundReward.roll(WaveScaler.Difficulty.EASY, round_number),
-		WaveScaler.Difficulty.NORMAL: RoundReward.roll(WaveScaler.Difficulty.NORMAL, round_number),
-		WaveScaler.Difficulty.HARD:   RoundReward.roll(WaveScaler.Difficulty.HARD, round_number),
+		WaveScaler.Difficulty.NORMAL:   RoundReward.roll(WaveScaler.Difficulty.NORMAL, round_number),
+		WaveScaler.Difficulty.VETERAN: RoundReward.roll(WaveScaler.Difficulty.VETERAN, round_number),
+		WaveScaler.Difficulty.BRUTAL:   RoundReward.roll(WaveScaler.Difficulty.BRUTAL, round_number),
 	}
 	if difficulty_panel:
 		difficulty_panel.current_difficulty = current_difficulty
@@ -916,7 +986,9 @@ func _on_battle_round_started(round_number: int) -> void:
 		_relic_waves_done[round_number] = true
 		var offers: Array = Relic.roll_offers(round_number, _relic_inventory.owned_ids())
 		if not offers.is_empty():
-			_relic_screen.present(offers, round_number)
+			_relic_screen_wave = round_number
+			_relic_rerolls_left = Progression.get_bonus("+1 Reroll")
+			_relic_screen.present(offers, round_number, _relic_rerolls_left)
 		else:
 			_maybe_open_call_to_arms_picker()
 
@@ -954,6 +1026,15 @@ func _element_name(element: int) -> String:
 		UnitBase.Element.AIR:       return "Air"
 		UnitBase.Element.LIGHTNING: return "Lightning"
 		_: return "Normal"
+
+# Consumes one "+1 Reroll" crystal tree charge to reroll this visit's 3 relic
+# offers. Charges reset every relic screen (waves 1/11/21/...), not per run.
+func _on_relic_reroll() -> void:
+	if _relic_rerolls_left <= 0:
+		return
+	_relic_rerolls_left -= 1
+	var offers: Array = Relic.roll_offers(_relic_screen_wave, _relic_inventory.owned_ids())
+	_relic_screen.set_offers(offers, _relic_rerolls_left)
 
 func _on_relic_chosen(relic: Dictionary) -> void:
 	# Store it, then apply retroactively to heroes already on the team. Newly
@@ -1018,7 +1099,7 @@ func _rebuild_relic_bar() -> void:
 			lbl.text = str(r.get("name", "?")).substr(0, 2)
 			lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-			lbl.add_theme_font_size_override("font_size", 14)
+			UITheme.apply_font(lbl, UITheme.FONT_VALUE)
 			lbl.add_theme_color_override("font_color", col.lightened(0.4))
 			lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slot.add_child(lbl)
@@ -1054,13 +1135,11 @@ func _rebuild_bench_bar() -> void:
 			btn.gui_input.connect(_on_bench_slot_input.bind(i))
 			var icon_path: String = VisualUnit.HERO_SPRITE_PATHS.get(unit.unit_class, "")
 			if icon_path != "" and ResourceLoader.exists(icon_path):
-				var tex := TextureRect.new()
-				tex.expand_mode  = TextureRect.EXPAND_IGNORE_SIZE
-				tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-				tex.texture      = load(icon_path) as Texture2D
-				tex.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-				tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				btn.add_child(tex)
+				var portrait_anim := HeroPortrait.new()
+				portrait_anim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+				portrait_anim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				btn.add_child(portrait_anim)
+				portrait_anim.setup(unit.unit_class)
 			else:
 				# Generic-class heroes have LPC sheets, not flat portraits —
 				# fall back to initials tinted by element.
@@ -1069,7 +1148,7 @@ func _rebuild_bench_bar() -> void:
 				lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 				lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 				lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-				lbl.add_theme_font_size_override("font_size", 18)
+				UITheme.apply_font(lbl, UITheme.FONT_VALUE)
 				lbl.add_theme_color_override("font_color", unit.get_element_color())
 				lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 				btn.add_child(lbl)
@@ -1098,7 +1177,7 @@ func _build_sell_zone() -> void:
 	_sell_zone_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_sell_zone_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_sell_zone_label.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-	_sell_zone_label.add_theme_font_size_override("font_size", UITheme.body_font(22))
+	UITheme.apply_font(_sell_zone_label, UITheme.body_font(22))
 	_sell_zone_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
 	_sell_zone_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sell_zone_label.text = "SELL  +%dg" % Balance.SELL_REFUND
@@ -1135,7 +1214,7 @@ func _sell_fielded_hero(unit: VisualUnit) -> void:
 	var nm := unit.unit_name
 	if _equipment_inventory:
 		_equipment_inventory.return_all_from_hero(unit)   # gear returns to the bag, never lost
-	battle_grid.remove_unit(unit.grid_position)
+	battle_grid.purge_unit(unit)
 	player_units.erase(unit)
 	_downed_heroes.erase(unit)
 	unit.queue_free()
@@ -1152,7 +1231,7 @@ func _on_battle_started() -> void:
 		difficulty_panel.set_panel_visible(false)
 	enable_unit_dragging(false)
 	_apply_team_synergies()
-	info_label.text = "Battle started! Units are fighting automatically."
+	info_label.text = "Battle joined! Your heroes fight on their own from here."
 	close_shop()
 	update_team_health_bars()
 	_event_log.clear()   # fresh log per battle
@@ -1200,7 +1279,7 @@ func _make_ctrl_btn(text: String, width: float = 90.0) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(width, 36)
-	b.add_theme_font_size_override("font_size", 17)
+	UITheme.apply_font(b, UITheme.FONT_HEADER)
 	# UI theme pass 2026-07-03: dobo-pack button plates (hover=blue, press=purple).
 	UITheme.style_button(b)
 	return b
@@ -1252,6 +1331,9 @@ func _build_intent_toggle() -> void:
 		return
 	_intent_toggle = CheckButton.new()
 	_intent_toggle.text = "Enemy Targets"
+	# No size override at all until 2026-09-16, so it fell through to the theme
+	# default and rendered several steps below its neighbours (CONVENTIONS s.6).
+	UITheme.apply_font(_intent_toggle, UITheme.FONT_VALUE)
 	_intent_toggle.tooltip_text = \
 			"Show which hero each enemy will attack first. Updates as you reposition."
 	_intent_toggle.button_pressed = _show_intent_arrows
@@ -1315,9 +1397,9 @@ func _refresh_wave_dossier() -> void:
 # so the panel can show every option side by side instead of just the active preview.
 func _all_difficulty_power() -> Dictionary:
 	return {
-		WaveScaler.Difficulty.EASY:   _estimate_wave_power(WaveScaler.Difficulty.EASY),
-		WaveScaler.Difficulty.NORMAL: _estimate_wave_power(WaveScaler.Difficulty.NORMAL),
-		WaveScaler.Difficulty.HARD:   _estimate_wave_power(WaveScaler.Difficulty.HARD),
+		WaveScaler.Difficulty.NORMAL:   _estimate_wave_power(WaveScaler.Difficulty.NORMAL),
+		WaveScaler.Difficulty.VETERAN: _estimate_wave_power(WaveScaler.Difficulty.VETERAN),
+		WaveScaler.Difficulty.BRUTAL:   _estimate_wave_power(WaveScaler.Difficulty.BRUTAL),
 	}
 
 # ── Gold coin drops (economy v3) ──────────────────────────────────────────────
@@ -1331,9 +1413,12 @@ func _on_coin_collected(v: int) -> void:
 	game_state.add_gold(v)
 	update_ui()
 
+# Round-reward gold. Bursts from the last enemy to fall so the payout reads as
+# coming off the battlefield, not raining onto random far-corner cells with
+# nothing connecting them to anything (2026-09-16 report).
 func _spawn_coin_burst(count: int) -> void:
 	if _coin_system:
-		_coin_system.spawn_burst(count)
+		_coin_system.spawn_burst(count, _last_enemy_death_pos)
 
 func _vacuum_all_coins() -> void:
 	if _coin_system:
@@ -1406,6 +1491,28 @@ func _run_team_classes() -> Array:
 			out.append(UnitBase.UnitClass.keys()[u.unit_class])
 	return out
 
+# Survivor levels, same order/filter as _run_team_classes so the two zip up.
+func _run_team_levels() -> Array:
+	var out: Array = []
+	for u in player_units:
+		if is_instance_valid(u):
+			out.append(u.level)
+	return out
+
+# {rarity_name: count} across the bag AND every hero's equipped items — the
+# honest total of what the account is holding when the run ends.
+func _run_equipment_summary() -> Dictionary:
+	var out: Dictionary = {}
+	if not _equipment_inventory:
+		return out
+	var all_items: Array = _equipment_inventory.items.duplicate()
+	for hero_items in _equipment_inventory.hero_equipment.values():
+		all_items.append_array(hero_items)
+	for it: EquipmentItem in all_items:
+		var name: String = it.get_rarity_name()
+		out[name] = int(out.get(name, 0)) + 1
+	return out
+
 func _build_after_action_verdict() -> String:
 	var rows: Array = auto_battle_manager.after_action_rows() if auto_battle_manager else []
 	if rows.size() < 2:
@@ -1460,7 +1567,12 @@ func _on_battle_ended(player_won: bool) -> void:
 			var total_dmg := _last_battle_damage()
 			RunHistory.record(true, game_state.battle_round, _run_kills, total_dmg,
 					game_state.crystals, _run_start_nodes, _run_start_spent,
-					_run_difficulty_choices, _run_team_classes())
+					_run_difficulty_choices, _run_team_fielded, _run_team_fielded_levels,
+					_relic_inventory.owned_ids() if _relic_inventory else [],
+					_run_equipment_summary(),
+					_equipment_inventory.fusion_log if _equipment_inventory else [],
+					_run_last_death,
+					Progression.nodes_owned(), Progression.total_spent())
 			_game_over_screen.show_victory(
 				game_state.crystals, game_state.battle_round, total_dmg, _run_kills,
 				_build_after_action_verdict())
@@ -1526,7 +1638,12 @@ func _on_battle_ended(player_won: bool) -> void:
 
 		RunHistory.record(false, game_state.battle_round, _run_kills, total_dmg,
 				game_state.crystals, _run_start_nodes, _run_start_spent,
-				_run_difficulty_choices, _run_team_classes())
+				_run_difficulty_choices, _run_team_fielded, _run_team_fielded_levels,
+				_relic_inventory.owned_ids() if _relic_inventory else [],
+				_run_equipment_summary(),
+				_equipment_inventory.fusion_log if _equipment_inventory else [],
+				_run_last_death,
+				Progression.nodes_owned(), Progression.total_spent())
 		_game_over_screen.show_defeat(
 			game_state.crystals,       # earned this run
 			game_state.battle_round,
@@ -1589,6 +1706,44 @@ func _on_unit_summoned(unit: UnitBase) -> void:
 		if unit not in enemy_units:
 			enemy_units.append(unit)
 
+# Momentary zoom-punch toward a boss beat the player can't otherwise steer or
+# react to (currently just Skyrender's Long Fall grab) — pure spectacle, no
+# gameplay effect. Scales/repositions battle_grid_node itself so every child
+# (units, projectiles, damage text, skill effects) zooms together; the UI
+# CanvasLayer is unaffected by a parent 2D transform by design, so HUD/panels
+# stay put. Keeps its own running tween so a second punch mid-animation
+# replaces the first cleanly instead of fighting it.
+const CAMERA_PUNCH_ZOOM := 1.35
+const CAMERA_PUNCH_IN_TIME := 0.22
+const CAMERA_PUNCH_OUT_TIME := 0.3
+var _camera_punch_tween: Tween = null
+var _battlefield_rest_pos: Vector2 = Vector2(480, 60)   # kept in sync by _center_battlefield()
+
+func _on_camera_punch_requested(world_pos: Vector2, hold_time: float) -> void:
+	if battle_grid_node == null:
+		return
+	if _camera_punch_tween and _camera_punch_tween.is_valid():
+		_camera_punch_tween.kill()
+
+	# Pivot always computed against the authoritative rest transform (scale 1,
+	# position = _battlefield_rest_pos), not the node's current transform — a
+	# second punch firing mid-animation would otherwise pivot off an
+	# already-zoomed frame and drift instead of re-centering cleanly.
+	var pivot_local: Vector2 = world_pos - _battlefield_rest_pos
+	var target_scale := Vector2.ONE * CAMERA_PUNCH_ZOOM
+	var target_pos: Vector2 = _battlefield_rest_pos + pivot_local * (1.0 - CAMERA_PUNCH_ZOOM)
+
+	_camera_punch_tween = create_tween()
+	_camera_punch_tween.tween_property(battle_grid_node, "scale", target_scale, CAMERA_PUNCH_IN_TIME) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	_camera_punch_tween.parallel().tween_property(battle_grid_node, "position", target_pos, CAMERA_PUNCH_IN_TIME) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	_camera_punch_tween.tween_interval(maxf(hold_time - CAMERA_PUNCH_IN_TIME, 0.0))
+	_camera_punch_tween.tween_property(battle_grid_node, "scale", Vector2.ONE, CAMERA_PUNCH_OUT_TIME) \
+			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	_camera_punch_tween.parallel().tween_property(battle_grid_node, "position", _battlefield_rest_pos, CAMERA_PUNCH_OUT_TIME) \
+			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+
 func _despawn_summons() -> void:
 	# Remove all summoned units from the grid and scene at round end — EXCEPT
 	# a Doc revival that survived the round: that's a real hero, not a
@@ -1614,7 +1769,7 @@ func _despawn_summons() -> void:
 				continue
 			to_remove.append(unit)
 	for unit in to_remove:
-		battle_grid.remove_unit(unit.grid_position)
+		battle_grid.purge_unit(unit)
 		if unit in player_units:
 			player_units.erase(unit)
 		if unit in enemy_units:
@@ -1637,6 +1792,7 @@ func _style_team_bar(bar: ProgressBar, kind: String) -> void:
 	UITheme.style_stat_bar(bar, kind)
 
 func update_team_health_bars() -> void:
+	_prune_dying_units()
 	var p_cur := 0
 	var p_max := 0
 	var p_alive := 0
@@ -1671,10 +1827,11 @@ func update_team_health_bars() -> void:
 		enemy_hp_label.text = "%d / %d HP  |  %d units  |  %d%%" % [e_cur, e_max, e_alive, pct]
 	else:
 		enemy_hp_bar.value = 0
-		enemy_hp_label.text = "No units"
+		enemy_hp_label.text = _empty_enemy_text()
 
 	_rebuild_unit_list(player_unit_list, player_units, Color(0.35, 0.92, 0.45, 1))
-	_rebuild_unit_list(enemy_unit_list,  enemy_units,  Color(0.95, 0.4,  0.4,  1))
+	_rebuild_unit_list(enemy_unit_list,  enemy_units,  Color(0.95, 0.4,  0.4,  1),
+			_dying_units)
 
 	# Sidebar-native widgets
 	if _sb_player_hp:
@@ -1691,10 +1848,38 @@ func update_team_health_bars() -> void:
 		if e_max > 0:
 			_sb_enemy_lbl.text = "%d / %d HP  ·  %d units  ·  %d%%" % [e_cur, e_max, e_alive, int(float(e_cur)/e_max*100)]
 		else:
-			_sb_enemy_lbl.text = "No enemy units"
-		_rebuild_unit_list(_sb_enemy_ulist, enemy_units, Color(0.95, 0.4, 0.4, 1))
+			_sb_enemy_lbl.text = _empty_enemy_text()
+		_rebuild_unit_list(_sb_enemy_ulist, enemy_units, Color(0.95, 0.4, 0.4, 1),
+				_dying_units)
 
-func _rebuild_unit_list(container: VBoxContainer, units: Array, name_color: Color) -> void:
+# Drop corpses whose death animation has finished. An enemy is freed by
+# VisualUnit._after_death_anim (so the ref goes invalid); a player hero is
+# parked invisible instead, and a revive makes it visible again — hence the
+# visibility test rather than a timer. While any ghost is still on screen we
+# keep the combat UI dirty so the 4Hz throttle repaints the moment it clears.
+func _prune_dying_units() -> void:
+	if _dying_units.is_empty():
+		return
+	var now := Time.get_ticks_msec()
+	var kept: Array = []
+	for u in _dying_units:
+		var alive_again: bool = u in enemy_units or u in player_units
+		if u and is_instance_valid(u) and u.visible and not alive_again and now < int(_dying_deadline.get(u, 0)):
+			kept.append(u)
+		else:
+			_dying_deadline.erase(u)
+	_dying_units = kept
+	if not _dying_units.is_empty():
+		_combat_ui_dirty = true
+
+# Never claim the field is clear while a corpse is still toppling on it.
+func _empty_enemy_text() -> String:
+	return "Clearing the field..." if not _dying_units.is_empty() else "No enemy units"
+
+# `ghosts` are units already erased from the logical array whose death
+# animation is still on screen — rendered greyed, after the living ones.
+func _rebuild_unit_list(container: VBoxContainer, units: Array, name_color: Color,
+		ghosts: Array = []) -> void:
 	# PERF: a hidden list (collapsed panel / closed accordion) keeps its stale
 	# content instead of paying ~16 nodes per unit per rebuild. Expanding a
 	# panel repaints within 0.25s via the dirty-flag throttle in _process.
@@ -1703,27 +1888,83 @@ func _rebuild_unit_list(container: VBoxContainer, units: Array, name_color: Colo
 	for child in container.get_children():
 		child.queue_free()
 
+	# PREP PHASE: nobody is taking damage, spending mana or earning XP, so the
+	# three bars per unit are twelve identical 100% / 0-of-100 strips — pure
+	# noise. Collapse to one chip row each and only unfold the bars once the
+	# numbers actually move (2026-09-16 legibility pass).
+	var in_combat: bool = auto_battle_manager != null and auto_battle_manager.battle_active
+
 	for unit in units:
 		if not (unit and is_instance_valid(unit)):
 			continue
+		if in_combat:
+			_add_unit_full_rows(container, unit, name_color)
+		else:
+			_add_unit_compact_row(container, unit, name_color)
 
-		# Unit header: name + level
-		var header := Label.new()
-		header.text = "● %s   Lv.%d" % [unit.unit_name, unit.level]
-		header.add_theme_font_size_override("font_size", 15)
-		header.add_theme_color_override("font_color", name_color)
-		container.add_child(header)
+	for unit in ghosts:
+		if not (unit and is_instance_valid(unit)):
+			continue
+		_add_unit_compact_row(container, unit, DYING_ROW_COLOR, true)
 
-		# HP / MP / XP bars stacked — same beveled strips as the in-world
-		# unit bars (kind picks the strip; color tints the row label).
-		_add_stat_bar(container, "HP", unit.current_hp,   unit.max_hp,      "hp", UITheme.BAR_HP)
-		_add_stat_bar(container, "MP", unit.current_mana, unit.max_mana,    "mp", UITheme.BAR_MP)
-		_add_stat_bar(container, "XP", unit.current_xp,   unit.xp_to_level, "xp", UITheme.BAR_XP)
+func _add_unit_full_rows(container: VBoxContainer, unit, name_color: Color) -> void:
+	# Unit header: name + level
+	var header := Label.new()
+	header.text = "● %s   Lv.%d" % [unit.unit_name, unit.level]
+	UITheme.apply_font(header, UITheme.FONT_HEADER)
+	header.add_theme_color_override("font_color", name_color)
+	container.add_child(header)
 
-		# Small gap between units
-		var gap := Control.new()
-		gap.custom_minimum_size = Vector2(0, 5)
-		container.add_child(gap)
+	# HP / MP / XP bars stacked — same beveled strips as the in-world
+	# unit bars (kind picks the strip; color tints the row label).
+	_add_stat_bar(container, "HP", unit.current_hp,   unit.max_hp,      "hp", UITheme.BAR_HP)
+	_add_stat_bar(container, "MP", unit.current_mana, unit.max_mana,    "mp", UITheme.BAR_MP)
+	_add_stat_bar(container, "XP", unit.current_xp,   unit.xp_to_level, "xp", UITheme.BAR_XP)
+
+	# Small gap between units
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 5)
+	container.add_child(gap)
+
+# One line per unit: element-tinted initials chip + name + level. Four nodes
+# instead of ~16, so this is also cheaper than the bar stack it replaces.
+# The initials chip is the same fallback the bench bar already uses for heroes
+# without a flat portrait — no texture load on a list that repaints at 4Hz.
+func _add_unit_compact_row(container: VBoxContainer, unit, name_color: Color,
+		dying: bool = false) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+
+	var chip := Label.new()
+	# Unit names carry an element prefix ("Normal Riot"), so the first two
+	# letters of the WHOLE name are always the prefix's — take them from the
+	# last word instead, which is the part that identifies the unit.
+	var words: PackedStringArray = unit.unit_name.split(" ", false)
+	var key: String = words[words.size() - 1] if words.size() > 0 else unit.unit_name
+	chip.text = key.substr(0, 2)
+	chip.custom_minimum_size = Vector2(22, 18)
+	chip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	chip.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	UITheme.apply_font(chip, UITheme.FONT_BODY)
+	chip.add_theme_color_override("font_color",
+			DYING_ROW_COLOR if dying else unit.get_element_color())
+	row.add_child(chip)
+
+	var nm := Label.new()
+	nm.text = ("%s (falling)" % unit.unit_name) if dying else unit.unit_name
+	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UITheme.apply_font(nm, UITheme.FONT_VALUE)
+	nm.add_theme_color_override("font_color", name_color)
+	row.add_child(nm)
+
+	var lv := Label.new()
+	lv.text = "Lv.%d" % unit.level
+	UITheme.apply_font(lv, UITheme.FONT_BODY)
+	lv.add_theme_color_override("font_color",
+			DYING_ROW_COLOR if dying else Color(0.72, 0.72, 0.85, 1))
+	row.add_child(lv)
+
+	container.add_child(row)
 
 func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 		current, maximum, kind: String, color: Color) -> void:
@@ -1734,7 +1975,7 @@ func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 	var lbl := Label.new()
 	lbl.text = lbl_text
 	lbl.custom_minimum_size = Vector2(20, 12)
-	lbl.add_theme_font_size_override("font_size", 12)
+	UITheme.apply_font(lbl, UITheme.FONT_VALUE)
 	lbl.add_theme_color_override("font_color", color.lightened(0.25))
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(lbl)
@@ -1745,7 +1986,7 @@ func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 	var max_str := "%.1f" % maximum if maximum is float and maximum != int(maximum) else str(int(maximum))
 	nums.text = "%s / %s" % [cur_str, max_str]
 	nums.custom_minimum_size = Vector2(90, 12)
-	nums.add_theme_font_size_override("font_size", 12)
+	UITheme.apply_font(nums, UITheme.FONT_VALUE)
 	nums.add_theme_color_override("font_color", Color(0.72, 0.72, 0.85, 1))
 	nums.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	nums.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -1764,6 +2005,21 @@ func _add_stat_bar(container: VBoxContainer, lbl_text: String,
 	container.add_child(row)
 
 
+# Player-facing name for a board row. The status line talks to the PLAYER, so
+# it never prints raw grid coordinates (2026-09-16 pass) — rows are counted
+# from the front line (the row nearest the enemy half) backwards.
+func _row_phrase(row_y: int) -> String:
+	# Player zone is the bottom 4 rows (same definition as _update_row_tooltip).
+	var py_front: int = (battle_grid.grid_height if battle_grid else 9) - 4
+	if row_y < py_front:
+		return "enemy side of the field"
+	match row_y - py_front:
+		0: return "front line"
+		1: return "second rank"
+		2: return "third rank"
+		_: return "back line"
+
+
 # ── UNIT PLACEMENT & GRID INPUT ────────────────────────────────────────────
 func _on_cell_clicked(grid_pos: Vector2i) -> void:
 	# Right-click to show unit details
@@ -1773,13 +2029,21 @@ func _on_cell_clicked(grid_pos: Vector2i) -> void:
 			show_unit_details(unit)
 		return
 	
-	info_label.text = "Right-clicked grid cell: (%d, %d)" % [grid_pos.x, grid_pos.y]
+	info_label.text = "Empty ground on the %s — drag a hero here to hold it." % _row_phrase(grid_pos.y)
 
 func _on_unit_placed(placed_unit, grid_pos: Vector2i) -> void:
-	info_label.text = "Unit placed at: (%d, %d)" % [grid_pos.x, grid_pos.y]
+	# Battle MOVEMENT fires this signal too, once per step per unit — narrating
+	# every one of those buried the real status line under placement chatter.
+	# Only the player's own prep-phase placement is worth a message.
+	var in_prep: bool = auto_battle_manager == null or not auto_battle_manager.battle_active
+	if in_prep:
+		if placed_unit and is_instance_valid(placed_unit):
+			info_label.text = "%s takes the %s." % [placed_unit.unit_name, _row_phrase(grid_pos.y)]
+		else:
+			info_label.text = "Position taken on the %s." % _row_phrase(grid_pos.y)
 	# Only lock in home_position during the prep phase — battle movement also fires
 	# this signal but must not overwrite the player's chosen row.
-	if placed_unit and is_instance_valid(placed_unit) and not auto_battle_manager.battle_active:
+	if in_prep and placed_unit and is_instance_valid(placed_unit):
 		placed_unit.home_position = grid_pos
 
 # Action button handlers
@@ -2022,7 +2286,7 @@ func _bench_unit(unit: VisualUnit) -> void:
 	if bench_units.size() >= max_bench_slots():
 		info_label.text = "Bench is full! (%d/%d)" % [bench_units.size(), max_bench_slots()]
 		return
-	battle_grid.remove_unit(unit.grid_position)
+	battle_grid.purge_unit(unit)
 	player_units.erase(unit)
 	unit.visible = false
 	unit.can_be_dragged = false
@@ -2113,7 +2377,7 @@ func _maybe_open_call_to_arms_picker() -> void:
 
 
 func _on_use_items_pressed() -> void:
-	info_label.text = "Use Items - Not yet implemented"
+	info_label.text = "Item use isn't ready yet — equip gear from the Equipment panel for now."
 
 func _on_classes_pressed() -> void:
 	_class_browser.open(0)
@@ -2126,6 +2390,17 @@ func _on_roster_pressed() -> void:
 
 func _on_equipment_pressed() -> void:
 	_equipment_panel.open(_equipment_inventory, player_units)
+
+# Auto-Combine (2026-08-06) paused a fusion because the player has a real
+# choice to make on which passives survive — surface the panel's existing
+# pick overlay instead of guessing for them.
+func _on_auto_combine_pick_needed(sources: Array, candidates: Array, cap: int) -> void:
+	var typed_sources: Array[EquipmentItem] = []
+	for it in sources:
+		typed_sources.append(it as EquipmentItem)
+	_equipment_panel.inventory = _equipment_inventory
+	_equipment_panel.player_units = player_units
+	_equipment_panel.show_auto_pick(typed_sources, candidates, cap)
 
 func _on_event_choice_made(choice_index: int) -> void:
 	if not _event_panel._current_event:
@@ -2220,11 +2495,22 @@ func _apply_event_effects(effects: Dictionary) -> String:
 		_event_team_size_bonus += int(effects["max_units"])
 		_recompute_max_player_units()
 
-	# "Invest in training" — no level cap exists to raise, so level the team up now.
+	# "Invest in training" — levels the team up on the spot.
+	#
+	# 2026-08-07: this used to read "no level cap exists to raise" and call
+	# level_up() in a raw loop. That was true when written, but the hero level
+	# cap landed 2026-08-01 and this site was never updated — so the event was
+	# the one path in the game that could push heroes past
+	# Progression.hero_level_cap(). A tester reached level 16 on a tree with no
+	# Max Hero Level nodes bought at all. It respects the cap now, like grant_xp
+	# and set_level already did.
 	if effects.has("max_level"):
+		var cap: int = Progression.hero_level_cap()
 		for unit in player_units:
 			if unit and is_instance_valid(unit):
 				for _i in range(int(effects["max_level"])):
+					if unit.level >= cap:
+						break
 					unit.level_up()
 					unit.perk_points += 1
 
@@ -2259,7 +2545,19 @@ func _on_ready_pressed() -> void:
 
 	# Lock in the currently selected difficulty and generate+instantiate the final wave roster
 	_locked_difficulty = current_difficulty
-	_run_difficulty_choices.append(_locked_difficulty)   # risk-appetite trace
+	# Readable label, not the raw enum int (2026-08-07). The first tester export
+	# came back as 117 zeros, which nobody could interpret without the source —
+	# it turned out to mean "played every round on Easy", a fact that changed how
+	# the whole file read. Names cost nothing and can't be misread.
+	_run_difficulty_choices.append(
+			WaveScaler.Difficulty.keys()[_locked_difficulty].capitalize())
+	# Roster snapshot (2026-08-07). `team` used to be built from survivors at
+	# run end, so on a DEFEAT — the only outcome that needs explaining — it was
+	# always empty and every losing run looked identical. Snapshotting here, as
+	# the round locks in, records what the player actually fielded. Overwritten
+	# each round, so it ends up holding the team that died.
+	_run_team_fielded = _run_team_classes()
+	_run_team_fielded_levels = _run_team_levels()
 	# Reuse the spec the player has been looking at all prep phase — do NOT
 	# re-generate here (that was the ±2 level drift; see _wave_specs).
 	_current_wave_spec = _wave_spec_for(_locked_difficulty)
@@ -2374,7 +2672,7 @@ func _rebuild_damage_meter() -> void:
 		var name_lbl := Label.new()
 		name_lbl.text = "#%d  %s" % [rank, u.unit_name]
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_lbl.add_theme_font_size_override("font_size", 13)
+		UITheme.apply_font(name_lbl, UITheme.FONT_VALUE)
 		name_lbl.add_theme_color_override("font_color", name_col)
 		row.add_child(name_lbl)
 
@@ -2400,7 +2698,7 @@ func _rebuild_damage_meter() -> void:
 		var num_lbl := Label.new()
 		num_lbl.text = "  %d  (%d%%)" % [u.damage_dealt, pct]
 		num_lbl.custom_minimum_size = Vector2(100, 0)
-		num_lbl.add_theme_font_size_override("font_size", 12)
+		UITheme.apply_font(num_lbl, UITheme.FONT_VALUE)
 		num_lbl.add_theme_color_override("font_color", Color(0.85, 0.75, 0.45))
 		row.add_child(num_lbl)
 
@@ -2410,7 +2708,7 @@ func _rebuild_damage_meter() -> void:
 	if sorted.is_empty():
 		var lbl := Label.new()
 		lbl.text = "No data yet — start a battle."
-		lbl.add_theme_font_size_override("font_size", 12)
+		UITheme.apply_font(lbl, UITheme.FONT_VALUE)
 		lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
 		target.add_child(lbl)
 
@@ -2430,7 +2728,7 @@ func _render_event_log() -> void:
 		var e: Dictionary = _event_log[i]
 		var lbl := Label.new()
 		lbl.text = str(e["text"])
-		lbl.add_theme_font_size_override("font_size", 13)
+		UITheme.apply_font(lbl, UITheme.FONT_VALUE)
 		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var is_round := str(e["text"]).begins_with("—")
 		if is_round:
@@ -2444,7 +2742,7 @@ func _render_event_log() -> void:
 	if _event_log.is_empty():
 		var empty := Label.new()
 		empty.text = "No actions yet. Start a battle to see the log."
-		empty.add_theme_font_size_override("font_size", 13)
+		UITheme.apply_font(empty, UITheme.FONT_VALUE)
 		empty.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 		eh_list.add_child(empty)
 
@@ -2556,7 +2854,7 @@ func _instantiate_wave_from_spec(spec: Array, roll_item: bool = true) -> void:
 		else:
 			_place_enemy(unit, roll_item)
 
-func spawn_enemies(difficulty: int = WaveScaler.Difficulty.EASY) -> void:
+func spawn_enemies(difficulty: int = WaveScaler.Difficulty.NORMAL) -> void:
 	# Difficulty PREVIEW — the SAME cached spec the wave will actually use (so the
 	# preview is exact, not a fresh roll), but never rolls held items.
 	_instantiate_wave_from_spec(_wave_spec_for(difficulty), false)
@@ -2566,6 +2864,8 @@ func spawn_enemies(difficulty: int = WaveScaler.Difficulty.EASY) -> void:
 # and forth can't be used to free-scout (and re-roll) held-item drops before
 # committing — items only ever roll on the real, locked wave instantiation.
 func _place_at(unit: VisualUnit, grid_pos: Vector2i, roll_item: bool = true) -> void:
+	if not unit.is_player_unit:
+		unit.can_be_dragged = false
 	unit.grid_position = grid_pos
 	var world := battle_grid.grid_to_world(grid_pos)
 	# Multi-cell units: offset the visual centre onto the middle of their block.
@@ -2576,15 +2876,35 @@ func _place_at(unit: VisualUnit, grid_pos: Vector2i, roll_item: bool = true) -> 
 		world += Vector2(off, off)
 	unit.position = world
 	battle_grid_node.add_child(unit)
-	if battle_grid.place_unit(unit, grid_pos):
-		enemy_units.append(unit)
-		unit.died.connect(_on_unit_died.bind(unit))
-		unit.battle_manager = auto_battle_manager
-		unit.damage_text_container = damage_text_container
-		if roll_item:
-			_roll_held_item(unit)
-	else:
-		unit.queue_free()
+	if not battle_grid.place_unit(unit, grid_pos):
+		# The wave spec's chosen position collided with something already on the
+		# real board — stray occupied_cells that outlived their owner (see
+		# BattleGrid.purge_unit) are the known cause. Rather than silently
+		# dropping the unit (2026-08-07 user report: Hill Giant missing from
+		# wave 5), self-heal and retry once, then fall back to any free block
+		# elsewhere in the enemy zone so the wave still spawns complete.
+		var reclaimed: int = battle_grid.sweep_phantoms()
+		push_warning("[_place_at] place_unit failed for %s at %s (cell_size %d); reclaimed %d phantom cell(s), retrying" \
+				% [unit.unit_name, grid_pos, unit.cell_size, reclaimed])
+		if not battle_grid.place_unit(unit, grid_pos):
+			var alt := _find_empty_enemy_block(unit.cell_size)
+			if alt != Vector2i(-1, -1) and battle_grid.place_unit(unit, alt):
+				unit.grid_position = alt
+				var alt_world := battle_grid.grid_to_world(alt)
+				if unit.cell_size > 1:
+					alt_world += Vector2(battle_grid.cell_size * (unit.cell_size - 1) * 0.5, battle_grid.cell_size * (unit.cell_size - 1) * 0.5)
+				unit.position = alt_world
+			else:
+				push_warning("[_place_at] no free %dx%d block found for %s — dropping it" \
+						% [unit.cell_size, unit.cell_size, unit.unit_name])
+				unit.queue_free()
+				return
+	enemy_units.append(unit)
+	unit.died.connect(_on_unit_died.bind(unit))
+	unit.battle_manager = auto_battle_manager
+	unit.damage_text_container = damage_text_container
+	if roll_item:
+		_roll_held_item(unit)
 
 # Enemies can spawn already wielding a dropped item — stat bonuses apply for the
 # whole fight, and the exact same item drops on death (what you see is what you loot).
@@ -2650,17 +2970,20 @@ func _clear_middle_row() -> void:
 		var stray = battle_grid.get_unit_at(pos)
 		if not (stray and is_instance_valid(stray)):
 			continue
-		if stray in player_units:
-			# Put it back in its own zone rather than losing it outright.
+		if stray in player_units or stray in _downed_heroes:
+			# Put it back in its own zone rather than losing it outright. A downed
+			# hero is parked (invisible, not in player_units) awaiting revival —
+			# it must never fall through to the enemy-stray branch below and get
+			# queue_free()'d, or it's lost for good despite never really dying.
 			var slot: Vector2i = find_empty_player_slot()
 			if slot == Vector2i(-1, -1):
 				continue
-			battle_grid.remove_unit(pos)
+			battle_grid.purge_unit(stray)
 			stray.grid_position = slot
 			stray.position = battle_grid.grid_to_world(slot)
 			battle_grid.place_unit(stray, slot)
 		else:
-			battle_grid.remove_unit(pos)
+			battle_grid.purge_unit(stray)
 			enemy_units.erase(stray)
 			stray.queue_free()
 
@@ -2683,10 +3006,30 @@ func find_empty_enemy_slot() -> Vector2i:
 				return p
 	return Vector2i(-1, -1)
 
+# Fallback for _place_at when a multi-cell unit's spec-chosen position collides
+# with the real board (see the retry there). Scans the enemy zone (rows 0-3)
+# for any fully-clear size×size block, top-left-first.
+func _find_empty_enemy_block(size: int) -> Vector2i:
+	if size <= 1:
+		return find_empty_enemy_slot()
+	for y in range(4 - size + 1):
+		for x in range(battle_grid.grid_width - size + 1):
+			var clear := true
+			for dy in range(size):
+				for dx in range(size):
+					if battle_grid.is_cell_occupied(Vector2i(x + dx, y + dy)):
+						clear = false
+						break
+				if not clear:
+					break
+			if clear:
+				return Vector2i(x, y)
+	return Vector2i(-1, -1)
+
 func clear_enemy_units() -> void:
 	for unit in enemy_units:
 		if unit and is_instance_valid(unit):
-			battle_grid.remove_unit(unit.grid_position)
+			battle_grid.purge_unit(unit)
 			unit.queue_free()
 	enemy_units.clear()
 
@@ -2724,7 +3067,7 @@ func reset_player_positions() -> void:
 	# Remove units from wherever battle left them
 	for unit in player_units:
 		if unit and is_instance_valid(unit):
-			battle_grid.remove_unit(unit.grid_position)
+			battle_grid.purge_unit(unit)
 
 	# Restore each unit to the exact cell the player chose (home_position).
 	# home_position is only written when the player places or drags a unit —
@@ -2746,9 +3089,17 @@ func reset_player_positions() -> void:
 					break
 		if slot == Vector2i(-1, -1):
 			continue
+		# grid_position is only written once the cell actually took us
+		# (2026-08-07). Writing it regardless — as this did — is how a hero ends
+		# up claiming a cell it isn't registered on, which makes every later
+		# position-keyed removal miss and strands cells; see BattleGrid.purge_unit.
+		if not battle_grid.place_unit(unit, slot):
+			var fallback: Vector2i = find_empty_player_slot()
+			if fallback == Vector2i(-1, -1) or not battle_grid.place_unit(unit, fallback):
+				continue
+			slot = fallback
 		unit.grid_position = slot
 		unit.position = battle_grid.grid_to_world(slot)
-		battle_grid.place_unit(unit, slot)
 		# Clear leftover movement state from battle
 		unit.is_moving = false
 		unit.move_progress = 0.0
@@ -3003,7 +3354,14 @@ func _log_between_round(unit: UnitBase, heal: int, xp: float, front_t: float) ->
 # ── UNIT DEATH & SUMMONS ───────────────────────────────────────────────────
 func _on_unit_died(unit) -> void:
 	var was_enemy := enemy_units.has(unit)
-	var dead_level: int = unit.level if (unit and is_instance_valid(unit)) else 1
+	var _dead_level: int = unit.level if (unit and is_instance_valid(unit)) else 1
+
+	# Balance export (2026-08-05): last player death this run, for "died to what".
+	# Overwritten on every player death, so a wipe's final entry is the one that
+	# actually ended the run rather than the first casualty.
+	if not was_enemy and unit and is_instance_valid(unit):
+		_run_last_death = {"hero": str(unit.unit_name), "killed_by": str(unit.last_killed_by),
+				"wave": game_state.battle_round}
 
 	player_units.erase(unit)
 	enemy_units.erase(unit)
@@ -3020,7 +3378,7 @@ func _on_unit_died(unit) -> void:
 		auto_battle_manager.enemy_units.erase(unit)
 	_rebuild_synergy_display()
 	if unit and is_instance_valid(unit):
-		battle_grid.remove_unit(unit.grid_position)
+		battle_grid.purge_unit(unit)
 
 	# A fallen player hero is NOT lost anymore (2026-07-24 design change): its
 	# node is parked invisible by VisualUnit.die() and revived at 10% HP once
@@ -3035,6 +3393,15 @@ func _on_unit_died(unit) -> void:
 
 	if was_enemy and unit and is_instance_valid(unit):
 		_run_kills += 1
+		# Hold a greyed TEAM STATUS row until the death animation finishes.
+		# VisualUnit.die() emits `died` FIRST and only frees the node after the
+		# death clip + fade, so the panel and the board disagreed for the whole
+		# tween — long enough to read "No enemy units" over a visible corpse.
+		if unit not in _dying_units:
+			_dying_units.append(unit)
+			_dying_deadline[unit] = Time.get_ticks_msec() + DYING_ROW_MAX_MSEC
+			_combat_ui_dirty = true
+		_last_enemy_death_pos = unit.position
 		# Economy v3: kills drop physical coins on the field (collected by the
 		# round-end vacuum) instead of crediting gold instantly.
 		# NOTE: `unit.position` (local to battle_grid_node), not global_position.
@@ -3168,7 +3535,7 @@ func _tip_lbl(size: int, col: Color, pos: Vector2) -> Label:
 	var l := Label.new()
 	l.position = pos
 	l.size     = Vector2(170, 18)
-	l.add_theme_font_size_override("font_size", size)
+	UITheme.apply_font(l, size)
 	l.add_theme_color_override("font_color", col)
 	return l
 
@@ -3294,6 +3661,89 @@ func _input(event: InputEvent) -> void:
 			_close_top_menu()
 		elif event.keycode == KEY_F3:
 			_toggle_perf_overlay()
+		elif event.keycode == KEY_F6 and OS.has_feature("editor"):
+			_debug_warp_rounds(5 if not event.shift_pressed else -5)
+		elif event.keycode == KEY_F7 and OS.has_feature("editor"):
+			_debug_warp_rounds(1 if not event.shift_pressed else -1)
+
+# ── F6/F7: playtest warp (2026-08-04) ────────────────────────────────────────
+# Boss/elite work can only be judged by WATCHING it, and the arena harness is
+# headless — it can verify balance but can never show a beat. Reaching round 20
+# by playing 19 rounds first made every boss iteration unaffordable, so:
+#
+#   F6         → jump forward to the next multiple of 5
+#   Shift+F6   → back to the previous multiple of 5
+#   F7 / Shift+F7 → ±1 round (for the round either side of a boss)
+#
+# Multiples of 5 because that's exactly where the content is: elites on
+# 5/15/25/…, bosses on 10/20/30/…. F6 from round 1 lands on 5, then 10, then 15.
+#
+# Heroes are scaled to ~0.8x the round, which is the middle of the recorded
+# wave-20 arena band (lvl 9 = 25% win, lvl 16 = 100%) — a fair fight, not a
+# walkover. Deliberately IGNORES Progression.hero_level_cap() (see the level_up
+# loop below for how and why).
+#
+# ⚠️ Levels only ever go UP. Warping BACKWARDS leaves heroes at the higher level,
+# so a backward hop is an easier fight than reaching that round normally. Fine
+# for "let me see that beat again", misleading for judging difficulty — restart
+# the run if you need an honest read on a lower round.
+#
+# Debug-only and intentionally not surfaced in the UI. It reuses the same
+# battle_round + start_battle_round() pair the save-resume path uses (see
+# _restore_run), so the prep phase, wave preview, biome, rails and reward rolls
+# all regenerate exactly as they would on a normally-reached round.
+const DEBUG_WARP_LEVEL_PER_ROUND := 0.8
+
+func _debug_warp_rounds(delta: int) -> void:
+	if not game_state:
+		return
+	var cur: int = game_state.battle_round
+	var target: int
+	if absi(delta) == 5:
+		# Snap to the next/previous multiple of 5 rather than blindly adding 5,
+		# so repeated presses stay locked to the elite/boss cadence even after
+		# an odd ±1 nudge with F7.
+		target = (int(floor(float(cur) / 5.0)) + (1 if delta > 0 else -1)) * 5
+		if delta > 0 and target <= cur:
+			target = cur + 5
+	else:
+		target = cur + delta
+	target = clampi(target, 1, VICTORY_ROUND)
+	if target == cur:
+		return
+
+	var lvl: int = maxi(1, int(round(float(target) * DEBUG_WARP_LEVEL_PER_ROUND)))
+	var scaled: int = 0
+	for u in player_units + bench_units:
+		if not (u and is_instance_valid(u) and u.has_method("level_up")):
+			continue
+		# level_up() in a loop, NOT set_level(): set_level clamps player heroes to
+		# Progression.hero_level_cap() (10 by default), which would quietly field
+		# level-10 heroes at round 50 and read as "this boss is impossible"
+		# instead of "the warp clamped you". Verified by warp_smoke.
+		while u.level < lvl:
+			u.level_up(true)   # explicit cap bypass — see UnitBase.level_up()
+		u.current_hp = u.max_hp
+		scaled += 1
+
+	# Player level drives team size; without this a round-40 warp fields a
+	# round-1-sized team and the wave reads as absurdly overtuned.
+	game_state.player_level = maxi(game_state.player_level, 1 + int(target / 5))
+	_recompute_max_player_units()
+	# Enough gold to actually use the shop at the round you land on.
+	game_state.gold = maxi(game_state.gold, 50 * target)
+
+	game_state.battle_round = target - 1
+	game_state.start_battle_round()
+	_rebuild_bench_bar()
+	_rebuild_synergy_display()
+	update_team_health_bars()
+	update_ui()
+	var msg := "WARP → round %d (heroes lvl %d, %d scaled)" % [target, lvl, scaled]
+	if scaled == 0:
+		msg += " — no heroes yet, recruit some (B) before fighting"
+	info_label.text = msg
+	print("[DEBUG] %s" % msg)
 
 # F3 debug overlay: FPS / process ms / live node count, updated 4x/sec from the
 # combat-UI throttle tick. Added with the 2026-07-04 perf fix so lag reports
@@ -3305,7 +3755,7 @@ func _toggle_perf_overlay() -> void:
 		add_child(layer)
 		_perf_overlay_lbl = Label.new()
 		_perf_overlay_lbl.position = Vector2(8, 4)
-		_perf_overlay_lbl.add_theme_font_size_override("font_size", 14)
+		UITheme.apply_font(_perf_overlay_lbl, UITheme.FONT_BODY)
 		_perf_overlay_lbl.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
 		_perf_overlay_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 		_perf_overlay_lbl.add_theme_constant_override("outline_size", 4)
@@ -3357,7 +3807,7 @@ func _build_pause_menu() -> void:
 	title.text = "PAUSED"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.position = Vector2(0, 24); title.size = Vector2(360, 40)
-	title.add_theme_font_size_override("font_size", UITheme.body_font(32))
+	UITheme.apply_font(title, UITheme.body_font(32))
 	title.add_theme_color_override("font_color", Color(0.95, 0.82, 0.5))
 	panel.add_child(title)
 
@@ -3370,7 +3820,7 @@ func _build_pause_menu() -> void:
 	for e in entries:
 		var b := Button.new()
 		b.text = e[0]; b.position = Vector2(60, y); b.size = Vector2(240, 52)
-		b.add_theme_font_size_override("font_size", 28)
+		UITheme.apply_font(b, UITheme.FONT_HEADER)
 		UITheme.style_button(b)
 		b.pressed.connect(e[1])
 		panel.add_child(b)
@@ -3436,6 +3886,7 @@ func _update_row_tooltip() -> void:
 	# layer 1 — so an un-listed modal gets covered by it, not the other way
 	# around; see relic_screen "icon overlap" report, 2026-07-05).
 	if (_hero_shop and _hero_shop.visible) \
+			or (_shop_screen and _shop_screen.visible) \
 			or (_level_up_screen and _level_up_screen.visible) \
 			or (_round_reward_screen and _round_reward_screen.visible) \
 			or (_equipment_panel and _equipment_panel.visible) \
@@ -3626,6 +4077,21 @@ func _build_left_panel() -> void:
 	_rebuild_bench_bar()
 	sv.add_child(_sb_sep())
 
+	# Auto-Combine toggle (2026-08-06 user spec): sits between BENCH and BAG.
+	# While on, EquipmentInventory fuses any 3 same-rarity items the instant a
+	# 3rd one lands in the bag (see EquipmentInventory.auto_combine).
+	var auto_combine_check := CheckButton.new()
+	auto_combine_check.text = "Auto-Combine"
+	UITheme.apply_font(auto_combine_check, UITheme.FONT_VALUE)
+	auto_combine_check.tooltip_text = "Fuse 3 same-rarity items automatically whenever you pick up loot"
+	auto_combine_check.button_pressed = _equipment_inventory.auto_combine
+	auto_combine_check.toggled.connect(func(pressed: bool):
+		_equipment_inventory.set_auto_combine(pressed)
+		_rebuild_inventory_grid()
+	)
+	sv.add_child(auto_combine_check)
+	sv.add_child(_sb_sep())
+
 	sv.add_child(_sb_heading("BAG"))
 
 	_inventory_grid = GridContainer.new()
@@ -3655,7 +4121,7 @@ func _build_right_panel() -> void:
 	gold_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gold_row.add_child(UITheme.currency_icon("coin"))
 	econ.add_child(gold_row)
-	gold_label.add_theme_font_size_override("font_size", 21)
+	UITheme.apply_font(gold_label, UITheme.FONT_HEADER)
 	gold_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gold_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	gold_label.reparent(gold_row)
@@ -3665,7 +4131,7 @@ func _build_right_panel() -> void:
 	crystals_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	crystals_row.add_child(UITheme.currency_icon("gem"))
 	econ.add_child(crystals_row)
-	crystals_label.add_theme_font_size_override("font_size", 21)
+	UITheme.apply_font(crystals_label, UITheme.FONT_HEADER)
 	crystals_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	crystals_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	crystals_label.reparent(crystals_row)
@@ -3674,7 +4140,7 @@ func _build_right_panel() -> void:
 	# one HBox left ~130px each, too narrow for "Round: 1 · Lv 1 · Team 0/4" —
 	# it overflowed into state_label's slot and both got hard-clipped by the
 	# panel's edge. Each now gets the full sidebar width on its own line.
-	round_label.add_theme_font_size_override("font_size", 17)
+	UITheme.apply_font(round_label, UITheme.FONT_VALUE)
 	round_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	round_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	round_label.clip_text = true   # ellipsize as a safety net at high round/level numbers
@@ -3690,7 +4156,7 @@ func _build_right_panel() -> void:
 	level_row.add_theme_constant_override("separation", 8)
 	level_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vb.add_child(level_row)
-	state_label.add_theme_font_size_override("font_size", 17)
+	UITheme.apply_font(state_label, UITheme.FONT_VALUE)
 	state_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	state_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	state_label.modulate = Color.WHITE
@@ -3788,7 +4254,7 @@ func _build_right_panel() -> void:
 
 	# Info strip at bottom of the outer VBox (outside scroll)
 	vb.add_child(_sb_sep())
-	info_label.add_theme_font_size_override("font_size", 12)
+	UITheme.apply_font(info_label, UITheme.FONT_VALUE)
 	info_label.add_theme_color_override("font_color", Color(0.58, 0.58, 0.68, 1))
 	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info_label.reparent(vb)
@@ -3807,7 +4273,7 @@ func _make_sb_lbl(placeholder: String) -> Label:
 	var lbl := Label.new()
 	lbl.text = placeholder
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lbl.add_theme_font_size_override("font_size", 20)
+	UITheme.apply_font(lbl, UITheme.FONT_VALUE)
 	lbl.add_theme_color_override("font_color", Color(0.70, 0.70, 0.80))
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return lbl
@@ -3832,7 +4298,7 @@ func _rebuild_synergy_display() -> void:
 	if _synergy_tracker.active.is_empty():
 		var ph := Label.new()
 		ph.text = "Match elements or stack a\nrole to trigger synergies"
-		ph.add_theme_font_size_override("font_size", 20)
+		UITheme.apply_font(ph, UITheme.FONT_VALUE)
 		ph.add_theme_color_override("font_color", Color(0.42, 0.42, 0.52, 1))
 		ph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		ph.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -3852,7 +4318,7 @@ func _rebuild_synergy_display() -> void:
 		row.add_child(pip)
 
 		var lbl := Label.new()
-		lbl.add_theme_font_size_override("font_size", 20)
+		UITheme.apply_font(lbl, UITheme.FONT_VALUE)
 		if tier == 0:
 			# Below the first threshold — show progress toward it, not a bonus
 			# that isn't active yet (2026-07-06 user request: a single matching
@@ -4029,7 +4495,7 @@ func _sb_margin(parent: Control) -> MarginContainer:
 func _sb_heading(text: String) -> Label:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", UITheme.header_font(15))
+	UITheme.apply_font(lbl, UITheme.header_font(15))
 	lbl.add_theme_color_override("font_color", _GOLD_COL)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	# UI theme pass 2026-07-03: header plate from the dobo pack behind the text.
@@ -4072,7 +4538,7 @@ func _build_item_tooltip() -> void:
 	mg.add_child(vb)
 
 	_item_tip_name_lbl = Label.new()
-	_item_tip_name_lbl.add_theme_font_size_override("font_size", 18)
+	UITheme.apply_font(_item_tip_name_lbl, UITheme.FONT_HEADER)
 	vb.add_child(_item_tip_name_lbl)
 
 	var sep := HSeparator.new()
@@ -4086,13 +4552,13 @@ func _build_item_tooltip() -> void:
 	vb.add_child(_item_tip_stats_vb)
 
 	_item_tip_passive_lbl = Label.new()
-	_item_tip_passive_lbl.add_theme_font_size_override("font_size", 22)
+	UITheme.apply_font(_item_tip_passive_lbl, UITheme.FONT_HEADER)
 	_item_tip_passive_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.30))
 	_item_tip_passive_lbl.visible = false
 	vb.add_child(_item_tip_passive_lbl)
 
 	_item_tip_passive_desc = Label.new()
-	_item_tip_passive_desc.add_theme_font_size_override("font_size", 22)
+	UITheme.apply_font(_item_tip_passive_desc, UITheme.FONT_VALUE)
 	_item_tip_passive_desc.add_theme_color_override("font_color", Color(0.70, 0.70, 0.82))
 	_item_tip_passive_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_item_tip_passive_desc.custom_minimum_size = Vector2(304, 0)
@@ -4100,7 +4566,7 @@ func _build_item_tooltip() -> void:
 	vb.add_child(_item_tip_passive_desc)
 
 	_item_tip_hint_lbl = Label.new()
-	_item_tip_hint_lbl.add_theme_font_size_override("font_size", 18)
+	UITheme.apply_font(_item_tip_hint_lbl, UITheme.FONT_VALUE)
 	_item_tip_hint_lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.68))
 	_item_tip_hint_lbl.visible = false
 	vb.add_child(_item_tip_hint_lbl)
@@ -4136,7 +4602,7 @@ func _show_item_tooltip(item: EquipmentItem, mouse_pos: Vector2, hint: String = 
 				lbl.text = "+%.2f  %s" % [raw, STAT_NAMES.get(stat, stat.to_upper())]
 			else:
 				lbl.text = "+%d  %s" % [int(raw), STAT_NAMES.get(stat, stat.to_upper())]
-			lbl.add_theme_font_size_override("font_size", 26)
+			UITheme.apply_font(lbl, UITheme.FONT_HEADER)
 			lbl.add_theme_color_override("font_color", Color(0.82, 0.96, 0.72))
 			_item_tip_stats_vb.add_child(lbl)
 
@@ -4190,12 +4656,12 @@ func _build_relic_tooltip() -> void:
 	mg.add_child(vb)
 
 	_relic_tip_name_lbl = Label.new()
-	_relic_tip_name_lbl.add_theme_font_size_override("font_size", RELIC_TIP_NAME_FONT_SIZE)
+	UITheme.apply_font(_relic_tip_name_lbl, RELIC_TIP_NAME_FONT_SIZE)
 	_relic_tip_name_lbl.add_theme_color_override("font_color", Color(0.90, 0.86, 0.74))
 	vb.add_child(_relic_tip_name_lbl)
 
 	_relic_tip_desc_lbl = Label.new()
-	_relic_tip_desc_lbl.add_theme_font_size_override("font_size", RELIC_TIP_DESC_FONT_SIZE)
+	UITheme.apply_font(_relic_tip_desc_lbl, RELIC_TIP_DESC_FONT_SIZE)
 	_relic_tip_desc_lbl.add_theme_color_override("font_color", Color(0.70, 0.70, 0.82))
 	_relic_tip_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_relic_tip_desc_lbl.custom_minimum_size = Vector2(174, 0)
@@ -4310,7 +4776,7 @@ func _sb_accordion(title: String, body: Control, open: bool = false) -> Button:
 	var btn := Button.new()
 	btn.text      = title + ("  ▼" if open else "  ▶")
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.add_theme_font_size_override("font_size", UITheme.header_font(20))
+	UITheme.apply_font(btn, UITheme.header_font(20))
 	btn.add_theme_color_override("font_color", _GOLD_COL)
 	# UI theme pass 2026-07-03: dobo header plate for section accordions.
 	# NOT flat — flat buttons only draw a stylebox while hovered/pressed/

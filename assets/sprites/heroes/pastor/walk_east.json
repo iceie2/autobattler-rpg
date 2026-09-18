@@ -1,0 +1,23 @@
+{
+  "frame_w": 256,
+  "frame_h": 256,
+  "count": 8,
+  "cols": 8,
+  "rows": 1,
+  "fps": 12,
+  "hero": "pastor",
+  "anim": "walk_east",
+  "source_video": "pastor_walk_east.mp4",
+  "oneshot": false,
+  "source_picks": [
+    80,
+    83,
+    85,
+    88,
+    90,
+    93,
+    95,
+    98
+  ],
+  "auto_selected": true
+}

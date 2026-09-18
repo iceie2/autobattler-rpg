@@ -18,3 +18,40 @@ __pycache__/
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Throwaway debug renders. These live outside res:// (../captures/) so Godot
+# never imports them — see scripts/tools/capture_paths.gd. This rule is a
+# backstop for anything that still lands in the project root or scratch/.
+/_*.png
+/_*.png.import
+/scratch/
+
+# --- 3D pipeline: SOURCE, not runtime -------------------------------------
+# CONVENTIONS.md section 0: raw generator output is source. Only the merged
+# runtime <name>.glb is loaded by the game. These stay on local disk; they are
+# deliberately not pushed, because they are ~5.2 GB against a 243 MB game and
+# would put the repo near GitHub's 5 GB limit.
+assets/3d pipeline/**/raw/
+assets/3d pipeline/**/source/
+assets/3d pipeline/**/review/
+assets/3d pipeline/**/review_runtime*/
+assets/3d pipeline/**/merge_input*/
+
+# Untouched Meshy exports that were never filed into a raw/ folder
+Meshy_AI_*
+
+# Per-iteration model versions and their companion textures/images.
+# The model a hero ACTUALLY uses is un-ignored explicitly below — several live
+# models legitimately carry a version suffix (sheildor_v043, rift_v014, ...),
+# so a blanket *_vNNN rule would silently drop them from the backup.
+*_v[0-9][0-9][0-9]*
+
+# Live models referenced by the game (scripts/scenes/data) — always backed up.
+!**/coal_v001.*
+!**/june_v002.*
+!**/rift_v013.*
+!**/rift_v014.*
+!**/sheildor_v038.*
+!**/sheildor_v043.*
+!**/static_v018.*
+!**/zolt_v001.*

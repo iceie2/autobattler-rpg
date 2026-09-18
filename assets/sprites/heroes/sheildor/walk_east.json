@@ -1,0 +1,23 @@
+{
+  "frame_w": 256,
+  "frame_h": 256,
+  "count": 8,
+  "cols": 8,
+  "rows": 1,
+  "fps": 12,
+  "hero": "sheildor",
+  "anim": "walk_east",
+  "source_video": "shielden_walk_east.mp4",
+  "oneshot": false,
+  "source_picks": [
+    80,
+    85,
+    91,
+    96,
+    101,
+    106,
+    112,
+    117
+  ],
+  "auto_selected": true
+}

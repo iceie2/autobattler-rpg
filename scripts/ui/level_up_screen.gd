@@ -3,36 +3,6 @@ class_name LevelUpScreen
 
 signal all_done
 
-# Hero sprite paths (matches VisualUnit.HERO_SPRITE_PATHS)
-const HERO_SPRITES: Dictionary = {
-	UnitBase.UnitClass.NEMI:       "res://assets/using/nemi.png",
-	UnitBase.UnitClass.BLOODHOUND: "res://assets/using/bloodhound.png",
-	UnitBase.UnitClass.BOUNCER:    "res://assets/using/bouncer.png",
-	UnitBase.UnitClass.HEADHUNTER: "res://assets/using/headhunter.png",
-	UnitBase.UnitClass.SHAUNA:     "res://assets/using/shauna.png",
-	UnitBase.UnitClass.RUSH:       "res://assets/using/rush.png",
-	UnitBase.UnitClass.SABLE:      "res://assets/using/sable.png",
-	UnitBase.UnitClass.STITCH:     "res://assets/using/stitch.png",
-	UnitBase.UnitClass.EMBER:      "res://assets/using/ember.png",
-	UnitBase.UnitClass.RIFT:       "res://assets/using/rift.png",
-	UnitBase.UnitClass.ZOLT:       "res://assets/using/zolt.png",
-	UnitBase.UnitClass.LUMEN:      "res://assets/using/lumen.png",
-	UnitBase.UnitClass.STATIC:     "res://assets/using/static.png",
-	UnitBase.UnitClass.SPORE:      "res://assets/using/spore.png",
-	UnitBase.UnitClass.CROSS:      "res://assets/using/cross.png",
-	UnitBase.UnitClass.SEAR:       "res://assets/using/sear.png",
-	UnitBase.UnitClass.DOC:        "res://assets/using/doc.png",
-	UnitBase.UnitClass.RIOT:       "res://assets/using/riot.png",
-	UnitBase.UnitClass.PASTOR:     "res://assets/using/pastor.png",
-	UnitBase.UnitClass.SHEILDOR:   "res://assets/using/sheildor.png",
-	UnitBase.UnitClass.LORDEE:     "res://assets/using/lordee.png",
-	UnitBase.UnitClass.VAIL:       "res://assets/using/vail.png",
-	UnitBase.UnitClass.COAL:       "res://assets/using/coal.png",
-	UnitBase.UnitClass.JUNE:       "res://assets/using/june.png",
-	UnitBase.UnitClass.NECRO:      "res://assets/using/necro.png",
-	UnitBase.UnitClass.REED:       "res://assets/using/reed.png",
-}
-
 # ── Radar chart (inner class) ─────────────────────────────────────────────────
 class RadarChart extends Control:
 	const SPOKES := 9
@@ -199,6 +169,7 @@ var _panel:      Panel       = null
 var _hero_lbl:   Label       = null
 var _level_lbl:  Label       = null
 var _portrait:   TextureRect = null
+var _portrait_anim: HeroPortrait = null
 var _stat_rows:  Array       = []   # [{val_lbl, prev_lbl}] one per STAT_DEFS entry
 var _radar:      RadarChart  = null
 var _card_btns:  Array       = []
@@ -246,12 +217,12 @@ func _show_hero(unit: UnitBase) -> void:
 	else:
 		_level_lbl.text = "Now level %d  ·  Choose a bonus stat" % unit.level
 
-	# Load sprite — TextureRect is 250×250 with STRETCH_KEEP_ASPECT_CENTERED
-	var sprite_path: String = HERO_SPRITES.get(unit.unit_class, "")
-	if sprite_path != "":
-		var tex := load(sprite_path) as Texture2D
-		if tex:
-			_portrait.texture = tex
+	# Portrait: HeroPortrait plays the idle animation when generated frames
+	# exist for this hero, and falls back to the static art itself otherwise —
+	# so the old static TextureRect is hidden here to avoid it showing through
+	# behind the (smaller) animated sprite.
+	_portrait.visible = false
+	_portrait_anim.setup(unit.unit_class)
 
 	var stats := _compute_stats(unit)
 	_refresh_stat_display(stats, stats, Color.WHITE)
@@ -423,7 +394,7 @@ func _build_ability_panel() -> void:
 		desc.position        = Vector2(ABIL_X + 10, ry + TITLE_H + 2.0)
 		desc.size            = Vector2(ABIL_W - 20, ABIL_ROW_H - TITLE_H - 6.0)
 		desc.mouse_filter    = Control.MOUSE_FILTER_IGNORE
-		desc.add_theme_font_size_override("normal_font_size", UITheme.body_font(16))
+		UITheme.apply_rich_font(desc, UITheme.body_font(16))
 		desc.add_theme_color_override("default_color", Color(0.68, 0.70, 0.84))
 		_panel.add_child(desc)
 
@@ -663,7 +634,7 @@ func _make_card(perk: Dictionary, pos: Vector2, idx: int) -> Button:
 	badge_lbl.size     = badge_bg.size
 	badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge_lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-	badge_lbl.add_theme_font_size_override("font_size", 22)
+	UITheme.apply_font(badge_lbl, UITheme.FONT_HEADER)
 	badge_lbl.add_theme_color_override("font_color", grade_col)
 	badge_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(badge_lbl)
@@ -693,7 +664,7 @@ func _make_card(perk: Dictionary, pos: Vector2, idx: int) -> Button:
 	var desc := Label.new()
 	desc.position             = Vector2(16, desc_y)
 	desc.size                 = Vector2(CARD_W - 32, DESC_H)
-	desc.add_theme_font_size_override("font_size", 18)
+	UITheme.apply_font(desc, UITheme.FONT_VALUE)
 	desc.add_theme_color_override("font_color", Color(0.72, 0.70, 0.82))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.vertical_alignment   = VERTICAL_ALIGNMENT_TOP
@@ -858,6 +829,12 @@ func _build_ui() -> void:
 	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_child(_portrait)
 
+	_portrait_anim = HeroPortrait.new()
+	_portrait_anim.position     = pbg_r.position
+	_portrait_anim.size         = pbg_r.size
+	_portrait_anim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(_portrait_anim)
+
 	# Stat list on right
 	const STAT_X  := 650.0
 	const ROW_H   := 26.0
@@ -902,7 +879,7 @@ func _lbl(parent: Control, text: String, size: int, color: Color,
 	l.text     = text
 	l.position = pos
 	l.size     = sz
-	l.add_theme_font_size_override("font_size", UITheme.body_font(size))
+	UITheme.apply_font(l, UITheme.body_font(size))
 	l.add_theme_color_override("font_color", color)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER if centered else HORIZONTAL_ALIGNMENT_LEFT
 	l.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER

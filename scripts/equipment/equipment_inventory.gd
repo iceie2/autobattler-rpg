@@ -15,6 +15,77 @@ func hero_item_cap() -> int:
 var items: Array[EquipmentItem] = []
 var hero_equipment: Dictionary = {}  # unit_id -> Array of EquipmentItem
 
+# Auto-Combine toggle (2026-08-06 user spec): while on, every item picked up
+# is checked against the bag and fused the moment 3 same-rarity items exist.
+# Off by default so nothing is consumed without opting in.
+var auto_combine: bool = false
+
+# When a triple's passive candidates exceed the result's cap, the player still
+# has a real choice to make (2026-08-06 follow-up) — the sweep pauses instead
+# of silently auto-picking, and the UI is expected to call resolve_auto_pick()
+# / cancel_auto_pick() once the player answers.
+signal auto_combine_pick_needed(sources: Array, candidates: Array, cap: int)
+var _pending_pick: bool = false
+
+func set_auto_combine(enabled: bool) -> void:
+	auto_combine = enabled
+	if auto_combine and not _pending_pick:
+		_auto_combine_sweep()
+
+# One-shot sweep for the equipment panel's own "Auto" button — same pause-and-
+# ask behavior as the persistent toggle, without turning the toggle on.
+func run_auto_combine_once() -> void:
+	if not _pending_pick:
+		_auto_combine_sweep()
+
+# Called by the UI once the player confirms which passives to keep on a
+# paused fusion. Resumes sweeping the rest of the bag afterward.
+func resolve_auto_pick(sources: Array[EquipmentItem], keep: Array) -> void:
+	var combined: EquipmentItem = EquipmentManager.combine_items(sources, keep)
+	if combined:
+		log_fusion(sources, EquipmentManager.passive_cap(sources[0].rarity + 1),
+				EquipmentManager.candidate_passives(sources), keep)
+		for it in sources:
+			items.erase(it)
+		items.append(combined)
+	_pending_pick = false
+	inventory_changed.emit()
+	if auto_combine:
+		_auto_combine_sweep()
+
+# Called by the UI if the player dismisses the pick without choosing — the
+# triple is left untouched in the bag; sweeping resumes on the next pickup.
+func cancel_auto_pick() -> void:
+	_pending_pick = false
+
+# Balance export (2026-08-05): one entry per fusion — {"cap", "available",
+# "picked"} — read by RunHistory to see if testers engage with the passive-pick
+# dialog or just default to whatever's auto-kept.
+var fusion_log: Array = []
+
+# Single logging point for EVERY fusion, wherever it happens (2026-08-07).
+# The log used to be written only by the manual Fuse button, and only when the
+# inputs offered passives — so auto-combine fusions and all Common→Uncommon
+# fusions (three Commons have no passives at all, since passives exist only on
+# combined gear) were invisible. A tester who fused dozens of items exported a
+# log with ONE entry, which read as "nobody uses combining" when the truth was
+# "the log can't see it". Every path calls this now.
+func log_fusion(sources: Array, cap: int, candidates: Array, picked: Array) -> void:
+	var available: Array = []
+	for c in candidates:
+		available.append(str(c["name"]))
+	var from_rarity: int = (sources[0] as EquipmentItem).rarity if not sources.is_empty() else -1
+	fusion_log.append({
+		"cap": cap,
+		"available": available,
+		"picked": picked.duplicate(),
+		# A fusion with no passive candidates is still a fusion — it just had
+		# nothing to choose. Recording it is the whole point.
+		"was_a_choice": candidates.size() > cap and cap > 0,
+		"from_rarity": from_rarity,
+		"to_rarity": from_rarity + 1,
+	})
+
 signal inventory_changed
 signal hero_equipment_changed(unit_id: String)
 
@@ -22,8 +93,54 @@ func add_item(item: EquipmentItem) -> bool:
 	if items.size() >= MAX_ITEMS:
 		return false
 	items.append(item)
+	if auto_combine and not _pending_pick:
+		_auto_combine_sweep()
 	inventory_changed.emit()
 	return true
+
+# Fuse every triple of same-rarity bag items it can find, cascading upward
+# (3 commons -> 1 uncommon can itself join 2 other uncommons, etc). Mixed item
+# types within a triple are allowed — same rule EquipmentManager.combine_items
+# already uses for manual Fuse. If a triple's passives exceed the result's
+# cap, the sweep PAUSES and asks the UI to let the player choose (see
+# auto_combine_pick_needed) instead of guessing for them.
+func _auto_combine_sweep() -> void:
+	while true:
+		var by_rarity: Dictionary = {}
+		for it in items:
+			var r: int = it.rarity
+			if r >= EquipmentItem.Rarity.LEGENDARY:
+				continue
+			if not by_rarity.has(r):
+				by_rarity[r] = []
+			by_rarity[r].append(it)
+
+		var triple: Array = []
+		for r in by_rarity:
+			if (by_rarity[r] as Array).size() >= 3:
+				triple = (by_rarity[r] as Array).slice(0, 3)
+				break
+		if triple.is_empty():
+			return
+
+		var sources: Array[EquipmentItem] = []
+		for it in triple:
+			sources.append(it as EquipmentItem)
+
+		var cap: int = EquipmentManager.passive_cap(sources[0].rarity + 1)
+		var candidates: Array = EquipmentManager.candidate_passives(sources)
+		if candidates.size() > cap and cap > 0:
+			_pending_pick = true
+			auto_combine_pick_needed.emit(sources, candidates, cap)
+			return
+
+		var combined: EquipmentItem = EquipmentManager.combine_items(sources)
+		if combined == null:
+			return
+		log_fusion(sources, cap, candidates, [])
+		for it in sources:
+			items.erase(it)
+		items.append(combined)
 
 func remove_item(item: EquipmentItem) -> bool:
 	if items.has(item):
@@ -100,6 +217,9 @@ func _apply_equipment_bonuses(unit: UnitBase, item: EquipmentItem) -> void:
 	unit.attack_damage += item.stat_bonus.get("atk", 0)
 	unit.magic_power += item.stat_bonus.get("magic", 0)
 	unit.resistance += item.stat_bonus.get("res", 0)
+	# "ten" is not rolled by any generator yet (2026-08-07) — wired here so gear
+	# CAN carry tenacity, and so the add/remove pair stays symmetric the day it does.
+	unit.tenacity += item.stat_bonus.get("ten", 0)
 	unit.attack_speed += item.stat_bonus.get("aspd", 0.0)
 	unit.hp_regen += item.stat_bonus.get("hpregen", 0.0)
 	unit.mana_regen += item.stat_bonus.get("manaregen", 0.0)
@@ -122,6 +242,7 @@ func _remove_equipment_bonuses(unit: UnitBase, item: EquipmentItem) -> void:
 	unit.attack_damage -= item.stat_bonus.get("atk", 0)
 	unit.magic_power -= item.stat_bonus.get("magic", 0)
 	unit.resistance -= item.stat_bonus.get("res", 0)
+	unit.tenacity = maxi(0, unit.tenacity - item.stat_bonus.get("ten", 0))
 	unit.attack_speed -= item.stat_bonus.get("aspd", 0.0)
 	unit.hp_regen -= item.stat_bonus.get("hpregen", 0.0)
 	unit.mana_regen -= item.stat_bonus.get("manaregen", 0.0)

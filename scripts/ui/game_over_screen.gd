@@ -75,7 +75,7 @@ func _build_ui() -> void:
 	skull_lbl.position = Vector2(0, 18)
 	skull_lbl.size = Vector2(560, 60)
 	skull_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	skull_lbl.add_theme_font_size_override("font_size", 56)
+	UITheme.apply_font(skull_lbl, UITheme.FONT_DISPLAY)
 	skull_lbl.add_theme_color_override("font_color", Color(0.75, 0.12, 0.12))
 	panel.add_child(skull_lbl)
 
@@ -127,7 +127,7 @@ func _build_ui() -> void:
 	btn.text = "Return to Main Menu"
 	btn.position = Vector2(155, 478)
 	btn.size = Vector2(250, 44)
-	btn.add_theme_font_size_override("font_size", 18)
+	UITheme.apply_font(btn, UITheme.FONT_HEADER)
 	btn.add_theme_color_override("font_color", Color(0.9, 0.9, 1.0))
 	btn.add_theme_stylebox_override("normal",
 		_flat(Color(0.22, 0.1, 0.1), Color(0.6, 0.2, 0.2), 2, 6))
@@ -151,7 +151,7 @@ func _lbl(parent: Node, text: String, sz: int, col: Color,
 		pos: Vector2, size: Vector2, center: bool = false) -> Label:
 	var l := Label.new()
 	l.text = text; l.position = pos; l.size = size
-	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
+	UITheme.apply_font(l, UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", col)
 	if center: l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	parent.add_child(l)

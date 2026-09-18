@@ -32,6 +32,13 @@ GODOT="/c/anything coding/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mon
 #    → "CEREMONY_SMOKE: ALL PASS". The boot smoke stops at round 1 and never
 #      reaches the between-round payout, so this drives it directly.
 
+# 3c. Grid bookkeeping (after touching placement / removal / movement / death):
+"$GODOT" --headless --fixed-fps 30 res://scenes/phantom_cell_test.tscn
+#    → "PHANTOM_CELL_TEST: ALL PASS". Guards the stranded-cell class of bug:
+#      occupied_cells entries left behind by a removal that missed become an
+#      invisible wall that blocks movement but not ranged attacks. Remove units
+#      with battle_grid.purge_unit(unit), NEVER remove_unit(unit.grid_position).
+
 # 4. Balance sim (after touching stats/numbers):
 "$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=sim \
   --team=SABLE:3,RIOT:3 --enemy=wave:5 --runs=5 --seed=42
@@ -46,6 +53,127 @@ GODOT="/c/anything coding/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mon
 #      Level 10 is the calibration anchor, so values there must match whatever
 #      the ability produced before your change unless you MEANT to retune it.
 ```
+
+```sh
+# 6. 3D character import (after merging or replacing any character .glb):
+#    FULL PIPELINE for converting a character to 3D: see ../3D_PIPELINE.md
+py -3 tools/model3d/glb_merge_anims.py "assets/3d pipeline/hero/<name>/raw" "assets/3d pipeline/hero/<name>/<name>.glb"     --tex 1024 --harden-bones RightHand,LeftHand
+#    --harden-bones is NOT optional for a Meshy rig with held/worn props. Its
+#    auto-rigging bleeds forearm influence into the gloves (measured 45-49% of
+#    glove verts sharing weight with the forearm), so they droop and lag instead
+#    of moving rigidly with the hand. Inspect any rig with:
+#      py -3 tools/model3d/glb_weights.py <file.glb> --bone RightHand
+#    Hardening lives INSIDE the merge on purpose: as a separate patch step, the
+#    next Meshy re-export would silently drop it.
+"$GODOT" --headless --path . --import --quit
+"$GODOT" --path . res://scenes/tools/model3d_probe.tscn -- model=res://"assets/3d pipeline/hero/<name>/<name>.glb"
+#    → prints the node tree, bone count and every clip's length, and writes
+#      res://_model3d_probe.png: one row per animation, 6 poses across the clip.
+#      LOOK AT THE SHEET. A rig that imports without errors can still be limp
+#      (no Skeleton3D → mesh doesn't deform) or mis-framed, and neither shows up
+#      in the log. Runs WINDOWED on purpose — --headless uses the dummy renderer
+#      and would write an empty sheet.
+```
+
+```sh
+# 7. 3D hero on the board (after touching Model3DSprite or HERO_MODEL_PATHS):
+"$GODOT" --path . res://scenes/tools/model3d_board_check.tscn
+#    → res://_model3d_board.png: the 3D hero in idle/walk/attack/hurt/death,
+#      a row of 2D heroes beneath it for size comparison, and an enemy-side copy
+#      to check facing. Errors if a hero silently fell back to 2D art or if
+#      plain_sprite isn't aimed at the model's inner sprite (which would leave
+#      the procedural layers — flash, squash, Long Fall toss — not reaching it).
+#      Windowed, same reason as check 6.
+
+# 7b. 2.5D frame cost (before converting more heroes to 3D):
+"$GODOT" --path . res://scenes/perf_probe.tscn -- --roster=BOUNCER
+"$GODOT" --path . res://scenes/perf_probe.tscn -- --roster=RUSH
+#    → 15 3D heroes vs 15 2D heroes in the real scene. Each 3D hero is its own
+#      SubViewport, so this is THE number that decides whether per-unit 3D
+#      viewports stay viable as the roster converts. Measured 2026-09-04:
+#      indistinguishable (~13-15ms avg both ways, RTX 3080). Run BOTH — frame
+#      times here are noisy, so a single run proves nothing.
+```
+
+```sh
+# 8. Hero recruitment (after touching ANY unit visual path or sprite loading):
+"$GODOT" --headless --path . --fixed-fps 30 res://scenes/recruit_smoke.tscn
+#    → "RECRUIT_SMOKE: ALL PASS (26 heroes)". Buying a hero is the only path
+#      that puts an ARBITRARY class into the tree, so it's where a missing sheet
+#      becomes a crash. The boot smoke only ever spawns the default roster and
+#      will not catch this: on 2026-09-04 five heroes (bouncer/cross/pastor/
+#      rush/static) crashed on recruit for weeks behind that gap.
+```
+
+```sh
+# 9. Board perspective (after touching BoardPerspective, BattleGrid geometry,
+#    or BackgroundLayer tile drawing):
+"$GODOT" --headless --path . res://scenes/perspective_smoke.tscn
+#    → "PERSPECTIVE_SMOKE: ALL PASS". Asserts world_to_grid(grid_to_world(c)) == c
+#      for every cell, that rows tile the board with no seam and still sum to the
+#      flat height, and that off-board points stay off-board. Cells are TRAPEZOIDS
+#      now — a rounding slip here shows up only as "drag sometimes drops in the
+#      wrong square", which no screenshot will reveal.
+#    BoardPerspective.FAR_SCALE = 1.0 is the kill switch: it restores the flat
+#    board exactly, and is the baseline to A/B against.
+```
+
+```sh
+# 10. Stretch punch (after touching Model3DSprite's stretch bake or its bones):
+"$GODOT" --path . res://scenes/tools/stretch_punch_check.tscn
+#    → "STRETCH_PUNCH: ALL PASS" + res://_stretch_punch.png filmstrip
+#      (top row stretch ON, bottom OFF). ASSERTS the hand actually gets further
+#      from the shoulder, because every failure mode here is silent: a wrong
+#      bone name, a missing track, or a bad track path just yields a normal
+#      punch with no error. It has already caught two — a runtime
+#      SkeletonModifier3D that lost to the AnimationPlayer, and a hand-built
+#      track path ("Skeleton3D:RightArm" instead of "Armature/Skeleton3D:RightArm")
+#      that resolved to nothing. Both measured exactly x1.00.
+```
+
+## 0. Where files go — CHECK BEFORE YOU CREATE
+
+**Never invent a directory.** An established one almost always exists, and a
+wrong guess propagates: `assets/3d pipeline/` already existed WITH the raw
+Bouncer exports in it, was missed once, and produced a duplicate
+`assets/models/boxing_bot/` plus ~450 MB of pointlessly imported source — and the
+wrong path had already been written into the pipeline doc that 25 more characters
+were going to follow.
+
+| what | where |
+|---|---|
+| Raw 3D generator output | `assets/3d pipeline/hero/<name>/raw/` (**must hold a `.gdignore`**) |
+| Merged runtime 3D model | `assets/3d pipeline/hero/<name>/<name>.glb` |
+| 2D sprite sheets | `assets/sprites/heroes/<name>/` |
+| Static hero / monster art | `assets/using/...` |
+| Python asset tools | `tools/<area>/` |
+| Dev-tool scripts / scenes | `scripts/tools/` + `scenes/tools/` |
+| Throwaway capture PNGs | `../captures/renders/` — **via `CapturePaths.out("<thing>.png")`, never a hardcoded path** |
+
+**Name things what the GAME calls them.** The hero is `bouncer`, so the model is
+`bouncer.glb` — matching `assets/sprites/heroes/bouncer/`. Generator-side names
+("boxing_bot", "Meshy_AI_orange_...") stay inside `raw/` and never reach a
+runtime filename or a code path.
+
+Raw generator output is SOURCE, not runtime: it belongs behind a `.gdignore` so
+Godot neither imports it nor caches it. Only the merged file is loaded.
+
+**Debug renders never go under `res://`.** This table used to say "project root,
+named `_<thing>.png`" and every new capture script copied its neighbour: by
+2026-09-18 the root held 107 stray PNGs + 113 `.import` sidecars (14 MB), each
+one also a permanent entry in a `.godot/` cache that had reached 2.1 GB. Nothing
+referenced any of them. Anything under `res://` gets imported, so the only fix
+that holds is writing outside the project:
+
+```gdscript
+var path := CapturePaths.out("june_vfx_aura.png")   # -> ../captures/renders/
+get_viewport().get_texture().get_image().save_png(path)
+```
+
+`scripts/tools/capture_paths.gd` owns the destination — change it there, not in
+the 40-odd call sites. A literal `"res://_*.png"` in a capture script is a bug.
+
+**If the right home isn't obvious from the table above, ASK. Do not guess.**
 
 A task is NOT done until the relevant checks above pass. Commit after each
 verified task; never commit with a failing check.
@@ -77,6 +205,10 @@ panel — it will silently render blank. The formula is
 `(base + ratio*STAT) * (1 + LVL_COEF*level)`, normalised so `CAL_LEVEL` (10, the
 base hero level cap) is power-neutral against the pre-registry code. Damage,
 heals and shields scale; proc chances, durations and CC deliberately do not.
+Discrete effect counts and percentages may scale when they are explicitly a
+hero's stat payoff. Stitch's Link is the precedent: MAG 0→500 floors network
+size from 3→6 enemies and per-target sharing from 15%→30%, keeping the formula
+panel and combat on the same whole targets and percentage points.
 
 Mob and legacy base-class skills (WARRIOR/RANGER/MONK/…) are NOT in the registry
 and still compute inline — they have no level-up screen, so they were left alone.

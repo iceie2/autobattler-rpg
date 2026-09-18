@@ -6,7 +6,7 @@ extends Node
 #
 #   godot --path . res://scenes/_heroshop_capture.tscn
 #
-# Writes res://_heroshop_check.png (a build artifact — don't commit it).
+# Writes user://_heroshop_check.png (a build artifact — don't commit it).
 # Needs a real window, so no --headless.
 
 func _ready() -> void:
@@ -32,6 +32,6 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(
-		ProjectSettings.globalize_path("res://_heroshop_check.png"))
+		ProjectSettings.globalize_path("user://_heroshop_check.png"))
 	print("CAPTURED hero shop")
 	get_tree().quit()

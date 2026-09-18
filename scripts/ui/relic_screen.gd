@@ -1,14 +1,15 @@
 extends CanvasLayer
 class_name RelicScreen
 
-# Forced pick-1-of-3 relic screen shown at the start of waves 1 / 11 / 21.
+# Forced pick-1-of-3 relic screen shown at the start of every 10th wave (1, 11, … 91).
 # Mirrors the gacha-card look of the hero shop / level-up screen: each card is
 # tinted by its rolled grade colour, with a grade badge in the corner.
 
 signal chosen(relic)
+signal reroll_requested()
 
 const PANEL_W := 1000.0
-const PANEL_H := 520.0
+const PANEL_H := 560.0
 const CARD_W  := 290.0
 const CARD_H  := 360.0
 
@@ -26,22 +27,47 @@ const REEL_GROWTH   := 1.22
 const REEL_DURATION := 0.62
 const CARD_STAGGER  := REEL_DURATION   # half of (identity + rank), i.e. one reel's duration
 
-var _panel:     Panel
-var _sub_lbl:   Label
-var _card_row:  HBoxContainer
+var _panel:      Panel
+var _sub_lbl:    Label
+var _card_row:   HBoxContainer
+var _reroll_btn: Button
+
+var _wave:            int = 0
+var _rerolls_left:    int = 0
 
 func _ready() -> void:
 	_build_ui()
 	visible = false
 
-func present(offers: Array, wave: int) -> void:
+# charges: how many free rerolls this visit gets (from the "+1 Reroll" crystal
+# tree upgrade — Progression.get_bonus("+1 Reroll")). Passed in rather than
+# read here so this screen stays decoupled from Progression.
+func present(offers: Array, wave: int, charges: int = 0) -> void:
 	visible = true
+	_wave = wave
+	_rerolls_left = charges
 	_sub_lbl.text = "Wave %d  ·  choose a relic — it lasts the rest of your run" % wave
+	_rebuild_cards(offers)
+	_refresh_reroll_btn()
+	_center_panel()
+
+# Called by main_game after it rolls fresh offers for a spent reroll charge.
+func set_offers(offers: Array, charges_left: int) -> void:
+	_rerolls_left = charges_left
+	_rebuild_cards(offers)
+	_refresh_reroll_btn()
+
+func _rebuild_cards(offers: Array) -> void:
 	for c in _card_row.get_children():
 		c.queue_free()
 	for i in range(offers.size()):
 		_card_row.add_child(_make_card(offers[i], i))
-	_center_panel()
+
+func _refresh_reroll_btn() -> void:
+	if not _reroll_btn:
+		return
+	_reroll_btn.visible = _rerolls_left > 0
+	_reroll_btn.text = "↻ Reroll (%d left)" % _rerolls_left
 
 # ── Card builder ──────────────────────────────────────────────────────────────
 func _make_card(relic: Dictionary, idx: int) -> Button:
@@ -74,7 +100,7 @@ func _make_card(relic: Dictionary, idx: int) -> Button:
 	badge_lbl.size     = badge_bg.size
 	badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge_lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-	badge_lbl.add_theme_font_size_override("font_size", 28)
+	UITheme.apply_font(badge_lbl, UITheme.FONT_HEADER)
 	badge_lbl.add_theme_color_override("font_color", grade_col)
 	badge_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(badge_lbl)
@@ -107,7 +133,7 @@ func _make_card(relic: Dictionary, idx: int) -> Button:
 	var desc := Label.new()
 	desc.position             = Vector2(24, 182)
 	desc.size                 = Vector2(CARD_W - 48, 140)
-	desc.add_theme_font_size_override("font_size", 28)
+	UITheme.apply_font(desc, UITheme.FONT_VALUE)
 	desc.add_theme_color_override("font_color", Color(0.82, 0.82, 0.92))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.vertical_alignment   = VERTICAL_ALIGNMENT_TOP
@@ -205,6 +231,13 @@ func _build_ui() -> void:
 	_card_row.size      = Vector2(PANEL_W, CARD_H)
 	_panel.add_child(_card_row)
 
+	_reroll_btn = Button.new()
+	_reroll_btn.text = "↻ Reroll"
+	_reroll_btn.position = Vector2(PANEL_W / 2.0 - 90, PANEL_H - 56)
+	_reroll_btn.size     = Vector2(180, 40)
+	_reroll_btn.pressed.connect(func(): reroll_requested.emit())
+	_panel.add_child(_reroll_btn)
+
 	_center_panel()
 
 func _center_panel() -> void:
@@ -226,7 +259,7 @@ func _lbl(parent: Control, text: String, size: int, color: Color,
 	l.text     = text
 	l.position = pos
 	l.size     = sz
-	l.add_theme_font_size_override("font_size", UITheme.body_font(size))
+	UITheme.apply_font(l, UITheme.body_font(size))
 	l.add_theme_color_override("font_color", color)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER if centered else HORIZONTAL_ALIGNMENT_LEFT
 	l.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER

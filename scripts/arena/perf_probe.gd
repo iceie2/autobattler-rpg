@@ -18,7 +18,23 @@ const HERO_CLASSES := [
 ]
 const SAMPLE_SECONDS := 6.0
 
+# 2.5D cost check (2026-09-04): pass `-- --roster=BOUNCER` to fill all 15 slots
+# with one class. Every hero in HERO_MODEL_PATHS renders through its own 3D
+# SubViewport, so a 15-BOUNCER board is the worst case for the 2D→2.5D switch —
+# compare it against `--roster=RUSH` (a 2D hero) on the SAME run length.
+# Must be run WINDOWED for that comparison: headless has no GPU, which is
+# exactly the cost a per-unit 3D viewport adds.
 var mg = null
+
+func _roster() -> Array:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--roster="):
+			var only := a.substr(9)
+			var out := []
+			for i in HERO_CLASSES.size():
+				out.append(only)
+			return out
+	return HERO_CLASSES
 
 func _ready() -> void:
 	var mg_scene := load("res://scenes/main_game.tscn") as PackedScene
@@ -33,7 +49,7 @@ func _ready() -> void:
 	mg.max_player_units = 30
 	var placed := 0
 	var keys: PackedStringArray = UnitBase.UnitClass.keys()
-	for cname in HERO_CLASSES:
+	for cname in _roster():
 		var cls: int = keys.find(cname)
 		if cls < 0:
 			continue

@@ -84,6 +84,14 @@ func _test_purchase() -> void:
 	print("purchase path:")
 	Progression.upgrade_levels.clear()
 	Progression.crystals = 100000
+	# Tree parents are PREREQUISITES: hero_unlock_pastor hangs off "max_level",
+	# so buying it from an empty tree is refused by is_locked(). This test
+	# predates that gate and was silently failing all five of its checks; grant
+	# the parent so it exercises the purchase path it means to (2026-08-07).
+	var granted_cost := 0
+	for parent: String in Progression._tree_parents.get("hero_unlock_pastor", []):
+		granted_cost += Progression.next_cost(parent)
+		Progression.upgrade_levels[parent] = 1
 	var cost := Progression.next_cost("hero_unlock_pastor")
 	_check(cost > 10, "generated cost_mult reached next_cost (%dc)" % cost)
 	var before := Progression.crystals
@@ -92,7 +100,9 @@ func _test_purchase() -> void:
 	_check(Progression.next_cost("hero_unlock_pastor") == -1, "maxed at 1 level")
 	_check(Progression.is_hero_unlocked(UnitBase.UnitClass.PASTOR),
 		"hero unlock takes effect")
-	_check(Progression.total_spent() == cost, "total_spent replays the generated cost")
+	# total_spent replays EVERY owned level, including the prereq granted above.
+	_check(Progression.total_spent() == cost + granted_cost,
+		"total_spent replays the generated cost")
 	Progression.upgrade_levels.clear()
 
 func _test_level_cap() -> void:

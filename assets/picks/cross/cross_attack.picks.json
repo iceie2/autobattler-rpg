@@ -1,0 +1,84 @@
+{
+  "version": 2,
+  "hero": "cross",
+  "video": "cross_attack.mp4",
+  "animations": {
+    "walk_north": {
+      "folder": "walk_north",
+      "anim": "walk_north",
+      "totalFrames": 240,
+      "pickedOrder": [
+        80,
+        84,
+        88,
+        92,
+        97,
+        101,
+        105,
+        109
+      ],
+      "offsets": {}
+    },
+    "walk_east": {
+      "folder": "walk_east",
+      "anim": "walk_east",
+      "totalFrames": 240,
+      "pickedOrder": [
+        80,
+        84,
+        89,
+        93,
+        98,
+        102,
+        107,
+        111
+      ],
+      "offsets": {}
+    },
+    "idle_south": {
+      "folder": "idle_south",
+      "anim": "idle_south",
+      "totalFrames": 240,
+      "pickedOrder": [
+        80,
+        81,
+        82,
+        83,
+        85,
+        86,
+        87,
+        88
+      ],
+      "offsets": {}
+    },
+    "attack": {
+      "folder": "attack",
+      "anim": "attack",
+      "totalFrames": 240,
+      "pickedOrder": [
+        11,
+        14,
+        17,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        30,
+        31,
+        32,
+        35,
+        38,
+        40,
+        42,
+        44,
+        46
+      ],
+      "offsets": {}
+    }
+  }
+}

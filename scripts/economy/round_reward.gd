@@ -13,13 +13,13 @@ enum Type { NOTHING, GOLD, ITEM, STAT_BONUS }
 # Odds per difficulty (weights, need not sum to 100). Higher difficulty skews
 # away from "nothing" and toward the rarer item/stat-bonus rewards.
 # Balance 2026-07-24 (user request): fighting the harder wave for NORMAL/HARD
-# must always pay off — NOTHING only exists on EASY now. Its old NORMAL/HARD
+# must always pay off — NOTHING only exists on NORMAL now. Its old VETERAN/BRUTAL
 # weight (20 / 5) folded proportionally into GOLD/ITEM/STAT_BONUS so those
 # tables still sum the same as before, just with the whiff removed.
 const ODDS := {
-	WaveScaler.Difficulty.EASY:   {Type.NOTHING: 40, Type.GOLD: 40, Type.ITEM: 15, Type.STAT_BONUS: 5},
-	WaveScaler.Difficulty.NORMAL: {Type.GOLD: 44, Type.ITEM: 38, Type.STAT_BONUS: 18},
-	WaveScaler.Difficulty.HARD:   {Type.GOLD: 26, Type.ITEM: 42, Type.STAT_BONUS: 32},
+	WaveScaler.Difficulty.NORMAL:   {Type.NOTHING: 40, Type.GOLD: 40, Type.ITEM: 15, Type.STAT_BONUS: 5},
+	WaveScaler.Difficulty.VETERAN: {Type.GOLD: 44, Type.ITEM: 38, Type.STAT_BONUS: 18},
+	WaveScaler.Difficulty.BRUTAL:   {Type.GOLD: 26, Type.ITEM: 42, Type.STAT_BONUS: 32},
 }
 
 const TYPE_NAMES := {
@@ -51,7 +51,7 @@ static func describe(reward: Dictionary) -> String:
 			return ""
 
 static func roll(difficulty: int, round: int) -> Dictionary:
-	var odds: Dictionary = ODDS.get(difficulty, ODDS[WaveScaler.Difficulty.EASY])
+	var odds: Dictionary = ODDS.get(difficulty, ODDS[WaveScaler.Difficulty.NORMAL])
 	var total := 0
 	for w in odds.values():
 		total += int(w)
@@ -71,10 +71,10 @@ static func roll(difficulty: int, round: int) -> Dictionary:
 			# heroes, ~1g kills). These now rain onto the field as physical
 			# coins at victory and get vacuumed with the rest.
 			var base: float = 2.0 + round * 0.4
-			var mult: float = 1.0 + difficulty * 0.5   # EASY 1.0x, NORMAL 1.5x, HARD 2.0x
+			var mult: float = 1.0 + difficulty * 0.5   # NORMAL 1.0x, VETERAN 1.5x, BRUTAL 2.0x
 			result["gold"] = maxi(1, int(base * mult))
 		Type.ITEM:
-			var max_rarity: int = EquipmentItem.Rarity.EPIC if difficulty == WaveScaler.Difficulty.HARD else EquipmentItem.Rarity.RARE
+			var max_rarity: int = EquipmentItem.Rarity.EPIC if difficulty == WaveScaler.Difficulty.BRUTAL else EquipmentItem.Rarity.RARE
 			result["item"] = EquipmentManager.generate_item(round, max_rarity)
 		Type.STAT_BONUS:
 			# ONE gacha-graded perk, rolled once and shown in full on the

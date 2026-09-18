@@ -20,7 +20,7 @@ extends Node
 #       --levels=1,3,6,9 --runs=5
 #   Enemy can be an explicit list too:  --enemy=goblin:3,orc_earth:5,hill_giant:4
 #   Optional: --out=user://arena_result.json  --max-sim-seconds=120
-#             --difficulty=easy|normal|hard (wave enemies only)
+#             --difficulty=normal|veteran|brutal (wave enemies only)
 #             --element=FIRE (team-wide hero element override; default is each
 #               hero's own fixed element)
 #             --formation=default|front|clump|spread|split (sim mode only —
@@ -61,11 +61,16 @@ const MINION_CLASSES := [
 # Keep this honest: only add entries after reading the implementation.
 const EXPECTED_SILENT := {
 	"NECRO":     {"passive": "Soul Harvest needs living summons nearby"},
+	"NEMI":      {"ultimate": "Tidal Wave now travels the board over several seconds (_tick_nemi_tidal_waves); damage lands on later ticks, not within the single force-cast frame the probe measures"},
 	"SEAR":      {"passive": "fire trail only spawns while moving"},
 	"RUSH":      {"passive": "momentum builds from movement"},
-	"HEADHUNTER": {"passive": "crit logic lives inside attack() — see on_hit"},
+	"HEADHUNTER": {"passive": "crit logic lives inside attack() — see on_hit",
+		"ultimate": "Snipe now channels for HEADHUNTER_AIM_DURATION before firing (headhunter_aim_time gate in _tick_unit); damage lands via _headhunter_fire_snipe on a later tick, not within the single force-cast frame the probe measures"},
 	"SHAUNA":    {"passive": "kite logic reacts to enemy proximity while moving"},
-	"STITCH":    {"passive": "Loose Threads reacts to a linked ally taking damage"},
+	"STITCH":    {
+		"passive": "Threadguard converts transferred and rupture damage into shield",
+		"ultimate": "Unravel resolves through a timed 0.75s rupture sequence",
+	},
 	# Kits verified in another probe phase — the _tick_passive phase is
 	# rightfully a no-op for them (audited 2026-07-03, see balance journal):
 	"SABLE":     {"passive": "Momentum is on-hit — verified in on_hit phase"},
@@ -177,7 +182,13 @@ const EXPECTED_SILENT := {
 	# Air/Water decade anchors (2026-08-02, wave 11-20 / 21-30).
 	"sky_wyvern": {"passive": "Wounded Dive (reused from Bear's Fury) ramps with missing HP — silent at full HP in probe"},
 	"tidepool_horror": {"passive": "Deathgrip (reused from Goblin Archer's Focus Fire) is on-hit (see on_hit result), not a per-frame passive"},
-	"harpy": {"passive": "Windborne is a flat equipment_passives[\"Evasion\"] roll applied inside take_damage, not a per-frame passive — same shape as the Gale Warden's, which it foreshadows; its kit is the Talon Rake skill"},
+	# on_being_hit added 2026-09-17: same probabilistic dodge already documented
+	# for the Gale Warden. The Harpy's 12% Evasion can simply miss the probe's
+	# single test hit, leaving no world-state change, so the gate reported an
+	# intermittent phantom "1 silent" that moved with the RNG stream (the Warden's
+	# own note already warns that the stream position alone is enough to flip it).
+	"harpy": {"passive": "Windborne is a flat equipment_passives[\"Evasion\"] roll applied inside take_damage, not a per-frame passive — same shape as the Gale Warden's, which it foreshadows; its kit is the Talon Rake skill",
+		"on_being_hit": "12% evasion can dodge the probe's single test hit — genuinely intermittent, not a missing kit"},
 	"coral_husk": {"passive": "Slow Tide (reused from Wind-Up Bot's Overclock) ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff"},
 	"gravekeeper": {"passive": "no per-frame passive by design — Grave Call is an on-DEATH hook on the OTHER side (gravekeeper meta → AutoBattleManager.gravekeeper_raise_shade, fired from VisualUnit.die()), and nothing dies in a passive probe window; verified instead by the dedicated shade test (raises detuned shades, caps at GRAVE_SHADE_MAX, shades never re-raise)"},
 	"arcfang": {"passive": "Thunder Run fires on a ARCFANG_BLINK_INTERVAL (10s) timer — far longer than this probe's fixed 3-second passive window, so the first blink legitimately hasn't happened yet; verified instead by the dedicated blink test (2×2 body teleports beside the highest-damage hero, all 4 footprint cells stay registered)"},
@@ -214,6 +225,10 @@ func _ready() -> void:
 			result = await _run_powerrank(args)
 		"power":
 			result = _run_power(args)
+		"xpcurve":
+			result = _run_xpcurve(args)
+		"goldcurve":
+			result = _run_goldcurve(args)
 		_:
 			result = {"error": "unknown mode '%s'" % mode}
 			_had_failures = true
@@ -228,6 +243,29 @@ func _ready() -> void:
 			f.store_string(json)
 			f.close()
 	get_tree().quit(1 if _had_failures else 0)
+
+# Difficulty tiers were renamed 2026-08-07 (easy/normal/hard →
+# normal/veteran/brutal). The rename SHIFTED meanings: "normal" used to be tier
+# 1 and is now tier 0, so a stale `--difficulty=normal` in an old script or note
+# would silently measure a different tier and quietly invalidate a comparison.
+# Legacy names are therefore rejected LOUDLY rather than mapped.
+const _DIFF_NAMES := {"normal": 0, "veteran": 1, "brutal": 2}
+const _DIFF_LEGACY := {"easy": "normal", "medium": "veteran", "hard": "brutal"}
+
+func _difficulty_from_args(args: Dictionary, fallback: String) -> int:
+	var raw := String(args.get("difficulty", fallback)).to_lower()
+	if _DIFF_NAMES.has(raw):
+		return int(_DIFF_NAMES[raw])
+	if _DIFF_LEGACY.has(raw):
+		push_error(("arena: --difficulty=%s is a RETIRED tier name. Tiers are now "
+			+ "normal/veteran/brutal; note that 'normal' shifted from tier 1 to "
+			+ "tier 0, so do not blind-swap. You probably want '%s'.")
+			% [raw, _DIFF_LEGACY[raw]])
+		_had_failures = true
+		return int(_DIFF_NAMES[_DIFF_LEGACY[raw]])
+	push_error("arena: unknown --difficulty=%s (expected normal/veteran/brutal)" % raw)
+	_had_failures = true
+	return 0
 
 func _parse_args() -> Dictionary:
 	var out := {}
@@ -274,12 +312,28 @@ func _wire_unit(u: VisualUnit) -> void:
 	u.damage_text_container = dmg_root
 	u.died.connect(_on_arena_unit_died.bind(u))
 
+# Death ledger for the current run (2026-08-07). A tester run showed the arena
+# scoring a WIN for three level-1 heroes against the 970k-HP wave-100 Architect
+# while the live game wiped a full team on the same fight — so "the enemy list
+# emptied" is NOT trustworthy evidence that the player killed anything. Every
+# death now records the HP the unit held when it left the board: a unit leaving
+# with current_hp > 0 was removed by a mechanic, not killed, and that is a
+# harness bug the sim must refuse to score. See _validate_run().
+var _deaths: Array = []
+
 func _on_arena_unit_died(u) -> void:
+	if u and is_instance_valid(u):
+		_deaths.append({
+			"name": u.unit_name,
+			"side": "player" if u.is_player_unit else "enemy",
+			"hp_at_death": u.current_hp,
+			"max_hp": u.max_hp,
+		})
 	if mgr:
 		mgr.player_units.erase(u)
 		mgr.enemy_units.erase(u)
 	if grid and u and is_instance_valid(u):
-		grid.remove_unit(u.grid_position)
+		grid.purge_unit(u)
 
 func _on_arena_summon(u: UnitBase) -> void:
 	# Manager already appended it to the right army + placed it on the grid.
@@ -482,9 +536,13 @@ func _run_sims(args: Dictionary) -> Dictionary:
 	var base_seed: int = int(args.get("seed", "1000"))
 	var max_sim: float = float(args.get("max-sim-seconds", "120"))
 	var element: int = _element_from_name(args.get("element", ""))
-	var difficulty: int = {"easy": 0, "normal": 1, "hard": 2}.get(
-			String(args.get("difficulty", "easy")).to_lower(), 0)
+	var difficulty: int = _difficulty_from_args(args, "normal")
 	var formation: String = String(args.get("formation", "default")).to_lower()
+	var time_scale: float = float(args.get("time-scale", "1"))
+	# --hero-cap=N lifts the fresh-profile hero level cap (default 10) so a sim
+	# can field a real late-run team. Without it "--team=X:17" clamps to 10 and
+	# every high-level result is a quiet lie. See Progression.hero_level_cap().
+	Progression.hero_level_cap_override = int(args.get("hero-cap", "-1"))
 
 	var run_results: Array = []
 	var layout: Array = []
@@ -508,9 +566,18 @@ func _run_sims(args: Dictionary) -> Dictionary:
 			for u in team:
 				layout.append({"class": UnitBase.UnitClass.keys()[u.unit_class],
 						"range": u.attack_range, "x": u.grid_position.x, "y": u.grid_position.y})
+		_deaths = []
+		var unplaced: Array = []
 		for u in enemies:
 			_wire_unit(u)
-			if not _place_enemy(u): push_error("no room for enemy unit")
+			# A dropped enemy used to only push_error and carry on — which scores
+			# a free WIN, since the sim's verdict is "enemy list is empty". Large
+			# (2×2 / 3×3) bodies are exactly the ones that fail to place, so the
+			# boss rounds were the ones silently mis-scored. Fail the run instead.
+			if not _place_enemy(u):
+				push_error("no room for enemy unit: %s (cell_size %d)" % [u.unit_name, u.cell_size])
+				unplaced.append(u.unit_name)
+		mgr.set_time_scale(time_scale)
 		mgr.start_battle()
 		_sim_elapsed = 0.0
 		while mgr.battle_active and _sim_elapsed < max_sim:
@@ -521,9 +588,26 @@ func _run_sims(args: Dictionary) -> Dictionary:
 				and not mgr.player_units.is_empty()
 		if stalled: stalls += 1
 		elif player_won: wins += 1
+		# Trust check (2026-08-07) — see _deaths. A "win" is only real if every
+		# enemy that left the board was actually reduced to 0 HP and every enemy
+		# was placed to begin with. Anything else is a harness artifact and is
+		# reported as an explicit error, never as a result.
+		var suspect: Array = []
+		for d: Dictionary in _deaths:
+			if String(d["side"]) == "enemy" and int(d["hp_at_death"]) > 0:
+				suspect.append("%s left the board at %d/%d HP" % [
+						d["name"], d["hp_at_death"], d["max_hp"]])
+		if not unplaced.is_empty():
+			suspect.append("enemies never placed: %s" % ", ".join(unplaced))
+		if not suspect.is_empty():
+			_had_failures = true
+
 		run_results.append({
 			"run": i, "seed": base_seed + i,
-			"outcome": "stall" if stalled else ("win" if player_won else "loss"),
+			"outcome": "invalid" if not suspect.is_empty() \
+					else ("stall" if stalled else ("win" if player_won else "loss")),
+			"invalid_reasons": suspect,
+			"enemy_deaths": _deaths.filter(func(d): return String(d["side"]) == "enemy").size(),
 			"sim_seconds": snappedf(_sim_elapsed, 0.1),
 			"team": _unit_stats(team),
 			"survivors_player": mgr.player_units.size(),
@@ -566,10 +650,9 @@ func _unit_stats(units: Array) -> Array:
 # spec (WaveDirector — same levels, late-game mults and heavy-demotion the live
 # game uses) and report body count + summed score_unit power. This is the
 # instrument for the "fewer bodies, same power" retune — deterministic, no team,
-# no calibration. Usage: -- --mode=power --from=1 --to=30 [--difficulty=easy]
+# no calibration. Usage: -- --mode=power --from=1 --to=30 [--difficulty=normal|veteran|brutal]
 func _run_power(args: Dictionary) -> Dictionary:
-	var difficulty: int = {"easy": 0, "normal": 1, "hard": 2}.get(
-			String(args.get("difficulty", "easy")).to_lower(), 0)
+	var difficulty: int = _difficulty_from_args(args, "normal")
 	var lo: int = int(args.get("from", "1"))
 	var hi: int = int(args.get("to", "30"))
 	var director := WaveDirector.new()
@@ -599,6 +682,137 @@ func _run_power(args: Dictionary) -> Dictionary:
 					profile["melee"], profile["ranged"], profile["support"], profile["large"]],
 		})
 	return {"mode": "power", "difficulty": difficulty, "rows": rows}
+
+# ── XPCURVE MODE ──────────────────────────────────────────────────────────────
+# Battle-free player-progression dump (2026-08-07). Board size IS player level
+# (main_game._team_size_for_level), so the player-XP curve is the team-size dial
+# — but nothing could measure where that curve actually lands over a full run,
+# which is how the ceiling drifted out of spec twice. This walks the REAL wave
+# specs, sums enemy xp_reward assuming full clears, and reports the level and
+# team size the player would hold at each round.
+#
+# Assumes full clears (the design assumption for "most waves on Veteran/Brutal").
+# Curve constants are args so a retune can be FITTED here before any file edit:
+#   -- --mode=xpcurve --to=100 --difficulty=normal --growth=1.55 --xpbonus=500
+func _run_xpcurve(args: Dictionary) -> Dictionary:
+	var difficulty: int = _difficulty_from_args(args, "normal")
+	var lo: int = int(args.get("from", "1"))
+	var hi: int = int(args.get("to", "100"))
+	# Defaults mirror the shipping constants so a bare run reports the STATUS QUO.
+	var base: float = float(args.get("base", str(Balance.PLAYER_XP_BASE)))
+	var growth: float = float(args.get("growth", str(Balance.PLAYER_XP_GROWTH)))
+	var share: float = float(args.get("share", str(Balance.PLAYER_XP_SHARE)))
+	# Crystal-tree player-XP nodes (%) and hero-slot nodes — the two dials that
+	# separate a fresh account from a fully-invested one.
+	var xpbonus: float = float(args.get("xpbonus", "0"))
+	var slots: int = int(args.get("slots", "0"))
+	var events: int = int(args.get("events", "0"))
+
+	var director := WaveDirector.new()
+	var xp: float = 0.0
+	var to_level: float = base
+	var level: int = 1
+	var cum: float = 0.0
+	var rows: Array = []
+	var level_at: Dictionary = {}   # level -> first round reached
+	for r in range(lo, hi + 1):
+		var spec: Array = director.generate_wave_spec(r, difficulty, 9)
+		var wave_xp: float = 0.0
+		for entry: Dictionary in spec:
+			var u: VisualUnit = director.create_enemy_for_entry(entry, r)
+			if u:
+				wave_xp += float(u.xp_reward)
+				u.free()
+		var gained: float = wave_xp * share * (1.0 + xpbonus / 100.0)
+		cum += gained
+		xp += gained
+		# Level is uncapped (mirrors GameState.add_player_xp); only TEAM is clamped.
+		while xp >= to_level:
+			xp -= to_level
+			level += 1
+			to_level *= growth
+			if not level_at.has(level):
+				level_at[level] = r
+		var team: int = mini(level + slots + events, Balance.MAX_TEAM_SIZE)
+		rows.append({
+			"round": r, "wave_xp": int(wave_xp), "gained": int(gained),
+			"cum_xp": int(cum), "level": level, "to_next": int(to_level),
+			"team": team,
+		})
+	return {
+		"mode": "xpcurve", "difficulty": difficulty,
+		"base": base, "growth": growth, "share": share,
+		"xpbonus": xpbonus, "slots": slots, "events": events,
+		"final_level": level, "final_team": rows[-1]["team"] if rows else 0,
+		"level_at_round": level_at,
+		"rows": rows,
+	}
+
+# ── GOLDCURVE MODE ──────────────────────────────────────────────────────────
+# Mirrors _run_xpcurve's method for the gold economy (user's "gold price never
+# scales" report). Walks every wave 1..100 with generate_wave_spec (no combat
+# sim needed — battle-free), sums EXPECTED gold income per round using the same
+# formula as WaveScaler.gold_drops_for_unit but with the coin-chance used as an
+# expected value instead of randf() (so results are deterministic and repeatable
+# across runs), plus ROUND_WIN_GOLD every round and crystal-tree gold nodes
+# (Head Start flat/round, Bounty % chance/kill) as optional args. Reports
+# cumulative gold and, for reference, cumulative HERO_COST if bought every round,
+# so the two curves can be compared directly.
+#   -- --mode=goldcurve --to=100 --difficulty=normal --headstart=10 --bounty=4
+func _run_goldcurve(args: Dictionary) -> Dictionary:
+	var difficulty: int = _difficulty_from_args(args, "normal")
+	var lo: int = int(args.get("from", "1"))
+	var hi: int = int(args.get("to", "100"))
+	# Crystal-tree gold nodes, expressed in their catalogue units (levels), so a
+	# fresh account (0,0) vs a maxed one (10,4) can both be measured.
+	var headstart_levels: int = int(args.get("headstart", "0"))   # 0-10, +1 gold/round each
+	var bounty_levels: int = int(args.get("bounty", "0"))         # 0-4, +25% bonus-coin chance each
+
+	var director := WaveDirector.new()
+	var cum_gold: float = 0.0
+	var cum_hero_cost: int = 0
+	var rows: Array = []
+	for r in range(lo, hi + 1):
+		var spec: Array = director.generate_wave_spec(r, difficulty, 9)
+		var round_gold: float = 0.0
+		for entry: Dictionary in spec:
+			var u: VisualUnit = director.create_enemy_for_entry(entry, r)
+			if u:
+				round_gold += _expected_gold_for_unit(u, r, bounty_levels)
+				u.free()
+		round_gold += float(Balance.ROUND_WIN_GOLD)
+		round_gold += float(headstart_levels)   # Head Start: +1 gold/round/level
+		cum_gold += round_gold
+		cum_hero_cost += Balance.HERO_COST
+		rows.append({
+			"round": r, "round_gold": round_gold, "cum_gold": int(cum_gold),
+			"hero_cost": Balance.HERO_COST, "cum_hero_cost": cum_hero_cost,
+			"affordable_heroes_this_round": int(round_gold / float(Balance.HERO_COST)),
+			"surplus_vs_flat_cost": int(cum_gold) - cum_hero_cost,
+		})
+	return {
+		"mode": "goldcurve", "difficulty": difficulty,
+		"headstart_levels": headstart_levels, "bounty_levels": bounty_levels,
+		"final_cum_gold": int(cum_gold), "final_cum_hero_cost": cum_hero_cost,
+		"rows": rows,
+	}
+
+# EV version of WaveScaler.gold_drops_for_unit — same shape, but returns the
+# expected value (float) instead of rolling randf(), and folds in the Bounty
+# crystal-tree node (independent 25%/level chance at an extra coin on basic
+# kills — see Progression.UPGRADES "gold_per_kill").
+func _expected_gold_for_unit(unit: VisualUnit, round: int, bounty_levels: int) -> float:
+	if unit.is_summoned:
+		return 0.0
+	if unit.is_boss:
+		return float(Balance.BOSS_COIN_DROP)
+	if unit.is_elite:
+		return float(Balance.ELITE_COIN_DROP
+				+ (1 if round >= Balance.ELITE_COIN_LATE_BONUS_ROUND else 0))
+	# Fixed chance (2026-08-07: the ramp is gone from WaveScaler.gold_drops_for_unit
+	# too — mirror it exactly here or this harness silently drifts from the game).
+	var bonus_chance: float = clampf(float(bounty_levels) * 0.25, 0.0, 1.0)
+	return Balance.COIN_CHANCE_BASE * (1.0 + bonus_chance)
 
 # ── SWEEP MODE ────────────────────────────────────────────────────────────────
 # Comparative kit-power measurement: every recruitable hero, level 3, run through
@@ -852,9 +1066,11 @@ func _probe_one(make_unit: Callable, subject_is_player: bool,
 	report["skill_name"] = subject.skill_name
 	report["ultimate_name"] = subject.ultimate_name
 
-	# ── Passive (3 simulated seconds of _tick_passive) ──
+	# ── Passive (normally 3 simulated seconds; Sheildor's first correctly
+	# delayed Guardian Aura pulse requires crossing its stated 4s interval) ──
 	var before: Dictionary = _world_snapshot()
-	for i in range(30):
+	var passive_frames := 50 if subject.unit_class == UnitBase.UnitClass.SHEILDOR else 30
+	for i in range(passive_frames):
 		if not is_instance_valid(subject) or subject._is_dying: break
 		mgr._tick_passive(subject, opponents, allies, 0.1)
 	report["passive"] = _diff_report(before, _world_snapshot(), label, "passive")
@@ -865,8 +1081,16 @@ func _probe_one(make_unit: Callable, subject_is_player: bool,
 	#    nothing else acts during the settle — only projectiles/frees process).
 	before = _world_snapshot()
 	subject.attack(d_near)
-	mgr._apply_on_hit_passives(subject, d_near, opponents)
-	await _settle()
+	# Sheildor's landed-hit package is deliberately queued to shield contact;
+	# its manager-owned resolution invokes passives on that frame.
+	if subject.unit_class != UnitBase.UnitClass.SHEILDOR:
+		mgr._apply_on_hit_passives(subject, d_near, opponents)
+	# 40 frames (not the default 20) — some ranged heroes now hold their
+	# projectile at the muzzle for a beat before launch (PROJECTILE_MUZZLE_DELAY
+	# in unit_base.gd, e.g. Headhunter's ~0.83s) so it leaves the gun on the
+	# attack sheet's fire frame instead of the instant attack() fires. 20
+	# frames @ 30fps (~0.67s) wasn't enough headroom for delay + travel time.
+	await _settle(40)
 	report["on_hit"] = _diff_report(before, _world_snapshot(), label, "on_hit")
 
 	# ── On-being-hit passives (dummy attacks the subject: Riot/Cross retaliation,
@@ -888,7 +1112,13 @@ func _probe_one(make_unit: Callable, subject_is_player: bool,
 		subject.current_mana = subject.max_mana
 		before = _world_snapshot()
 		mgr._use_skill(subject, opponents, allies)
-		await _settle()
+		# 60 frames = 2.0s of manager time. The default 20 (0.67s) predates the
+		# move away from instant-damage skills: several signatures now telegraph
+		# and then travel (the Lizard's Precision Shot aims for 0.85s BEFORE its
+		# bolt even launches), and a settle shorter than the wind-up reports them
+		# as silent — which would mean exempting the very abilities most worth
+		# verifying. Widened so they are genuinely measured instead.
+		await _settle(60)
 		report["skill"] = _diff_report(before, _world_snapshot(), label, "skill")
 
 	# ── Ultimate ──
@@ -899,7 +1129,7 @@ func _probe_one(make_unit: Callable, subject_is_player: bool,
 	else:
 		before = _world_snapshot()
 		mgr._use_ultimate(subject, opponents, allies)
-		await _settle()
+		await _settle(30 if subject.unit_class == UnitBase.UnitClass.SHEILDOR else 20)
 		report["ultimate"] = _diff_report(before, _world_snapshot(), label, "ultimate")
 
 	await _teardown_env()
@@ -909,6 +1139,11 @@ func _probe_one(make_unit: Callable, subject_is_player: bool,
 # is paused during probes, so no unit acts autonomously during the settle.
 func _settle(frames: int = 20) -> void:
 	for i in range(frames):
+		# The manager is deliberately paused during probes, so its normal _process
+		# cannot advance manager-owned delayed abilities. Drive that clock here as
+		# well as waiting for Node-owned projectiles/frees.
+		if mgr:
+			mgr._tick_global_effects(1.0 / 30.0)
 		await get_tree().process_frame
 
 # Snapshot every observable gameplay-relevant number in the env.
@@ -951,7 +1186,7 @@ func _world_snapshot() -> Dictionary:
 			"frenzy": u.frenzy_active,
 			"stoke": u.stoke_charges,
 			"meltdown": u.meltdown_time > 0.0,
-			"linked": u.link_partner != null,
+			"linked": not u.link_group.is_empty(),
 			"puppet": u.puppet_time > 0.0,
 			"ult_charge": u.ultimate_charge,
 			"presence": u.get_meta("presence_bonus", 0.0),
@@ -959,7 +1194,7 @@ func _world_snapshot() -> Dictionary:
 		}
 	if mgr:
 		snap["__mgr__"] = {
-			"storms": mgr.storms.size(), "thorns": mgr.thorns_time > 0.0,
+			"storms": mgr.storms.size(), "thorns": not mgr.bloom_fields.is_empty(),
 			"grid_field": mgr.grid_field_time > 0.0,
 			"fire_trail": mgr.fire_trail.size(),
 			"n_player": mgr.player_units.size(), "n_enemy": mgr.enemy_units.size(),

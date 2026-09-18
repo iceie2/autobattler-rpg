@@ -6,7 +6,7 @@ extends Node
 #
 #   godot --path . res://scenes/_equipment_capture.tscn
 #
-# Writes res://_equipment_check.png and res://_equipment_pick.png
+# Writes user://_equipment_check.png and user://_equipment_pick.png
 # (build artifacts — don't commit them). Needs a real window, so no --headless.
 
 func _ready() -> void:
@@ -56,7 +56,7 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(
-		ProjectSettings.globalize_path("res://_equipment_check.png"))
+		ProjectSettings.globalize_path("user://_equipment_check.png"))
 	print("CAPTURED equipment panel (combine tray loaded)")
 
 	# Second shot: the passive-pick overlay. Three greens carry up to 3 distinct
@@ -66,6 +66,6 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(
-		ProjectSettings.globalize_path("res://_equipment_pick.png"))
+		ProjectSettings.globalize_path("user://_equipment_pick.png"))
 	print("CAPTURED passive pick (visible=%s)" % str(panel._pick_panel.visible))
 	get_tree().quit()

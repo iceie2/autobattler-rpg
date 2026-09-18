@@ -1,0 +1,23 @@
+{
+  "frame_w": 256,
+  "frame_h": 256,
+  "count": 8,
+  "cols": 8,
+  "rows": 1,
+  "fps": 12,
+  "hero": "cross",
+  "anim": "walk_north",
+  "source_video": "cross_walk_north.mp4",
+  "oneshot": false,
+  "source_picks": [
+    80,
+    84,
+    88,
+    92,
+    97,
+    101,
+    105,
+    109
+  ],
+  "auto_selected": true
+}

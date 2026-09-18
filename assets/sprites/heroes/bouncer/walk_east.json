@@ -1,0 +1,23 @@
+{
+  "frame_w": 256,
+  "frame_h": 256,
+  "count": 8,
+  "cols": 8,
+  "rows": 1,
+  "fps": 12,
+  "hero": "bouncer",
+  "anim": "walk_east",
+  "source_video": "bouncer_walk_east.mp4",
+  "oneshot": false,
+  "source_picks": [
+    80,
+    81,
+    83,
+    84,
+    86,
+    87,
+    89,
+    90
+  ],
+  "auto_selected": true
+}

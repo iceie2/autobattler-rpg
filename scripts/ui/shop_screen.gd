@@ -332,7 +332,7 @@ func _play_card_roll(card: Button, slot: Dictionary, idx: int, icon: TextureRect
 		tw.tween_callback(_spin_frame.bind(icon, badge_lbl, pool, grades, kind))
 		tw.tween_interval(d)
 	tw.tween_callback(_settle_card.bind(card, icon, badge_lbl, name_lbl, summary_lbl,
-		final_icon, final_grade, final_color, final_name, final_summary))
+		final_icon, final_grade, final_color, final_name, final_summary, slot))
 
 func _spin_frame(icon: TextureRect, badge_lbl: Label, pool: Array, grades: Array, kind: String) -> void:
 	var g: String = grades[randi() % grades.size()]
@@ -344,9 +344,19 @@ func _spin_frame(icon: TextureRect, badge_lbl: Label, pool: Array, grades: Array
 
 func _settle_card(card: Button, icon: TextureRect, badge_lbl: Label, name_lbl: Label, summary_lbl: Label,
 		final_icon: Texture2D, final_grade: String, final_color: Color,
-		final_name: String, final_summary: String) -> void:
+		final_name: String, final_summary: String, slot: Dictionary = {}) -> void:
 	if is_instance_valid(icon):
 		icon.texture = final_icon
+		# Heroes with a generated idle animation play it in place of the
+		# static portrait once the slot-machine reveal settles.
+		if slot.get("kind", "") == "hero" and is_instance_valid(card):
+			icon.visible = false
+			var anim := HeroPortrait.new()
+			anim.position = icon.position
+			anim.size = icon.size
+			anim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			card.add_child(anim)
+			anim.setup(slot["class"])
 	if is_instance_valid(badge_lbl):
 		badge_lbl.text = final_grade
 		badge_lbl.add_theme_color_override("font_color", final_color)
@@ -468,17 +478,18 @@ func _show_tooltip(slot: Dictionary, card: Button) -> void:
 
 	var lines := _tooltip_lines(slot)
 	var tip_w := 300.0
+	var inner_w := tip_w - 24.0
 	var y := 12.0
 	var title := _mk_label_on(_tooltip, lines[0], 18, Color(1.0, 0.9, 0.55),
-		Vector2(12, y), Vector2(tip_w - 24, 26), false)
+		Vector2(12, y), Vector2(inner_w, 26), false)
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	y += 30.0
+	y += _wrapped_h(title, inner_w) + 6.0
 	for i in range(1, lines.size()):
 		var entry: Array = lines[i]
 		var l := _mk_label_on(_tooltip, entry[0], 15, entry[1],
-			Vector2(12, y), Vector2(tip_w - 24, 22), false)
+			Vector2(12, y), Vector2(inner_w, 22), false)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		y += 22.0
+		y += _wrapped_h(l, inner_w) + 2.0
 	_tooltip.size = Vector2(tip_w, y + 12.0)
 
 	# Position above the card, clamped to viewport.
@@ -491,6 +502,19 @@ func _show_tooltip(slot: Dictionary, card: Button) -> void:
 		ty = card_global.position.y + CARD_H + 8.0
 	_tooltip.position = Vector2(tx, ty)
 	_tooltip.visible = true
+
+# Height a wrapping label actually needs at `w` px, and resize it to match.
+# Fixed row steps let a two-line description print on top of the next line.
+func _wrapped_h(l: Label, w: float) -> float:
+	var f := l.get_theme_font("font")
+	var fs := l.get_theme_font_size("font_size")
+	var h: float = float(fs) + 4.0
+	if f:
+		h = f.get_multiline_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, w, fs, -1,
+			TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_TRIM_EDGE_SPACES).y
+	h = maxf(h, float(fs))
+	l.size = Vector2(w, h)
+	return h
 
 # Returns [title_string, [line, color], [line, color], ...]
 func _tooltip_lines(slot: Dictionary) -> Array:
@@ -726,7 +750,7 @@ func _mk_label_on(parent: Node, text: String, sz: int, col: Color, pos: Vector2,
 	l.text = text
 	l.position = pos
 	l.size = size
-	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
+	UITheme.apply_font(l, UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", col)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if center:
@@ -747,7 +771,7 @@ func _mk_button(text: String, rect: Rect2) -> Button:
 	b.position = rect.position
 	b.size = rect.size
 	UITheme.style_button(b)
-	b.add_theme_font_size_override("font_size", UITheme.body_font(18))
+	UITheme.apply_font(b, UITheme.body_font(18))
 	return b
 
 func _flat(bg: Color, border: Color, bw: int, radius: int) -> StyleBoxFlat:

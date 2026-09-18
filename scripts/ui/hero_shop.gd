@@ -275,7 +275,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	badge_lbl.size     = badge_bg.size
 	badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge_lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-	badge_lbl.add_theme_font_size_override("font_size", 26)
+	UITheme.apply_font(badge_lbl, UITheme.FONT_HEADER)
 	badge_lbl.add_theme_color_override("font_color", grade_col)
 	badge_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(badge_lbl)
@@ -300,7 +300,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	sub_rt.position       = Vector2(0, y_name + 32)
 	sub_rt.size           = Vector2(CARD_W, 24)
 	sub_rt.mouse_filter   = Control.MOUSE_FILTER_IGNORE
-	sub_rt.add_theme_font_size_override("normal_font_size", UITheme.body_font(13))
+	UITheme.apply_rich_font(sub_rt, UITheme.body_font(13))
 	btn.add_child(sub_rt)
 
 	# ── Slot-machine reveal sequencing (2026-07-21) ────────────────────────────
@@ -705,7 +705,7 @@ func _add_ability_rows(btn: Button, unit: UnitBase, cls: UnitBase.UnitClass,
 		desc.position       = Vector2(14, ry + ABIL_TITLE_H + 2.0)
 		desc.size           = Vector2(CARD_W - 28, ABIL_ROW_H - ABIL_TITLE_H - 6.0)
 		desc.mouse_filter   = Control.MOUSE_FILTER_IGNORE
-		desc.add_theme_font_size_override("normal_font_size", UITheme.body_font(13))
+		UITheme.apply_rich_font(desc, UITheme.body_font(13))
 		desc.add_theme_color_override("default_color", Color(0.66, 0.68, 0.82))
 		btn.add_child(desc)
 
@@ -780,6 +780,17 @@ func _run_card_reveal(delay: float, btn: Button, portrait: TextureRect,
 	if not is_instance_valid(btn):
 		return
 
+	# Landed on the true hero — HeroPortrait takes over entirely from here
+	# (idle animation when generated frames exist, its own static fallback
+	# otherwise), so hide the old static portrait to avoid double-drawing.
+	portrait.visible = false
+	var portrait_anim := HeroPortrait.new()
+	portrait_anim.position = portrait.position
+	portrait_anim.size = portrait.size
+	portrait_anim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(portrait_anim)
+	portrait_anim.setup(cls)
+
 	# Reel 2: rank badge — also repaints the card + badge background every
 	# tick, so the "what color is this card" question rolls WITH the rank
 	# instead of being decided (and shown) before the reel even spins.
@@ -813,7 +824,7 @@ func _lbl(parent: Node, text: String, sz: int, col: Color,
 		pos: Vector2, size: Vector2, center: bool = false) -> Label:
 	var l := Label.new()
 	l.text = text; l.position = pos; l.size = size
-	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
+	UITheme.apply_font(l, UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", col)
 	if center: l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	parent.add_child(l)
@@ -847,11 +858,8 @@ func _add_stat_icon(parent: Node, stat_key: String, pos: Vector2, size: float) -
 func _btn(text: String, rect: Rect2) -> Button:
 	var b := Button.new()
 	b.text = text; b.position = rect.position; b.size = rect.size
-	b.add_theme_font_size_override("font_size", 20)
-	b.add_theme_color_override("font_color", Color(0.85, 0.85, 1.0))
-	b.add_theme_stylebox_override("normal",  _flat(Color(0.14, 0.14, 0.22), Color(0.38, 0.38, 0.55), 1, 6))
-	b.add_theme_stylebox_override("hover",   _flat(Color(0.22, 0.22, 0.33), Color(0.6,  0.6,  0.8),  1, 6))
-	b.add_theme_stylebox_override("pressed", _flat(Color(0.10, 0.10, 0.18), Color(0.3,  0.3,  0.5),  1, 6))
+	UITheme.style_button(b)
+	UITheme.apply_font(b, UITheme.body_font(16))
 	return b
 
 func _flat(bg: Color, border: Color = Color.TRANSPARENT,

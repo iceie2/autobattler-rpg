@@ -13,7 +13,7 @@ class_name Balance
 #
 # Balance philosophy is in CONVENTIONS.md section 5 + the balance journal
 # (memory). Economy is deliberately stingy post-2026-07-02: target curve =
-# 2nd hero ~wave 3, 3rd ~wave 5, 4th-5th by wave 10 (Easy). Don't loosen it
+# 2nd hero ~wave 3, 3rd ~wave 5, 4th-5th by wave 10 (Normal). Don't loosen it
 # casually, and mark theorycrafted numbers for playtest confirmation.
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -21,23 +21,76 @@ class_name Balance
 # STARTING_GOLD removed 2026-07-10: Call to Arms (the crystal-shop tree's
 # always-active root node) replaces it — every run now starts with 1 free
 # recruited hero instead (see main_game.start_new_game()).
+# ── Team size / player level (2026-08-07 user spec, REPLACES the 2026-08-07
+# "cap 10 + Ascension" pass which mis-read the spec) ──────────────────────────
+# The model, in the user's words: "no crystal tree max player level and team
+# size 8 ... with all player exp nodes and +1 size nodes most runs will be
+# 16-18; if you get lucky with events you can get to team size of 20."
+#
+# So team size = player level + hero_slots nodes + event bonuses, and 20 is a
+# HARD CLAMP that only a lucky run touches. Crucially, player level is gated by
+# the XP CURVE, not by a level-cap constant — a fresh account simply cannot earn
+# past ~8 in a full run. That is why there is no PLAYER_LEVEL_CAP upgrade node:
+# the crystal tree buys XP RATE (bonus_xp) and SLOTS (hero_slots), never a
+# ceiling. Fit any change to these with `--mode=xpcurve` (see arena_main.gd).
+# HARD clamp on fielded heroes. Player LEVEL is deliberately uncapped (it keeps
+# climbing past 20 on a monster run); this clamps the BOARD only, and it applies
+# after slot nodes AND event bonuses are added, so nothing can smuggle a 21st
+# hero in. See main_game._recompute_max_player_units and GameState.add_player_xp.
+const MAX_TEAM_SIZE := 20
+const TEAM_SIZE_BASE := 1          # team size at player level 1 (field cap IS your level)
+# Player-XP pool: share of each kill's hero XP that feeds the account level,
+# and the per-level cost curve. GROWTH was 3.2 (geometric) — so steep that the
+# whole ladder above ~level 8 was unreachable and XP nodes/difficulty barely
+# moved it. Retuned so the tiers above are actually hit; verified by xpcurve.
+const PLAYER_XP_SHARE := 0.5
+const PLAYER_XP_BASE := 300.0
+# 3.2 -> 1.9, FITTED (not guessed) with --mode=xpcurve over real wave specs,
+# full clears, 100 waves. Measured landing spots, TEAM SIZE:
+#   fresh account, no tree   Normal 8 / Veteran 8 / Brutal 9   <- spec: "team size 8"
+#   full tree (+500% xp, +6 slots), Normal          17         <- spec: "most runs 16-18"
+#   ... plus 3 event pickups                        20         <- spec: "lucky -> 20"
+# At the old 3.2 a full baseline run reached level SIX, and +500% XP bought
+# under two levels — the ladder above ~8 was mathematically unreachable, which
+# is the actual reason team size never behaved like the spec.
+# NOTE: 2.0 was fitted first and looked right, but that fit was read off the
+# tier then called "normal" — which the 2026-08-07 rename turned into VETERAN.
+# Re-fitted against the true baseline tier; check which tier a target refers to
+# before trusting any pre-rename measurement.
+const PLAYER_XP_GROWTH := 1.9
+
 const HERO_COST := 10              # hero shop recruit price
 const REROLL_COST := 2             # gold to refresh the hero shop offers (2026-07-17)
 const SELL_REFUND := 5             # gold back when selling/dismissing a hero
 const BENCH_BASE_SLOTS := 4        # sideboard capacity before Warm Bench upgrades (2026-07-10)
-const ROUND_WIN_GOLD := 2          # flat coin burst on winning a round
+# 2 -> 3 (2026-08-07 user spec: "round gold should be the main income for most
+# waves"). With COIN_CHANCE no longer ramping (see below), kill-gold plateaus
+# around ~1g/round by wave 8+ (measured via --mode=goldcurve) — 3 keeps
+# ROUND_WIN_GOLD the clear majority of every round's income at every wave,
+# not just late ones, without needing a scaling curve of its own. The ONLY way
+# to raise it further is the Head Start crystal-tree node (+1/round/level,
+# additive at payout — see main_game.gd ~line 1558), matching the "buffed only
+# via crystal tree" rule below.
+const ROUND_WIN_GOLD := 3
 
 # Physical coin drops on kill (gold_drops_for_unit in wave_scaler.gd):
-# basic kills are a CHANCE at 1 coin that rises with the wave; elites/bosses
-# drop a fixed handful; summons drop 0 (Ant Hill would be a gold printer).
+# basic kills are a FIXED chance, same at wave 1 and wave 100 — NOT a ramp.
+# 2026-08-07 user spec: "coin and crystal drops should both be fixed and if
+# ever buffed it's done as an upgrade in the crystal tree." Crystals already
+# worked this way (crystals_for_unit is score-threshold gated, never round-
+# scaled); gold's COIN_CHANCE_PER_ROUND ramp (0.20 -> 0.75 by round 22, then
+# flat for the remaining 78 rounds) was the one exception, and the plateau
+# it created — chance capped identically at wave 30 and wave 100 while
+# nothing else ever re-tightened — was the actual "so much gold" mechanism
+# (measured: a maxed account nets +1198 surplus over 100 rounds vs a flat
+# hero-cost yardstick). The ramp/cap constants are gone; the ONLY way to
+# raise this chance now is the Bounty crystal-tree node (+25%/level, applied
+# as an independent bonus chance in main_game.gd — untouched, already
+# tree-gated correctly).
 const BOSS_COIN_DROP := 4
 const ELITE_COIN_DROP := 2         # +1 from round 15 on (ELITE_COIN_LATE_BONUS_ROUND)
 const ELITE_COIN_LATE_BONUS_ROUND := 15
-# EV-modeled 2026-07-03 to hit the early curve above; cap softens late-game
-# re-acceleration until the planned TFT-style team-size gate exists.
 const COIN_CHANCE_BASE := 0.20
-const COIN_CHANCE_PER_ROUND := 0.025
-const COIN_CHANCE_CAP := 0.75
 
 # ── Combat baselines ──────────────────────────────────────────────────────────
 const CRIT_CHANCE_BASE := 0.10     # everyone (heroes AND enemies) crits 10% of hits by default (2026-07-24)
@@ -93,7 +146,7 @@ const VICTORY_ROUND := 100                             # clearing this round win
 const BOSS_ROUND_INTERVAL := 10                        # bosses every 10 rounds (10/20/…/100)
 const ELITE_ROUND_INTERVAL := 10                       # elites every 10 rounds…
 const ELITE_ROUND_OFFSET := 5                          # …offset by 5 → 5/15/25/…/95
-const RELIC_WAVES: Array[int] = [1, 11, 21]            # forced pick-1-of-3 relic screens
+const RELIC_WAVES: Array[int] = [1, 11, 21, 31, 41, 51, 61, 71, 81, 91]  # forced pick-1-of-3 relic screens
 
 # Elite rounds are now derived rather than a hardcoded [5,15,25] literal — that
 # list silently stopped producing elites past round 25, so rounds 35/45/… fell

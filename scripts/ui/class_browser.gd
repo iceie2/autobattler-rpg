@@ -1,13 +1,13 @@
-extends CanvasLayer
+﻿extends CanvasLayer
 class_name ClassBrowser
 
-# ── Class data ────────────────────────────────────────────────────────────────
+# â”€â”€ Class data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Stats are pulled live from UnitFactory.CLASS_BASE_STATS via each entry's
 # "unit_class", so the compendium can never drift from the real values. Only the
 # flavour (role / skill text / lore / colour) lives here.
 const IDLE_SOUTH_FRAME := Rect2(0, 640, 64, 64)
 
-# Portrait sprite folder per class (omitted = no generated sheet yet → colour card).
+# Portrait sprite folder per class (omitted = no generated sheet yet â†’ colour card).
 const SPRITE_FOLDER := {
 	UnitBase.UnitClass.BLOODHOUND: "warrior",
 	UnitBase.UnitClass.BOUNCER:    "bouncer",
@@ -27,11 +27,11 @@ const CLASSES := [
 		"skill": "Blood Frenzy  /  Bite  /  Pounce",
 		"skill_color": Color(0.95, 0.4, 0.35),
 		"skill_desc": (
-			"[PASSIVE] Blood Frenzy — below 45% HP, Bloodhound enters a frenzy and locks " +
+			"[PASSIVE] Blood Frenzy â€” below 45% HP, Bloodhound enters a frenzy and locks " +
 			"onto whichever enemy has dealt it the most damage, chasing them down.\n\n" +
-			"[ACTIVE – 50 MP] Bite — savages the nearest enemy for 130% ATK and heals " +
+			"[ACTIVE â€“ 50 MP] Bite â€” savages the nearest enemy for 130% ATK and heals " +
 			"Bloodhound for 30% of the damage dealt.\n\n" +
-			"[ULTIMATE – 300 charge] Pounce — leaps onto its top damage-dealer for 250% " +
+			"[ULTIMATE â€“ 300 charge] Pounce â€” leaps onto its top damage-dealer for 250% " +
 			"ATK and stuns them for 1.5s."
 		),
 		"lore": "A wounded Bloodhound is the most dangerous one. Let it dip low and it " +
@@ -48,11 +48,11 @@ const CLASSES := [
 		"skill": "Presence  /  Slam  /  Gravity Drop",
 		"skill_color": Color(0.4, 0.65, 1.0),
 		"skill_desc": (
-			"[PASSIVE] Presence — each unit within 2 tiles grants +5% magic damage " +
+			"[PASSIVE] Presence â€” each unit within 2 tiles grants +5% magic damage " +
 			"(max +30%). The more crowded the battlefield, the harder Bouncer hits.\n\n" +
-			"[ACTIVE – 80 MP] Slam — leaps to the nearest enemy, stunning them for " +
+			"[ACTIVE â€“ 80 MP] Slam â€” leaps to the nearest enemy, stunning them for " +
 			"1.5s and dealing 100% MAG damage.\n\n" +
-			"[ULTIMATE – 350 charge] Gravity Drop — creates a shockwave that pulls all " +
+			"[ULTIMATE â€“ 350 charge] Gravity Drop â€” creates a shockwave that pulls all " +
 			"enemies in a 4-tile radius to the nearest open cell beside Bouncer, " +
 			"dealing 150% MAG to every enemy caught."
 		),
@@ -70,11 +70,11 @@ const CLASSES := [
 		"skill": "Seventh Shot  /  Rapid Fire  /  Snipe",
 		"skill_color": Color(0.5, 1.0, 0.65),
 		"skill_desc": (
-			"[PASSIVE] Seventh Shot — every 7th auto-attack is a guaranteed critical " +
-			"hit dealing 3× damage. Keep the Headhunter alive and the crits roll in.\n\n" +
-			"[ACTIVE – 60 MP] Rapid Fire — for 4 seconds attacks hit 1 extra " +
+			"[PASSIVE] Seventh Shot â€” every 7th auto-attack is a guaranteed critical " +
+			"hit dealing 3Ã— damage. Keep the Headhunter alive and the crits roll in.\n\n" +
+			"[ACTIVE â€“ 60 MP] Rapid Fire â€” for 4 seconds attacks hit 1 extra " +
 			"target and gain +2 attack range. Perfect for hitting the back line.\n\n" +
-			"[ULTIMATE – 400 charge] Snipe — locks onto the farthest enemy and fires " +
+			"[ULTIMATE â€“ 400 charge] Snipe â€” locks onto the farthest enemy and fires " +
 			"a high-velocity shot for 400% ATK. The bullet can be intercepted by any " +
 			"enemy standing in the line of fire."
 		),
@@ -92,12 +92,12 @@ const CLASSES := [
 		"skill": "Glass Cannon  /  Kite  /  Overdrive",
 		"skill_color": Color(0.1, 0.9, 0.85),
 		"skill_desc": (
-			"[PASSIVE] Glass Cannon — every 3rd auto-attack deals true damage, " +
+			"[PASSIVE] Glass Cannon â€” every 3rd auto-attack deals true damage, " +
 			"bypassing all defence and damage reduction.\n\n" +
-			"[ACTIVE – 60 MP] Kite — when an enemy is focusing Shauna, she steps " +
+			"[ACTIVE â€“ 60 MP] Kite â€” when an enemy is focusing Shauna, she steps " +
 			"1 cell away from the nearest enemy and marks her next auto for +50% " +
 			"bonus damage.\n\n" +
-			"[ULTIMATE – 400 charge] Overdrive — for 4 seconds Shauna attacks with " +
+			"[ULTIMATE â€“ 400 charge] Overdrive â€” for 7 seconds Shauna attacks with " +
 			"an extra swing every action, doubling her damage output."
 		),
 		"lore": "A nimble sharpshooter who builds momentum across every third shot " +
@@ -106,7 +106,7 @@ const CLASSES := [
 	},
 	{
 		"name": "Nemi", "unit_class": UnitBase.UnitClass.NEMI,
-		"color": Color(0.95, 0.55, 0.05),
+		"color": Color(0.3, 0.75, 1.0),
 		"role": "Ranged disruptor support with bouncing waves",
 		"hp": 750, "mana": 600,
 		"str": 6, "dex": 10, "int": 18, "res": 10,
@@ -115,12 +115,12 @@ const CLASSES := [
 		"skill": "Resonance  /  Tide  /  Tidal Wave",
 		"skill_color": Color(0.3, 0.75, 1.0),
 		"skill_desc": (
-			"[PASSIVE] Resonance — allies within 3 tiles of Nemi gain +1 move speed; " +
+			"[PASSIVE] Resonance â€” allies within 3 tiles of Nemi gain +1 move speed; " +
 			"the nearest enemy is slowed by 1.\n\n" +
-			"[ACTIVE – 80 MP] Tide — sends a bouncing chain that deals 80% MAG " +
+			"[ACTIVE â€“ 80 MP] Tide â€” sends a bouncing chain that deals 80% MAG " +
 			"to each enemy it hits and heals each ally it bounces to for the same amount. " +
 			"Alternates between teams, up to 8 bounces.\n\n" +
-			"[ULTIMATE – 450 charge] Tidal Wave — launches a 3-column-wide " +
+			"[ULTIMATE â€“ 450 charge] Tidal Wave â€” launches a 3-column-wide " +
 			"surge forward. Enemies take 150% MAG damage and are pushed back 2 cells."
 		),
 		"lore": "A fluid mystic who controls the flow of battle through disruption " +
@@ -138,17 +138,17 @@ const CLASSES := [
 		"skill": "Guardian Aura  /  Iron Bulwark  /  Guardian Leap",
 		"skill_color": Color(0.5, 0.85, 1.0),
 		"skill_desc": (
-			"[PASSIVE] Guardian Aura — passively projects a protective presence that " +
-			"reduces incoming damage to nearby allies.\n\n" +
-			"[ACTIVE – 80 MP] Iron Bulwark — grants a shield (absorbs damage before HP) " +
-			"to the most-wounded ally within 2 tiles, scaled by INT and their max HP. " +
+			"[PASSIVE] Guardian Aura â€” every 4 seconds, grants a MAG-scaled shield " +
+			"to the most-wounded adjacent living ally.\n\n" +
+			"[ACTIVE â€“ 80 MP] Iron Bulwark â€” grants a shield (absorbs damage before HP) " +
+			"to the most-wounded living ally within 2 tiles, scaled by MAG and their max HP. " +
 			"Also heals them for 5% max HP. Shields last the duration of a round.\n\n" +
-			"[ULTIMATE – 350 charge] Guardian Leap — blinks to the lowest-HP ally on " +
+			"[ULTIMATE â€“ 350 charge] Guardian Leap â€” blinks to the lowest-HP ally on " +
 			"the field and wraps both of them in a massive shield (20% of ally max HP). " +
 			"Sheildor also gains half that shield."
 		),
 		"lore": "A devoted protector who throws himself between allies and danger. " +
-			"Sheildor's shields absorb damage before HP and stack with repeated casts — " +
+			"Sheildor's shields absorb damage before HP and stack with repeated casts â€” " +
 			"place him near fragile carries to keep them alive."
 	},
 	{
@@ -162,13 +162,13 @@ const CLASSES := [
 		"skill": "Feeding Frenzy  /  Ground Slam  /  Parasite Lunge",
 		"skill_color": Color(0.9, 0.4, 1.0),
 		"skill_desc": (
-			"[PASSIVE] Feeding Frenzy — every 0.8s, Lordee pulses dark energy dealing " +
+			"[PASSIVE] Feeding Frenzy â€” every 0.8s, Lordee pulses dark energy dealing " +
 			"12% ATK to all adjacent enemies. Completely automatic, always on.\n\n" +
-			"[ACTIVE – 70 MP] Ground Slam — slams the ground in a 2-tile AoE around " +
+			"[ACTIVE â€“ 70 MP] Ground Slam â€” slams the ground in a 2-tile AoE around " +
 			"the nearest enemy, dealing 120% ATK to all caught in the blast.\n\n" +
-			"[ULTIMATE – 400 charge] Parasite Lunge — teleports to the nearest untapped " +
+			"[ULTIMATE â€“ 400 charge] Parasite Lunge â€” teleports to the nearest untapped " +
 			"enemy, deals 150% ATK damage, and steals 7% of their attack power. " +
-			"Marks that target for 20 seconds — Lordee hunts them until they die. " +
+			"Marks that target for 20 seconds â€” Lordee hunts them until they die. " +
 			"Each unique target can only be stolen from once per round."
 		),
 		"lore": "A ravenous predator who drains strength from its prey. Lordee grows " +
@@ -186,12 +186,12 @@ const CLASSES := [
 		"skill": "Soul Harvest  /  Raise Zombie  /  Bat Swarm",
 		"skill_color": Color(0.6, 1.0, 0.5),
 		"skill_desc": (
-			"[PASSIVE] Soul Harvest — while Necro has active summons, passively " +
+			"[PASSIVE] Soul Harvest â€” while Necro has active summons, passively " +
 			"regenerates HP by drawing life energy from them.\n\n" +
-			"[ACTIVE – 120 MP] Raise Zombie — summons a Zombie in the cell directly " +
+			"[ACTIVE â€“ 120 MP] Raise Zombie â€” summons a Zombie in the cell directly " +
 			"in front of Necro. Zombies are independent melee fighters that protect " +
 			"Necro and despawn at round end. Multiple can be active at once.\n\n" +
-			"[ULTIMATE – 500 charge] Bat Swarm — deals 60% MAG as AoE damage to all " +
+			"[ULTIMATE â€“ 500 charge] Bat Swarm â€” deals 60% MAG as AoE damage to all " +
 			"enemies within 5 tiles, then summons 3 Bats around Necro. Bats are fast " +
 			"flankers that also despawn at round end."
 		),
@@ -199,19 +199,19 @@ const CLASSES := [
 			"while a growing horde of undead absorbs hits and piles on pressure. " +
 			"Every mana spent is another body on the field."
 	},
-	# ── Roster expansion ──────────────────────────────────────────────────────
+	# â”€â”€ Roster expansion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	{
 		"name": "Doc", "unit_class": UnitBase.UnitClass.DOC,
 		"color": Color(0.3, 0.8, 0.8),
-		"role": "Triage support — heals scale with the wound",
+		"role": "Triage support â€” heals scale with the wound",
 		"skill": "Triage  /  Inject  /  Field Surgery",
 		"skill_color": Color(0.4, 0.9, 0.85),
 		"skill_desc": (
-			"[PASSIVE] Triage — every ~1.4s Doc patches up the lowest-HP ally nearby; the " +
+			"[PASSIVE] Triage â€” every ~1.4s Doc patches up the lowest-HP ally nearby; the " +
 			"more HP they're missing, the bigger the mend.\n\n" +
-			"[ACTIVE – 70 MP] Inject — a burst heal on the most-wounded ally in range, " +
+			"[ACTIVE â€“ 70 MP] Inject â€” a burst heal on the most-wounded ally in range, " +
 			"scaling hard with their missing HP.\n\n" +
-			"[ULTIMATE – 450 charge] Field Surgery — once per battle, revives a fallen " +
+			"[ULTIMATE â€“ 450 charge] Field Surgery â€” once per battle, revives a fallen " +
 			"ally at 30% HP. With no one to revive, it emergency-heals the whole team."
 		),
 		"lore": "A back-alley surgeon who works best when things are already going wrong. " +
@@ -224,10 +224,10 @@ const CLASSES := [
 		"skill": "Crowd Control  /  Shield Bash  /  Kettle",
 		"skill_color": Color(0.65, 0.7, 0.9),
 		"skill_desc": (
-			"[PASSIVE] Crowd Control — any enemy that damages Riot is briefly slowed.\n\n" +
-			"[ACTIVE – 60 MP] Shield Bash — stuns the nearest enemy for 1.2s and taunts " +
+			"[PASSIVE] Crowd Control â€” any enemy that damages Riot is briefly slowed.\n\n" +
+			"[ACTIVE â€“ 60 MP] Shield Bash â€” stuns the nearest enemy for 1.2s and taunts " +
 			"them onto Riot for 3s.\n\n" +
-			"[ULTIMATE – 350 charge] Kettle — forces every enemy to target Riot for 4s, " +
+			"[ULTIMATE â€“ 350 charge] Kettle â€” forces every enemy to target Riot for 4s, " +
 			"freeing the rest of the team to act untouched."
 		),
 		"lore": "An ex-riot cop who turns the enemy's attention into your advantage. " +
@@ -240,10 +240,10 @@ const CLASSES := [
 		"skill": "Righteous Fury  /  Sermon  /  Damnation",
 		"skill_color": Color(1.0, 0.65, 0.3),
 		"skill_desc": (
-			"[PASSIVE] Righteous Fury — allies within 3 tiles deal +12% damage.\n\n" +
-			"[ACTIVE – 70 MP] Sermon — grants the strongest nearby ally +40% attack speed " +
+			"[PASSIVE] Righteous Fury â€” allies within 3 tiles deal +12% damage.\n\n" +
+			"[ACTIVE â€“ 70 MP] Sermon â€” grants the strongest nearby ally +40% attack speed " +
 			"for 5s.\n\n" +
-			"[ULTIMATE – 400 charge] Damnation — curses every enemy, cutting their damage " +
+			"[ULTIMATE â€“ 400 charge] Damnation â€” curses every enemy, cutting their damage " +
 			"output to 60% for the rest of the round."
 		),
 		"lore": "A street preacher who lifts up the faithful and damns everyone else. " +
@@ -256,11 +256,11 @@ const CLASSES := [
 		"skill": "Momentum  /  Bolt  /  Headshot",
 		"skill_color": Color(0.8, 1.0, 1.0),
 		"skill_desc": (
-			"[PASSIVE] Momentum — every shot stacks +6% damage on the next (up to 12 " +
+			"[PASSIVE] Momentum â€” every shot stacks +6% damage on the next (up to 12 " +
 			"stacks). Keep firing to ramp up.\n\n" +
-			"[ACTIVE – 50 MP] Bolt — a piercing shot down Sable's column, hitting every " +
+			"[ACTIVE â€“ 50 MP] Bolt â€” a piercing shot down Sable's column, hitting every " +
 			"enemy in the line.\n\n" +
-			"[ULTIMATE – 400 charge] Headshot — one massive hit (400% ATK, +12% per " +
+			"[ULTIMATE â€“ 400 charge] Headshot â€” one massive hit (400% ATK, +12% per " +
 			"momentum stack) that resets all stacks."
 		),
 		"lore": "A patient crossbow sniper who gets deadlier the longer a fight drags on. " +
@@ -273,11 +273,11 @@ const CLASSES := [
 		"skill": "Fleetfoot  /  Blitz  /  Afterimage",
 		"skill_color": Color(1.0, 1.0, 0.45),
 		"skill_desc": (
-			"[PASSIVE] Fleetfoot — the fastest mover on the board, reaching the back row " +
+			"[PASSIVE] Fleetfoot â€” the fastest mover on the board, reaching the back row " +
 			"in a heartbeat.\n\n" +
-			"[ACTIVE – 60 MP] Blitz — dashes through an entire enemy row, striking each " +
+			"[ACTIVE â€“ 60 MP] Blitz â€” dashes through an entire enemy row, striking each " +
 			"unit in it, then re-positions beside the target.\n\n" +
-			"[ULTIMATE – 400 charge] Afterimage — freezes every other unit (allies " +
+			"[ULTIMATE â€“ 400 charge] Afterimage â€” freezes every other unit (allies " +
 			"included) for 3s while Rush acts freely, opening with a hit on every enemy."
 		),
 		"lore": "A parkour street-runner who's gone before anyone can react. Afterimage is " +
@@ -287,15 +287,15 @@ const CLASSES := [
 		"name": "Stitch", "unit_class": UnitBase.UnitClass.STITCH,
 		"color": Color(0.6, 0.35, 0.75),
 		"role": "Disruptor that ties enemies together",
-		"skill": "Loose Threads  /  Link  /  Puppet",
+		"skill": "Threadguard  /  Link  /  Unravel",
 		"skill_color": Color(0.72, 0.45, 0.9),
 		"skill_desc": (
-			"[PASSIVE] Loose Threads — while Stitch lives, 8% of all damage dealt to any " +
-			"enemy bleeds to every other enemy. Always on.\n\n" +
-			"[ACTIVE – 70 MP] Link — binds the two nearest enemies so they share half of " +
-			"all damage either takes.\n\n" +
-			"[ULTIMATE – 450 charge] Puppet — seizes control of an enemy for 4s, turning " +
-			"its auto-attacks against its own team."
+			"[PASSIVE] Threadguard â€” Stitch gains shielding equal to 25% of damage caused " +
+			"through Link, including Unravel damage.\n\n" +
+			"[ACTIVE â€“ 70 MP] Link â€” binds the 3-6 nearest enemies based on MAG. Each " +
+			"shares 15-30% of every hit with all other linked enemies.\n\n" +
+			"[ULTIMATE â€“ 450 charge] Unravel â€” breaks every active Link in random order. " +
+			"Each rupture damages and stuns both endpoints; one enemy gets a direct tether."
 		),
 		"lore": "A voodoo practitioner who's always pulling strings. Even idle, the whole " +
 			"enemy team bleeds together."
@@ -307,10 +307,10 @@ const CLASSES := [
 		"skill": "Smolder  /  Stoke  /  Meltdown",
 		"skill_color": Color(1.0, 0.5, 0.25),
 		"skill_desc": (
-			"[PASSIVE] Smolder — every punch sets the target on fire (burn damage over " +
+			"[PASSIVE] Smolder â€” every punch sets the target on fire (burn damage over " +
 			"time).\n\n" +
-			"[ACTIVE – 50 MP] Stoke — Coal's next 3 attacks apply double burn stacks.\n\n" +
-			"[ULTIMATE – 400 charge] Meltdown — for 5s every punch explodes on impact; " +
+			"[ACTIVE â€“ 50 MP] Stoke â€” Coal's next 3 attacks apply double burn stacks.\n\n" +
+			"[ULTIMATE â€“ 400 charge] Meltdown â€” for 5s every punch explodes on impact; " +
 			"afterward Coal briefly cools down and is weakened."
 		),
 		"lore": "A bare-knuckle furnace worker whose fists never stop burning. High risk on " +
@@ -323,9 +323,9 @@ const CLASSES := [
 		"skill": "Verdant Aura  /  Root  /  Bloom",
 		"skill_color": Color(0.55, 0.9, 0.5),
 		"skill_desc": (
-			"[PASSIVE] Verdant Aura — allies within 3 tiles slowly regenerate HP.\n\n" +
-			"[ACTIVE – 60 MP] Root — vines pin the nearest enemy in place for 3s.\n\n" +
-			"[ULTIMATE – 400 charge] Bloom — thorns cover the whole field for 8s; enemies " +
+			"[PASSIVE] Verdant Aura â€” allies within 3 tiles slowly regenerate HP.\n\n" +
+			"[ACTIVE â€“ 60 MP] Root â€” vines pin the nearest enemy in place for 3s.\n\n" +
+			"[ULTIMATE â€“ 400 charge] Bloom â€” thorns cover the whole field for 8s; enemies " +
 			"take damage every step they move."
 		),
 		"lore": "An urban herbalist whose garden is a battlefield. Bloom punishes any enemy " +
@@ -338,10 +338,10 @@ const CLASSES := [
 		"skill": "Penance  /  Absolution  /  Judgment",
 		"skill_color": Color(1.0, 0.95, 0.6),
 		"skill_desc": (
-			"[PASSIVE] Penance — Cross heals himself for 35% of every hit he takes.\n\n" +
-			"[ACTIVE – 60 MP] Absolution — cleanses all debuffs from the most-wounded " +
+			"[PASSIVE] Penance â€” Cross heals himself for 35% of every hit he takes.\n\n" +
+			"[ACTIVE â€“ 60 MP] Absolution â€” cleanses all debuffs from the most-wounded " +
 			"ally and heals them.\n\n" +
-			"[ULTIMATE – 400 charge] Judgment — strikes every enemy for damage equal to " +
+			"[ULTIMATE â€“ 400 charge] Judgment â€” strikes every enemy for damage equal to " +
 			"60% of all the healing Cross has done this battle."
 		),
 		"lore": "A vigilante holy knight who turns punishment into power. The longer he " +
@@ -354,10 +354,10 @@ const CLASSES := [
 		"skill": "Scorched Path  /  Ignite  /  Conflagration",
 		"skill_color": Color(1.0, 0.55, 0.2),
 		"skill_desc": (
-			"[PASSIVE] Scorched Path — Sear leaves a burning trail on every tile he " +
+			"[PASSIVE] Scorched Path â€” Sear leaves a burning trail on every tile he " +
 			"walks; enemies crossing it catch fire.\n\n" +
-			"[ACTIVE – 60 MP] Ignite — sets a target ablaze with a long, heavy burn.\n\n" +
-			"[ULTIMATE – 420 charge] Conflagration — copies the strongest active burn onto " +
+			"[ACTIVE â€“ 60 MP] Ignite â€” sets a target ablaze with a long, heavy burn.\n\n" +
+			"[ULTIMATE â€“ 420 charge] Conflagration â€” copies the strongest active burn onto " +
 			"every enemy and detonates a chunk of it instantly."
 		),
 		"lore": "A robe-burning zealot who turns the whole arena into kindling. Pairs " +
@@ -370,10 +370,10 @@ const CLASSES := [
 		"skill": "Burning Arrows  /  Cinder Shot  /  Wildfire",
 		"skill_color": Color(1.0, 0.6, 0.3),
 		"skill_desc": (
-			"[PASSIVE] Burning Arrows — every arrow applies a burn on hit.\n\n" +
-			"[ACTIVE – 50 MP] Cinder Shot — ignites all enemies in a 2-tile area around " +
+			"[PASSIVE] Burning Arrows â€” every arrow applies a burn on hit.\n\n" +
+			"[ACTIVE â€“ 50 MP] Cinder Shot â€” ignites all enemies in a 2-tile area around " +
 			"the nearest target.\n\n" +
-			"[ULTIMATE – 420 charge] Wildfire — every burning enemy violently explodes, " +
+			"[ULTIMATE â€“ 420 charge] Wildfire â€” every burning enemy violently explodes, " +
 			"dealing area damage around itself."
 		),
 		"lore": "A fire dancer turned archer. On her own she chips; alongside Coal and " +
@@ -386,11 +386,11 @@ const CLASSES := [
 		"skill": "Backlash  /  Tear  /  Collapse",
 		"skill_color": Color(0.68, 0.5, 0.95),
 		"skill_desc": (
-			"[PASSIVE] Backlash — 30% of any damage Rift takes is redirected to a random " +
+			"[PASSIVE] Backlash â€” 30% of any damage Rift takes is redirected to a random " +
 			"enemy.\n\n" +
-			"[ACTIVE – 60 MP] Tear — banishes the nearest enemy to the far edge of the " +
+			"[ACTIVE â€“ 60 MP] Tear â€” banishes the nearest enemy to the far edge of the " +
 			"field, out of the fight for a moment.\n\n" +
-			"[ULTIMATE – 450 charge] Collapse — yanks every enemy into the centre of the " +
+			"[ULTIMATE â€“ 450 charge] Collapse â€” yanks every enemy into the centre of the " +
 			"board and detonates a concentrated burst before they scatter."
 		),
 		"lore": "A reality-warper trailed by tears in space. Collapse turns a spread-out " +
@@ -403,13 +403,13 @@ const CLASSES := [
 		"skill": "Chain Lightning  /  Thunderstorm  /  Thunderhammer",
 		"skill_color": Color(1.0, 1.0, 0.45),
 		"skill_desc": (
-			"[PASSIVE] Chain Lightning — every 6th auto arcs lightning to all enemies " +
-			"within 3 tiles.\n\n" +
-			"[ACTIVE – 90 MP] Thunderstorm — conjures a roaming storm hazard that drifts " +
-			"the board in one direction. Its own tile takes full lightning damage plus a " +
+			"[PASSIVE] Chain Lightning â€” every 6th auto strikes its target, then chains " +
+			"through up to 3 more enemies within 3 tiles of each jump.\n\n" +
+			"[ACTIVE â€“ 90 MP] Thunderstorm â€” conjures a roaming storm hazard that drifts " +
+			"the board one tile per second. Its own tile takes full lightning damage plus a " +
 			"0.5s stun; the 8 tiles around it take half damage. Persists until the round " +
-			"ends — stack several and the field becomes a deathtrap.\n\n" +
-			"[ULTIMATE – 480 charge] Thunderhammer — slams the toughest enemy for huge " +
+			"ends; 4s cooldown means several storms can turn the field into a deathtrap.\n\n" +
+			"[ULTIMATE â€“ 480 charge] Thunderhammer â€” slams the toughest enemy for huge " +
 			"lightning damage and a 5s stun."
 		),
 		"lore": "A storm-caller who litters the arena with hazards. Give Zolt time and the " +
@@ -422,10 +422,10 @@ const CLASSES := [
 		"skill": "Refraction  /  Refract  /  Prism",
 		"skill_color": Color(0.85, 1.0, 1.0),
 		"skill_desc": (
-			"[PASSIVE] Refraction — every attack bounces to one extra enemy automatically.\n\n" +
-			"[ACTIVE – 60 MP] Refract — fires a beam that ricochets between up to 5 enemies, " +
+			"[PASSIVE] Refraction â€” every attack bounces to one extra enemy automatically.\n\n" +
+			"[ACTIVE â€“ 60 MP] Refract â€” fires a beam that ricochets between up to 5 enemies, " +
 			"weakening with each bounce.\n\n" +
-			"[ULTIMATE – 460 charge] Prism — splits into beams that strike every enemy on " +
+			"[ULTIMATE â€“ 460 charge] Prism â€” splits into beams that strike every enemy on " +
 			"the field at once."
 		),
 		"lore": "A light-bending mage who never hits just one target. The more enemies " +
@@ -438,12 +438,12 @@ const CLASSES := [
 		"skill": "Live Wire  /  Tripwire  /  Grid",
 		"skill_color": Color(1.0, 1.0, 0.5),
 		"skill_desc": (
-			"[PASSIVE] Live Wire — anyone who attacks Static is hit by his current, " +
+			"[PASSIVE] Live Wire â€” anyone who attacks Static is hit by his current, " +
 			"taking back a share of the damage they dealt (10%-20%, scaling with his " +
 			"level and magic power).\n\n" +
-			"[ACTIVE – 60 MP] Tripwire — stuns the nearest enemy for 3s and deals lightning " +
+			"[ACTIVE â€“ 60 MP] Tripwire â€” stuns the nearest enemy for 3s and deals lightning " +
 			"damage as if it crossed a live wire.\n\n" +
-			"[ULTIMATE – 420 charge] Grid — electrifies the entire field, dealing damage " +
+			"[ULTIMATE â€“ 420 charge] Grid â€” electrifies the entire field, dealing damage " +
 			"every second for 4s. If left unstunned for 2s, the field locks down and stuns " +
 			"every enemy for 2s."
 		),
@@ -457,11 +457,11 @@ const CLASSES := [
 		"skill": "Wellspring  /  Cleanse  /  Confluence",
 		"skill_color": Color(0.45, 0.78, 1.0),
 		"skill_desc": (
-			"[PASSIVE] Wellspring — nearby allies regenerate HP and shed debuffs 30% " +
+			"[PASSIVE] Wellspring â€” nearby allies regenerate HP and shed debuffs 30% " +
 			"faster.\n\n" +
-			"[ACTIVE – 60 MP] Cleanse — strips all debuffs from the most-wounded ally and " +
+			"[ACTIVE â€“ 60 MP] Cleanse â€” strips all debuffs from the most-wounded ally and " +
 			"heals them.\n\n" +
-			"[ULTIMATE – 430 charge] Confluence — heals the whole team, scaling up for " +
+			"[ULTIMATE â€“ 430 charge] Confluence â€” heals the whole team, scaling up for " +
 			"every Water-aspect unit on your side (the payoff for a water comp)."
 		),
 		"lore": "A river hermit who rewards committing to water. The more of the team flows " +
@@ -471,14 +471,14 @@ const CLASSES := [
 		"name": "Vail", "unit_class": UnitBase.UnitClass.VAIL,
 		"color": Color(0.8, 0.95, 1.0),
 		"role": "Air support with global reach",
-		"skill": "Far Winds  /  Updraft  /  Tailwind",
+		"skill": "Far Winds  /  Updraft  /  Downburst",
 		"skill_color": Color(0.85, 1.0, 1.0),
 		"skill_desc": (
-			"[PASSIVE] Far Winds — Vail's heals reach any ally anywhere on the field.\n\n" +
-			"[ACTIVE – 60 MP] Updraft — lifts the most-wounded ally on a gust, making them " +
-			"untargetable for 2s.\n\n" +
-			"[ULTIMATE – 420 charge] Tailwind — grants the entire team increased move and " +
-			"attack speed for 6s."
+			"[PASSIVE] Far Winds — allies near Vail attack faster, wreathed in a light aura.\n\n" +
+			"[ACTIVE – 60 MP] Updraft — whirls the most-wounded ally into a tornado, untargetable " +
+			"for 1s, then regenerating HP for 8s.\n\n" +
+			"[ULTIMATE – 420 charge] Downburst — slams the enemy team with a wind squall, " +
+			"grounding and slowing their attacks."
 		),
 		"lore": "A wind-healer who carries aid on the breeze. Updraft can yank a focused " +
 			"carry out of danger at the perfect moment."
@@ -490,11 +490,11 @@ const CLASSES := [
 		"skill": "Spore Cloud  /  Bloom  /  Release",
 		"skill_color": Color(0.65, 0.85, 0.4),
 		"skill_desc": (
-			"[PASSIVE] Spore Cloud — enemies within 2 tiles gather spore stacks each " +
+			"[PASSIVE] Spore Cloud â€” enemies within 2 tiles gather spore stacks each " +
 			"second; at 10 stacks they take a burst of damage.\n\n" +
-			"[ACTIVE – 50 MP] Bloom — instantly max-stacks one target, triggering its " +
+			"[ACTIVE â€“ 50 MP] Bloom â€” instantly max-stacks one target, triggering its " +
 			"burst right away.\n\n" +
-			"[ULTIMATE – 440 charge] Release — detonates the accumulated spores on every " +
+			"[ULTIMATE â€“ 440 charge] Release â€” detonates the accumulated spores on every " +
 			"enemy at once, scaled by how many stacks each had built."
 		),
 		"lore": "A fungal mage who plays the long game. Let the cloud sit and Release turns " +
@@ -511,7 +511,7 @@ const _STAT_ROWS := [
 	["mres", false], ["aspd", true], ["hpregen", true], ["manaregen", true],
 	["move", false], ["range", false],
 ]
-# Kit paragraph tags → color ([PASSIVE]/[ACTIVE]/[ULTIMATE] prefixes in skill_desc).
+# Kit paragraph tags â†’ color ([PASSIVE]/[ACTIVE]/[ULTIMATE] prefixes in skill_desc).
 const _TAG_COLORS := {
 	"PASSIVE": Color(0.5, 0.85, 1.0),
 	"ACTIVE": Color(1.0, 0.85, 0.3),
@@ -546,7 +546,7 @@ func _build_ui() -> void:
 	overlay.gui_input.connect(_on_overlay_input)
 	add_child(overlay)
 
-	# Main panel — parchment frame + dark backdrop (2026-07-16 redesign, same
+	# Main panel â€” parchment frame + dark backdrop (2026-07-16 redesign, same
 	# recipe as the event panel). Content lives in a ScrollContainer so long
 	# hero kits scroll instead of overflowing past the panel edge.
 	_panel = Panel.new()
@@ -565,12 +565,12 @@ func _build_ui() -> void:
 
 	_lbl(_panel, "CLASS COMPENDIUM", 20, Color(0.95, 0.82, 0.5),
 		Vector2(0, 14), Vector2(760, 36), true)
-	var close_btn := _btn("✕", Rect2(714, 10, 34, 34))
+	var close_btn := _btn("âœ•", Rect2(714, 10, 34, 34))
 	close_btn.pressed.connect(_close)
 	_panel.add_child(close_btn)
 	var _sep_top := _hsep(_panel, 54, 760)
 
-	# ── Scrollable content ────────────────────────────────────────────────────
+	# â”€â”€ Scrollable content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	var scroll := ScrollContainer.new()
 	scroll.position = Vector2(16, 62)
 	scroll.size = Vector2(728, 508)
@@ -596,7 +596,7 @@ func _build_ui() -> void:
 	pcol.add_child(_portrait)
 	_class_idx_lbl = Label.new()
 	_class_idx_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_class_idx_lbl.add_theme_font_size_override("font_size", UITheme.body_font(11))
+	UITheme.apply_font(_class_idx_lbl, UITheme.body_font(11))
 	_class_idx_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.72))
 	pcol.add_child(_class_idx_lbl)
 
@@ -605,24 +605,24 @@ func _build_ui() -> void:
 	ncol.add_theme_constant_override("separation", 2)
 	head.add_child(ncol)
 	_class_name_lbl = Label.new()
-	_class_name_lbl.add_theme_font_size_override("font_size", UITheme.body_font(30))
+	UITheme.apply_font(_class_name_lbl, UITheme.body_font(30))
 	ncol.add_child(_class_name_lbl)
 	_role_lbl = Label.new()
-	_role_lbl.add_theme_font_size_override("font_size", UITheme.body_font(14))
+	UITheme.apply_font(_role_lbl, UITheme.body_font(14))
 	_role_lbl.add_theme_color_override("font_color", Color(0.65, 0.75, 0.95))
 	ncol.add_child(_role_lbl)
 	_lore_lbl = Label.new()
-	_lore_lbl.add_theme_font_size_override("font_size", UITheme.body_font(12))
+	UITheme.apply_font(_lore_lbl, UITheme.body_font(12))
 	_lore_lbl.add_theme_color_override("font_color", Color(0.65, 0.65, 0.75))
 	_lore_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ncol.add_child(_lore_lbl)
 
 	content.add_child(HSeparator.new())
 
-	# ── Stat grid: the real stat icons, 5 cells per row ──────────────────────
+	# â”€â”€ Stat grid: the real stat icons, 5 cells per row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	var stats_heading := Label.new()
 	stats_heading.text = "BASE STATS"
-	stats_heading.add_theme_font_size_override("font_size", UITheme.body_font(12))
+	UITheme.apply_font(stats_heading, UITheme.body_font(12))
 	stats_heading.add_theme_color_override("font_color", Color(0.55, 0.6, 0.85))
 	content.add_child(stats_heading)
 
@@ -646,7 +646,7 @@ func _build_ui() -> void:
 		icon.mouse_filter = Control.MOUSE_FILTER_STOP
 		cell.add_child(icon)
 		var val := Label.new()
-		val.add_theme_font_size_override("font_size", UITheme.body_font(13))
+		UITheme.apply_font(val, UITheme.body_font(13))
 		val.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95))
 		val.tooltip_text = icon.tooltip_text
 		cell.add_child(val)
@@ -655,25 +655,25 @@ func _build_ui() -> void:
 
 	content.add_child(HSeparator.new())
 
-	# ── Kit section: skill name + one block per PASSIVE/ACTIVE/ULTIMATE ──────
+	# â”€â”€ Kit section: skill name + one block per PASSIVE/ACTIVE/ULTIMATE â”€â”€â”€â”€â”€â”€
 	var kit_heading := Label.new()
 	kit_heading.text = "CLASS SKILL"
-	kit_heading.add_theme_font_size_override("font_size", UITheme.body_font(12))
+	UITheme.apply_font(kit_heading, UITheme.body_font(12))
 	kit_heading.add_theme_color_override("font_color", Color(0.55, 0.6, 0.85))
 	content.add_child(kit_heading)
 	_skill_name_lbl = Label.new()
-	_skill_name_lbl.add_theme_font_size_override("font_size", UITheme.body_font(20))
+	UITheme.apply_font(_skill_name_lbl, UITheme.body_font(20))
 	content.add_child(_skill_name_lbl)
 	_kit_box = VBoxContainer.new()
 	_kit_box.add_theme_constant_override("separation", 10)
 	content.add_child(_kit_box)
 
-	# ── Navigation (fixed under the scroll region) ────────────────────────────
+	# â”€â”€ Navigation (fixed under the scroll region) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	var _sep_nav := _hsep(_panel, 578, 760)
-	var prev_btn := _btn("◀  Previous", Rect2(24, 592, 160, 34))
+	var prev_btn := _btn("â—€  Previous", Rect2(24, 592, 160, 34))
 	prev_btn.pressed.connect(_prev)
 	_panel.add_child(prev_btn)
-	var next_btn := _btn("Next  ▶", Rect2(576, 592, 160, 34))
+	var next_btn := _btn("Next  â–¶", Rect2(576, 592, 160, 34))
 	next_btn.pressed.connect(_next)
 	_panel.add_child(next_btn)
 
@@ -722,7 +722,7 @@ func _refresh() -> void:
 		var key: String = row[0]
 		var is_float: bool = row[1]
 		var lbl: Label = _stat_cells[key]
-		# Class tables don't carry "mres" — magic armor starts equal to armor
+		# Class tables don't carry "mres" â€” magic armor starts equal to armor
 		# (defense split 2026-07-16), so display falls back to the res value.
 		var raw: float = float(s.get("res", 0)) if (key == "mres" and not s.has("mres")) else float(s.get(key, 0.0))
 		lbl.text = ("%.2f" % raw) if is_float else ("%d" % int(raw))
@@ -730,7 +730,7 @@ func _refresh() -> void:
 	_skill_name_lbl.text = c["skill"]
 	_skill_name_lbl.add_theme_color_override("font_color", c["skill_color"])
 
-	# Kit paragraphs: "[PASSIVE] Name — text" becomes a colored tag line above
+	# Kit paragraphs: "[PASSIVE] Name â€” text" becomes a colored tag line above
 	# a body label, one block per move, instead of one overflowing wall of text.
 	for child in _kit_box.get_children():
 		child.queue_free()
@@ -750,15 +750,15 @@ func _refresh() -> void:
 		if tag != "":
 			var tag_lbl := Label.new()
 			tag_lbl.text = tag
-			tag_lbl.add_theme_font_size_override("font_size", UITheme.body_font(11))
-			var tag_key: String = tag.split(" ")[0].to_upper()   # "ACTIVE — 60 MP" -> ACTIVE
+			UITheme.apply_font(tag_lbl, UITheme.body_font(11))
+			var tag_key: String = tag.split(" ")[0].to_upper()   # "ACTIVE â€” 60 MP" -> ACTIVE
 			tag_lbl.add_theme_color_override("font_color",
 				_TAG_COLORS.get(tag_key, Color(0.7, 0.7, 0.8)))
 			block.add_child(tag_lbl)
 		var body_lbl := Label.new()
 		body_lbl.text = body
 		body_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		body_lbl.add_theme_font_size_override("font_size", UITheme.body_font(12))
+		UITheme.apply_font(body_lbl, UITheme.body_font(12))
 		body_lbl.add_theme_color_override("font_color", Color(0.78, 0.78, 0.86))
 		block.add_child(body_lbl)
 		_kit_box.add_child(block)
@@ -786,12 +786,12 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_left"):   _prev()
 	if event.is_action_pressed("ui_right"):  _next()
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 func _lbl(parent: Node, text: String, sz: int, col: Color,
 		pos: Vector2, size: Vector2, center: bool = false) -> Label:
 	var l := Label.new()
 	l.text = text; l.position = pos; l.size = size
-	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
+	UITheme.apply_font(l, UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", col)
 	if center: l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	parent.add_child(l)
@@ -800,7 +800,7 @@ func _lbl(parent: Node, text: String, sz: int, col: Color,
 func _btn(text: String, rect: Rect2) -> Button:
 	var b := Button.new()
 	b.text = text; b.position = rect.position; b.size = rect.size
-	b.add_theme_font_size_override("font_size", 13)
+	UITheme.apply_font(b, UITheme.FONT_HEADER)
 	b.add_theme_color_override("font_color", Color(0.9, 0.9, 1.0))
 	b.add_theme_stylebox_override("normal",  _flat(Color(0.18, 0.18, 0.28), Color(0.45, 0.45, 0.6), 1, 4))
 	b.add_theme_stylebox_override("hover",   _flat(Color(0.26, 0.26, 0.38), Color(0.6, 0.6, 0.8),  1, 4))

@@ -34,6 +34,10 @@ var _pick_sources: Array[EquipmentItem] = []
 var _pick_candidates: Array = []
 var _pick_chosen: Array[String] = []
 var _pick_cap: int = 0
+# True when this pick was opened by Auto-Combine (2026-08-06) rather than the
+# manual Fuse button — routes Confirm/Cancel to EquipmentInventory's
+# resolve_auto_pick/cancel_auto_pick instead of the local _commit_fuse.
+var _pick_is_auto: bool = false
 
 const ICON_PX := 34
 
@@ -83,9 +87,20 @@ func _build_ui() -> void:
 	# ── Combine tray under the inventory ──
 	# Three real slots, so "what have I picked and what will it make" is visible
 	# at a glance instead of living in a status string.
-	_combine_toggle_btn = _btn("⚗  Combine Mode", Rect2(left_x, 504, col_width, 28))
+	_combine_toggle_btn = _btn("⚗  Combine Mode", Rect2(left_x, 504, col_width - 96, 28))
 	_combine_toggle_btn.pressed.connect(_toggle_combine_mode)
 	_panel.add_child(_combine_toggle_btn)
+
+	# Auto-Combine (2026-08-06): one-click sweep that repeatedly fuses any 3
+	# same-rarity items it can find (mixed type allowed, same as manual Fuse),
+	# auto-picking the strongest passives when a fusion exceeds the cap. Explicit
+	# button press, not on-pickup, so nothing gets consumed without the player
+	# choosing to sweep.
+	var auto_btn := _btn("Auto", Rect2(left_x + col_width - 92, 504, 92, 28))
+	UITheme.apply_font(auto_btn, UITheme.FONT_HEADER)
+	auto_btn.tooltip_text = "Fuse every possible triple of same-rarity items"
+	auto_btn.pressed.connect(_auto_combine_sweep)
+	_panel.add_child(auto_btn)
 
 	_slot_boxes.clear()
 	var slot_w := 92
@@ -221,7 +236,7 @@ func _style_item_button(btn: Button, item: EquipmentItem) -> void:
 	btn.add_theme_constant_override("icon_max_width", ICON_PX)
 	btn.add_theme_constant_override("h_separation", 10)
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.add_theme_font_size_override("font_size", UITheme.body_font(15))
+	UITheme.apply_font(btn, UITheme.body_font(15))
 	btn.add_theme_color_override("font_color", item.icon_color)
 	btn.clip_text = true
 	btn.tooltip_text = item.to_short_string()
@@ -251,6 +266,19 @@ func _add_inventory_item_button(parent: VBoxContainer, item: EquipmentItem) -> v
 				print("Cannot equip: hero full or item invalid")
 	)
 	parent.add_child(btn)
+
+# Delegates to EquipmentInventory's own sweep (2026-08-06) so this button and
+# the sidebar's persistent Auto-Combine toggle share one implementation —
+# including pausing to ask the player when a fusion's passives exceed the
+# result's cap (see EquipmentInventory.auto_combine_pick_needed).
+func _auto_combine_sweep() -> void:
+	var before := inventory.items.size()
+	inventory.run_auto_combine_once()
+	_refresh_all()
+	if inventory.items.size() < before:
+		_combine_status_lbl.text = "Auto-combined items"
+	elif _combine_mode:
+		_combine_status_lbl.text = "Nothing to auto-combine"
 
 # ── Combine (upgrade) flow ────────────────────────────────────────────────────
 func _toggle_combine_mode() -> void:
@@ -364,9 +392,15 @@ func _fuse_selected() -> void:
 	_commit_fuse(sources, [])
 
 func _commit_fuse(sources: Array[EquipmentItem], keep: Array) -> void:
+	var cap: int = EquipmentManager.passive_cap(sources[0].rarity + 1)
+	var candidates: Array = EquipmentManager.candidate_passives(sources)
 	var combined: EquipmentItem = EquipmentManager.combine_items(sources, keep)
 	if combined == null:
 		return
+	# Logged unconditionally now (2026-08-07). The old `if not candidates.is_empty()`
+	# guard silently dropped every Common→Uncommon fusion, because three Commons
+	# offer no passives at all — see EquipmentInventory.log_fusion.
+	inventory.log_fusion(sources, cap, candidates, keep)
 	for it in sources:
 		inventory.remove_item(it)   # emits inventory_changed → sidebar bag refreshes
 	inventory.add_item(combined)
@@ -427,7 +461,21 @@ func _build_pick_overlay() -> void:
 func _close_pick() -> void:
 	_pick_panel.visible = false
 	_pick_scrim.visible = false
+	if _pick_is_auto and inventory:
+		# Cancelled without choosing — leave the triple untouched in the bag;
+		# Auto-Combine will offer it again on the next pickup.
+		inventory.cancel_auto_pick()
+	_pick_is_auto = false
 	_pick_sources.clear()
+
+# Entry point for Auto-Combine (2026-08-06): opens the panel (if not already
+# open) straight to the passive-pick overlay for a paused fusion, instead of
+# requiring the player to enter Combine Mode manually.
+func show_auto_pick(sources: Array[EquipmentItem], candidates: Array, cap: int) -> void:
+	visible = true
+	_center_panel()
+	_pick_is_auto = true
+	_open_passive_pick(sources, candidates, cap)
 
 func _open_passive_pick(sources: Array[EquipmentItem], candidates: Array, cap: int) -> void:
 	_pick_sources = sources
@@ -453,7 +501,7 @@ func _refresh_pick() -> void:
 		var b := Button.new()
 		b.text = "%s  %s" % ["☑" if chosen else "☐",
 			EquipmentItem.describe_passive(nm, float(cand["value"]))]
-		b.add_theme_font_size_override("font_size", UITheme.body_font(13))
+		UITheme.apply_font(b, UITheme.body_font(13))
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.clip_text = true
 		b.custom_minimum_size = Vector2(410, 38)
@@ -483,8 +531,14 @@ func _confirm_pick() -> void:
 		return
 	var sources := _pick_sources.duplicate()
 	var keep := _pick_chosen.duplicate()
+	var was_auto := _pick_is_auto
+	_pick_is_auto = false   # confirmed, not cancelled — _close_pick shouldn't also cancel
 	_close_pick()
-	_commit_fuse(sources, keep)
+	if was_auto and inventory:
+		inventory.resolve_auto_pick(sources, keep)
+		_refresh_all()
+	else:
+		_commit_fuse(sources, keep)
 
 func _add_equipped_item_button(parent: VBoxContainer, item: EquipmentItem) -> void:
 	var btn = Button.new()
@@ -517,7 +571,7 @@ func _lbl(parent: Node, text: String, sz: int, col: Color,
 	l.text = text
 	l.position = pos
 	l.size = size
-	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
+	UITheme.apply_font(l, UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", col)
 	if center:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -529,11 +583,8 @@ func _btn(text: String, rect: Rect2) -> Button:
 	b.text = text
 	b.position = rect.position
 	b.size = rect.size
-	b.add_theme_font_size_override("font_size", 28)
-	b.add_theme_color_override("font_color", Color(0.85, 0.85, 1.0))
-	b.add_theme_stylebox_override("normal",  _flat(Color(0.14, 0.14, 0.22), Color(0.4, 0.4, 0.55), 1, 6))
-	b.add_theme_stylebox_override("hover",   _flat(Color(0.22, 0.22, 0.33), Color(0.6, 0.6, 0.8), 1, 6))
-	b.add_theme_stylebox_override("pressed", _flat(Color(0.1, 0.1, 0.18), Color(0.3, 0.3, 0.5), 1, 6))
+	UITheme.style_button(b)
+	UITheme.apply_font(b, UITheme.body_font(18))
 	return b
 
 func _flat(bg: Color, border: Color = Color.TRANSPARENT, bw: int = 0, radius: int = 0) -> StyleBoxFlat:

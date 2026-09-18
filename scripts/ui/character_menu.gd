@@ -251,7 +251,7 @@ func _lbl(parent: Node, text: String, sz: int, col: Color,
 		pos: Vector2, size: Vector2, center: bool = false) -> Label:
 	var l := Label.new()
 	l.text = text; l.position = pos; l.size = size
-	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
+	UITheme.apply_font(l, UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", col)
 	if center: l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	parent.add_child(l)
@@ -262,7 +262,7 @@ func _btn(text: String, rect: Rect2, sz: Vector2 = Vector2.ZERO) -> Button:
 	b.text = text
 	b.position = rect.position
 	b.size = rect.size if sz == Vector2.ZERO else sz
-	b.add_theme_font_size_override("font_size", 15)
+	UITheme.apply_font(b, UITheme.FONT_HEADER)
 	b.add_theme_color_override("font_color", Color(0.9, 0.9, 1.0))
 	b.add_theme_stylebox_override("normal",  _flat(Color(0.18, 0.18, 0.28), Color(0.45, 0.45, 0.6), 1, 4))
 	b.add_theme_stylebox_override("hover",   _flat(Color(0.25, 0.25, 0.38), Color(0.6, 0.6, 0.8),  1, 4))

@@ -12,6 +12,7 @@ const STAT_ICONS: Dictionary = {
 	"magic":     "res://assets/icons/stat_icons/magic_dmg.png",
 	"res":       "res://assets/icons/stat_icons/defense.png",
 	"mres":      "res://assets/icons/stat_icons/defense.png",   # shared art until a magic-armor icon lands
+	"ten":       "res://assets/icons/stat_icons/defense.png",   # ditto — stand-in until a tenacity icon lands
 	"aspd":      "res://assets/icons/stat_icons/attack_speed.png",
 	"hpregen":   "res://assets/icons/stat_icons/hp_regen.png",
 	"manaregen": "res://assets/icons/stat_icons/mp_regen.png",
@@ -30,6 +31,7 @@ const STAT_NAMES: Dictionary = {
 	"magic":     "Magic Power",
 	"res":       "Armor",
 	"mres":      "Magic Armor",
+	"ten":       "Tenacity — shortens stun/root/taunt/slow (100/(100+TEN)); never blocks them outright",
 	"aspd":      "Attack Speed",
 	"hpregen":   "HP Regen",
 	"manaregen": "MP Regen",
@@ -103,7 +105,12 @@ const NATURAL_ASPECT = {
 	UnitBase.UnitClass.LORDEE:     UnitBase.Element.NORMAL,
 	UnitBase.UnitClass.NECRO:      UnitBase.Element.NORMAL,
 	UnitBase.UnitClass.DOC:        UnitBase.Element.WATER,
-	UnitBase.UnitClass.RIOT:       UnitBase.Element.NORMAL,
+	# Riot moved Normal -> Lightning on 2026-09-18 with his pig-officer redesign:
+	# the spiked bat became a taser baton. Everything downstream reads
+	# current_element, so synergy counts, affinity ratings, element particles and
+	# the element icon all follow from this one line. The crystal tree does NOT —
+	# his unlock node lives in a spoke's `heroes` list, see gen_crystal_tree.py.
+	UnitBase.UnitClass.RIOT:       UnitBase.Element.LIGHTNING,
 	UnitBase.UnitClass.PASTOR:     UnitBase.Element.FIRE,
 	UnitBase.UnitClass.SABLE:      UnitBase.Element.AIR,
 	UnitBase.UnitClass.RUSH:       UnitBase.Element.LIGHTNING,
@@ -153,7 +160,7 @@ const CLASS_BASE_STATS = {
 	# making Necro's whole kit weak: 183 solo dmg, worst-3 in roster).
 	UnitBase.UnitClass.HEADHUNTER: { "hp":600,"mana":350, "atk":23,"magic":16,"res":11,"aspd":0.9,"hpregen":0.47,"manaregen":2.83, "move":3,"range":6, "off_affinity":155.0,"def_affinity":93.0 },
 	UnitBase.UnitClass.SHAUNA: { "hp":700,"mana":400, "atk":22,"magic":11,"res":12,"aspd":0.9,"hpregen":0.45,"manaregen":2.33, "move":3,"range":5, "off_affinity":150.0,"def_affinity":93.0 },
-	UnitBase.UnitClass.NEMI: { "hp":750,"mana":600, "atk":11,"magic":21,"res":16,"aspd":0.7,"hpregen":0.6,"manaregen":6.0, "move":2,"range":4, "off_affinity":135.0,"def_affinity":83.0 },
+	UnitBase.UnitClass.NEMI: { "hp":750,"mana":600, "atk":16,"magic":26,"res":16,"aspd":0.7,"hpregen":0.6,"manaregen":6.0, "move":2,"range":4, "off_affinity":135.0,"def_affinity":83.0 },
 	UnitBase.UnitClass.SHEILDOR: { "hp":1400,"mana":700, "atk":14,"magic":17,"res":24,"aspd":0.66,"hpregen":0.6,"manaregen":4.67, "move":2,"range":1, "off_affinity":120.0,"def_affinity":71.0 },
 	UnitBase.UnitClass.LORDEE: { "hp":950,"mana":500, "atk":23,"magic":14,"res":16,"aspd":0.78,"hpregen":0.6,"manaregen":3.0, "move":3,"range":1, "off_affinity":145.0,"def_affinity":87.0 },
 	UnitBase.UnitClass.NECRO: { "hp":800,"mana":900, "atk":8,"magic":21,"res":14,"aspd":0.64,"hpregen":0.53,"manaregen":6.0, "move":2,"range":4, "off_affinity":130.0,"def_affinity":87.0 },
@@ -164,7 +171,7 @@ const CLASS_BASE_STATS = {
 	UnitBase.UnitClass.RUSH: { "hp":820,"mana":300, "atk":22,"magic":11,"res":14,"aspd":0.86,"hpregen":0.53,"manaregen":2.17, "move":15,"range":1, "off_affinity":145.0,"def_affinity":91.0 },
 	UnitBase.UnitClass.STITCH: { "hp":780,"mana":700, "atk":13,"magic":18,"res":15,"aspd":0.74,"hpregen":0.47,"manaregen":4.67, "move":2,"range":2, "off_affinity":140.0,"def_affinity":87.0 },
 	UnitBase.UnitClass.COAL: { "hp":1150,"mana":350, "atk":22,"magic":13,"res":19,"aspd":0.72,"hpregen":0.57,"manaregen":2.33, "move":3,"range":1, "off_affinity":145.0,"def_affinity":83.0 },
-	UnitBase.UnitClass.JUNE: { "hp":880,"mana":700, "atk":10,"magic":15,"res":16,"aspd":0.68,"hpregen":0.57,"manaregen":5.17, "move":2,"range":3, "off_affinity":130.0,"def_affinity":82.0 },
+	UnitBase.UnitClass.JUNE: { "hp":880,"mana":700, "atk":10,"magic":15,"res":16,"aspd":0.68,"hpregen":0.57,"manaregen":5.17, "move":2,"range":1, "off_affinity":130.0,"def_affinity":82.0 },
 	# Balance 2026-07-24: hp 1450->1300, res 24->20 — Cross was sitting at
 	# roughly Sheildor/Riot's HP+armor tier (1400/1400 hp, 24/26 res) while
 	# ALSO being the only tank with a lifesteal-off-all-damage passive
@@ -325,9 +332,9 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_name          = "Kite"
 			unit.skill_damage_multiplier = 1.5
 			unit.skill_range         = 1
-			unit.skill_cooldown_max  = 4
+			unit.skill_cooldown_max  = 2.5
 			unit.skill_mana_cost     = 60
-			unit.skill_description   = "Step away from nearest attacker and empower next auto-attack (+50%). Only fires when being targeted. · 60 MP · 4s CD"
+			unit.skill_description   = "Step away from nearest attacker and empower next auto-attack (+50%). Only fires when being targeted. · 60 MP · 2.5s CD"
 			unit.ultimate_name       = "Overdrive"
 			unit.ultimate_damage_mult = 0.0   # utility ult
 			unit.ultimate_charge_max = 400
@@ -335,7 +342,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.passive_name        = "Resonance"
 			unit.skill_name          = "Tide"
 			unit.skill_damage_multiplier = 0.8
-			unit.skill_range         = 4
+			unit.skill_range         = 6   # matches TIDE_BOUNCE_RANGE (auto_battle_manager.gd)
 			unit.skill_cooldown_max  = 3
 			unit.skill_mana_cost     = 80
 			unit.skill_description   = "Chain bolt bouncing up to 8 times, dealing 80% MAG to enemies and healing allies each hit. · 80 MP · 3s CD"
@@ -440,14 +447,14 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.ultimate_range      = 99
 			unit.ultimate_charge_max = 400
 		UnitBase.UnitClass.STITCH:
-			unit.passive_name        = "Loose Threads"
+			unit.passive_name        = "Threadguard"
 			unit.skill_name          = "Link"
 			unit.skill_damage_multiplier = 0.0
 			unit.skill_range         = 6
 			unit.skill_cooldown_max  = 5
 			unit.skill_mana_cost     = 70
-			unit.skill_description   = "Link two nearby enemies — any damage dealt to one is mirrored onto the other. · 70 MP · 5s CD"
-			unit.ultimate_name       = "Puppet"
+			unit.skill_description   = "Link 3-6 nearby enemies based on MAG. Each shares 15-30% of hits with every other linked enemy. · 70 MP · 5s CD"
+			unit.ultimate_name       = "Unravel"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 6
 			unit.ultimate_charge_max = 450
@@ -518,7 +525,10 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 5
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 60
-			unit.skill_description   = "Deal 140% MAG and banish the target to the far edge of the battlefield. · 60 MP · 4s CD"
+			# The percentage here was stale: combat reads AbilityFormulas (1.0×MAG,
+			# calibrated), never skill_damage_multiplier, so the shop promised a
+			# number the fight never dealt. Describe the EFFECT instead.
+			unit.skill_description   = "Deal magic damage and banish the target to a random edge of the battlefield. · 60 MP · 4s CD"
 			unit.ultimate_name       = "Collapse"
 			unit.ultimate_damage_mult = 2.2
 			unit.ultimate_range      = 99
@@ -528,9 +538,9 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_name          = "Thunderstorm"
 			unit.skill_damage_multiplier = 0.0
 			unit.skill_range         = 6
-			unit.skill_cooldown_max  = 6
+			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 90
-			unit.skill_description   = "Summon a drifting storm: its own tile takes 50% MAG lightning damage and a 0.5s stun, the 8 tiles around it take half that damage. · 90 MP · 6s CD"
+			unit.skill_description   = "Summon a drifting storm: its own tile takes 50% MAG lightning damage and a 0.5s stun, the 8 tiles around it take half that damage. Moves every second. · 90 MP · 4s CD"
 			unit.ultimate_name       = "Thunderhammer"
 			unit.ultimate_damage_mult = 4.5
 			unit.ultimate_range      = 99
@@ -578,8 +588,8 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 99
 			unit.skill_cooldown_max  = 5
 			unit.skill_mana_cost     = 60
-			unit.skill_description   = "Make the most-wounded ally untargetable for 2s. They cannot be attacked or targeted during this time. · 60 MP · 5s CD"
-			unit.ultimate_name       = "Tailwind"
+			unit.skill_description   = "Whirls the most-wounded ally into a tornado, untargetable for 1s, then regenerating HP for 8s. · 60 MP · 5s CD"
+			unit.ultimate_name       = "Downburst"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
 			unit.ultimate_charge_max = 420

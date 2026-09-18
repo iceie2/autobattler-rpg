@@ -121,7 +121,7 @@ func _lbl(parent: Control, text: String, size: int, color: Color,
 	l.text     = text
 	l.position = pos
 	l.size     = sz
-	l.add_theme_font_size_override("font_size", UITheme.body_font(size))
+	UITheme.apply_font(l, UITheme.body_font(size))
 	l.add_theme_color_override("font_color", color)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER if centered else HORIZONTAL_ALIGNMENT_LEFT
 	l.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER

@@ -247,7 +247,7 @@ func _head(parent: Node, text: String) -> Label:
 func _text(parent: Node, text: String, sz: int) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", UITheme.body_font(sz))
+	UITheme.apply_font(l, UITheme.body_font(sz))
 	l.add_theme_color_override("font_color", UITheme.TEXT_BODY)
 	parent.add_child(l)
 	return l
@@ -831,7 +831,7 @@ func _rebuild_overlays() -> void:
 		l.position = _label_pos(n)
 		l.size = Vector2(160, 18)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		l.add_theme_font_size_override("font_size", UITheme.body_font(11))
+		UITheme.apply_font(l, UITheme.body_font(11))
 		l.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
 		l.add_theme_color_override("font_outline_color", Color(0.1, 0.07, 0.02, 0.95))
 		l.add_theme_constant_override("outline_size", 6)

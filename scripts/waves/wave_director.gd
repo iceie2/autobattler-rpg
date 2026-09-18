@@ -137,6 +137,7 @@ func create_enemy_for_entry(entry: Dictionary, round: int) -> VisualUnit:
 	if unit and entry.get("heavy", false):
 		unit.is_elite = false
 		unit.is_boss  = false
+		unit.tenacity = EnemyFactory.TENACITY_NORMAL   # sheds elite CC resistance too
 		unit.gold_reward = 0
 		unit.crystal_reward = 0
 		unit.xp_reward = mini(unit.xp_reward, HEAVY_XP_CAP)

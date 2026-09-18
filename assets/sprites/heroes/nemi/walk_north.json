@@ -1,0 +1,10 @@
+{
+  "frame_w": 256,
+  "frame_h": 256,
+  "count": 29,
+  "cols": 29,
+  "rows": 1,
+  "fps": 12,
+  "hero": "nemi",
+  "anim": "walk_north"
+}

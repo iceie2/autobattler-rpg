@@ -58,23 +58,6 @@ static func _content_rect(tex: Texture2D) -> Rect2:
 	_content_rect_cache[tex] = r
 	return r
 
-# Enemy bars fill RED (2026-07-15): placement alone stops reading as a side
-# cue once units scrum together. A plain red modulate over the green tiles
-# would come out muddy olive, so we hue-mirror the fill art by swapping the
-# R/G channels once and caching the result (tiles are 13×20 — trivial).
-static var _enemy_tex_cache: Dictionary = {}
-static func _enemy_variant(tex: Texture2D) -> Texture2D:
-	if _enemy_tex_cache.has(tex):
-		return _enemy_tex_cache[tex]
-	var img: Image = tex.get_image().duplicate()
-	for y in range(img.get_height()):
-		for x in range(img.get_width()):
-			var c: Color = img.get_pixel(x, y)
-			img.set_pixel(x, y, Color(c.g, c.r, c.b, c.a))
-	var out := ImageTexture.create_from_image(img)
-	_enemy_tex_cache[tex] = out
-	return out
-
 @export var placement: BarPlacement = BarPlacement.TOP
 
 # Effective drawn height of the HP tiles — bar_height scaled by HP_HEIGHT_SCALE.
@@ -102,6 +85,7 @@ var mp_max:         float = 1.0
 var ult_current:    float = 0.0
 var ult_max:        float = 1.0
 var shield_current: float = 0.0
+var mp_is_skill_cooldown: bool = false
 
 # Same bars as the sidebar Team Status (2026-07-05, user request) — the
 # beveled strip fills and dark track come from UITheme.stat_bar_*, the single
@@ -119,15 +103,30 @@ func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	set_process(false)   # only ticks while a damage ghost is draining
 	_sb_bg  = UITheme.stat_bar_bg()
-	_sb_mp  = UITheme.stat_bar_fill("mp")
+	_sb_mp  = UITheme.stat_bar_fill("ult" if mp_is_skill_cooldown else "mp")
 	_sb_ult = UITheme.stat_bar_fill("ult")
 	_sb_ult_ready = UITheme.stat_bar_fill("ult")
 	_sb_ult_ready.modulate_color = ULT_GLOW
-	var total_h: float = _hp_h() + sub_height * 2.0 + gap * 2.0
+	apply_placement()
+
+# Resting local Y for the current placement. Split out of _ready() so the bar
+# can be flipped at runtime (2026-09-17): a unit standing directly under
+# another one draws its TOP bar straight across the neighbour's sprite, so
+# VisualUnit flips the bar to the free side when that happens.
+func apply_placement() -> void:
 	if placement == BarPlacement.TOP:
-		position.y = -(offset_y + total_h)
+		position.y = -(offset_y + total_height())
 	else:
 		position.y = offset_y
+
+## Flip side and re-park the bar. Returns true if the placement actually
+## changed, so the caller can re-bank its animation base position.
+func set_placement(p: BarPlacement) -> bool:
+	if p == placement:
+		return false
+	placement = p
+	apply_placement()
+	return true
 
 func update_hp(current: float, maximum: float) -> void:
 	if current < hp_current:
@@ -213,12 +212,11 @@ func _draw_hp_tiles(hp_h: float) -> float:
 	var right_full_src:  Rect2 = _content_rect(TEX_FULL_RIGHT)
 	var right_empty_src: Rect2 = _content_rect(TEX_EMPTY_RIGHT)
 
-	# Enemy bars (TOP placement) fill red — see _enemy_variant. Empty/track
-	# tiles stay shared so both sides keep the identical dark track.
-	var is_enemy: bool = placement == BarPlacement.TOP
-	var full_left:  Texture2D = _enemy_variant(TEX_FULL_LEFT)  if is_enemy else TEX_FULL_LEFT
-	var full_mid:   Texture2D = _enemy_variant(TEX_FULL_MID)   if is_enemy else TEX_FULL_MID
-	var full_right: Texture2D = _enemy_variant(TEX_FULL_RIGHT) if is_enemy else TEX_FULL_RIGHT
+	# Both sides share the same fill art now, tinted by the green->yellow->red
+	# health ramp (2026-09-15) — a team-solid-red enemy bar used to read the
+	# same at full HP and near death. Team identity stays legible via
+	# BarPlacement (TOP/enemy vs BOTTOM/player); empty/track tiles stay shared.
+	var fill_tint: Color = _health_ramp_color(hp_current / hp_max if hp_max > 0.0 else 1.0)
 
 	# Vertical scale keeps the sprite's pixel-art proportions (derived from the
 	# mid tile's content height), then HP_WIDTH_SCALE narrows the result
@@ -246,9 +244,10 @@ func _draw_hp_tiles(hp_h: float) -> float:
 
 	var x_cursor: float = -total_width / 2.0
 
-	var left_tex: Texture2D = full_left if hp_current > 0.0 else TEX_EMPTY_LEFT
+	var left_tex: Texture2D = TEX_FULL_LEFT if hp_current > 0.0 else TEX_EMPTY_LEFT
 	var left_src: Rect2 = left_full_src if hp_current > 0.0 else left_empty_src
-	draw_texture_rect_region(left_tex, Rect2(x_cursor, 0.0, cap_w, hp_h), left_src)
+	var left_tint: Color = fill_tint if hp_current > 0.0 else Color(1, 1, 1, 1)
+	draw_texture_rect_region(left_tex, Rect2(x_cursor, 0.0, cap_w, hp_h), left_src, left_tint)
 	x_cursor += cap_w
 
 	for i in range(rendered_tiles):
@@ -261,14 +260,28 @@ func _draw_hp_tiles(hp_h: float) -> float:
 		draw_texture_rect_region(TEX_EMPTY_MID, Rect2(x_cursor, 0.0, seg_w, hp_h), empty_src)
 		if fill_frac > 0.0:
 			var fill_src := Rect2(mid_full_src.position, Vector2(mid_full_src.size.x * width_units * fill_frac, mid_full_src.size.y))
-			draw_texture_rect_region(full_mid, Rect2(x_cursor, 0.0, seg_w * fill_frac, hp_h), fill_src)
+			draw_texture_rect_region(TEX_FULL_MID, Rect2(x_cursor, 0.0, seg_w * fill_frac, hp_h), fill_src, fill_tint)
 		x_cursor += seg_w
 
-	var right_tex: Texture2D = full_right if hp_current >= hp_max else TEX_EMPTY_RIGHT
+	var right_tex: Texture2D = TEX_FULL_RIGHT if hp_current >= hp_max else TEX_EMPTY_RIGHT
 	var right_src: Rect2 = right_full_src if hp_current >= hp_max else right_empty_src
-	draw_texture_rect_region(right_tex, Rect2(x_cursor, 0.0, cap_w, hp_h), right_src)
+	var right_tint: Color = fill_tint if hp_current >= hp_max else Color(1, 1, 1, 1)
+	draw_texture_rect_region(right_tex, Rect2(x_cursor, 0.0, cap_w, hp_h), right_src, right_tint)
 
 	return total_width
+
+# Green->yellow->red HP ramp shared by both teams (2026-09-15). pct=1.0 is a
+# calm green, 0.5 a warning yellow, 0.0 a "about to die" red — lerped in two
+# segments so the midpoint lands exactly on yellow instead of averaging to a
+# muddy tone.
+static func _health_ramp_color(pct: float) -> Color:
+	pct = clampf(pct, 0.0, 1.0)
+	const GREEN := Color(0.30, 0.80, 0.28)
+	const YELLOW := Color(0.92, 0.80, 0.20)
+	const RED := Color(0.85, 0.22, 0.20)
+	if pct > 0.5:
+		return YELLOW.lerp(GREEN, (pct - 0.5) * 2.0)
+	return RED.lerp(YELLOW, pct * 2.0)
 
 # Numeric HP readout inside the bar (2026-07-03, user request: "maybe a health
 # total inside the hp bar"). "cur/max" when it fits, else just current HP.

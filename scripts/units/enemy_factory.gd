@@ -82,9 +82,37 @@ const CODE_TO_TYPE := {
 # Returns a NEW level-1 unit for a wave-code or type string; caller applies
 # set_level() afterwards (matches main_game's flow — never level inside the
 # factory, phase-boss snapshots depend on external leveling; see Triarch notes).
+# ── Tenacity by tier (2026-08-07) ─────────────────────────────────────────────
+# Tenacity shortens incoming CC on the armor curve (100/(100+ten), see
+# UnitBase.status_duration_mult) and can never fully block it. The reason the
+# stat exists: stun duration used to be absolute, so stun-lock scaled with team
+# size and attack speed while a single-body boss had no defense at all — every
+# boss and elite fight was decided by whether the player could chain-stun rather
+# than by the encounter's mechanics.
+#   normal 20 → 0.83x    elite 60 → 0.63x    boss 180 → 0.36x
+# FIRST-CUT NUMBERS, not a balance claim — tune from arena runs (non-boss waves
+# only; the boss-round harness is currently untrustworthy).
+const TENACITY_NORMAL := 20
+const TENACITY_ELITE  := 60
+const TENACITY_BOSS   := 180
+
+# Fills in a tier default for anything that didn't set its own tenacity. A
+# constructor that wants a bespoke value just assigns u.tenacity and a non-zero
+# value is left alone here.
+static func apply_tier_tenacity(u: VisualUnit) -> void:
+	if u == null or u.tenacity != 0:
+		return
+	if u.is_boss:
+		u.tenacity = TENACITY_BOSS
+	elif u.is_elite:
+		u.tenacity = TENACITY_ELITE
+	else:
+		u.tenacity = TENACITY_NORMAL
+
 static func create_by_type(type: String) -> VisualUnit:
 	var u := _create_by_type_dispatch(type)
 	if u:
+		apply_tier_tenacity(u)
 		# Affinity rework (2026-07-16): every enemy gets the neutral 100/100
 		# base plus the shared own-element ±deltas (Balance.AFFINITY_*). Must
 		# run AFTER the factory func so current_element is already set.
@@ -216,7 +244,10 @@ static func create_goblin(lvl: int = 1) -> VisualUnit:
 	u.skill_range = 1
 	u.skill_cooldown_max = 5
 	u.skill_mana_cost = 0
-	u.skill_description = "Quick lunge dealing 140% ATK. · 5s CD"
+	u.skill_description = "Lunge at an adjacent enemy for 200% ATK. · 5s CD"
+	# Basic mobs have no ultimate. Leaving UnitBase's inherited 300 charge here
+	# made the Goblin silently cast a second, unnamed Shank when the bar filled.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "goblin_shank")
 	u.set_meta("mob_passive", "goblin_pack")
 	u.set_meta("passive_name", "Pack Courage")
@@ -256,6 +287,7 @@ static func create_goblin_archer(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 6
 	u.skill_mana_cost = 0
 	u.skill_description = "Deal 120% ATK and slow the target 30% for 2s. · 6s CD"
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "archer_cripple")
 	u.set_meta("mob_passive", "archer_focus")
 	u.set_meta("passive_name", "Focus Fire")
@@ -294,7 +326,7 @@ static func _create_goblin_shaman(element: UnitBase.Element, lvl: int = 1) -> Vi
 	u.current_element = element
 	u.is_player_unit  = false
 	u.max_hp          = 300
-	u.current_hp      = 240
+	u.current_hp      = 300
 	u.max_mana        = 60
 	u.current_mana    = 30
 	u.attack_damage   = 9
@@ -320,7 +352,7 @@ static func _create_goblin_shaman(element: UnitBase.Element, lvl: int = 1) -> Vi
 	u.set_meta("mob_skill", "shaman_mend")
 	u.set_meta("mob_passive", "shaman_link")
 	u.set_meta("passive_name", "Spirit Link")
-	u.set_meta("passive_desc", "Allies within 3 tiles regenerate +0.5 HP/s (stacks with its active heal).")
+	u.set_meta("passive_desc", "Other allies within 3 tiles regenerate +0.5 HP/s (stacks with its active heal).")
 	if lvl > 1: u.set_level(lvl)
 	return u
 
@@ -389,7 +421,15 @@ static func _create_orc(element: UnitBase.Element, lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 7
 	u.skill_mana_cost = 0
 	u.skill_description = "Deal 160% ATK and stun for 1s. · 7s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool (~2.5 free Crushing
+	# Blows per fight at 750 HP). See the Rat for the full note.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "brute_crush")
+	# Slam/Bloodrage visuals, sized to this body. See _crush_vfx_reach: the Ogre
+	# sets its own larger value because its ability is named identically; the
+	# Fire Giant and Tidepool Horror share the key but not the names, so they
+	# opt out until their own passes.
+	u.set_meta("crush_vfx_reach", 104.0)
 	u.set_meta("mob_passive", "orc_rage")
 	u.set_meta("passive_name", "Bloodrage")
 	u.set_meta("passive_desc", "Below 50% HP: +20% attack damage and +15% attack speed. A wounded orc is scarier.")
@@ -454,6 +494,11 @@ static func _create_slime(element: UnitBase.Element, lvl: int = 1) -> VisualUnit
 	u.skill_cooldown_max = 6
 	u.skill_mana_cost = 0
 	u.skill_description = "Weaken the target: -25% outgoing damage for 3s. · 6s CD"
+	# Declares no ultimate but inherits UnitBase's 300 charge pool, so it charged
+	# one from damage taken and re-fired Corrosive Goo off-cooldown through
+	# _use_ultimate's fallback. ~0.7 free casts/fight at 220 HP. See the Rat for
+	# the full note; bosses/elites are deliberately left alone.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "slime_goo")
 	u.set_meta("mob_passive", "slime_split")
 	u.set_meta("passive_name", "Split")
@@ -521,11 +566,24 @@ static func _create_lizard(element: UnitBase.Element, lvl: int = 1) -> VisualUni
 	u.set_meta("sprite_folder", LIZARD_SPRITE_FOLDERS[element])
 	u.skill_name = "Precision Shot"
 	u.skill_damage_multiplier = 2.2
-	u.skill_range = 5
+	# Aligned to attack_range (2026-09-17). It was 5 against an attack_range of 8,
+	# so the Lizard outranged its own signature by 3 tiles — invisible only because
+	# the skill had no range gate at all and fired from anywhere. Gating it at 8
+	# preserves the behaviour players actually saw while making the number honest.
+	u.skill_range = 8
 	u.skill_cooldown_max = 6
 	u.skill_mana_cost = 0
-	u.skill_description = "Fires a piercing shot at the current target for 220% ATK. · 6s CD"
+	# Now literally true: it pierces the target's whole row (user direction
+	# 2026-09-17). Previously said "piercing" but hit exactly one unit.
+	u.skill_description = "Pierces the target's entire row for 220% ATK. · 6s CD"
 	u.set_meta("mob_skill", "lizard_snipe")
+	# Marks the real Lizard: the shared lizard_snipe key is also the Ember
+	# Phoenix's Cinder Lance, which keeps its single-target instant behaviour.
+	u.set_meta("lizard_sniper", true)
+	# See the Rat for the full note: declares no ultimate but inherits a 300
+	# charge pool and re-fires its skill off-cooldown through _use_ultimate's
+	# fallback. ~0.7 free casts/fight at 200 HP.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_passive", "lizard_coldblood")
 	u.set_meta("passive_name", "Cold Blood")
 	u.set_meta("passive_desc", "Regenerates 3% max HP/s while it hasn't been hit for 3s. Punishes ignoring the backline.")
@@ -595,7 +653,14 @@ static func _create_bear(element: UnitBase.Element, lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 7
 	u.skill_mana_cost = 0
 	u.skill_description = "Swipe for 130% ATK (scales with own elemental affinity) and open a bleed: 30% ATK/s for 4s, doubled while the target moves. · 7s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool. At 1200 HP that is
+	# ~4 free Rending Swipes per fight on the beefiest 1x1 body in the roster.
+	# See the Rat for the full note; bosses/elites stay untouched.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "bear_swipe")
+	# Marks the Bear proper: bear_swipe is shared with the Gargoyle and Harpy,
+	# bear_fury with the Minotaur, Crystal Crab and Sky Wyvern.
+	u.set_meta("bear", true)
 	u.set_meta("mob_passive", "bear_fury")
 	u.set_meta("passive_name", "Fury")
 	u.set_meta("passive_desc", "Attack speed ramps with missing HP, up to +30% near death. Chip it and it rages.")
@@ -664,8 +729,18 @@ static func _create_troll(element: UnitBase.Element, lvl: int = 1) -> VisualUnit
 	u.skill_range = 6
 	u.skill_cooldown_max = 5          # 10s buff / 5s CD — can keep 2 targets enraged at once
 	u.skill_mana_cost = 0
-	u.skill_description = "Boost a random ally's (or its own) attack speed by 35% (scales with own elemental affinity) for 10s. · 5s CD"
+	# Was printed as 35%, which is the pre-affinity BASE. Every Troll waves spawn
+	# has 150 own-element offensive affinity, so the buff it actually delivers is
+	# +87.5%. Numbers are staying as they are (user, 2026-09-18) — the description
+	# is what was wrong, so it now prints the value the player actually receives.
+	u.skill_description = "Boost a random ally's (or its own) attack speed by 87.5% for 10s. · 5s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool (~1.6 free Enrages
+	# per fight at 480 HP). See the Rat for the full note.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "troll_enrage")
+	# Marks the Troll proper: troll_regen is shared with the Gargoyle and the
+	# Ember Phoenix (which has its own ember readout).
+	u.set_meta("troll", true)
 	u.set_meta("mob_passive", "troll_regen")
 	u.set_meta("passive_name", "Regeneration")
 	u.set_meta("passive_desc", "Regenerates 2% max HP/s. A Fire or Lightning hit disables regen for 2s.")
@@ -733,8 +808,21 @@ static func _create_windup_bot(element: UnitBase.Element, lvl: int = 1) -> Visua
 	u.skill_range = 1
 	u.skill_cooldown_max = 6
 	u.skill_mana_cost = 0
-	u.skill_description = "Deal 150% ATK (scales with own elemental affinity) and stun for 1s. · 6s CD"
+	u.skill_description = "Deal 150% ATK (scales with own elemental affinity), punch the target into the air and stun for 1.5s. · 6s CD"
+	# This mob declares NO ultimate, but UnitBase defaults ultimate_charge_max to
+	# 300 — so it was quietly charging one from damage dealt and taken, showing an
+	# ultimate strip under its cooldown bar, and on full the manager's legacy
+	# WARRIOR fallback re-ran _use_skill(): a second, unnamed Wind-Up Punch that
+	# ignored the 6s cooldown. The arena probe missed it because ultimate_name is
+	# empty, so it reported NO_KIT rather than looking at live behaviour.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "windup_punch")
+	# Marks this unit as the Wind-Up Bot proper. The `windup_punch` key is SHARED
+	# with the Minotaur's Gore Rush and the Storm Giant's Thunderclap, so the
+	# knock-up, the 1.5s stun and the clockwork VFX hang off the UNIT, not the
+	# key — those two keep their own 1.0s stun and their own visuals untouched.
+	u.set_meta("windup_bot", true)
+	u.set_meta("windup_stun", 1.5)
 	u.set_meta("mob_passive", "windup_overclock")
 	u.set_meta("passive_name", "Overclock")
 	u.set_meta("passive_desc", "+5% attack speed every 3s of battle (max +50%). Slow to start, a DPS check if the fight drags.")
@@ -780,7 +868,13 @@ static func create_skeleton(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 8
 	u.skill_mana_cost = 0
 	u.skill_description = "Shield self for 25% max HP. · 8s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool. Small here (~0.37
+	# free casts at 110 HP) but cleared for consistency. See the Rat.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "skeleton_boneshield")
+	# Rib-cage shield + the Undying reassembly beat. boneshield is shared with the
+	# Stone Golem, Crystal Crab and Coral Husk, which keep their own looks.
+	u.set_meta("skeleton", true)
 	u.set_meta("mob_passive", "skeleton_undying")
 	u.set_meta("passive_name", "Undying")
 	u.set_meta("passive_desc", "The first time it would die, it reassembles once at 35% HP.")
@@ -819,7 +913,20 @@ static func create_rat(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 5
 	u.skill_mana_cost = 0
 	u.skill_description = "Deal 110% ATK and infect: 35% ATK/s disease for 3s. · 5s CD"
+	# Declares no ultimate, but UnitBase defaults ultimate_charge_max to 300, so
+	# it quietly charged one (full value on damage TAKEN) and on full re-ran
+	# _use_skill via _use_ultimate's fallback — a free Infected Bite ignoring the
+	# 5s cooldown, plus an ultimate strip under its bar. Measured 2026-09-17: at
+	# 75 max HP the Rat earns ~0.2 of these per fight, so clearing it is
+	# effectively balance-neutral here. 68 other enemies still have this; the
+	# tanky ones (Khagan ~13/fight, The Architect ~30) are a deliberate balance
+	# decision and are being left alone until that pass.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "rat_bite")
+	# The shared rat_bite key is also the Hellhound's fire and the Sky Wyvern's
+	# venom. Flavour lives on the UNIT so each reads as its own fiction while the
+	# numbers stay identical.
+	u.set_meta("dot_flavor", "disease")
 	u.set_meta("mob_passive", "rat_infest")
 	u.set_meta("passive_name", "Infestation")
 	u.set_meta("passive_desc", "With 2+ other Rats within 2 tiles: +15% damage and disease bites last 50% longer.")
@@ -852,18 +959,18 @@ static func create_hill_giant(lvl: int = 1) -> VisualUnit:
 	# the player provably does not have yet, and coin-drop RNG decided the run
 	# before it started. 45% of the user's 33 logged runs ended here.
 	# Retuned to its ACTUAL audience (3 heroes): ~85% at 3, still lethal at 2.
-	u.max_hp          = 3600
-	u.current_hp      = 3600
+	u.max_hp          = 3500
+	u.current_hp      = 3500
 	u.max_mana        = 100
 	u.current_mana    = 100
 	# 150 → 115 (2026-07-16): the affinity rework dropped off-element defense
 	# to 68 (×1.32 taken), which turned the giant's 150 atk into an 8/8 wipe
 	# of average round-5 comps. 115 restores a real-but-beatable spike.
-	u.attack_damage   = 115
+	u.attack_damage   = 110
 	u.magic_power     = 9
 	u.resistance      = 20
 	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
-	u.attack_speed    = 0.6
+	u.attack_speed    = 0.5
 	u.hp_regen        = 0.55
 	u.mana_regen      = 0.5
 	u.movement_speed  = 2          # arena sims: at move 1 ranged comps kite it
@@ -879,12 +986,15 @@ static func create_hill_giant(lvl: int = 1) -> VisualUnit:
 	u.xp_reward       = 200
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "hill_giant")
+	u.set_meta("mob_skill", "hill_giant_smash")
 	u.skill_name      = "Boulder Smash"
 	u.skill_damage_multiplier = 2.0
-	u.skill_range     = 2
+	u.skill_range     = 1
 	u.skill_cooldown_max = 4
+	u.skill_description = "Smash every adjacent enemy for 200% ATK. · 4s CD"
 	u.ultimate_charge_max = 0     # no ult
 	u.is_elite        = true
+	u.tenacity        = TENACITY_ELITE
 	if lvl > 1: u.set_level(lvl)
 	return u
 
@@ -957,6 +1067,7 @@ static func create_triarch(lvl: int = 1) -> VisualUnit:
 	u.xp_reward       = 350
 	u.sprite_variant  = 0
 	u.is_boss         = true
+	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Cleaving Strike"
 	u.skill_description = "Heavy melee blow for 130% ATK. · 3s CD"
@@ -1085,6 +1196,7 @@ static func create_stat_stealer(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = randi() % 3
 	u.set_meta("sprite_folder", "stat_stealer")
 	u.is_elite        = true
+	u.tenacity        = TENACITY_ELITE
 
 	u.skill_name = "Siphon Ward"
 	u.skill_description = "Shield itself for 25% of its max HP. · 6s CD"
@@ -1138,6 +1250,7 @@ static func create_ant_hill(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "ant_hill")
 	u.is_elite        = true
+	u.tenacity        = TENACITY_ELITE
 	u.ultimate_charge_max = 0     # no skill/ultimate — purely the passive spawn behavior
 
 	if lvl > 1: u.set_level(lvl)
@@ -1191,6 +1304,7 @@ static func create_gale_warden(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "gale_warden")
 	u.is_elite        = true
+	u.tenacity        = TENACITY_ELITE
 	# Reuses the player-equipment evasion roll — enemies read the same dict.
 	u.equipment_passives["Evasion"] = GALE_WARDEN_EVASION
 
@@ -1247,6 +1361,7 @@ static func create_tidecaller(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "tidecaller")
 	u.is_elite        = true
+	u.tenacity        = TENACITY_ELITE
 
 	u.set_meta("mob_passive", "tide_font")
 	u.set_meta("mob_skill", "tide_ward")
@@ -1300,6 +1415,7 @@ static func create_terracotta_colossus(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "terracotta_colossus")
 	u.is_elite        = true
+	u.tenacity        = TENACITY_ELITE
 
 	u.set_meta("mob_passive", "terracotta_harden")
 	u.ultimate_charge_max = 0     # no skill/ultimate — the hardening passive IS the kit
@@ -1344,6 +1460,7 @@ static func create_magma_heart(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "magma_heart")
 	u.is_elite        = true
+	u.tenacity        = TENACITY_ELITE
 
 	u.set_meta("mob_passive", "magma_pulse")
 	u.ultimate_charge_max = 0     # no skill/ultimate — the pulse passive IS the kit
@@ -1386,6 +1503,7 @@ static func create_tempest_conduit(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "tempest_conduit")
 	u.is_elite        = true
+	u.tenacity        = TENACITY_ELITE
 
 	u.set_meta("mob_skill", "tempest_arc")
 	u.skill_name = "Chain Discharge"
@@ -1440,6 +1558,7 @@ static func create_mirrorplate_warden(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "mirrorplate_warden")
 	u.is_elite        = true
+	u.tenacity        = TENACITY_ELITE
 	# Read by AutoBattleManager.propagate_damage_links. A meta rather than a real
 	# field so no new UnitBase state has to be reset in _init_unit_timers.
 	# 0.25 → 0.15 (2026-07-27 tuning): reflect scales off the PLAYER's damage, so
@@ -1489,6 +1608,7 @@ static func create_aspect_devourer(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "aspect_devourer")
 	u.is_elite        = true
+	u.tenacity        = TENACITY_ELITE
 
 	u.set_meta("mob_passive", "aspect_devour")
 	u.ultimate_charge_max = 0     # no skill/ultimate — the element cycle IS the kit
@@ -1550,6 +1670,7 @@ static func create_khagan(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "khagan_phase1")
 	u.is_boss         = true
+	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Shell Slam"
 	u.skill_description = "Slams its armoured shell into the target for 170% ATK. · 3s CD"
@@ -1594,7 +1715,7 @@ static func advance_khagan_phase(unit: VisualUnit) -> bool:
 		var bg: BattleGrid = unit.battle_manager.battle_grid if unit.battle_manager else null
 		var anchor: Vector2i = unit.grid_position
 		if bg:
-			bg.remove_unit(anchor)
+			bg.purge_unit(unit)
 		unit.cell_size        = 1   # dismounted — no longer a 2×2 mount
 		if bg:
 			bg.place_unit(unit, anchor)
@@ -1634,7 +1755,23 @@ static func advance_khagan_phase(unit: VisualUnit) -> bool:
 			unit.health_bar.update_mp(unit.current_mana, unit.max_mana)
 			unit.health_bar.update_ult(0, unit.ultimate_charge_max)
 			unit.health_bar.update_shield(0, unit.max_hp)
-		if unit.has_method("rebuild_sprite"):
+		# All stats/grid/skill data above are already applied synchronously —
+		# only the sprite swap itself is deferred, timed to the dismount beat's
+		# flash peak so the texture change is hidden inside the whiteout instead
+		# of popping on the same frame. Presentation only (visual_unit.gd's
+		# play_dismount_transform); falls back to an immediate swap if the unit
+		# has no dismount-beat support.
+		# The arena-overlay/body-pulse Phase-2 escalation rides the SAME callback
+		# as the sprite swap — both fire together at the dismount flash peak, so
+		# the ground visibly escalates at the exact moment Khagan changes form,
+		# not at the start of this function's stat/grid math above.
+		if unit.has_method("play_dismount_transform"):
+			unit.play_dismount_transform(func():
+				if unit.has_method("rebuild_sprite"):
+					unit.rebuild_sprite()
+				if unit.battle_manager and unit.battle_manager.has_method("escalate_khagan_overlay_phase2"):
+					unit.battle_manager.escalate_khagan_overlay_phase2(unit))
+		elif unit.has_method("rebuild_sprite"):
 			unit.rebuild_sprite()
 		return true
 
@@ -1689,13 +1826,15 @@ static func create_skyrender(lvl: int = 1) -> VisualUnit:
 	u.hp_regen        = 0.6
 	u.mana_regen      = 1.0
 	u.movement_speed  = 4
-	u.attack_range    = 2          # strikes from just out of arm's reach
+	u.attack_range    = 1          # melee only — the Long Fall's approach now does the reach work
+
 	u.gold_reward     = 100
 	u.crystal_reward  = 3
 	u.xp_reward       = 350
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "skyrender")
 	u.is_boss         = true
+	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Gale Lance"
 	u.skill_damage_multiplier = 1.35
@@ -1756,6 +1895,7 @@ static func create_drowned_maw(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "drowned_maw")
 	u.is_boss         = true
+	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Undertow"
 	u.skill_damage_multiplier = 1.5
@@ -1812,6 +1952,7 @@ static func create_cloven_titan(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "cloven_titan")
 	u.is_boss         = true
+	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Fault Line"
 	u.skill_damage_multiplier = 1.6
@@ -1902,6 +2043,7 @@ static func create_emberhollow(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "emberhollow")
 	u.is_boss         = true
+	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Backdraft"
 	u.skill_damage_multiplier = 1.5
@@ -1954,6 +2096,7 @@ static func create_arcfang(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "arcfang")
 	u.is_boss         = true
+	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Sunder Bite"
 	u.skill_damage_multiplier = 1.45
@@ -2003,6 +2146,7 @@ static func create_gravekeeper(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "gravekeeper")
 	u.is_boss         = true
+	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Grave Toll"
 	u.skill_damage_multiplier = 1.5
@@ -2058,6 +2202,7 @@ static func create_the_architect(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "the_architect")
 	u.is_boss         = true
+	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Cornerstone"
 	u.skill_damage_multiplier = 1.7
@@ -2131,6 +2276,7 @@ static func _create_hydra(element: UnitBase.Element, lvl: int = 1) -> VisualUnit
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", HYDRA_SPRITE_FOLDERS[element])
 	u.is_boss         = true
+	u.tenacity        = TENACITY_BOSS
 	# (own-element affinity now comes from set_affinity_profile — 2026-07-16)
 
 	u.skill_name = "Serpent Strike"
@@ -2200,7 +2346,14 @@ static func create_ogre(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 8
 	u.skill_mana_cost = 0
 	u.skill_description = "Deal 180% ATK and stun for 1s. · 8s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool (~3 free Crushing
+	# Blows per fight at 900 HP). See the Rat for the full note.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "brute_crush")       # reused key — see Orc's brute_crush
+	# Its skill and passive are named EXACTLY as the Orc's, so it gets the same
+	# visual language rather than an invented different one — just bigger, to
+	# match a 900hp body against the Orc's 750.
+	u.set_meta("crush_vfx_reach", 132.0)
 	u.set_meta("mob_passive", "orc_rage")        # reused key — below 50% hp: +20% dmg / +15% aspd
 	u.set_meta("passive_name", "Bloodrage")
 	u.set_meta("passive_desc", "Below 50% HP: +20% damage and +15% attack speed.")
@@ -2238,7 +2391,13 @@ static func create_minotaur(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 6
 	u.skill_mana_cost = 0
 	u.skill_description = "Deal 150% ATK (scales with own elemental affinity) and stun for 1s. · 6s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool (~2.5 free Gore Rushes
+	# per fight at 750 HP). See the Rat for the full note.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "windup_punch")      # reused key — see Wind-Up Bot's windup_punch
+	# Identity marker. Gore Rush/Savage Charge reuse the Wind-Up Bot's and Bear's
+	# keys, so it already has their bug fixes — this only selects its own VFX.
+	u.set_meta("minotaur", true)
 	u.set_meta("mob_passive", "bear_fury")       # reused key — aspd ramps with missing hp, up to +30%
 	u.set_meta("passive_name", "Savage Charge")
 	u.set_meta("passive_desc", "Attack speed ramps with missing HP, up to +30% near death.")
@@ -2276,7 +2435,16 @@ static func create_gargoyle(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 7
 	u.skill_mana_cost = 0
 	u.skill_description = "Rake for 140% ATK (scales with own elemental affinity) and open a bleed: 30% ATK/s for 4s, doubled while the target moves. · 7s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool (~3.3 free Talon Rakes
+	# per fight at 1000 HP). See the Rat for the full note.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "bear_swipe")        # reused key — see Bear's bear_swipe
+	# Its skill is named "Talon Rake" exactly as the Harpy's, so it opts into the
+	# SAME talon visual, sized for a heavier body (Harpy 84).
+	u.set_meta("talon_vfx_reach", 100.0)
+	# Its passive is named "Stone Skin" (not the Troll's "Regeneration" or the
+	# Phoenix's "Rekindle"), so it gets its own masonry fiction.
+	u.set_meta("gargoyle", true)
 	u.set_meta("mob_passive", "troll_regen")     # reused key — +2% max hp/s, blocked briefly by fire/lightning hits
 	u.set_meta("passive_name", "Stone Skin")
 	u.set_meta("passive_desc", "Regenerates 2% max HP/s — a recent Fire or Lightning hit cracks the stone and blocks it briefly.")
@@ -2359,7 +2527,14 @@ static func create_crystal_crab(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 9
 	u.skill_mana_cost = 0
 	u.skill_description = "Raises a shield worth 25% max HP. · 9s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool. At 620 HP that is
+	# ~2.1 free Crystalline Shells per fight, on a mob whose whole identity is
+	# being hard to chew through. See the Rat for the full note.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "skeleton_boneshield")   # reused key — hard shell, same as Skeleton/Stone Golem
+	# Marks the crab: the shared boneshield key also serves the Skeleton, Stone
+	# Golem and Coral Husk, which keep their original burst.
+	u.set_meta("crystal_crab", true)
 	u.set_meta("mob_passive", "bear_fury")           # reused key — aspd ramps with missing hp, up to +30%
 	u.set_meta("passive_name", "Frenzied Clacking")
 	u.set_meta("passive_desc", "Attack speed ramps with missing HP, up to +30% near death.")
@@ -2531,7 +2706,13 @@ static func create_ember_phoenix(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 6
 	u.skill_mana_cost = 0
 	u.skill_description = "A high-multiplier ranged burst for 170% ATK. · 6s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool (~1.0 free Cinder
+	# Lances per fight at 300 HP). See the Rat for the full note.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "lizard_snipe")      # reused key — cooldown-gated ranged burst
+	# Marks the Phoenix: the shared key is also the Lizard's row-piercing
+	# Precision Shot, which is unaffected by anything here.
+	u.set_meta("phoenix", true)
 	u.set_meta("mob_passive", "troll_regen")     # reused key — +2% max hp/s, blocked briefly by fire/lightning hits
 	u.set_meta("passive_name", "Rekindle")
 	u.set_meta("passive_desc", "Regenerates 2% max HP/s — a recent Fire or Lightning hit smothers the embers and blocks it briefly.")
@@ -2581,7 +2762,14 @@ static func create_storm_giant(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 7
 	u.skill_mana_cost = 0
 	u.skill_description = "Deal 160% ATK (scales with own elemental affinity) and stun for 1s. · 7s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool. At 2150 HP that is
+	# ~7.2 free Thunderclaps per fight — the largest such leak found so far.
+	# See the Rat for the full note; bosses/elites stay untouched.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "windup_punch")        # reused key — affinity-scaled hit + 1s stun
+	# Its abilities have their OWN names (Thunderclap / Gathering Storm), so it
+	# gets its own visual language rather than the Wind-Up Bot's clockwork.
+	u.set_meta("storm_giant", true)
 	u.set_meta("mob_passive", "windup_overclock")  # reused key — +5%/3s aspd, cap +50%
 	u.set_meta("passive_name", "Gathering Storm")
 	u.set_meta("passive_desc", "Attack speed builds +5% every 3s as the storm gathers, up to +50%.")
@@ -2681,7 +2869,15 @@ static func create_sky_wyvern(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 6
 	u.skill_mana_cost = 0
 	u.skill_description = "Deal 130% ATK and envenom: 35% ATK/s poison for 3s. · 6s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool. At 2120 HP that is
+	# ~7 free Venom Stingers per fight. See the Rat for the full note.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "rat_bite")          # reused key — hit + damage-over-time
+	# Its DoT used to fall through to the DEFAULT "fire" flavour, so the poison
+	# its description promises rendered as a fire burn. Third fiction on this key
+	# after the Rat's disease and the Hellhound's (correct) fire.
+	u.set_meta("dot_flavor", "venom")
+	u.set_meta("sky_wyvern", true)
 	u.set_meta("mob_passive", "bear_fury")       # reused key — aspd ramps with missing hp
 	u.set_meta("passive_name", "Wounded Dive")
 	u.set_meta("passive_desc", "Attack speed ramps with missing HP, up to +30% near death.")
@@ -2779,7 +2975,14 @@ static func create_harpy(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 5
 	u.skill_mana_cost = 0
 	u.skill_description = "Deal 115% ATK and open a bleed. · 5s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool (~1 free Talon Rake
+	# per fight at 300 HP). See the Rat for the full note.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "bear_swipe")        # reused key — hit + bleed
+	# "Talon Rake" is shared by NAME with the Gargoyle, so both use one talon
+	# visual sized per body. The Bear rides the same key but its move is
+	# "Rending Swipe" and keeps its own claw look.
+	u.set_meta("talon_vfx_reach", 84.0)
 	u.set_meta("passive_name", "Windborne")
 	u.set_meta("passive_desc", "12% of direct hits miss entirely — it simply isn't where the blow lands.")
 	if lvl > 1: u.set_level(lvl)
@@ -2818,7 +3021,13 @@ static func create_coral_husk(lvl: int = 1) -> VisualUnit:
 	u.skill_description = "Hardens its shell, absorbing the next burst of damage. · 7s CD"
 	# THE FORESHADOW: a self-shield, two rounds before the Tidecaller starts
 	# shielding its ENTIRE wave. Same reused key the Stone Golem/Crystal Crab use.
+	# Declares no ultimate but inherits UnitBase's 300 pool (~1.6 free Calcifies
+	# per fight at 480 HP). See the Rat for the full note.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "skeleton_boneshield")
+	# Calcify / Slow Tide are named differently from the keys' owners, so it gets
+	# its own reef language rather than the Skeleton's ribs or the Bot's gears.
+	u.set_meta("coral_husk", true)
 	u.set_meta("mob_passive", "windup_overclock")  # reused key — +5%/3s aspd, cap +50%
 	u.set_meta("passive_name", "Slow Tide")
 	u.set_meta("passive_desc", "Attack speed builds +5% every 3s as it grinds forward, up to +50%.")

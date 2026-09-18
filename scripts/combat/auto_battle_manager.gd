@@ -56,6 +56,12 @@ var afterimage_time: float = 0.0
 var _khagan_puppet: UnitBase = null
 var _khagan_timer: float = 0.0
 const KHAGAN_POSSESS_SECONDS: float = 8.0    # survive this long → control breaks, you win
+
+# Wave-10 arena ground treatment (KhaganArenaOverlay) — one instance per
+# encounter, owned here so its lifecycle is tied to the single authoritative
+# start_battle()/end_battle() pair rather than any individual spawn call site.
+var _khagan_overlay: KhaganArenaOverlay = null
+var arena_overlay: ArenaOverlay = null   # board-wide state layer (wind, flood, ...) — see arena_overlay.gd
 const KHAGAN_PUPPET_DMG_MULT: float = 0.55   # the spirit fights clumsily — capped outgoing damage
 const KHAGAN_PUPPET_HP_FRAC: float = 0.7     # seized at reduced HP so bursting it is viable
 const KHAGAN_PUPPET_BURST_ACCEL: float = 2.0 # a wounded puppet loses its grip faster (agency)
@@ -63,19 +69,172 @@ const KHAGAN_PUPPET_BURST_ACCEL: float = 2.0 # a wounded puppet loses its grip f
 # Zolt storms — roaming board hazards, ticked here, freed at round end.
 var storms: Array = []
 
-# Board-wide field effects that damage enemies as they move.
-var thorns_time: float = 0.0          # June "Bloom"
-var thorns_dmg: int = 0
-var thorns_owner_is_player: bool = true
+# June "Bloom": one thorned-ground field PER CAST, each with its own area,
+# caster and timer. This was three manager-wide globals (thorns_time/_dmg/
+# _owner_is_player), which meant a second June silently overwrote the first —
+# including a weaker cast replacing a stronger one — and a June on the OTHER
+# team flipped ownership so the original caster's own field turned on her team.
+# Each entry: {caster, owner_is_player, dmg, time, tick_t, cells, vfx}
+var bloom_fields: Array = []
+## Bloom deals its damage and re-roots on this cadence. The root lasts slightly
+## LESS than the interval on purpose: a root that outlasts its own refresh traps
+## everyone inside for the full duration with no counterplay, so the gap is the
+## window to walk out (user decision 2026-09-17).
+const BLOOM_TICK := 1.0
+const BLOOM_ROOT := 0.8
+## Footprint, in cells, centred on the enemy cluster — a band, matching the
+## 5-tile width of Nemi's Tidal Wave.
+const BLOOM_COLS := 5
+const BLOOM_ROWS := 3
+
 var grid_field_time: float = 0.0      # Static "Grid"
 var grid_field_dmg: int = 0
 var grid_field_tick_time: float = 0.0
 var grid_owner_is_player: bool = true
 var static_grid_channel_time: float = -1.0   # -1 = no channel in progress
 var static_grid_channel_caster: UnitBase = null
+var _static_grid_vfx: StaticVFX = null
 var fire_trail: Dictionary = {}       # Vector2i -> {dmg,time,source,owner_is_player}  Sear passive
 
-# Re-entrancy guard so Stitch Link / Loose Threads can't recurse forever.
+# Nemi Tide — active chains play out over real time instead of resolving
+# instantly, so the wave visibly bounces target-to-Nemi-to-target instead of
+# every hit flashing on screen at once (2026-08-06 rework, see _tick_nemi_tide_seqs).
+var _nemi_tide_seqs: Array = []
+const TIDE_SPLASH_DUR := 0.4    # wave hits the target, damage/heal applies here
+const TIDE_TRAVEL_DUR := 1.6    # trail travels DIRECTLY from the current target to the next one
+const TIDE_BOUNCE_RANGE := 6.0    # 2nd+ bounce targets must be within this many tiles of wherever the chain CURRENTLY is (the last hit) — matches Nemi's skill_range (unit_factory.gd)
+
+# Nemi Tidal Wave — a wall of water that physically crosses the board over
+# TIDAL_WAVE_DURATION seconds instead of hitting its whole column instantly.
+var _nemi_tidal_waves: Array = []
+const TIDAL_WAVE_DURATION := 4.0
+const TIDAL_WAVE_WAKE_INTERVAL := 0.14   # seconds between trailing wake ripples
+
+# Queued Tidal Wave casts waiting on a reposition-walk to finish (see
+# _nemi_fire_tidal_wave / _tick_nemi_pending_ult_casts).
+var _nemi_pending_ult_casts: Array = []
+var _bloodhound_pending_ult_casts: Array = []
+
+# Goblin Shank is a short committed melee beat. Damage resolves on the sword's
+# authored contact frame instead of before the body has begun moving.
+var _goblin_shanks: Array = []
+var _goblin_pack_vfx: Dictionary = {}
+var _shaman_mends: Array = []
+var _shaman_aura_vfx: Dictionary = {}
+var _hill_giant_autos: Array = []
+var _hill_giant_smashes: Array = []
+var _sheildor_autos: Array = []
+var _june_autos: Array = []
+var _sheildor_leaps: Array = []
+var _sheildor_barriers: Dictionary = {}
+# Rift's Backlash is always armed, so it gets ONE persistent aura per Rift
+# (a persistent mechanic gets a persistent visual) rather than a node per hit.
+var _rift_auras: Dictionary = {}
+# June: ONE Verdant Aura lattice per June, ONE root cuff per rooted unit.
+var _june_auras: Dictionary = {}
+var _june_root_cuffs: Dictionary = {}
+# Sear: ONE scorch visual per burning tile (keyed by cell) and ONE flame tell per
+# burning unit (keyed by instance id). The trail previously had no visual at all.
+var _sear_scorch_vfx: Dictionary = {}
+var _sear_burn_marks: Dictionary = {}
+# Wind-Up Punch is a committed, interruptible melee beat: the bot visibly winds
+# its mainspring, and damage/stun/knock-up all resolve together on the fist's
+# contact. `_windup_oc_vfx` holds the ONE persistent Overclock mechanism per
+# bot (a persistent mechanic gets a persistent visual).
+var _windup_punches: Array = []
+var _windup_autos: Array = []
+var _windup_oc_vfx: Dictionary = {}
+# Infected Bite is a short committed melee beat; the plague cloud and the swarm
+# ring are both PERSISTENT and keyed by unit instance id.
+var _rat_bites: Array = []
+var _disease_vfx: Dictionary = {}
+var _infest_vfx: Dictionary = {}
+var _slow_tide_vfx: Dictionary = {}
+var _stone_skin_vfx: Dictionary = {}
+var _wounded_dive_vfx: Dictionary = {}
+const WYVERN_REACH := 150.0   # 2x2 body
+const GARGOYLE_REACH := 104.0
+const EVADE_REACH := 70.0
+const CORAL_REACH := 92.0
+const SKELETON_REACH := 88.0
+# Gathering Storm readout, one per Storm Giant.
+var _gathering_vfx: Dictionary = {}
+const STORM_GIANT_REACH := 210.0   # 2x2 body — the biggest footprint so far
+# Crushing Blow commits; Bloodrage is a binary state with a trigger beat.
+var _orc_crushes: Array = []
+var _orc_rage_vfx: Dictionary = {}
+const ORC_CRUSH_CONTACT := 0.46   # heavy overhead slam — between the Bear and the Hill Giant
+const ORC_LUNGE_LEAD := 0.13
+const ORC_REACH := 104.0
+# Savage Charge readout, one per raging Minotaur.
+var _savage_vfx: Dictionary = {}
+const MINOTAUR_REACH := 100.0
+# Enrage's buff and the Troll's Regeneration are both persistent readouts.
+var _enraged_vfx: Dictionary = {}
+var _troll_regen_vfx: Dictionary = {}
+const TROLL_REACH := 92.0
+# Rending Swipe commits; the bleed and the Fury ramp are both persistent.
+var _bear_swipes: Array = []
+var _bleed_vfx: Dictionary = {}
+var _fury_vfx: Dictionary = {}
+const BEAR_SWIPE_CONTACT := 0.38   # heavy paw, slower than the Rat, lighter than the Giant
+const BEAR_LUNGE_LEAD := 0.13
+const BEAR_REACH := 96.0
+# One persistent shell per shielded crab, plus the break beat.
+var _crab_shell_vfx: Dictionary = {}
+var _crab_shell_peak: Dictionary = {}
+# The crab's sprite is far wider than a standard mob body, so the default ~96
+# reach drew the shell INSIDE it and it read as a small ring on the shell rather
+# than plating around it. Sized to the body; the shield has no spatial footprint
+# of its own (it is a self-buff), so matching the silhouette is the honest size.
+const CRAB_REACH := 175.0
+# Cinder Lance charges then flies; Rekindle persists while the embers are lit.
+var _phoenix_lances: Array = []
+var _rekindle_vfx: Dictionary = {}
+const PHOENIX_LANCE_CHARGE := 0.55   # ranged caster, generous tell like the Lizard's
+const PHOENIX_REACH := 88.0
+# Corrosive Goo is a short committed spit; corrosion persists for the weaken.
+var _slime_goos: Array = []
+var _corroded_vfx: Dictionary = {}
+const SLIME_GOO_CONTACT := 0.30   # sluggish blob: slower tell than the Rat, far short of the Giant
+const SLIME_REACH := 80.0
+# Precision Shot aims in flight, and one persistent Cold Blood readout per lizard.
+var _lizard_aims: Array = []
+var _cold_blood_vfx: Dictionary = {}
+# Long enough to read a ROW-wide telegraph and physically walk out of it — this
+# is the counterplay window, so it is the most generous tell of any basic mob.
+const LIZARD_AIM_TIME := 0.85
+# Short on purpose: the Rat is a 75hp skirmisher, so its tell is a quarter of the
+# Hill Giant's. Still long enough to read and to be interrupted.
+const RAT_BITE_CONTACT := 0.24
+const RAT_LUNGE_LEAD := 0.13    # matches play_attack's lunge peak, as the bot's does
+const RAT_BITE_REACH := 74.0    # one melee cell, smaller body than the bot
+const RAT_INFEST_RING := 96.0   # ground ring; Infestation's real radius is 2 tiles
+const GOBLIN_SHANK_CONTACT := 0.50   # attack.png: frame 7 at 12 fps
+const SHAMAN_MEND_CONTACT := 0.42
+const HILL_GIANT_AUTO_CONTACT := 0.50
+const HILL_GIANT_SMASH_CONTACT := 0.58
+const SHEILDOR_LEAP_TELL := 0.20
+const SHEILDOR_LEAP_TRAVEL := 0.50
+const SHEILDOR_LEAP_LAND_HOLD := 0.12
+# Long enough to be read and reacted to across a crowded board, short enough
+# that it never eats a meaningful slice of the 6s cooldown. Sits just under the
+# Hill Giant's 0.58 smash: this is a lighter machine than a boulder drop.
+const WINDUP_PUNCH_CONTACT := 0.52
+# Matches the peak of VisualUnit.play_attack's procedural lunge (0.06 wind-up
+# + 0.07 lunge), so the auto's damage lands exactly when the fist is furthest
+# forward instead of before the body has started moving.
+const WINDUP_AUTO_CONTACT := 0.13
+# One melee cell. Wind-Up Punch hits exactly one adjacent target, so the VFX
+# footprint is one cell — it never paints area it cannot reach.
+const WINDUP_PUNCH_REACH := 96.0
+
+# Stitch Link / Unravel owns live board-space strands and consumes them in sequence.
+var _stitch_thread_effects: Array = []
+var _stitch_ult_seqs: Array = []
+const STITCH_UNRAVEL_TOTAL := 0.75
+
+# Re-entrancy guard so Stitch's transferred Link damage can't recurse forever.
 var _propagating: bool = false
 
 # Snapshots of fallen player heroes so Doc can revive one (Field Surgery).
@@ -109,6 +268,13 @@ signal unit_action(unit, action_type: String)
 signal action_logged(text: String, is_player: bool)   # event-history feed
 signal pace_changed(is_paused: bool, scale: float)
 signal unit_summoned(unit: UnitBase)
+# Momentary camera zoom-punch toward `world_pos`, held for `hold_time` seconds
+# then eased back out. Battles have no player-facing lever (see the Long Fall
+# / boss-fairness notes above), so this is pure spectacle — a beat like the
+# Long Fall grab reads as more consequential with the screen briefly pushing
+# in on it. main_game.gd owns the actual tween since it owns battle_grid_node;
+# AutoBattleManager has no reference to it.
+signal camera_punch_requested(world_pos: Vector2, hold_time: float)
 
 func _ready():
 	unit_action.connect(func(_u, _t): _watchdog_idle_time = 0.0)
@@ -136,6 +302,15 @@ const BASE_TIME_SCALE := Balance.BASE_TIME_SCALE
 # interval instead (~4 refreshes/sec) via a per-unit "aura_tick_t" meta countdown.
 const AURA_TICK_INTERVAL := 0.25
 
+# Headhunter ultimate (Snipe): a real channel, not a cosmetic overlay — he's
+# locked on his aim-pose frame and can't act (mirrors the stun_time gate in
+# _tick_unit) for this long before the shot fires. Dying mid-aim cancels the
+# shot outright, same as any other interrupted action. Damage is doubled to
+# offset the lost auto-attack time (per design call, not a balance pass).
+const HEADHUNTER_AIM_DURATION := 1.5
+const HEADHUNTER_AIM_FRAME := 8
+const HEADHUNTER_SNIPE_DAMAGE_MULT := 2.0
+
 # Gate for per-frame pathfinding debug prints (see move_unit_towards_with_
 # pathfinding). NEVER ship true — printing every frame per stuck unit was a
 # measurable part of the 15+ unit lag (2026-07-04 perf pass).
@@ -150,6 +325,8 @@ func start_battle() -> void:
 	paused = false
 	time_scale = BASE_TIME_SCALE
 	_clear_board_effects()
+	_clear_khagan_overlay()   # defensive — mirrors _clear_board_effects' start-of-battle wipe
+	_clear_arena_overlay()    # same defensive wipe for the board-wide state layer
 	afterimage_actor = null
 	afterimage_time = 0.0
 	fallen_allies.clear()
@@ -158,9 +335,65 @@ func start_battle() -> void:
 	_watchdog_fired = false
 	collect_units()
 	_init_unit_timers()
+	_spawn_khagan_overlay_if_present()
+	_spawn_arena_overlay()
 	print("[Battle] Started — players: %d, enemies: %d" % [player_units.size(), enemy_units.size()])
 	battle_started.emit()
 	pace_changed.emit(paused, time_scale)
+
+# Discovers Khagan (if this is his wave) from the freshly-collected enemy
+# roster and spawns his persistent arena overlay + starts his body pulse.
+# Tied to start_battle() rather than EnemyFactory.create_khagan() itself,
+# since battle_manager isn't guaranteed wired on the unit at creation time —
+# by start_battle(), collect_units() has already run and every spawned unit's
+# battle_manager/grid_position are settled.
+func _spawn_khagan_overlay_if_present() -> void:
+	if _khagan_overlay and is_instance_valid(_khagan_overlay):
+		return   # duplicate-spawn guard
+	if not (skill_effect_container and battle_grid):
+		return
+	for u in enemy_units:
+		if u and is_instance_valid(u) and u.has_meta("khagan_phase"):
+			var world_pos: Vector2 = battle_grid.to_global(battle_grid.grid_to_world(u.grid_position))
+			var overlay := KhaganArenaOverlay.new()
+			skill_effect_container.add_child(overlay)
+			overlay.setup(world_pos, u)   # follows Khagan as he moves — see _follow_target
+			_khagan_overlay = overlay
+			if u.has_method("start_khagan_body_pulse"):
+				u.start_khagan_body_pulse(KhaganArenaOverlay.P1_PULSE_PERIOD, KhaganArenaOverlay.COLOR_IRON)
+			return
+
+func _clear_khagan_overlay() -> void:
+	if _khagan_overlay and is_instance_valid(_khagan_overlay):
+		_khagan_overlay.queue_free()
+	_khagan_overlay = null
+
+# Spawned unconditionally (unlike the Khagan ring, which only exists for his
+# wave) — it costs nothing while idle (alpha 0, _draw() early-outs) and any
+# boss can call arena_overlay.fade_in(state)/fade_out() without a spawn dance.
+func _spawn_arena_overlay() -> void:
+	if arena_overlay and is_instance_valid(arena_overlay):
+		return   # duplicate-spawn guard
+	if not skill_effect_container:
+		return
+	var overlay := ArenaOverlay.new()
+	skill_effect_container.add_child(overlay)
+	arena_overlay = overlay
+
+func _clear_arena_overlay() -> void:
+	if arena_overlay and is_instance_valid(arena_overlay):
+		arena_overlay.queue_free()
+	arena_overlay = null
+
+# Called from the dismount-flash-peak callback in EnemyFactory.advance_khagan_phase
+# (visual timing only — the phase-transform stats/grid/skill logic there is
+# untouched). Escalates the ground overlay AND retunes the still-alive Khagan
+# unit's own body pulse to the Phase-2 tempo in the same beat.
+func escalate_khagan_overlay_phase2(unit: UnitBase) -> void:
+	if _khagan_overlay and is_instance_valid(_khagan_overlay):
+		_khagan_overlay.escalate_to_phase2()
+	if unit and is_instance_valid(unit) and unit.has_method("retune_khagan_body_pulse"):
+		unit.retune_khagan_body_pulse(KhaganArenaOverlay.P2_PULSE_PERIOD, KhaganArenaOverlay.COLOR_IRON)
 
 # Reset every unit's real-time clocks at the start of a battle. Skills begin on
 # cooldown (skill_cooldown_max is now read as SECONDS), basic attacks start ready.
@@ -176,9 +409,22 @@ func _init_unit_timers() -> void:
 		unit.ult_active_time = 0.0
 		unit.hp_regen_accum = 0.0
 		unit.mp_regen_accum = 0.0
+		unit.set_meta("aura_tick_t", 0.0)
+		unit.set_meta("shaman_mend_cast", false)
+		unit.set_meta("hill_giant_committed", false)
+		# Overclock ramp. These were never reset, so a bot instance reused
+		# across rounds started the next fight still carrying the previous
+		# fight's wind-up (up to +50% attack speed from the first frame).
+		# mob_aspd_bonus is the shared mob haste channel — clearing it here
+		# also stops orc_rage/bear_fury leaking their last-frame value.
+		unit.set_meta("oc_time", 0.0)
+		unit.set_meta("oc_bonus", 0.0)
+		unit.set_meta("mob_aspd_bonus", 0.0)
 		unit.lordee_aura_timer = 0.0
 		unit.lordee_chase_timer = 0.0
 		unit.current_shield = 0
+		if unit.health_bar:
+			unit.health_bar.update_shield(0.0, unit.max_hp)
 		# Roster-expansion status fields
 		unit.burn_time = 0.0; unit.burn_dps = 0.0; unit.burn_accum = 0.0; unit.burn_source = null
 		unit.bleed_time = 0.0; unit.bleed_dps = 0.0; unit.bleed_accum = 0.0; unit.bleed_source = null
@@ -187,16 +433,40 @@ func _init_unit_timers() -> void:
 		unit.taunt_time = 0.0; unit.taunt_source = null
 		unit.untargetable_time = 0.0
 		unit.melee_untargetable_time = 0.0
+		# A hero caught mid-Long-Fall when the round ended would otherwise start
+		# the next one parked off-screen with no health bar AND missing from the
+		# grid entirely (the 2026-08-04 redesign genuinely removes it while
+		# airborne) — the pending SceneTreeTimer that would normally place it
+		# back down never fires once the battle scene it belongs to is gone.
+		if unit.has_meta("long_fall_active"):
+			var origin: Vector2i = unit.get_meta("long_fall_origin", unit.grid_position)
+			unit.remove_meta("long_fall_active")
+			unit.remove_meta("long_fall_origin")
+			if battle_grid and not battle_grid.is_cell_occupied(origin):
+				battle_grid.place_unit(unit, origin)
+				unit.grid_position = origin
+				unit.position = _world_pos_for(unit, origin)
+		if unit.has_method("clear_long_fall"):
+			unit.clear_long_fall()
 		unit.outgoing_dmg_mult = 1.0; unit.outgoing_dmg_time = 0.0
-		unit.bonus_aspd_pct = 0.0; unit.bonus_aspd_time = 0.0
-		unit.weakened_pct = 0.0; unit.weakened_time = 0.0
+		unit.bonus_aspd_pct = 0.0; unit.bonus_aspd_time = 0.0; unit.aspd_flavor = ""
+		unit.weakened_pct = 0.0; unit.weakened_time = 0.0; unit.weaken_flavor = ""
 		unit.spore_stacks = 0.0; unit.spore_tick_accum = 0.0
 		unit.momentum_stacks = 0
 		unit.link_partner = null
+		unit.link_group.clear()
+		unit.link_share = 0.0
+		unit.link_owner = null
 		unit.puppet_time = 0.0
 		unit.stoke_charges = 0
 		unit.meltdown_time = 0.0
 		unit.combat_healing_done = 0
+		# The sixth-shot cadence is per battle, not persistent roster state.
+		unit.set_meta("zolt_auto", 0)
+		# Guardian Aura begins after its stated interval and never inherits a
+		# partial timer from the persistent roster unit's previous battle.
+		unit.set_meta("bulwark_t", _abf(unit, AF_PASSIVE, "every") \
+			if unit.unit_class == UnitBase.UnitClass.SHEILDOR else 0.0)
 		unit.first_contribution_time = -1.0   # per-battle; see _sample_first_contribution
 		unit.judgment_pool = 0
 		unit.revive_used = false
@@ -210,6 +480,9 @@ func _init_unit_timers() -> void:
 		unit.summon_spawn_timer = 2.5
 		# ── Relic battle-start effects ──
 		unit.relic_revive_used = false
+		unit.relic_first_strike_used = false
+		unit.relic_opening_burst_remaining = unit.relic_opening_burst_window
+		unit.relic_momentum_time = 0.0
 		if unit.relic_start_shield_pct > 0.0:
 			unit.current_shield += int(round(unit.max_hp * unit.relic_start_shield_pct))
 		if unit.relic_free_first_ult and unit.ultimate_charge_max > 0:
@@ -223,6 +496,14 @@ func collect_units() -> void:
 	if not battle_grid:
 		print("[Battle] ERROR: battle_grid is null!")
 		return
+
+	# Reclaim cells held by units that no longer exist before reading the board.
+	# Self-heal rather than pure hygiene: occupied_cells persists across rounds,
+	# so a run that already stranded cells (see BattleGrid.purge_unit) stays
+	# walled for the rest of the run without this.
+	var reclaimed: int = battle_grid.sweep_phantoms()
+	if reclaimed > 0:
+		print("[Battle] reclaimed %d phantom grid cell(s) held by dead/freed units" % reclaimed)
 
 	print("[Battle] occupied_cells count: %d" % battle_grid.occupied_cells.size())
 	for grid_pos in battle_grid.occupied_cells:
@@ -330,19 +611,44 @@ func enrage_multiplier() -> float:
 
 # Frame-level decay for effects that aren't owned by a single unit.
 func _tick_global_effects(dt: float) -> void:
+	_tick_nemi_tide_seqs(dt)
+	_tick_nemi_tidal_waves(dt)
+	_tick_nemi_pending_ult_casts()
+	_tick_bloodhound_pending_ult_casts()
+	_tick_goblin_shanks(dt)
+	_tick_shaman_mends(dt)
+	_tick_hill_giant_actions(dt)
+	_tick_june_autos(dt)
+	_tick_sheildor_autos(dt)
+	_tick_sheildor_leaps(dt)
+	_tick_windup_punches(dt)
+	_tick_windup_autos(dt)
+	_tick_rat_bites(dt)
+	_sync_disease_vfx()
+	_tick_lizard_aims(dt)
+	_tick_slime_goos(dt)
+	_tick_phoenix_lances(dt)
+	_sync_crab_shell_vfx()
+	_tick_bear_swipes(dt)
+	_tick_orc_crushes(dt)
+	_sync_bleed_vfx()
+	_sync_enraged_vfx()
+	_sync_corroded_vfx()
+	_tick_stitch_unravel(dt)
 	if afterimage_time > 0.0:
 		afterimage_time -= dt
 		# If the actor died mid-cast, end the freeze immediately so nobody stalls.
 		if afterimage_time <= 0.0 or not (afterimage_actor and is_instance_valid(afterimage_actor)):
 			afterimage_time = 0.0
 			afterimage_actor = null
-	if thorns_time > 0.0:
-		thorns_time -= dt
+	_tick_bloom_fields(dt)
 	if grid_field_time > 0.0:
 		grid_field_time -= dt
 		grid_field_tick_time -= dt
 		if grid_field_tick_time <= 0.0:
 			grid_field_tick_time += 1.0
+			if _static_grid_vfx and is_instance_valid(_static_grid_vfx):
+				_static_grid_vfx.pulse()
 			var grid_foes: Array = enemy_units if grid_owner_is_player else player_units
 			for u in grid_foes.duplicate():
 				if u and is_instance_valid(u):
@@ -359,8 +665,11 @@ func _tick_global_effects(dt: float) -> void:
 				var grid_stun_foes: Array = enemy_units if grid_owner_is_player else player_units
 				for u in grid_stun_foes.duplicate():
 					if u and is_instance_valid(u):
-						u.stun_time = maxf(u.stun_time, 2.0)
-				_spawn_skill_effect_sized(SkillEffect.Type.LIGHTNING, static_grid_channel_caster.global_position, 130.0)
+						apply_stun(u, 2.0)
+				if _static_grid_vfx and is_instance_valid(_static_grid_vfx):
+					_static_grid_vfx.lockdown()
+				_spawn_static_point(StaticVFX.Mode.AUTO_IMPACT,
+					static_grid_channel_caster.global_position, 0.55)
 				action_logged.emit("%s's Grid locks the field down!" % static_grid_channel_caster.unit_name, grid_owner_is_player)
 				static_grid_channel_time = -1.0
 				static_grid_channel_caster = null
@@ -395,11 +704,88 @@ func _clear_board_effects() -> void:
 		if storm and is_instance_valid(storm):
 			storm.queue_free()
 	storms.clear()
-	thorns_time = 0.0
+	for f in bloom_fields:
+		if f.get("vfx") and is_instance_valid(f["vfx"]):
+			f["vfx"].queue_free()
+	bloom_fields.clear()
 	grid_field_time = 0.0
 	static_grid_channel_time = -1.0
 	static_grid_channel_caster = null
+	if _static_grid_vfx and is_instance_valid(_static_grid_vfx):
+		_static_grid_vfx.queue_free()
+	_static_grid_vfx = null
 	fire_trail.clear()
+	_nemi_tide_seqs.clear()
+	for w in _nemi_tidal_waves:
+		if w.get("effect") and is_instance_valid(w["effect"]):
+			w["effect"].queue_free()
+	_nemi_tidal_waves.clear()
+	_nemi_pending_ult_casts.clear()
+	_bloodhound_pending_ult_casts.clear()
+	_goblin_shanks.clear()
+	for fx in _goblin_pack_vfx.values():
+		if fx and is_instance_valid(fx):
+			fx.queue_free()
+	_goblin_pack_vfx.clear()
+	for mend in _shaman_mends:
+		if mend.get("effect") and is_instance_valid(mend["effect"]):
+			mend["effect"].queue_free()
+	_shaman_mends.clear()
+	for fx in _shaman_aura_vfx.values():
+		if fx and is_instance_valid(fx):
+			fx.queue_free()
+	_shaman_aura_vfx.clear()
+	_clear_hill_giant_actions()
+	_sheildor_autos.clear()
+	_june_autos.clear()
+	for leap in _sheildor_leaps:
+		var leap_caster = leap.get("caster")
+		if leap_caster and is_instance_valid(leap_caster):
+			leap_caster.set_meta("sheildor_leaping", false)
+	_sheildor_leaps.clear()
+	_clear_windup_actions()
+	_clear_rat_actions()
+	_clear_lizard_actions()
+	_clear_slime_actions()
+	_clear_phoenix_actions()
+	_clear_crab_actions()
+	_clear_bear_actions()
+	_clear_troll_actions()
+	_clear_minotaur_actions()
+	_clear_orc_actions()
+	_clear_storm_giant_actions()
+	_clear_coral_actions()
+	_clear_gargoyle_actions()
+	_clear_wyvern_actions()
+	for fx in _sheildor_barriers.values():
+		if fx and is_instance_valid(fx):
+			fx.queue_free()
+	_sheildor_barriers.clear()
+	for fx in _rift_auras.values():
+		if fx and is_instance_valid(fx):
+			fx.queue_free()
+	_rift_auras.clear()
+	for fx in _june_auras.values():
+		if fx and is_instance_valid(fx):
+			fx.queue_free()
+	_june_auras.clear()
+	for fx in _june_root_cuffs.values():
+		if fx and is_instance_valid(fx):
+			fx.queue_free()
+	_june_root_cuffs.clear()
+	for fx in _sear_scorch_vfx.values():
+		if fx and is_instance_valid(fx):
+			fx.queue_free()
+	_sear_scorch_vfx.clear()
+	for fx in _sear_burn_marks.values():
+		if fx and is_instance_valid(fx):
+			fx.queue_free()
+	_sear_burn_marks.clear()
+	_stitch_ult_seqs.clear()
+	for thread in _stitch_thread_effects:
+		if thread and is_instance_valid(thread):
+			thread.queue_free()
+	_stitch_thread_effects.clear()
 
 # ── Pace control ──────────────────────────────────────────────────────────────
 func set_paused(p: bool) -> void:
@@ -437,17 +823,64 @@ func _tick_unit(unit: UnitBase, dt: float) -> void:
 	if not (unit and is_instance_valid(unit)):
 		return   # a damage-over-time tick may have killed it
 	_tick_passive(unit, opponents, allies, dt)
+	# Shank owns a real anticipation window; do not let its caster walk or attack
+	# over the top of the committed sword animation.
+	if float(unit.get_meta("goblin_shank_cast", 0.0)) > 0.0:
+		return
 
 	# Count down all real-time timers.
 	if unit.stun_time > 0.0:      unit.stun_time -= dt
 	if unit.skill_cd_time > 0.0:  unit.skill_cd_time -= dt
 	if unit.attack_cooldown > 0.0: unit.attack_cooldown -= dt
-	if unit.rapid_fire_time > 0.0: unit.rapid_fire_time -= dt
-	if unit.overdrive_time > 0.0:  unit.overdrive_time -= dt
+	if unit.rapid_fire_time > 0.0:
+		unit.rapid_fire_time -= dt
+		# Headhunter's Rapid Fire buff visual is a pulsing gold glow on the
+		# character himself (start_buff_glow in _headhunter_rapid_fire), not a
+		# spawned particle — stop it the instant the buff window closes.
+		if unit.rapid_fire_time <= 0.0 and unit.has_method("stop_buff_glow"):
+			unit.stop_buff_glow()
+	if unit.overdrive_time > 0.0:
+		unit.overdrive_time -= dt
+		# Shauna's Overdrive glow (start_buff_glow in _use_ultimate) — stop the
+		# instant the window closes, mirroring Rapid Fire's glow above.
+		if unit.overdrive_time <= 0.0:
+			if unit.has_method("stop_buff_glow"):
+				unit.stop_buff_glow()
+			if unit.has_method("set_anim_speed_scale"):
+				unit.set_anim_speed_scale(1.0)
 	if unit.ult_active_time > 0.0: unit.ult_active_time -= dt
+	# Relic timers: Opening Burst window counts down, Momentum counts up.
+	if unit.relic_opening_burst_remaining > 0.0: unit.relic_opening_burst_remaining -= dt
+	if unit.relic_momentum_pct_per_sec > 0.0: unit.relic_momentum_time += dt
 
 	# Stunned or rooted-into-stun: no actions until it wears off.
 	if unit.stun_time > 0.0:
+		return
+	if bool(unit.get_meta("shaman_mend_cast", false)):
+		return
+	if bool(unit.get_meta("hill_giant_committed", false)):
+		return
+	if bool(unit.get_meta("sheildor_leaping", false)):
+		return
+
+	# Headhunter's Snipe channel: locked on his aim frame, no retargeting/
+	# attacking/skills/re-triggering the ultimate until the shot fires. If he
+	# dies mid-aim, _is_alive() at the top of this function stops the countdown
+	# for good — the shot simply never fires.
+	var hh_aim_time: float = float(unit.get_meta("headhunter_aim_time", 0.0))
+	if hh_aim_time > 0.0:
+		hh_aim_time -= dt
+		if hh_aim_time <= 0.0:
+			unit.set_meta("headhunter_aim_time", 0.0)
+			_headhunter_fire_snipe(unit)
+		else:
+			unit.set_meta("headhunter_aim_time", hh_aim_time)
+		return
+
+	# Long Fall approach (Skyrender): walking to the victim is its own beat,
+	# driven entirely from the "skyrender_ascent" passive tick below — no
+	# normal targeting/attacking/pathing while it's closing the distance.
+	if unit.get_meta("long_fall_state", "") == "approaching":
 		return
 
 	unit.target_unit = _choose_target(unit, opponents)
@@ -477,7 +910,7 @@ func _tick_unit(unit: UnitBase, dt: float) -> void:
 		var skill_before: int = unit.damage_dealt
 		_use_skill(unit, opponents, allies)
 		if unit.has_method("cast_particles"): unit.cast_particles()
-		unit.skill_cd_time = float(unit.skill_cooldown_max)   # cooldown in seconds
+		unit.skill_cd_time += float(unit.skill_cooldown_max)   # += carries overshoot from large dt so throughput matches at any time_scale
 		unit_action.emit(unit, "skill")
 		var skill_dmg: int = unit.damage_dealt - skill_before
 		if skill_dmg > 0:
@@ -495,7 +928,46 @@ func _tick_unit(unit: UnitBase, dt: float) -> void:
 	# Use Chebyshev (grid) distance to match 8-directional movement. Euclidean here
 	# left diagonally-adjacent melee units (dist 1.41 > range 1) permanently stuck:
 	# "out of range" yet unable to step orthogonally closer past a blocking ally.
-	if _unit_dist(unit, target) <= effective_range:
+	var in_range: bool = _unit_dist(unit, target) <= effective_range
+
+	# Melee (range 1) should not land its hit standing on a diagonal — user
+	# report 2026-09-06, a 1x1 melee unit swinging from a corner. Chebyshev
+	# range still says "in range" there (dist 1), which is exactly the
+	# property the comment above relies on to avoid the old stuck-forever
+	# bug, so this does NOT touch _unit_dist / the range check itself. It
+	# only gates the FINAL swing: a 1x1-vs-1x1 melee unit sitting diagonal
+	# steps into a free orthogonal cell next to the target first (immediate,
+	# not queued behind a stuck-timer), and only swings from the diagonal if
+	# every orthogonal cell is actually occupied — so a unit boxed in on a
+	# corner still attacks instead of freezing, which is the one guarantee
+	# the Chebyshev change above exists to protect. Left at Chebyshev
+	# (unchanged) for any multi-cell unit or target — rect-to-rect diagonals
+	# there are the exact Hill Giant class of case the comment on _unit_dist
+	# is about, and not what was reported here.
+	if in_range and unit.attack_range == 1 and unit.cell_size == 1 and target.cell_size == 1 \
+			and not _orthogonally_adjacent(unit.grid_position, target.grid_position):
+		var step := _free_orthogonal_step(unit, target)
+		if step != Vector2i(-1, -1):
+			unit_paths.erase(unit)
+			if not unit.is_moving:
+				start_unit_movement(unit, unit.grid_position, step)
+			return
+		# else: every orthogonal cell is occupied — fall through and swing
+		# from the diagonal rather than freeze.
+
+	# Root cause of "attacks from across the board" (user reports 2026-09-06 and
+	# 2026-09-07 — measured with real print output: grid distance was
+	# genuinely 1 every time, but on-SCREEN gap ranged 100-336px for what
+	# should read as one cell, ~110px). start_unit_movement() snaps
+	# grid_position to the DESTINATION the instant a move is issued — see its
+	# own comment — while `position` (what's actually drawn) only catches up
+	# gradually over the tween, tracked by `is_moving`. `in_range` above is
+	# computed from grid_position, so it goes true the moment a unit COMMITS
+	# to a step that will land it adjacent, frames before it visually gets
+	# there. Gating the swing itself on `not unit.is_moving` (not the range
+	# check, which still needs grid_position — see the Chebyshev comment
+	# above) makes a hit only land once the sprite has actually arrived.
+	if in_range and not unit.is_moving:
 		# In range: attack only when this unit's attack timer is ready.
 		if unit.attack_cooldown <= 0.0:
 			unit.pending_attack_log_damage = 0
@@ -504,21 +976,31 @@ func _tick_unit(unit: UnitBase, dt: float) -> void:
 				if second:
 					unit.attack(second)
 			unit.attack(target)
-			_apply_on_hit_passives(unit, target, opponents)
+			# Goblin Archer Focus Fire is a landed-hit passive. Its real projectile
+			# applies the stack on impact so a shot that fizzles on target death does
+			# not silently build damage.
+			if str(unit.get_meta("mob_passive", "")) != "archer_focus" \
+					and unit.unit_class != UnitBase.UnitClass.SHEILDOR \
+					and not _has_delayed_auto(unit):
+				_apply_on_hit_passives(unit, target, opponents)
 			# Twin Fang relic: chance for the attack to strike a second time.
 			if unit.relic_double_atk_chance > 0.0 and randf() < unit.relic_double_atk_chance and is_instance_valid(target) and target.current_hp > 0:
 				unit.attack(target)
-				_apply_on_hit_passives(unit, target, opponents)
-			# Shauna Overdrive: an extra swing per attack while active.
+				if str(unit.get_meta("mob_passive", "")) != "archer_focus" \
+						and unit.unit_class != UnitBase.UnitClass.SHEILDOR \
+						and not _has_delayed_auto(unit):
+					_apply_on_hit_passives(unit, target, opponents)
+			# Shauna Overdrive: an extra swing per attack while active. The
+			# sustained buff glow (started in _use_ultimate) already reads
+			# as "she's in overdrive" — no per-swing burst needed here.
 			if unit.overdrive_time > 0.0:
 				unit.attack(target)
-				_spawn_skill_effect_sized(SkillEffect.Type.OVERDRIVE, unit.global_position, 32.0)
 			var haste: float = unit.equipment_passives.get("Haste", 0.0)
 			# Basic-mob attack-speed passives (Goblin Pack Courage, Orc Bloodrage,
 			# Bear Fury, Windup Overclock) stash their bonus in this meta from
 			# _tick_mob_passive; folded into haste so it rides the same cooldown math.
 			haste += float(unit.get_meta("mob_aspd_bonus", 0.0))
-			unit.attack_cooldown = 1.0 / (unit.attacks_per_second * (1.0 + haste))
+			unit.attack_cooldown += 1.0 / (unit.attacks_per_second * (1.0 + haste))   # += carries overshoot from large dt so throughput matches at any time_scale
 			unit_action.emit(unit, "attack")
 			unit_paths.erase(unit)
 			var atk_dmg: int = unit.pending_attack_log_damage
@@ -545,6 +1027,9 @@ func _regen_tick(unit: UnitBase, dt: float) -> void:
 		# Titan's Heart relic: regenerate a fraction of MAX HP per second.
 		if unit.relic_regen_pct > 0.0:
 			unit.hp_regen_accum += unit.max_hp * unit.relic_regen_pct * dt
+		# Vail Updraft: timed flat HP/sec regen buff.
+		if unit.bonus_regen_time > 0.0 and unit.bonus_regen_amt > 0.0:
+			unit.hp_regen_accum += unit.bonus_regen_amt * dt
 		if unit.hp_regen_accum >= 1.0:
 			var whole: int = int(unit.hp_regen_accum)
 			unit.heal(whole, true)   # silent — batched into a single floating number below
@@ -596,6 +1081,58 @@ func _is_focused(unit: UnitBase, potential_focusers: Array) -> bool:
 # Per-class condition gating whether an active skill may fire this turn.
 # Default: always ready. Shauna's Kite only fires while an enemy focuses her.
 func _skill_trigger_ready(unit: UnitBase, opponents: Array) -> bool:
+	if str(unit.get_meta("mob_skill", "")) == "goblin_shank":
+		var goblin_target := find_nearest_enemy(unit, opponents)
+		return goblin_target != null and _unit_dist(unit, goblin_target) <= unit.skill_range
+	if str(unit.get_meta("mob_skill", "")) == "archer_cripple":
+		var archer_target := find_nearest_enemy(unit, opponents)
+		return archer_target != null and _unit_dist(unit, archer_target) <= unit.skill_range
+	if str(unit.get_meta("mob_skill", "")) == "shaman_mend":
+		return _lowest_wounded_ally(unit, enemy_units if not unit.is_player_unit else player_units,
+			unit.skill_range, true) != null
+	if str(unit.get_meta("mob_skill", "")) == "brute_crush":
+		# Crushing Blow is melee (skill_range 1) on every user. Without this the
+		# default `return true` let an Orc land a 160% hit and a stun on a hero it
+		# had not reached yet.
+		var crush_target := find_nearest_enemy(unit, opponents)
+		return crush_target != null and _unit_dist(unit, crush_target) <= unit.skill_range
+	if str(unit.get_meta("mob_skill", "")) == "bear_swipe":
+		# Rending Swipe / Talon Rake are all melee (skill_range 1). Without this
+		# the default `return true` let a Bear open a bleed on a hero it had not
+		# reached yet.
+		var swipe_target := find_nearest_enemy(unit, opponents)
+		return swipe_target != null and _unit_dist(unit, swipe_target) <= unit.skill_range
+	if str(unit.get_meta("mob_skill", "")) == "slime_goo":
+		# Corrosive Goo is melee (skill_range 1). Without this the default
+		# `return true` below let a Slime weaken a hero from across the board
+		# while still sludging toward it. Not shared with any other mob.
+		var goo_target := find_nearest_enemy(unit, opponents)
+		return goo_target != null and _unit_dist(unit, goo_target) <= unit.skill_range
+	if str(unit.get_meta("mob_skill", "")) == "lizard_snipe":
+		# Precision Shot / Cinder Lance are ranged but NOT unlimited. Without this
+		# the default `return true` let the Lizard snipe from any distance, which
+		# also silently hid that its skill_range (5) was 3 shorter than its
+		# attack_range (8) — now aligned to 8 in the factory.
+		var snipe_target := find_nearest_enemy(unit, opponents)
+		return snipe_target != null and _unit_dist(unit, snipe_target) <= unit.skill_range
+	if str(unit.get_meta("mob_skill", "")) == "rat_bite":
+		# Infected Bite / Searing Bite / Venom Stinger are all melee (skill_range 1).
+		# Without this the default `return true` below let a Rat bite and infect a
+		# hero on the far side of the board while still running toward it.
+		var bite_target := find_nearest_enemy(unit, opponents)
+		return bite_target != null and _unit_dist(unit, bite_target) <= unit.skill_range
+	if str(unit.get_meta("mob_skill", "")) == "windup_punch":
+		# Wind-Up Punch / Gore Rush / Thunderclap are all melee (skill_range 1).
+		# Without this gate the default `return true` below let them fire from
+		# anywhere on the board: the bot would damage and stun the nearest hero
+		# while still walking toward it, with no travel and no contact.
+		var windup_target := find_nearest_enemy(unit, opponents)
+		return windup_target != null and _unit_dist(unit, windup_target) <= unit.skill_range
+	if str(unit.get_meta("mob_skill", "")) == "hill_giant_smash":
+		for opponent in opponents:
+			if _is_alive(opponent) and _unit_dist(unit, opponent) <= unit.skill_range:
+				return true
+		return false
 	match unit.unit_class:
 		UnitBase.UnitClass.SHAUNA:
 			if not _is_focused(unit, opponents):
@@ -686,6 +1223,17 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 					debuff_target.movement_speed = max(debuff_target.movement_speed - 1, move_floor)
 					debuff_target.set_meta("resonance_debuffed", true)
 
+			# Get her lined up BEFORE the ultimate is actually ready, not at
+			# the instant it fires — movement takes time, so waiting until
+			# 100% charge to start walking meant the wave often still fired
+			# late/mid-stride. Starting the walk at 90% charge gives her a
+			# head start; by the time the last 10% ticks in she's often
+			# already in position, so the cast-time reposition check in
+			# _nemi_tidal_wave has nothing left to do.
+			if not unit.ultimate_ready and unit.ultimate_charge_max > 0 and not unit.is_moving \
+					and float(unit.ultimate_charge) / float(unit.ultimate_charge_max) >= 0.9:
+				_nemi_reposition_for_wave(unit, opponents)
+
 		UnitBase.UnitClass.BOUNCER:
 			# Presence: count units within 2 tiles (recalculated, stored in offensive affinity).
 			# Throttled to AURA_TICK_INTERVAL — see NEMI comment above, same perf reasoning.
@@ -772,15 +1320,28 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 			# Verdant Aura: nearby allies slowly regenerate HP.
 			# Throttled to AURA_TICK_INTERVAL — regen amount uses the fixed interval (not dt)
 			# so the total HP/sec granted is unchanged, just delivered in bigger, less frequent chunks.
+			# The aura healed all fight with NOTHING on screen — no radius, no
+			# sign of who was inside. It gets a persistent ground lattice, and
+			# each tick runs a visible pulse out to every ally it actually heals.
+			_ensure_june_aura(unit)
 			var june_t: float = float(unit.get_meta("aura_tick_t", 0.0)) - dt
 			if june_t > 0.0:
 				unit.set_meta("aura_tick_t", june_t)
 			else:
 				unit.set_meta("aura_tick_t", AURA_TICK_INTERVAL)
+				var june_aura = _june_auras.get(unit.get_instance_id())
+				var healed_any := false
 				for ally in allies:
 					if ally and is_instance_valid(ally) and ally != unit:
 						if unit.grid_position.distance_to(ally.grid_position) <= _abf(unit, AF_PASSIVE, "radius"):
 							ally.hp_regen_accum += _abf(unit, AF_PASSIVE, "regen") * AURA_TICK_INTERVAL
+							# Only pulse to allies who can actually use the heal,
+							# so a full-HP line doesn't strobe for no reason.
+							if ally.current_hp < ally.max_hp:
+								_spawn_june_pair(JuneVFX.Mode.AURA_PULSE, unit, ally, 0.46)
+								healed_any = true
+				if healed_any and june_aura and is_instance_valid(june_aura):
+					june_aura.pulse()
 
 		UnitBase.UnitClass.REED:
 			# Wellspring: stronger nearby regen + debuffs fade 30% faster.
@@ -799,6 +1360,14 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 							if ally.burn_time > 0.0: ally.burn_time -= fade
 							if ally.root_time > 0.0: ally.root_time -= fade
 
+		UnitBase.UnitClass.RIFT:
+			# "Backlash" has no tick of its own — it resolves in the on-being-hit
+			# phase (propagate_damage_links). What it needs from the tick is its
+			# PERSISTENT TELL: before this, the passive redirected damage to a
+			# random enemy with no visual at all, so a damage number appeared on
+			# the far side of the board with nothing to explain it.
+			_ensure_rift_aura(unit)
+
 		UnitBase.UnitClass.SHEILDOR:
 			# "Guardian Aura" (implemented 2026-07-03 — the factory has shown this
 			# passive_name in the UI since creation with NO implementation behind
@@ -812,10 +1381,9 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 				var shel_tar := _lowest_hp_ally(unit, allies, 1.5, false)
 				if shel_tar and shel_tar != unit:
 					var shel_amt: int = _ab(unit, AF_PASSIVE, "shield")
-					shel_tar.current_shield += shel_amt
-					if shel_tar.health_bar:
-						shel_tar.health_bar.update_shield(shel_tar.current_shield, shel_tar.max_hp)
-					_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, shel_tar.global_position, 22.0)
+					_grant_shield(shel_tar, shel_amt)
+					_spawn_sheildor_pair(SheildorVFX.Mode.AURA_LINK, unit, shel_tar, 0.58)
+					_ensure_sheildor_barrier(shel_tar)
 
 		UnitBase.UnitClass.VAIL:
 			# "Far Winds" (implemented 2026-07-03 — passive_name existed in the UI
@@ -832,6 +1400,7 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 						if unit.grid_position.distance_to(v_ally.grid_position) <= _abf(unit, AF_PASSIVE, "radius"):
 							v_ally.bonus_aspd_pct = maxf(v_ally.bonus_aspd_pct, vail_bonus)
 							v_ally.bonus_aspd_time = maxf(v_ally.bonus_aspd_time, 0.35)
+							_spawn_skill_effect_sized(SkillEffect.Type.WIND_GLIMMER, v_ally.global_position, 20.0, 1.1)
 
 		UnitBase.UnitClass.SPORE:
 			# Spore Cloud: enemies within 2 cells accrue stacks; burst handled in _tick_statuses.
@@ -850,21 +1419,13 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 			_stat_steal_drain(caster, opponents)
 
 		UnitBase.UnitClass.BLOODHOUND:
-			# Pounce — leap to most-damage-dealer, stun + 250% ATK
-			var _mdl = caster.most_damage_dealer
-			var target: UnitBase = _mdl if (is_instance_valid(_mdl) and _mdl != null) else null
-			if not (target and is_instance_valid(target)):
-				target = find_nearest_enemy(caster, opponents)
-			if not target:
-				return
-			var dmg := _ab(caster, AF_ULT, "dmg")
-			target.take_damage(dmg, caster.current_element, caster)
-			target.stun_time = _abf(caster, AF_ULT, "stun")
-			caster.damage_dealt += dmg
-			_spawn_skill_effect(SkillEffect.Type.SHADOW_STRIKE, caster.global_position)
+			_bloodhound_pounce(caster, opponents)
 
 		UnitBase.UnitClass.BOUNCER:
-			# Gravity Drop — warning ring + pull all enemies in range + impact
+			# Gravity Drop — warning ring + pull all enemies in range + impact.
+			# Body animation (the bulk-swell "ult" clip) is separate from the
+			# 2D VFX spawned below — see VisualUnit.play_ult_oneshot.
+			if caster.has_method("play_ult_oneshot"): caster.play_ult_oneshot()
 			var dmg := _ab(caster, AF_ULT, "dmg")
 			var bonus: float = caster.get_meta("presence_bonus") if caster.has_meta("presence_bonus") else 0.0
 			if caster.has_meta("presence_bonus"):
@@ -887,38 +1448,45 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 					# Pull to nearest open cell next to Bouncer
 					var open_cell := _nearest_open_adjacent(caster.grid_position)
 					if open_cell != Vector2i(-1, -1) and open_cell != opp.grid_position:
-						battle_grid.remove_unit(opp.grid_position)
+						battle_grid.purge_unit(opp)
 						if battle_grid.place_unit(opp, open_cell):
 							opp.grid_position = open_cell
 							opp.position = _world_pos_for(opp, open_cell)
-					opp.take_magic_damage(dmg, caster.current_element, caster)
+					opp.take_damage(dmg, caster.current_element, caster)
 					caster.damage_dealt += dmg
 
 		UnitBase.UnitClass.HEADHUNTER:
-			# Snipe — shoot farthest enemy, blocked by any enemy in line
-			var target := _farthest_enemy(caster, opponents)
-			if not target:
-				return
-			# Check line of fire for blockers
-			var actual_target := _check_line_of_fire(caster, target, opponents)
-			var dmg := _ab(caster, AF_ULT, "dmg")
-			actual_target.take_damage(dmg, caster.current_element, caster)
-			caster.damage_dealt += dmg
-			_spawn_skill_effect(SkillEffect.Type.ARROW_RAIN, actual_target.global_position)
+			# Snipe — locks aim for HEADHUNTER_AIM_DURATION (see _tick_unit's
+			# headhunter_aim_time gate), then _headhunter_fire_snipe resolves
+			# the actual farthest-enemy/line-of-fire target once the shot goes
+			# off, so a moved/dead target during the channel doesn't matter.
+			caster.set_meta("headhunter_aim_opponents", opponents)
+			caster.set_meta("headhunter_aim_time", HEADHUNTER_AIM_DURATION)
+			if caster.has_method("play_aim_pose"):
+				caster.play_aim_pose(HEADHUNTER_AIM_FRAME)
 		UnitBase.UnitClass.SHEILDOR:
 			_sheildor_guardian_leap(caster, allies, opponents)
 		UnitBase.UnitClass.LORDEE:
 			_lordee_parasite_lunge(caster, opponents)
 		UnitBase.UnitClass.SHAUNA:
-			# Overdrive: 3 extra attack turns
+			# Overdrive: extra attack turns for the duration
 			caster.overdrive_time = _abf(caster, AF_ULT, "dur")
 			caster.ult_active_time = caster.overdrive_time   # no ult-charge while overdrive runs
 			_spawn_skill_effect(SkillEffect.Type.OVERDRIVE, caster.global_position)
+			# She stays visibly "in overdrive" for the whole window via a pulsing
+			# teal glow on her own sprite (same start_buff_glow used by
+			# Headhunter's Rapid Fire) instead of re-spawning a burst effect on
+			# every extra swing — that repeated burst read as a distracting
+			# flurry of arrows rather than a sustained buffed state.
+			if caster.has_method("start_buff_glow"):
+				caster.start_buff_glow(Color(0.1, 0.9, 0.85))
+			if caster.has_method("set_anim_speed_scale"):
+				caster.set_anim_speed_scale(1.75)   # sells "hasted" on top of the extra swing
 
 		UnitBase.UnitClass.NECRO:
 			_necro_bat_swarm(caster, opponents)
 		UnitBase.UnitClass.NEMI:
-			# Tidal Wave: 3-wide column sweep with pushback
+			# Tidal Wave: 5-wide column sweep with pushback
 			_nemi_tidal_wave(caster, opponents)
 
 		UnitBase.UnitClass.WHITE_MAGE:
@@ -947,9 +1515,9 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 		UnitBase.UnitClass.PASTOR:     _pastor_damnation(caster, opponents)
 		UnitBase.UnitClass.SABLE:      _sable_headshot(caster, opponents)
 		UnitBase.UnitClass.RUSH:       _rush_afterimage(caster, opponents)
-		UnitBase.UnitClass.STITCH:     _stitch_puppet(caster, opponents)
+		UnitBase.UnitClass.STITCH:     _stitch_unravel(caster, opponents)
 		UnitBase.UnitClass.COAL:       _coal_meltdown(caster)
-		UnitBase.UnitClass.JUNE:       _june_bloom(caster)
+		UnitBase.UnitClass.JUNE:       _june_bloom(caster, opponents)
 		UnitBase.UnitClass.CROSS:      _cross_judgment(caster, opponents)
 		UnitBase.UnitClass.SEAR:      _sear_conflagration(caster, opponents)
 		UnitBase.UnitClass.EMBER:      _ember_wildfire(caster, opponents)
@@ -958,7 +1526,7 @@ func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 		UnitBase.UnitClass.LUMEN:      _lumen_prism(caster, opponents)
 		UnitBase.UnitClass.STATIC:     _static_grid(caster)
 		UnitBase.UnitClass.REED:       _reed_confluence(caster, allies)
-		UnitBase.UnitClass.VAIL:       _vail_tailwind(caster, allies)
+		UnitBase.UnitClass.VAIL:       _vail_downburst(caster, opponents)
 		UnitBase.UnitClass.SPORE:      _spore_release(caster, opponents)
 
 		_:
@@ -1021,6 +1589,28 @@ func _rect_dist(a_origin: Vector2i, a_size: int, b_origin: Vector2i, b_size: int
 	var dx: int = maxi(maxi(a_origin.x - (b_origin.x + b_size - 1), b_origin.x - (a_origin.x + a_size - 1)), 0)
 	var dy: int = maxi(maxi(a_origin.y - (b_origin.y + b_size - 1), b_origin.y - (a_origin.y + a_size - 1)), 0)
 	return maxi(dx, dy)
+
+# True (non-diagonal) adjacency for two 1x1 cells: Chebyshev distance 1 with
+# one axis at 0, not 1-and-1. Only meaningful for 1x1-vs-1x1 — see the
+# no-diagonal-melee comment at the call site for why multi-cell units don't
+# go through this at all.
+func _orthogonally_adjacent(a: Vector2i, b: Vector2i) -> bool:
+	var dx: int = absi(a.x - b.x)
+	var dy: int = absi(a.y - b.y)
+	return (dx == 0 and dy == 1) or (dx == 1 and dy == 0)
+
+# One of the 4 cardinal cells next to `target` that `unit` could step into
+# right now — free (or already unit's own square, degenerate) and a real,
+# reachable step. Returns Vector2i(-1,-1) if all four are occupied/invalid,
+# which the caller treats as "boxed in, swing from the diagonal instead."
+func _free_orthogonal_step(unit: UnitBase, target: UnitBase) -> Vector2i:
+	var t: Vector2i = target.grid_position
+	for cand in [t + Vector2i(0, -1), t + Vector2i(0, 1), t + Vector2i(-1, 0), t + Vector2i(1, 0)]:
+		if not battle_grid.is_valid_position(cand):
+			continue
+		if Pathfinding.is_origin_free(cand, battle_grid, unit):
+			return cand
+	return Vector2i(-1, -1)
 
 # ── After-action tracking (2026-07-27) ────────────────────────────────────────
 # Records WHEN each unit first contributed, for the post-battle report. Sampled
@@ -1134,10 +1724,10 @@ func _use_skill(caster: UnitBase, opponents: Array, allies: Array = []) -> void:
 			effect_type = SkillEffect.Type.WHIRLWIND
 			_bouncer_slam(caster, opponents)
 		UnitBase.UnitClass.HEADHUNTER:
-			effect_type = SkillEffect.Type.ARROW_RAIN
+			effect_type = SkillEffect.Type.ARROW_RAIN   # unused — see the generic-spawn skip below
 			_headhunter_rapid_fire(caster)
 		UnitBase.UnitClass.SHAUNA:
-			effect_type = SkillEffect.Type.OVERDRIVE
+			effect_type = SkillEffect.Type.DASH_STEP
 			_shauna_kite(caster, opponents)
 		UnitBase.UnitClass.NEMI:
 			effect_type = SkillEffect.Type.TIDE_WAVE
@@ -1212,8 +1802,19 @@ func _use_skill(caster: UnitBase, opponents: Array, allies: Array = []) -> void:
 		# Enemy special skills re-use existing implementations
 		_:
 			return
-	# Bouncer spawns its own sprite-based effect (see _bouncer_slam) — skip the generic one.
-	if caster.unit_class != UnitBase.UnitClass.BOUNCER:
+	# Bouncer spawns its own sprite-based effect (see _bouncer_slam) — skip the
+	# generic one. Headhunter's Rapid Fire uses a glow on the character himself
+	# (start_buff_glow, called from _headhunter_rapid_fire) instead of a
+	# one-shot particle burst, so skip the generic spawn for him too.
+	# Rift spawns his own paired TEAR_SEAM in _rift_tear; the generic burst here
+	# was a second SHADOW_STRIKE (the shared Thief/Zombie/Bat flash) on top of it.
+	if caster.unit_class != UnitBase.UnitClass.BOUNCER \
+			and caster.unit_class != UnitBase.UnitClass.HEADHUNTER \
+			and caster.unit_class != UnitBase.UnitClass.STATIC \
+			and caster.unit_class != UnitBase.UnitClass.RIFT \
+			and caster.unit_class != UnitBase.UnitClass.JUNE \
+			and caster.unit_class != UnitBase.UnitClass.SEAR \
+			and caster.unit_class != UnitBase.UnitClass.SHEILDOR:
 		_spawn_skill_effect(effect_type, caster.global_position)
 
 # ── Ability numbers ───────────────────────────────────────────────────────────
@@ -1251,45 +1852,321 @@ func _bouncer_slam(caster: UnitBase, opponents: Array) -> void:
 	var bonus: float = caster.get_meta("presence_bonus") if caster.has_meta("presence_bonus") else 0.0
 	dmg = int(dmg * (1.0 + bonus))
 	target.take_magic_damage(dmg, caster.current_element, caster)
-	target.stun_time = _abf(caster, AF_ACTIVE, "stun")
+	apply_stun(target, _abf(caster, AF_ACTIVE, "stun"))
 	caster.damage_dealt += dmg
 	_spawn_sprite_sheet_effect(
 		"res://assets/using/effects_projectiles/bouncer_active.png",
 		target.global_position, 64, 60, 12, Vector2(140, 140))
 
+# Launches a wall of water that physically crosses the board over
+# TIDAL_WAVE_DURATION seconds (see _tick_nemi_tidal_waves) instead of hitting
+# its whole 5-wide column instantly. Starts centred on Nemi's own row and
+# travels straight toward the opposing back line, hitting + pushing back every
+# enemy it passes through along the way, until it reaches the far edge.
 func _nemi_tidal_wave(caster: UnitBase, opponents: Array) -> void:
-	var dmg := _ab(caster, AF_ULT, "dmg")
-	var cx := caster.grid_position.x
-	_spawn_skill_effect_sized(SkillEffect.Type.TIDAL_WAVE, caster.global_position, 100.0)
+	if _nemi_reposition_for_wave(caster, opponents):
+		# Walking, not an instant teleport — grid_position/occupancy update
+		# immediately, but the WAVE ITSELF has to wait until she's actually
+		# finished walking: it's anchored to wherever she's physically
+		# standing, and the whole point of moving her is to hit the target
+		# she pathed toward — casting from her pre-move position would send
+		# the wave sweeping from the wrong spot entirely. Queue it instead of
+		# firing now; _tick_nemi_pending_ult_casts fires it the instant
+		# caster.is_moving goes false.
+		_nemi_pending_ult_casts.append({"caster": caster})
+		return
 
-	# Hit all enemies in a 3-column strip (caster col ±1)
+	_nemi_fire_tidal_wave(caster)
+
+# Shared by the actual ult cast above AND the pre-emptive 90%-charge walk in
+# _tick_passive's NEMI case: if nobody's currently in the wave's straight
+# 5-wide column — the enemy just happens to be diagonal from her, a common
+# case — hop sideways one square onto the nearest column that DOES line up
+# with an enemy. Not aim prediction, just "don't fire into empty air when a
+# one-tile sidestep would connect." Returns true if a walk was just started.
+func _nemi_reposition_for_wave(caster: UnitBase, opponents: Array) -> bool:
+	var cx := caster.grid_position.x
+	var cy := caster.grid_position.y
+	for opp in opponents:
+		if opp and is_instance_valid(opp) and absi(opp.grid_position.x - cx) <= 2:
+			return false   # already lined up — nothing to do
+
+	var best_col := -1
+	var best_d := 999
 	for opp in opponents:
 		if not (opp and is_instance_valid(opp)):
 			continue
-		if abs(opp.grid_position.x - cx) <= 1:
-			opp.take_magic_damage(dmg, caster.current_element, caster)
-			caster.damage_dealt += dmg
-			_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, opp.global_position, 24.0)
-			# Pushback: move 2 cells away from Nemi (in y direction)
-			var push_y: int = sign(opp.grid_position.y - caster.grid_position.y)
-			if push_y == 0: push_y = -1  # if same row, push north
-			for _step in range(_ab(caster, AF_ULT, "push")):
-				var next: Vector2i = opp.grid_position + Vector2i(0, push_y)
+		var d: int = absi(opp.grid_position.x - cx)
+		if d < best_d:
+			best_d = d
+			best_col = opp.grid_position.x
+	if best_col == -1 or best_col == cx:
+		return false
+
+	var dest := _nearest_open_cell_to(Vector2i(best_col, cy))
+	if dest == Vector2i(-1, -1) or dest == caster.grid_position:
+		return false
+
+	start_unit_movement(caster, caster.grid_position, dest)
+	return true
+
+# The actual Tidal Wave cast, factored out of _nemi_tidal_wave so it can fire
+# either immediately (no reposition needed) or once a queued reposition-walk
+# finishes (see _tick_nemi_pending_ult_casts) — either way it always reads
+# caster's CURRENT position, so the wave is guaranteed to start from wherever
+# she's actually standing.
+func _nemi_fire_tidal_wave(caster: UnitBase) -> void:
+	var cx := caster.grid_position.x
+	var cy := caster.grid_position.y
+	var dmg := _ab(caster, AF_ULT, "dmg")
+	var push := int(_ab(caster, AF_ULT, "push"))
+	var dir_y: int = -1 if caster.is_player_unit else 1
+	var edge_row: int = 0 if dir_y < 0 else battle_grid.grid_height - 1
+	var rows: int = absi(edge_row - cy) + 1
+	if rows <= 0:
+		return
+
+	# Wave is always exactly 5 tiles wide (the hit column), regardless of any
+	# other visual-scale tuning — half-width is 2.5 cells so it never bleeds
+	# past the column it actually damages.
+	var wave_half_width: float = battle_grid.cell_size * 2.5
+	var effect := SkillEffect.new()
+	skill_effect_container.add_child(effect)
+	# Anchor to caster.global_position (known-correct — this is what every
+	# unit is actually drawn at), NOT battle_grid.grid_to_world() directly.
+	# grid_to_world() returns a position local to battle_grid's own transform,
+	# which doesn't line up 1:1 with skill_effect_container's coordinate space
+	# — invisible for a small circular burst, glaring for a column-wide band
+	# anchored to a caster (2026-08-06: this is why the wave rendered at the
+	# board edge instead of on Nemi). Row movement below is applied as a DELTA
+	# in grid_to_world space, so that same constant offset cancels out instead
+	# of compounding.
+	effect.setup(SkillEffect.Type.TIDAL_WAVE, caster.global_position, wave_half_width, TIDAL_WAVE_DURATION)
+
+	_nemi_tidal_waves.append({
+		"caster": caster, "dmg": dmg, "push": push, "cx": cx,
+		"dir_y": dir_y, "edge_row": edge_row,
+		"cur_row": float(cy), "speed": float(rows) / TIDAL_WAVE_DURATION,
+		"hit": {}, "effect": effect,
+		"anchor_world": caster.global_position, "anchor_row": float(cy),
+		"wake_t": TIDAL_WAVE_WAKE_INTERVAL,
+	})
+
+# Fires any queued Tidal Wave whose caster has finished walking to her
+# reposition destination. If the caster died mid-walk, the cast is silently
+# dropped (no wave, no wasted ultimate charge refund logic needed — the
+# charge was already spent at cast time same as any other ability).
+# Bloodhound ultimate: Pounce — runs and leaps at his tormentor (2026-09-07,
+# user spec: "he should not deal damage or stun the target until he is in the
+# square next to them"). Mirrors _nemi_tidal_wave's move-then-queue pattern:
+# start_unit_movement kicks off the real grid walk (its is_moving flag also
+# gates _update_model3d_animation off "walk" so the run+leap oneshot clip
+# from play_ult_oneshot isn't stomped), then _tick_bloodhound_pending_ult_casts
+# resolves the hit once he's actually landed adjacent. If he's already
+# adjacent (or no open cell exists next to the target), he hits immediately —
+# no need to fake a walk that wouldn't go anywhere.
+func _bloodhound_pounce(caster: UnitBase, opponents: Array) -> void:
+	var _mdl = caster.most_damage_dealer
+	var target: UnitBase = _mdl if (is_instance_valid(_mdl) and _mdl != null) else null
+	if not (target and is_instance_valid(target)):
+		target = find_nearest_enemy(caster, opponents)
+	if not target:
+		return
+
+	if caster.has_method("play_ult_oneshot"): caster.play_ult_oneshot()
+
+	if caster.grid_position.distance_to(target.grid_position) <= 1.5:
+		_bloodhound_resolve_pounce(caster, target)
+		return
+
+	var dest := _nearest_open_adjacent(target.grid_position)
+	if dest == Vector2i(-1, -1):
+		_bloodhound_resolve_pounce(caster, target)
+		return
+
+	caster.move_speed_override = POUNCE_MOVE_SPEED
+	start_unit_movement(caster, caster.grid_position, dest)
+	_bloodhound_pending_ult_casts.append({"caster": caster, "target": target})
+
+# Actually applies Pounce's damage + stun. Factored out so both the
+# already-adjacent fast path and the post-walk resolve below share one place.
+func _bloodhound_resolve_pounce(caster: UnitBase, target: UnitBase) -> void:
+	var dmg := _ab(caster, AF_ULT, "dmg")
+	target.take_damage(dmg, caster.current_element, caster)
+	apply_stun(target, _abf(caster, AF_ULT, "stun"))
+	caster.damage_dealt += dmg
+	_spawn_skill_effect(SkillEffect.Type.SHADOW_STRIKE, target.global_position)
+
+# Resolves any queued Pounce whose caster has finished walking to the cell
+# adjacent to their target. If either side died mid-leap, the cast is
+# silently dropped (charge was already spent, same as Nemi's equivalent).
+#
+# `is_moving` alone is NOT enough (found 2026-09-07 — user report: it was
+# still resolving before he looked like he'd arrived): that flag tracks the
+# GRID step's own move-speed-driven tween, which is a completely separate
+# timer from the "ult" 3D clip's fixed ~0.74s playback (play_ult_oneshot,
+# above). A fast mover can finish the grid tween well before the leap
+# animation itself finishes playing, so waiting on is_moving alone resolved
+# the hit while he was still visually mid-air. Also waiting on the model3d
+# oneshot means BOTH the logical step and the visual leap must be done.
+func _tick_bloodhound_pending_ult_casts() -> void:
+	if _bloodhound_pending_ult_casts.is_empty():
+		return
+	var alive: Array = []
+	for p in _bloodhound_pending_ult_casts:
+		var caster_v = p["caster"]
+		if not is_instance_valid(caster_v):
+			continue
+		var caster: UnitBase = caster_v
+		var still_leaping: bool = caster.is_moving \
+			or (caster.model3d and caster.model3d.is_oneshot_playing())
+		if still_leaping:
+			alive.append(p)
+			continue
+		var target_v = p["target"]
+		if is_instance_valid(target_v):
+			_bloodhound_resolve_pounce(caster, target_v)
+	_bloodhound_pending_ult_casts = alive
+
+func _tick_nemi_pending_ult_casts() -> void:
+	if _nemi_pending_ult_casts.is_empty():
+		return
+	var alive: Array = []
+	for p in _nemi_pending_ult_casts:
+		var caster_v = p["caster"]
+		if not is_instance_valid(caster_v):
+			continue
+		var caster: UnitBase = caster_v
+		if caster.is_moving:
+			alive.append(p)
+			continue
+		_nemi_fire_tidal_wave(caster)
+	_nemi_pending_ult_casts = alive
+
+# Advances every in-flight Tidal Wave one dt: moves its row position forward,
+# damages/pushes any not-yet-hit enemy the wave-front just crossed, and frees
+# it once it reaches the far edge of the board.
+func _tick_nemi_tidal_waves(dt: float) -> void:
+	if _nemi_tidal_waves.is_empty():
+		return
+	var alive: Array = []
+	for w in _nemi_tidal_waves:
+		# Validity-check the untyped Dictionary value BEFORE assigning it to a
+		# typed UnitBase local — see the matching comment in _tick_nemi_tide_seqs.
+		var caster_v = w["caster"]
+		if not is_instance_valid(caster_v):
+			if w["effect"] and is_instance_valid(w["effect"]):
+				w["effect"].queue_free()
+			continue
+		var caster: UnitBase = caster_v
+
+		var new_row: float = w["cur_row"] + w["dir_y"] * w["speed"] * dt
+		w["cur_row"] = new_row
+
+		var opponents: Array = enemy_units if caster.is_player_unit else player_units
+		for opp in opponents:
+			if not (opp and is_instance_valid(opp)) or w["hit"].has(opp):
+				continue
+			# Exact overlap with the wave's RENDERED footprint this frame —
+			# within half a tile of its current row, same 5-wide column
+			# _draw_tidal_wave actually draws — not a "row got crossed
+			# sometime this tick" approximation. A unit only ever takes
+			# damage once the drawn wave shape is really on its square.
+			if absf(float(opp.grid_position.y) - new_row) > 0.5:
+				continue
+			if absi(opp.grid_position.x - w["cx"]) > 2:
+				continue
+			w["hit"][opp] = true
+			opp.take_magic_damage(w["dmg"], caster.current_element, caster)
+			caster.damage_dealt += w["dmg"]
+			_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, opp.global_position, 40.0)
+			for _step in range(w["push"]):
+				var next: Vector2i = opp.grid_position + Vector2i(0, w["dir_y"])
 				if battle_grid.is_valid_position(next) and not battle_grid.is_cell_occupied(next):
-					battle_grid.remove_unit(opp.grid_position)
+					battle_grid.purge_unit(opp)
 					if battle_grid.place_unit(opp, next):
 						opp.grid_position = next
 						opp.position = _world_pos_for(opp, next)
 
+		var reached_edge: bool = (w["dir_y"] < 0 and new_row <= w["edge_row"]) \
+			or (w["dir_y"] > 0 and new_row >= w["edge_row"])
+		if reached_edge:
+			if w["effect"] and is_instance_valid(w["effect"]):
+				w["effect"].queue_free()
+			continue
+
+		if w["effect"] and is_instance_valid(w["effect"]):
+			# Small fading ripple left behind at the wave's CURRENT spot before
+			# it moves on, at a random point across the 3-tile column so the
+			# wake doesn't read as a single repeating dot trail.
+			w["wake_t"] -= dt
+			if w["wake_t"] <= 0.0:
+				w["wake_t"] = TIDAL_WAVE_WAKE_INTERVAL
+				var wake_pos: Vector2 = w["effect"].global_position \
+					+ Vector2((randf() - 0.5) * battle_grid.cell_size * 2.4, 0.0)
+				_spawn_skill_effect_sized(SkillEffect.Type.WAVE_WAKE, wake_pos, 26.0, 0.5)
+
+			# Delta from the anchor row, in battle_grid's own space, added onto
+			# the caster's verified-correct world position — NOT an absolute
+			# grid_to_world() result (see setup comment above for why).
+			var delta: Vector2 = battle_grid.grid_to_world(Vector2i(w["cx"], int(round(new_row)))) \
+				- battle_grid.grid_to_world(Vector2i(w["cx"], int(round(float(w["anchor_row"])))))
+			w["effect"].global_position = w["anchor_world"] + delta
+		alive.append(w)
+	_nemi_tidal_waves = alive
+
 func _headhunter_rapid_fire(caster: UnitBase) -> void:
 	caster.rapid_fire_time = _abf(caster, AF_ACTIVE, "dur")
+	if caster.has_method("start_buff_glow"):
+		caster.start_buff_glow()
+
+# Fires the shot once HEADHUNTER_AIM_DURATION has elapsed (see _tick_unit's
+# headhunter_aim_time gate). Re-resolves farthest-enemy + line-of-fire now,
+# not at aim-start, so a blocker that moved (or died) during the channel is
+# accounted for. Never called if caster died mid-aim — _tick_unit stops
+# ticking a dead unit before this can fire, so the shot just doesn't happen.
+func _headhunter_fire_snipe(caster: UnitBase) -> void:
+	if not (caster and is_instance_valid(caster)):
+		return
+	var opponents: Array = caster.get_meta("headhunter_aim_opponents", [])
+	caster.set_meta("headhunter_aim_opponents", null)
+	if caster.has_method("release_aim_pose"):
+		caster.release_aim_pose()
+	var target := _farthest_enemy(caster, opponents)
+	if not target:
+		return
+	var actual_target := _check_line_of_fire(caster, target, opponents)
+	var dmg := int(_ab(caster, AF_ULT, "dmg") * HEADHUNTER_SNIPE_DAMAGE_MULT)
+	var pre_hp: int = actual_target.current_hp
+	actual_target.take_damage(dmg, caster.current_element, caster)
+	var actual: int = max(0, pre_hp - actual_target.current_hp)
+	caster.damage_dealt += actual
+	# Huge bullet: the same auto-attack sprite, just scaled way up — reads as
+	# "the big one" without needing bespoke art.
+	_spawn_sprite_sheet_effect(
+			"res://assets/particle/heroes/headhunter/headhunter_auto.png",
+			actual_target.global_position, 25, 20, 8, Vector2(120, 96), 10.0)
+	if actual > 0:
+		action_logged.emit("%s's shot lands! (%d dmg)" % [caster.unit_name, actual], caster.is_player_unit)
 
 # ── Shauna active: kite away from nearest enemy, boost next attack ────────────
+# The retreat itself reads as an instant dodge-step, not a normal walk — it's
+# pinned to a flat speed-10 pace (move_speed_override) regardless of Shauna's
+# actual movement_speed stat, so Kite always looks like a snap repositioning
+# rather than a slow amble that happens to also buff her next hit.
+const KITE_MOVE_SPEED := 10
+
+# Bloodhound ultimate: Pounce's leap-in should read as damn near a flash — the
+# full board crossed in ~0.5s — not a normal walk at his movement_speed stat
+# (2026-09-07, user spec). Same move_speed_override trick as Shauna's Kite.
+const POUNCE_MOVE_SPEED := 30
+
 func _shauna_kite(caster: UnitBase, opponents: Array) -> void:
 	var nearest := find_nearest_enemy(caster, opponents)
 	if nearest:
 		var dest := _best_retreat_cell(caster, nearest)
 		if dest != Vector2i(-1, -1):
+			caster.move_speed_override = KITE_MOVE_SPEED
 			start_unit_movement(caster, caster.grid_position, dest)
 	caster.next_attack_boosted = true   # next auto hits for +50%
 
@@ -1299,6 +2176,14 @@ func _shauna_kite(caster: UnitBase, opponents: Array) -> void:
 # or off the grid — e.g. hugging a wall (2026-07-06 user report: Kite would
 # silently no-op near a wall, applying the attack-speed buff but never moving,
 # because the old code only ever tried that single exact cell).
+#
+# Pure distance-gain scoring pushed her into corners over repeated casts: a
+# corner cell is often the single highest-gain step away from one attacker,
+# but it's also a dead end with nowhere left to retreat to next time (2026-08-05
+# user report: Shauna "still uses her ability and moves into the corner").
+# Tie-break on mobility — how many open cells the candidate itself can still
+# retreat to — so she prefers a step that keeps her kiting instead of one that
+# maximizes this single hop at the cost of being boxed in on the next.
 func _best_retreat_cell(unit: UnitBase, threat: UnitBase) -> Vector2i:
 	var cur: Vector2i = unit.grid_position
 	var cur_dist: float = cur.distance_to(threat.grid_position)
@@ -1306,28 +2191,1473 @@ func _best_retreat_cell(unit: UnitBase, threat: UnitBase) -> Vector2i:
 				Vector2i(1,1),Vector2i(-1,1),Vector2i(1,-1),Vector2i(-1,-1)]
 	var best := Vector2i(-1, -1)
 	var best_gain := 0.0
+	var best_mobility := -1
 	for d in dirs:
 		var c: Vector2i = cur + d
 		if not battle_grid.is_valid_position(c) or battle_grid.is_cell_occupied(c):
 			continue
 		var gain: float = c.distance_to(threat.grid_position) - cur_dist
-		if gain > best_gain:
+		if gain <= 0.0:
+			continue
+		var mobility := _open_neighbor_count(c)
+		if gain > best_gain + 0.01 or (gain > best_gain - 0.01 and mobility > best_mobility):
 			best_gain = gain
+			best_mobility = mobility
 			best = c
 	return best
 
+# Number of open (in-bounds, unoccupied) cells adjacent to `pos` — used to
+# avoid retreating into corners/dead ends.
+func _open_neighbor_count(pos: Vector2i) -> int:
+	var dirs: Array[Vector2i] = [Vector2i(1,0),Vector2i(-1,0),Vector2i(0,1),Vector2i(0,-1),
+				Vector2i(1,1),Vector2i(-1,1),Vector2i(1,-1),Vector2i(-1,-1)]
+	var count := 0
+	for d in dirs:
+		var c: Vector2i = pos + d
+		if battle_grid.is_valid_position(c) and not battle_grid.is_cell_occupied(c):
+			count += 1
+	return count
+
 # ── Nemi active: Tide — a chain that bounces between the two teams ─────────────
 # Rules:
-#   • Cast on the nearest enemy (damage). Then bounce to a unit within TIDE_RANGE
-#     of the LAST unit hit, on the OPPOSITE team from the last hit.
-#   • Must alternate enemy → ally → enemy → …  (never the same team twice in a row).
+#   • Cast on the nearest enemy to Nemi (damage), no range limit for this first hit.
+#   • Every bounce after that must alternate enemy → ally → enemy → … (never the
+#     same team twice in a row), picking the nearest valid unit to whichever unit
+#     was JUST hit.
+#   • A 2nd+ bounce candidate must be within TIDE_BOUNCE_RANGE tiles of
+#     wherever the chain CURRENTLY is (the last unit hit), not a fixed anchor
+#     on Nemi's own position (2026-08-06: anchoring to Nemi was too
+#     restrictive once she's a backline caster several rows from the fight —
+#     most chains died at bounce 2 for lack of a 2nd enemy near HER
+#     specifically, even with plenty of enemies in the fight itself. An
+#     earlier version also anchored per-hop but with only a 2-tile range,
+#     which died even faster — 6 tiles is wide enough to actually bridge
+#     between the two teams' halves of the board).
 #   • Hitting an enemy damages it; hitting an ally heals it.
-#   • On an ally bounce, prefer Nemi (the caster) if she is in range.
-#   • If the next required team has no valid target in range, the chain ends —
-#     it will NOT bounce to the wrong team just because someone is nearby.
-#   • A unit is never hit twice (guarantees the chain terminates).
-const TIDE_RANGE := 2.0
+#   • On an ally bounce, Nemi is just a normal candidate (subject to the same
+#     95% HP floor and range check as everyone else) — she wins whenever
+#     she's genuinely the nearest valid ally, but isn't force-picked otherwise
+#     (2026-08-06: an earlier version always force-picked her, which meant the
+#     chain kept snapping back to her backline position every ally-turn and
+#     capped most chains at bounce_count=2 even with a wide bounce range).
+#   • The VISUAL matches this exactly: the beam travels DIRECTLY from
+#     whoever was just hit to whoever's hit next. Nemi only appears on
+#     screen when she's actually the chosen target that turn — there's no
+#     "always bounces through Nemi" hub step anymore (2026-08-07: an earlier
+#     version routed every single hit's beam back through Nemi regardless of
+#     the real target, which looked like the chain was bouncing between Nemi
+#     and an ally even when the actual target was someone else entirely).
+#   • Enemies are one-and-done (each can only be hit once per chain — with N
+#     enemies in range, the chain gets at most N enemy-turns). Allies have NO
+#     such limit and can be bounced to repeatedly, so a chain can loop back
+#     through Nemi/allies many times as long as TIDE_MAX_BOUNCES allows.
 const TIDE_MAX_BOUNCES := 8
+
+# Starts Shank's visible commitment. VisualUnit plays the real Goblin attack
+# strip; the pending entry resolves damage at its sword-contact frame.
+func _begin_goblin_shank(caster: UnitBase, target: UnitBase) -> void:
+	if caster.has_method("play_skill_attack"):
+		caster.play_skill_attack(target)
+	_spawn_goblin_point(GoblinVFX.Mode.SHANK_WINDUP, caster.global_position, GOBLIN_SHANK_CONTACT)
+	caster.set_meta("goblin_shank_cast", GOBLIN_SHANK_CONTACT)
+	_goblin_shanks.append({"caster": caster, "target": target, "time": GOBLIN_SHANK_CONTACT})
+
+func _tick_goblin_shanks(dt: float) -> void:
+	for cast in _goblin_shanks.duplicate():
+		var caster: UnitBase = cast["caster"]
+		var target: UnitBase = cast["target"]
+		if not (caster and is_instance_valid(caster)):
+			_goblin_shanks.erase(cast)
+			continue
+		cast["time"] = float(cast["time"]) - dt
+		caster.set_meta("goblin_shank_cast", maxf(float(cast["time"]), 0.0))
+		if float(cast["time"]) > 0.0:
+			continue
+		_goblin_shanks.erase(cast)
+		caster.remove_meta("goblin_shank_cast")
+		if caster.current_hp <= 0 or caster.stun_time > 0.0 \
+				or not (target and is_instance_valid(target)) or target.current_hp <= 0 \
+				or _unit_dist(caster, target) > caster.skill_range:
+			continue
+		var raw: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+		var pre_hp := target.current_hp
+		target.take_damage(raw, caster.current_element, caster)
+		var actual := maxi(0, pre_hp - target.current_hp)
+		caster.damage_dealt += actual
+		_spawn_goblin_point(GoblinVFX.Mode.SHANK_IMPACT, target.global_position, 0.48)
+
+func _spawn_goblin_point(kind: GoblinVFX.Mode, world_pos: Vector2, life: float) -> void:
+	if not skill_effect_container:
+		return
+	var fx := GoblinVFX.new()
+	skill_effect_container.add_child(fx)
+	fx.setup_point(kind, world_pos, life)
+
+func spawn_goblin_auto_impact(world_pos: Vector2) -> void:
+	_spawn_goblin_point(GoblinVFX.Mode.AUTO_IMPACT, world_pos, 0.30)
+
+func _sync_goblin_pack_vfx(unit: UnitBase, strength: float) -> void:
+	if not skill_effect_container:
+		return
+	var id := unit.get_instance_id()
+	var fx: GoblinVFX = _goblin_pack_vfx.get(id)
+	if not (fx and is_instance_valid(fx)):
+		fx = GoblinVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_pack(unit)
+		_goblin_pack_vfx[id] = fx
+	fx.set_pack_strength(strength)
+
+func _begin_shaman_mend(caster: UnitBase, target: UnitBase, amount: int) -> void:
+	caster.set_meta("shaman_mend_cast", true)
+	var fx: GoblinShamanVFX = null
+	if skill_effect_container:
+		fx = GoblinShamanVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_mend(caster, target, caster.current_element, SHAMAN_MEND_CONTACT)
+	_shaman_mends.append({"caster": caster, "target": target, "amount": amount,
+		"time": SHAMAN_MEND_CONTACT, "effect": fx})
+
+func _tick_shaman_mends(dt: float) -> void:
+	for cast in _shaman_mends.duplicate():
+		var caster: UnitBase = cast["caster"]
+		var target: UnitBase = cast["target"]
+		if not (caster and is_instance_valid(caster)):
+			_shaman_mends.erase(cast)
+			continue
+		cast["time"] = float(cast["time"]) - dt
+		var interrupted := caster.current_hp <= 0 or caster.stun_time > 0.0
+		if interrupted or not (target and is_instance_valid(target)) or target.current_hp <= 0:
+			caster.set_meta("shaman_mend_cast", false)
+			if cast["effect"] and is_instance_valid(cast["effect"]): cast["effect"].queue_free()
+			_shaman_mends.erase(cast)
+			continue
+		if float(cast["time"]) > 0.0:
+			continue
+		_shaman_mends.erase(cast)
+		caster.set_meta("shaman_mend_cast", false)
+		var before := target.current_hp
+		target.heal(int(cast["amount"]))
+		var actual := maxi(0, target.current_hp - before)
+		caster.combat_healing_done += actual
+		_spawn_shaman_impact(target.global_position, caster.current_element)
+
+func _ensure_shaman_aura(unit: UnitBase) -> void:
+	if not skill_effect_container:
+		return
+	var id := unit.get_instance_id()
+	var fx: GoblinShamanVFX = _shaman_aura_vfx.get(id)
+	if fx and is_instance_valid(fx):
+		return
+	fx = GoblinShamanVFX.new()
+	skill_effect_container.add_child(fx)
+	var world_radius := 3.0 * float(battle_grid.cell_size if battle_grid else 115.0)
+	fx.setup_aura(unit, unit.current_element, world_radius)
+	_shaman_aura_vfx[id] = fx
+
+func _spawn_shaman_impact(world_pos: Vector2, element: UnitBase.Element) -> void:
+	if not skill_effect_container:
+		return
+	var fx := GoblinShamanVFX.new()
+	skill_effect_container.add_child(fx)
+	fx.setup_impact(world_pos, element, 0.52)
+
+func begin_hill_giant_auto(caster: UnitBase, target: UnitBase, damage: int,
+		is_crit: bool, is_true_damage: bool) -> void:
+	caster.set_meta("hill_giant_committed", true)
+	_hill_giant_autos.append({"caster": caster, "target": target, "damage": damage,
+		"crit": is_crit, "true": is_true_damage, "time": HILL_GIANT_AUTO_CONTACT})
+
+func begin_june_auto(caster: UnitBase, target: UnitBase, damage: int,
+		is_crit: bool, is_true_damage: bool, contact_time: float) -> void:
+	_june_autos.append({"caster": caster, "target": target, "damage": damage,
+		"crit": is_crit, "true": is_true_damage, "time": contact_time})
+
+## Resolves June's auto on the lead hand's contact instead of at the instant the
+## swing is requested. Mirrors _tick_sheildor_autos, including its bail-outs: a
+## swing whose caster died, got stunned, or whose target walked out of range
+## between wind-up and contact does NOT land.
+func _tick_june_autos(dt: float) -> void:
+	for swing in _june_autos.duplicate():
+		var caster: UnitBase = swing["caster"]
+		var target: UnitBase = swing["target"]
+		if not (caster and is_instance_valid(caster)):
+			_june_autos.erase(swing); continue
+		swing["time"] = float(swing["time"]) - dt
+		if float(swing["time"]) > 0.0: continue
+		_june_autos.erase(swing)
+		if caster.current_hp <= 0 or caster.stun_time > 0.0 or not _is_alive(target) \
+				or _unit_dist(caster, target) > caster.attack_range:
+			continue
+		var pre_hp: int = target.current_hp
+		var was_alive := pre_hp > 0
+		target.take_damage(int(swing["damage"]), caster.current_element, caster,
+			bool(swing["true"]), 0, false, bool(swing["crit"]))
+		var actual := maxi(0, pre_hp - target.current_hp)
+		caster.damage_dealt += actual
+		caster._charge_ultimate(actual / 4)
+		caster.apply_relic_on_hit(target, actual, was_alive)
+		_apply_on_hit_passives(caster, target,
+			enemy_units if caster.is_player_unit else player_units)
+		_spawn_june_point(JuneVFX.Mode.AUTO_IMPACT, target.global_position, 0.40, target)
+
+func begin_sheildor_auto(caster: UnitBase, target: UnitBase, damage: int,
+		is_crit: bool, is_true_damage: bool, contact_time: float) -> void:
+	_sheildor_autos.append({"caster": caster, "target": target, "damage": damage,
+		"crit": is_crit, "true": is_true_damage, "time": contact_time})
+
+func _tick_sheildor_autos(dt: float) -> void:
+	for swing in _sheildor_autos.duplicate():
+		var caster: UnitBase = swing["caster"]
+		var target: UnitBase = swing["target"]
+		if not (caster and is_instance_valid(caster)):
+			_sheildor_autos.erase(swing); continue
+		swing["time"] = float(swing["time"]) - dt
+		if float(swing["time"]) > 0.0: continue
+		_sheildor_autos.erase(swing)
+		if caster.current_hp <= 0 or caster.stun_time > 0.0 or not _is_alive(target) \
+				or _unit_dist(caster, target) > caster.attack_range:
+			continue
+		var pre_hp: int = target.current_hp
+		var was_alive := pre_hp > 0
+		target.take_damage(int(swing["damage"]), caster.current_element, caster,
+			bool(swing["true"]), 0, false, bool(swing["crit"]))
+		var actual := maxi(0, pre_hp - target.current_hp)
+		caster.damage_dealt += actual
+		caster._charge_ultimate(actual / 4)
+		caster.apply_relic_on_hit(target, actual, was_alive)
+		_apply_on_hit_passives(caster, target,
+			enemy_units if caster.is_player_unit else player_units)
+		_spawn_sheildor_point(SheildorVFX.Mode.BASH_IMPACT, target.global_position, 0.52, target)
+
+func _begin_hill_giant_smash(caster: UnitBase, opponents: Array) -> void:
+	caster.set_meta("hill_giant_committed", true)
+	if caster.has_method("play_skill_attack"):
+		var nearest := find_nearest_enemy(caster, opponents)
+		if nearest: caster.play_skill_attack(nearest)
+	var fx: HillGiantVFX = null
+	if skill_effect_container:
+		fx = HillGiantVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_warning(caster, _hill_giant_footprint_size(), HILL_GIANT_SMASH_CONTACT)
+		fx.set_footprint_polygon(_hill_giant_footprint_polygon(caster))
+	_hill_giant_smashes.append({"caster": caster, "opponents": opponents,
+		"time": HILL_GIANT_SMASH_CONTACT, "effect": fx})
+
+func _tick_hill_giant_actions(dt: float) -> void:
+	for swing in _hill_giant_autos.duplicate():
+		var caster: UnitBase = swing["caster"]
+		var target: UnitBase = swing["target"]
+		if not (caster and is_instance_valid(caster)):
+			_hill_giant_autos.erase(swing); continue
+		swing["time"] = float(swing["time"]) - dt
+		if float(swing["time"]) > 0.0: continue
+		_hill_giant_autos.erase(swing)
+		caster.set_meta("hill_giant_committed", false)
+		if caster.current_hp <= 0 or caster.stun_time > 0.0 or not _is_alive(target) \
+				or _unit_dist(caster, target) > caster.attack_range:
+			continue
+		var pre_hp: int = target.current_hp
+		var was_alive: bool = pre_hp > 0
+		target.take_damage(int(swing["damage"]), caster.current_element, caster,
+			bool(swing["true"]), 0, false, bool(swing["crit"]))
+		var actual: int = maxi(0, pre_hp - target.current_hp)
+		caster.damage_dealt += actual
+		caster.apply_relic_on_hit(target, actual, was_alive)
+		_spawn_hill_giant_point(HillGiantVFX.Mode.AUTO_IMPACT, target.global_position, 90.0, 0.38)
+	for smash in _hill_giant_smashes.duplicate():
+		var caster: UnitBase = smash["caster"]
+		if not (caster and is_instance_valid(caster)):
+			_hill_giant_smashes.erase(smash); continue
+		smash["time"] = float(smash["time"]) - dt
+		if float(smash["time"]) > 0.0: continue
+		_hill_giant_smashes.erase(smash)
+		caster.set_meta("hill_giant_committed", false)
+		if caster.current_hp <= 0 or caster.stun_time > 0.0:
+			continue
+		var raw := int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+		for opponent in Array(smash["opponents"]).duplicate():
+			if not _is_alive(opponent) or _unit_dist(caster, opponent) > caster.skill_range:
+				continue
+			var pre_hp: int = opponent.current_hp
+			opponent.take_damage(raw, caster.current_element, caster)
+			caster.damage_dealt += maxi(0, pre_hp - opponent.current_hp)
+		_spawn_hill_giant_point(HillGiantVFX.Mode.SMASH_IMPACT, caster.global_position,
+			_hill_giant_footprint_size(), 0.85, caster)
+
+func _hill_giant_footprint_size() -> float:
+	return 4.0 * float(battle_grid.cell_size if battle_grid else 110.0)
+
+func _hill_giant_footprint_polygon(caster: UnitBase) -> PackedVector2Array:
+	if not battle_grid:
+		return PackedVector2Array()
+	var lo := Vector2i(maxi(0, caster.grid_position.x - 1), maxi(0, caster.grid_position.y - 1))
+	var hi := Vector2i(mini(battle_grid.grid_width - 1, caster.grid_position.x + caster.cell_size),
+		mini(battle_grid.grid_height - 1, caster.grid_position.y + caster.cell_size))
+	var q_tl := BoardPerspective.cell_quad(lo.x, lo.y, battle_grid.grid_width, battle_grid.grid_height, battle_grid.cell_size)
+	var q_tr := BoardPerspective.cell_quad(hi.x, lo.y, battle_grid.grid_width, battle_grid.grid_height, battle_grid.cell_size)
+	var q_br := BoardPerspective.cell_quad(hi.x, hi.y, battle_grid.grid_width, battle_grid.grid_height, battle_grid.cell_size)
+	var q_bl := BoardPerspective.cell_quad(lo.x, hi.y, battle_grid.grid_width, battle_grid.grid_height, battle_grid.cell_size)
+	var origin := caster.global_position
+	return PackedVector2Array([battle_grid.to_global(q_tl[0]) - origin,
+		battle_grid.to_global(q_tr[1]) - origin, battle_grid.to_global(q_br[2]) - origin,
+		battle_grid.to_global(q_bl[3]) - origin])
+
+func _spawn_hill_giant_point(kind: HillGiantVFX.Mode, world_pos: Vector2,
+		size: float, life: float, caster: UnitBase = null) -> void:
+	if not skill_effect_container: return
+	var fx := HillGiantVFX.new()
+	skill_effect_container.add_child(fx)
+	fx.setup_point(kind, world_pos, size, life)
+	if caster and kind == HillGiantVFX.Mode.SMASH_IMPACT:
+		fx.set_footprint_polygon(_hill_giant_footprint_polygon(caster))
+
+# ── Venom Stinger + Wounded Dive (Sky Wyvern) ────────────────────────────────
+# Rides `rat_bite` and `bear_fury`, both fixed. Its DoT previously fell through
+# to the DEFAULT "fire" flavour, so its *poison* rendered as a fire burn while
+# the description promised venom — now flavoured properly.
+func _is_wyvern(u: UnitBase) -> bool:
+	return bool(u.get_meta("sky_wyvern", false))
+
+# Which DoT flavours own a bespoke persistent visual. "fire" deliberately does
+# not: the Hellhound's Searing Bite IS fire and keeps the generic burn.
+func _dot_has_visual(flavor: String) -> bool:
+	return flavor == "disease" or flavor == "venom"
+
+func _sync_wounded_dive_vfx(unit: UnitBase, ramp: float) -> void:
+	if not skill_effect_container:
+		return
+	var id: int = unit.get_instance_id()
+	var fx: WyvernVFX = _wounded_dive_vfx.get(id)
+	if ramp > 0.05:
+		if not (fx and is_instance_valid(fx)):
+			fx = WyvernVFX.new()
+			skill_effect_container.add_child(fx)
+			fx.setup_on(WyvernVFX.Mode.WOUNDED_DIVE, unit, WYVERN_REACH, INF)
+			_wounded_dive_vfx[id] = fx
+		fx.set_rage(ramp)
+	elif fx and is_instance_valid(fx):
+		fx.queue_free()
+		_wounded_dive_vfx.erase(id)
+
+func _clear_wyvern_actions() -> void:
+	for fx in _wounded_dive_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_wounded_dive_vfx.clear()
+
+# ── Stone Skin (Gargoyle) ────────────────────────────────────────────────────
+# Third mob on `troll_regen`, third fiction: the Troll knits sinew, the Phoenix
+# relights embers, this one seals masonry. Its Talon Rake shares the Harpy's
+# visual by name-match (see `talon_vfx_reach`).
+func _is_gargoyle(u: UnitBase) -> bool:
+	return bool(u.get_meta("gargoyle", false))
+
+func _sync_stone_skin_vfx(unit: UnitBase, regenerating: bool) -> void:
+	if not skill_effect_container:
+		return
+	var id: int = unit.get_instance_id()
+	var fx: GargoyleVFX = _stone_skin_vfx.get(id)
+	if regenerating:
+		if not (fx and is_instance_valid(fx)):
+			fx = GargoyleVFX.new()
+			skill_effect_container.add_child(fx)
+			fx.setup_on(GargoyleVFX.Mode.STONE_SKIN, unit, GARGOYLE_REACH, INF)
+			_stone_skin_vfx[id] = fx
+	elif fx and is_instance_valid(fx):
+		fx.queue_free()
+		_stone_skin_vfx.erase(id)
+		var crack := GargoyleVFX.new()
+		skill_effect_container.add_child(crack)
+		crack.setup_on(GargoyleVFX.Mode.CRACKED, unit, GARGOYLE_REACH, 0.52)
+
+func _clear_gargoyle_actions() -> void:
+	for fx in _stone_skin_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_stone_skin_vfx.clear()
+
+# ── Talon Rake + evasion feedback (Harpy) ────────────────────────────────────
+# "Talon Rake" is the Harpy's AND the Gargoyle's skill name, so by the name-match
+# rule they share one visual, sized per body via `talon_vfx_reach`. The Bear
+# rides the same `bear_swipe` key but its move is "Rending Swipe", so it keeps
+# its own claw look.
+func _talon_vfx_reach(u: UnitBase) -> float:
+	return float(u.get_meta("talon_vfx_reach", 0.0))
+
+# Called from UnitBase.take_damage when an evasion roll eats a hit.
+#
+# This is the widest feedback gap found in the whole project: the roll simply
+# `return`s, so a Gale Warden (30% evasion) silently ate roughly one hit in three
+# with NO damage number, flash or effect — indistinguishable from a bug. Shared
+# by every Evasion user rather than gated per-unit, because it is one mechanic
+# off one stat and every user of it is wind/flight themed.
+func spawn_evade(unit: UnitBase) -> void:
+	if not (skill_effect_container and unit and is_instance_valid(unit)):
+		return
+	var fx := EvadeVFX.new()
+	skill_effect_container.add_child(fx)
+	# Slip AWAY from whoever it is facing, so the sidestep reads directionally.
+	var slip: float = -1.0 if unit.is_player_unit else 1.0
+	fx.setup(unit.global_position, EVADE_REACH, 0.34, slip)
+
+# ── Calcify + Slow Tide (Coral Husk) ─────────────────────────────────────────
+# Rides `skeleton_boneshield` and `windup_overclock`, both already fixed. Its
+# abilities are NAMED differently from those keys' owners, so per the name-match
+# rule it gets its own reef language rather than a scaled copy.
+func _is_coral_husk(u: UnitBase) -> bool:
+	return bool(u.get_meta("coral_husk", false))
+
+func _sync_slow_tide_vfx(unit: UnitBase, ramp: float) -> void:
+	if not skill_effect_container:
+		return
+	var id: int = unit.get_instance_id()
+	var fx: CoralVFX = _slow_tide_vfx.get(id)
+	if ramp > 0.02:
+		if not (fx and is_instance_valid(fx)):
+			fx = CoralVFX.new()
+			skill_effect_container.add_child(fx)
+			fx.setup_on(CoralVFX.Mode.SLOW_TIDE, unit, CORAL_REACH, INF)
+			_slow_tide_vfx[id] = fx
+		fx.set_tide(ramp)
+	elif fx and is_instance_valid(fx):
+		fx.queue_free()
+		_slow_tide_vfx.erase(id)
+
+func _clear_coral_actions() -> void:
+	for fx in _slow_tide_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_slow_tide_vfx.clear()
+
+# ── Bone Shield + Undying (Skeleton) ─────────────────────────────────────────
+# `skeleton_boneshield` is shared with the Stone Golem, Crystal Crab and Coral
+# Husk; only the Skeleton gets the rib-cage look. `skeleton_undying` is its own.
+func _is_skeleton(u: UnitBase) -> bool:
+	return bool(u.get_meta("skeleton", false))
+
+# Called from VisualUnit.die() at the moment Undying cheats death. A unit dying
+# and standing back up is one of the most important things a player can be told,
+# and it had no visual at all — it was indistinguishable from a bad damage roll.
+func spawn_skeleton_reassemble(unit: UnitBase) -> void:
+	if not (skill_effect_container and unit and is_instance_valid(unit)):
+		return
+	var fx := SkeletonVFX.new()
+	skill_effect_container.add_child(fx)
+	fx.setup_on(SkeletonVFX.Mode.REASSEMBLE, unit, SKELETON_REACH, 0.70)
+
+# ── Thunderclap + Gathering Storm (Storm Giant) ──────────────────────────────
+# Rides `windup_punch` (Wind-Up Bot) and `windup_overclock` (Wind-Up Bot), so it
+# inherits both paths' fixes. Its abilities are NAMED differently from the Bot's,
+# so unlike the Ogre/Orc case it gets its own visual language rather than a
+# scaled copy.
+func _is_storm_giant(u: UnitBase) -> bool:
+	return bool(u.get_meta("storm_giant", false))
+
+func _sync_gathering_vfx(unit: UnitBase, ramp: float) -> void:
+	if not skill_effect_container:
+		return
+	var id: int = unit.get_instance_id()
+	var fx: StormGiantVFX = _gathering_vfx.get(id)
+	if ramp > 0.02:
+		if not (fx and is_instance_valid(fx)):
+			fx = StormGiantVFX.new()
+			skill_effect_container.add_child(fx)
+			fx.setup_on(StormGiantVFX.Mode.GATHERING, unit, STORM_GIANT_REACH, INF)
+			_gathering_vfx[id] = fx
+		fx.set_storm(ramp)
+	elif fx and is_instance_valid(fx):
+		fx.queue_free()
+		_gathering_vfx.erase(id)
+
+func _clear_storm_giant_actions() -> void:
+	for fx in _gathering_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_gathering_vfx.clear()
+
+# ── Crushing Blow + Bloodrage (Orc) ──────────────────────────────────────────
+# `brute_crush` is shared with the Ogre, Fire Giant and Tidepool Horror; the
+# committed timing and post-mitigation accounting are bug fixes and apply to all
+# four. The slam VFX and the Bloodrage readout are gated on the `orc` meta.
+# How big to draw the slam for this unit, or 0 for "no bespoke VFX".
+#
+# Deliberately a REACH rather than an is-this-the-Orc boolean: the Ogre's skill
+# and passive are named identically to the Orc's ("Crushing Blow", "Bloodrage"),
+# so showing it a DIFFERENT effect would be a lie to the player. Same ability
+# name, same visual language, scaled to the body. The Fire Giant and Tidepool
+# Horror also share `brute_crush` but their abilities have their own names, so
+# they opt out until their own passes by simply not setting this meta.
+func _crush_vfx_reach(u: UnitBase) -> float:
+	return float(u.get_meta("crush_vfx_reach", 0.0))
+
+func _is_orc(u: UnitBase) -> bool:
+	return _crush_vfx_reach(u) > 0.0
+
+func _begin_orc_crush(caster: UnitBase, target: UnitBase) -> void:
+	caster.set_meta("hill_giant_committed", true)
+	var fx: OrcVFX = null
+	if skill_effect_container and _is_orc(caster):
+		fx = OrcVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_on(OrcVFX.Mode.CRUSH_WINDUP, caster, _crush_vfx_reach(caster), ORC_CRUSH_CONTACT)
+	_orc_crushes.append({"caster": caster, "target": target,
+		"time": ORC_CRUSH_CONTACT, "effect": fx, "lunged": false})
+
+func _tick_orc_crushes(dt: float) -> void:
+	for cast in _orc_crushes.duplicate():
+		var caster: UnitBase = cast["caster"]
+		var target: UnitBase = cast["target"]
+		if not (caster and is_instance_valid(caster)):
+			_orc_crushes.erase(cast)
+			continue
+		cast["time"] = float(cast["time"]) - dt
+		if caster.current_hp <= 0 or caster.stun_time > 0.0:
+			caster.set_meta("hill_giant_committed", false)
+			if cast["effect"] and is_instance_valid(cast["effect"]): cast["effect"].queue_free()
+			_orc_crushes.erase(cast)
+			continue
+		if not bool(cast["lunged"]) and float(cast["time"]) <= ORC_LUNGE_LEAD:
+			cast["lunged"] = true
+			if caster.has_method("play_skill_attack") and _is_alive(target):
+				caster.play_skill_attack(target)
+		if float(cast["time"]) > 0.0:
+			continue
+		_orc_crushes.erase(cast)
+		caster.set_meta("hill_giant_committed", false)
+		if not _is_alive(target) or _unit_dist(caster, target) > caster.skill_range:
+			continue
+		var raw: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+		var pre_hp: int = target.current_hp
+		target.take_damage(raw, caster.current_element, caster)
+		caster.damage_dealt += maxi(0, pre_hp - target.current_hp)
+		apply_stun(target, 1.0)
+		if _is_orc(caster):
+			var ifx := OrcVFX.new()
+			skill_effect_container.add_child(ifx)
+			ifx.setup_point(OrcVFX.Mode.CRUSH_IMPACT, target.global_position, _crush_vfx_reach(caster), 0.46)
+		else:
+			_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, target.global_position, 30.0)
+
+# Bloodrage is BINARY (below 50% HP). The flip is an event, so it gets a one-shot
+# trigger beat; the state itself gets a persistent readout. Previously an Orc
+# silently became 20% stronger with nothing on screen at all.
+func _sync_orc_rage_vfx(unit: UnitBase, enraged: bool) -> void:
+	if not skill_effect_container:
+		return
+	var id: int = unit.get_instance_id()
+	var fx: OrcVFX = _orc_rage_vfx.get(id)
+	if enraged:
+		if not (fx and is_instance_valid(fx)):
+			# Crossing the threshold — fire the one-shot shout first.
+			var burst := OrcVFX.new()
+			skill_effect_container.add_child(burst)
+			burst.setup_on(OrcVFX.Mode.BERSERK_TRIGGER, unit, _crush_vfx_reach(unit), 0.50)
+			fx = OrcVFX.new()
+			skill_effect_container.add_child(fx)
+			fx.setup_on(OrcVFX.Mode.ENRAGED, unit, _crush_vfx_reach(unit), INF)
+			_orc_rage_vfx[id] = fx
+	elif fx and is_instance_valid(fx):
+		fx.queue_free()
+		_orc_rage_vfx.erase(id)
+
+func _clear_orc_actions() -> void:
+	for cast in _orc_crushes:
+		if cast.get("effect") and is_instance_valid(cast["effect"]):
+			cast["effect"].queue_free()
+	_orc_crushes.clear()
+	for fx in _orc_rage_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_orc_rage_vfx.clear()
+
+# ── Gore Rush + Savage Charge (Minotaur) ─────────────────────────────────────
+# Gore Rush reuses `windup_punch` (Wind-Up Bot) and Savage Charge reuses
+# `bear_fury` (Bear), so the Minotaur already inherits both of those paths' bug
+# fixes. Everything here is identity only, gated on the `minotaur` meta.
+func _is_minotaur(u: UnitBase) -> bool:
+	return bool(u.get_meta("minotaur", false))
+
+func _sync_savage_vfx(unit: UnitBase, ramp: float) -> void:
+	if not skill_effect_container:
+		return
+	var id: int = unit.get_instance_id()
+	var fx: MinotaurVFX = _savage_vfx.get(id)
+	if ramp > 0.05:
+		if not (fx and is_instance_valid(fx)):
+			fx = MinotaurVFX.new()
+			skill_effect_container.add_child(fx)
+			fx.setup_on(MinotaurVFX.Mode.SAVAGE, unit, MINOTAUR_REACH, INF)
+			_savage_vfx[id] = fx
+		fx.set_rage(ramp)
+	elif fx and is_instance_valid(fx):
+		fx.queue_free()
+		_savage_vfx.erase(id)
+
+func _clear_minotaur_actions() -> void:
+	for fx in _savage_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_savage_vfx.clear()
+
+# ── Enrage + Regeneration (Troll) ────────────────────────────────────────────
+# `troll_enrage` is the Troll's alone. `troll_regen` is shared with the Gargoyle
+# and the Ember Phoenix — the Phoenix already has its own ember readout, so the
+# sinew readout here is gated on the `troll` meta and the Gargoyle keeps its
+# existing silent behaviour.
+func _is_troll(u: UnitBase) -> bool:
+	return bool(u.get_meta("troll", false))
+
+# Persistent haste readout, driven off the victim's bonus_aspd_time so it starts
+# and ends exactly with the buff. Flavour-gated: Pastor / Vail ride the same
+# timer and must keep showing what they show today.
+func _sync_enraged_vfx() -> void:
+	if not skill_effect_container:
+		return
+	for key in _enraged_vfx.keys().duplicate():
+		var id: int = int(key)
+		var fx = _enraged_vfx[id]
+		var u = instance_from_id(id) if is_instance_id_valid(id) else null
+		var still: bool = u != null and is_instance_valid(u) and u.current_hp > 0 \
+			and u.bonus_aspd_time > 0.0 and str(u.aspd_flavor) == "troll_enrage"
+		if not still:
+			if fx and is_instance_valid(fx): fx.queue_free()
+			_enraged_vfx.erase(id)
+	for u in player_units + enemy_units:
+		if not (u and is_instance_valid(u)) or u.current_hp <= 0:
+			continue
+		if u.bonus_aspd_time <= 0.0 or str(u.aspd_flavor) != "troll_enrage":
+			continue
+		var id2: int = u.get_instance_id()
+		if _enraged_vfx.has(id2):
+			continue
+		var fx2 := TrollVFX.new()
+		skill_effect_container.add_child(fx2)
+		fx2.setup_on(TrollVFX.Mode.ENRAGED, u, u.current_element, TROLL_REACH, INF)
+		_enraged_vfx[id2] = fx2
+
+# Persistent Regeneration readout + the smother beat when Fire/Lightning blocks
+# it. Troll-only; the Phoenix has its own, the Gargoyle stays as it was.
+func _sync_troll_regen_vfx(unit: UnitBase, regenerating: bool) -> void:
+	if not skill_effect_container:
+		return
+	var id: int = unit.get_instance_id()
+	var fx: TrollVFX = _troll_regen_vfx.get(id)
+	if regenerating:
+		if not (fx and is_instance_valid(fx)):
+			fx = TrollVFX.new()
+			skill_effect_container.add_child(fx)
+			fx.setup_on(TrollVFX.Mode.REGEN, unit, unit.current_element, TROLL_REACH, INF)
+			_troll_regen_vfx[id] = fx
+	elif fx and is_instance_valid(fx):
+		fx.queue_free()
+		_troll_regen_vfx.erase(id)
+		var ash := TrollVFX.new()
+		skill_effect_container.add_child(ash)
+		ash.setup_on(TrollVFX.Mode.SMOTHERED, unit, unit.current_element, TROLL_REACH, 0.52)
+
+func _clear_troll_actions() -> void:
+	for fx in _enraged_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_enraged_vfx.clear()
+	for fx in _troll_regen_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_troll_regen_vfx.clear()
+
+# ── Rending Swipe (Bear) ─────────────────────────────────────────────────────
+# `bear_swipe` is shared with the Gargoyle and Harpy (both "Talon Rake", both
+# melee). The committed timing and post-mitigation accounting apply to all three
+# — those are bug fixes. The claw VFX is gated on the `bear` meta so the other
+# two keep their existing look until their own passes.
+func _is_bear(u: UnitBase) -> bool:
+	return bool(u.get_meta("bear", false))
+
+func _begin_bear_swipe(caster: UnitBase, target: UnitBase) -> void:
+	caster.set_meta("hill_giant_committed", true)
+	var fx = null
+	if skill_effect_container and _is_bear(caster):
+		fx = BearVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_on(BearVFX.Mode.SWIPE_WINDUP, caster, BEAR_REACH, BEAR_SWIPE_CONTACT)
+	elif skill_effect_container and _talon_vfx_reach(caster) > 0.0:
+		fx = HarpyVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_on(HarpyVFX.Mode.RAKE_WINDUP, caster, _talon_vfx_reach(caster), BEAR_SWIPE_CONTACT)
+	_bear_swipes.append({"caster": caster, "target": target,
+		"time": BEAR_SWIPE_CONTACT, "effect": fx, "lunged": false})
+
+func _tick_bear_swipes(dt: float) -> void:
+	for cast in _bear_swipes.duplicate():
+		var caster: UnitBase = cast["caster"]
+		var target: UnitBase = cast["target"]
+		if not (caster and is_instance_valid(caster)):
+			_bear_swipes.erase(cast)
+			continue
+		cast["time"] = float(cast["time"]) - dt
+		if caster.current_hp <= 0 or caster.stun_time > 0.0:
+			caster.set_meta("hill_giant_committed", false)
+			if cast["effect"] and is_instance_valid(cast["effect"]): cast["effect"].queue_free()
+			_bear_swipes.erase(cast)
+			continue
+		if not bool(cast["lunged"]) and float(cast["time"]) <= BEAR_LUNGE_LEAD:
+			cast["lunged"] = true
+			if caster.has_method("play_skill_attack") and _is_alive(target):
+				caster.play_skill_attack(target)
+		if float(cast["time"]) > 0.0:
+			continue
+		_bear_swipes.erase(cast)
+		caster.set_meta("hill_giant_committed", false)
+		if not _is_alive(target) or _unit_dist(caster, target) > caster.skill_range:
+			continue
+		var raw: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+		var pre_hp: int = target.current_hp
+		target.take_damage(raw, caster.current_element, caster)
+		caster.damage_dealt += maxi(0, pre_hp - target.current_hp)
+		apply_bleed(target, float(caster.attack_damage) * 0.3, 4.0, caster)
+		if _is_bear(caster):
+			var ifx := BearVFX.new()
+			skill_effect_container.add_child(ifx)
+			ifx.setup_point(BearVFX.Mode.SWIPE_IMPACT, target.global_position, BEAR_REACH, 0.40)
+		elif _talon_vfx_reach(caster) > 0.0:
+			var tfx := HarpyVFX.new()
+			skill_effect_container.add_child(tfx)
+			tfx.setup_point(HarpyVFX.Mode.RAKE_IMPACT, target.global_position,
+				_talon_vfx_reach(caster), 0.42)
+		else:
+			_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, target.global_position, 30.0)
+
+# Persistent bleed, driven off the victim's bleed_time. apply_bleed has exactly
+# ONE caller (Rending Swipe), so no flavour gate is needed here.
+# `intensity` is fed from is_moving — the SAME flag BLEED_MOVE_MULT reads — so
+# what the player sees is literally the mechanic, not an approximation.
+func _sync_bleed_vfx() -> void:
+	if not skill_effect_container:
+		return
+	for key in _bleed_vfx.keys().duplicate():
+		var id: int = int(key)
+		var fx = _bleed_vfx[id]
+		var u = instance_from_id(id) if is_instance_id_valid(id) else null
+		var still: bool = u != null and is_instance_valid(u) and u.bleed_time > 0.0 and u.current_hp > 0
+		if not still:
+			if fx and is_instance_valid(fx): fx.queue_free()
+			_bleed_vfx.erase(id)
+	for u in player_units + enemy_units:
+		if not (u and is_instance_valid(u)) or u.current_hp <= 0 or u.bleed_time <= 0.0:
+			continue
+		var id2: int = u.get_instance_id()
+		var fx2: BearVFX = _bleed_vfx.get(id2)
+		if not (fx2 and is_instance_valid(fx2)):
+			fx2 = BearVFX.new()
+			skill_effect_container.add_child(fx2)
+			fx2.setup_on(BearVFX.Mode.BLEED, u, BEAR_REACH, INF)
+			_bleed_vfx[id2] = fx2
+		fx2.set_intensity(1.0 if u.is_moving else 0.0)
+
+# Persistent Fury readout. Gated to the Bear — the Minotaur, Crystal Crab and
+# Sky Wyvern reuse `bear_fury` and keep their existing (silent) behaviour.
+func _sync_fury_vfx(unit: UnitBase, ramp: float) -> void:
+	if not skill_effect_container:
+		return
+	var id: int = unit.get_instance_id()
+	var fx: BearVFX = _fury_vfx.get(id)
+	if ramp > 0.05:
+		if not (fx and is_instance_valid(fx)):
+			fx = BearVFX.new()
+			skill_effect_container.add_child(fx)
+			fx.setup_on(BearVFX.Mode.FURY, unit, BEAR_REACH, INF)
+			_fury_vfx[id] = fx
+		fx.set_rage(ramp)
+	elif fx and is_instance_valid(fx):
+		fx.queue_free()
+		_fury_vfx.erase(id)
+
+func _clear_bear_actions() -> void:
+	for cast in _bear_swipes:
+		if cast.get("effect") and is_instance_valid(cast["effect"]):
+			cast["effect"].queue_free()
+	_bear_swipes.clear()
+	for fx in _bleed_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_bleed_vfx.clear()
+	for fx in _fury_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_fury_vfx.clear()
+
+# ── Crystalline Shell (Crystal Crab) ─────────────────────────────────────────
+# `skeleton_boneshield` is shared with the Skeleton, Stone Golem and Coral Husk,
+# which keep their existing HOLY_LIGHT burst. Everything below is gated on the
+# `crystal_crab` meta so only the crab gets the mineral shell.
+func _is_crab(u: UnitBase) -> bool:
+	return bool(u.get_meta("crystal_crab", false))
+
+# Persistent shell while the shield holds, and a break beat the frame it runs
+# out. Driven off current_shield rather than spawned at cast, so it can never
+# outlive or undershoot the mechanic.
+func _sync_crab_shell_vfx() -> void:
+	if not skill_effect_container:
+		return
+	for key in _crab_shell_vfx.keys().duplicate():
+		var id: int = int(key)
+		var fx = _crab_shell_vfx[id]
+		var u = instance_from_id(id) if is_instance_id_valid(id) else null
+		var alive: bool = u != null and is_instance_valid(u) and u.current_hp > 0
+		if not alive or u.current_shield <= 0:
+			if fx and is_instance_valid(fx): fx.queue_free()
+			_crab_shell_vfx.erase(id)
+			# Broke rather than died: show the plates shatter.
+			if alive and u.current_shield <= 0:
+				var bfx := CrabVFX.new()
+				skill_effect_container.add_child(bfx)
+				bfx.setup_on(CrabVFX.Mode.SHELL_BREAK, u, CRAB_REACH, 0.45)
+			_crab_shell_peak.erase(id)
+	for u in player_units + enemy_units:
+		if not (u and is_instance_valid(u)) or u.current_hp <= 0:
+			continue
+		if not _is_crab(u) or u.current_shield <= 0:
+			continue
+		var id2: int = u.get_instance_id()
+		var peak: int = maxi(int(_crab_shell_peak.get(id2, 0)), u.current_shield)
+		_crab_shell_peak[id2] = peak
+		var fx2: CrabVFX = _crab_shell_vfx.get(id2)
+		if not (fx2 and is_instance_valid(fx2)):
+			fx2 = CrabVFX.new()
+			skill_effect_container.add_child(fx2)
+			fx2.setup_on(CrabVFX.Mode.SHELL_ACTIVE, u, CRAB_REACH, INF)
+			_crab_shell_vfx[id2] = fx2
+		# Plates visibly thin as the shield is chipped away.
+		fx2.set_strength(float(u.current_shield) / float(maxi(peak, 1)))
+
+func _clear_crab_actions() -> void:
+	for fx in _crab_shell_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_crab_shell_vfx.clear()
+	_crab_shell_peak.clear()
+
+# ── Cinder Lance (Ember Phoenix) ─────────────────────────────────────────────
+# Shares the `lizard_snipe` key. The charge + real bolt hang off a `phoenix`
+# meta on the UNIT, so nothing else reusing that key is affected.
+func _is_phoenix(caster: UnitBase) -> bool:
+	return bool(caster.get_meta("phoenix", false))
+
+func _begin_cinder_lance(caster: UnitBase, target: UnitBase) -> void:
+	caster.set_meta("hill_giant_committed", true)
+	var fx: PhoenixVFX = null
+	if skill_effect_container:
+		fx = PhoenixVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_on(PhoenixVFX.Mode.LANCE_WINDUP, caster, PHOENIX_REACH, PHOENIX_LANCE_CHARGE)
+	_phoenix_lances.append({"caster": caster, "target": target,
+		"time": PHOENIX_LANCE_CHARGE, "effect": fx})
+
+func _tick_phoenix_lances(dt: float) -> void:
+	for cast in _phoenix_lances.duplicate():
+		var caster: UnitBase = cast["caster"]
+		var target: UnitBase = cast["target"]
+		if not (caster and is_instance_valid(caster)):
+			_phoenix_lances.erase(cast)
+			continue
+		cast["time"] = float(cast["time"]) - dt
+		if caster.current_hp <= 0 or caster.stun_time > 0.0:
+			caster.set_meta("hill_giant_committed", false)
+			if cast["effect"] and is_instance_valid(cast["effect"]): cast["effect"].queue_free()
+			_phoenix_lances.erase(cast)
+			continue
+		if float(cast["time"]) > 0.0:
+			continue
+		_phoenix_lances.erase(cast)
+		caster.set_meta("hill_giant_committed", false)
+		if not _is_alive(target) or _unit_dist(caster, target) > caster.skill_range:
+			continue
+		# A REAL bolt now — damage resolves on impact, not on cast.
+		var dmg: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+		var bolt := Projectile.new()
+		bolt.setup(caster.global_position, target.global_position, dmg,
+			caster.current_element, target)
+		bolt.caster = caster
+		bolt.is_phoenix_lance = true
+		bolt.speed = 900.0
+		add_projectile(bolt)
+		if caster.has_method("play_skill_attack"):
+			caster.play_skill_attack(target)
+
+# Persistent Rekindle readout, plus the one-shot smother beat when a Fire or
+# Lightning hit blocks it — the passive's only counterplay, previously silent.
+func _sync_rekindle_vfx(unit: UnitBase, regenerating: bool) -> void:
+	if not skill_effect_container:
+		return
+	var id: int = unit.get_instance_id()
+	var fx: PhoenixVFX = _rekindle_vfx.get(id)
+	if regenerating:
+		if not (fx and is_instance_valid(fx)):
+			fx = PhoenixVFX.new()
+			skill_effect_container.add_child(fx)
+			fx.setup_on(PhoenixVFX.Mode.REKINDLE, unit, PHOENIX_REACH, INF)
+			_rekindle_vfx[id] = fx
+	elif fx and is_instance_valid(fx):
+		fx.queue_free()
+		_rekindle_vfx.erase(id)
+		# Blocked: show the embers going out, once, at the moment it happens.
+		var ash := PhoenixVFX.new()
+		skill_effect_container.add_child(ash)
+		ash.setup_on(PhoenixVFX.Mode.SMOTHERED, unit, PHOENIX_REACH, 0.55)
+
+func _clear_phoenix_actions() -> void:
+	for cast in _phoenix_lances:
+		if cast.get("effect") and is_instance_valid(cast["effect"]):
+			cast["effect"].queue_free()
+	_phoenix_lances.clear()
+	for fx in _rekindle_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_rekindle_vfx.clear()
+
+# ── Corrosive Goo (Slime) ────────────────────────────────────────────────────
+# `slime_goo` is used by NOTHING else, so this whole path is Slime-only.
+func _begin_slime_goo(caster: UnitBase, target: UnitBase) -> void:
+	caster.set_meta("hill_giant_committed", true)
+	var fx: SlimeVFX = null
+	if skill_effect_container:
+		fx = SlimeVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_windup(caster, caster.current_element, SLIME_REACH, SLIME_GOO_CONTACT)
+	_slime_goos.append({"caster": caster, "target": target,
+		"time": SLIME_GOO_CONTACT, "effect": fx})
+
+func _tick_slime_goos(dt: float) -> void:
+	for cast in _slime_goos.duplicate():
+		var caster: UnitBase = cast["caster"]
+		var target: UnitBase = cast["target"]
+		if not (caster and is_instance_valid(caster)):
+			_slime_goos.erase(cast)
+			continue
+		cast["time"] = float(cast["time"]) - dt
+		if caster.current_hp <= 0 or caster.stun_time > 0.0:
+			caster.set_meta("hill_giant_committed", false)
+			if cast["effect"] and is_instance_valid(cast["effect"]): cast["effect"].queue_free()
+			_slime_goos.erase(cast)
+			continue
+		if float(cast["time"]) > 0.0:
+			continue
+		_slime_goos.erase(cast)
+		caster.set_meta("hill_giant_committed", false)
+		if not _is_alive(target) or _unit_dist(caster, target) > caster.skill_range:
+			continue
+		# Numbers unchanged: -25% outgoing for 3s, both taking the max.
+		target.weakened_pct = maxf(target.weakened_pct, 0.25)
+		target.weakened_time = maxf(target.weakened_time, 3.0)
+		target.weaken_flavor = "corrosion"
+		if skill_effect_container:
+			var sp := SlimeVFX.new()
+			skill_effect_container.add_child(sp)
+			sp.setup_point(SlimeVFX.Mode.GOO_SPLAT, target.global_position,
+				caster.current_element, SLIME_REACH, 0.38)
+
+# Persistent corrosion, driven from the victim's weakened_time so it starts and
+# ends exactly with the mechanic. Flavour-gated: Coal's post-Meltdown burnout
+# rides the same timer and must keep showing nothing.
+func _sync_corroded_vfx() -> void:
+	if not skill_effect_container:
+		return
+	for key in _corroded_vfx.keys().duplicate():
+		var id: int = int(key)
+		var fx = _corroded_vfx[id]
+		var u = instance_from_id(id) if is_instance_id_valid(id) else null
+		var still: bool = u != null and is_instance_valid(u) and u.weakened_time > 0.0 			and str(u.weaken_flavor) == "corrosion" and u.current_hp > 0
+		if not still:
+			if fx and is_instance_valid(fx): fx.queue_free()
+			_corroded_vfx.erase(id)
+	for u in player_units + enemy_units:
+		if not (u and is_instance_valid(u)) or u.current_hp <= 0:
+			continue
+		if u.weakened_time <= 0.0 or str(u.weaken_flavor) != "corrosion":
+			continue
+		var id2: int = u.get_instance_id()
+		if _corroded_vfx.has(id2):
+			continue
+		var fx2 := SlimeVFX.new()
+		skill_effect_container.add_child(fx2)
+		fx2.setup_corroded(u, u.current_element, SLIME_REACH)
+		_corroded_vfx[id2] = fx2
+
+func _clear_slime_actions() -> void:
+	for cast in _slime_goos:
+		if cast.get("effect") and is_instance_valid(cast["effect"]):
+			cast["effect"].queue_free()
+	_slime_goos.clear()
+	for fx in _corroded_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_corroded_vfx.clear()
+
+# ── Precision Shot (Lizard) ──────────────────────────────────────────────────
+# Reworked 2026-09-17 on user direction: the description always called it a
+# "piercing shot" but it hit exactly one target, instantly, from any range.
+# It now (a) requires its real range, (b) travels as a bolt instead of teleporting
+# damage, and (c) actually pierces — every opponent in the TARGET'S ROW.
+#
+# The `lizard_snipe` key is shared with the Ember Phoenix's Cinder Lance, so the
+# row-pierce hangs off a `lizard_sniper` meta on the UNIT. The Phoenix keeps its
+# existing single-target instant behaviour untouched until its own pass.
+func _is_lizard(caster: UnitBase) -> bool:
+	return bool(caster.get_meta("lizard_sniper", false))
+
+func _begin_precision_shot(caster: UnitBase, target: UnitBase) -> void:
+	# The Lizard plants while aiming. A row-wide hit with no tell is exactly the
+	# agency-removing feel called out in the boss-fairness notes, so the row
+	# lights up BEFORE the shot and the player still has time to move.
+	caster.set_meta("hill_giant_committed", true)
+	var row: int = target.grid_position.y
+	var aim_fx: LizardVFX = null
+	var warn_fx: LizardVFX = null
+	if skill_effect_container:
+		aim_fx = LizardVFX.new()
+		skill_effect_container.add_child(aim_fx)
+		aim_fx.setup_aim(caster, LIZARD_AIM_TIME)
+		warn_fx = LizardVFX.new()
+		skill_effect_container.add_child(warn_fx)
+		warn_fx.setup_row(LizardVFX.Mode.ROW_WARNING, _row_origin(row),
+			_row_polygon(row), LIZARD_AIM_TIME)
+	_lizard_aims.append({"caster": caster, "target": target, "row": row,
+		"time": LIZARD_AIM_TIME, "aim": aim_fx, "warn": warn_fx})
+
+func _tick_lizard_aims(dt: float) -> void:
+	for cast in _lizard_aims.duplicate():
+		var caster: UnitBase = cast["caster"]
+		var target: UnitBase = cast["target"]
+		if not (caster and is_instance_valid(caster)):
+			_lizard_aims.erase(cast)
+			continue
+		cast["time"] = float(cast["time"]) - dt
+		# Interruptible: killing or stunning it mid-aim cancels the shot, which is
+		# what makes the telegraph a real counterplay window.
+		if caster.current_hp <= 0 or caster.stun_time > 0.0:
+			caster.set_meta("hill_giant_committed", false)
+			for k in ["aim", "warn"]:
+				if cast[k] and is_instance_valid(cast[k]): cast[k].queue_free()
+			_lizard_aims.erase(cast)
+			continue
+		if float(cast["time"]) > 0.0:
+			continue
+		_lizard_aims.erase(cast)
+		caster.set_meta("hill_giant_committed", false)
+		# Fire even if the original target died — the row was promised, so the
+		# bolt still goes there rather than silently fizzling.
+		var dmg: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+		var aim_pos: Vector2 = target.global_position if _is_alive(target) else _row_origin(int(cast["row"]))
+		var bolt := Projectile.new()
+		bolt.setup(caster.global_position, aim_pos, dmg, caster.current_element,
+			target if _is_alive(target) else null)
+		bolt.caster = caster
+		bolt.is_lizard_bolt = true
+		bolt.pierce_row = int(cast["row"])
+		bolt.speed = 1100.0
+		add_projectile(bolt)
+		if caster.has_method("play_skill_attack") and _is_alive(target):
+			caster.play_skill_attack(target)
+
+# Called by the bolt on arrival. Every opponent whose body OCCUPIES the row is
+# hit once — `cell_size` matters here, a 2x2 standing half in the row still
+# takes it.
+func resolve_precision_shot(caster: UnitBase, row: int, damage: int) -> void:
+	if not (caster and is_instance_valid(caster)):
+		return
+	var opponents: Array = enemy_units if caster.is_player_unit else player_units
+	for opp in opponents:
+		if not _is_alive(opp):
+			continue
+		var top: int = opp.grid_position.y
+		var bottom: int = top + maxi(opp.cell_size, 1) - 1
+		if row < top or row > bottom:
+			continue
+		var pre_hp: int = opp.current_hp
+		var was_alive: bool = pre_hp > 0
+		opp.take_damage(damage, caster.current_element, caster)
+		# POST-MITIGATION, per target — the old single-target line credited the
+		# raw pre-mitigation number.
+		var actual: int = maxi(0, pre_hp - opp.current_hp)
+		caster.damage_dealt += actual
+		caster.apply_relic_on_hit(opp, actual, was_alive)
+	if skill_effect_container:
+		var fx := LizardVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_row(LizardVFX.Mode.ROW_IMPACT, _row_origin(row), _row_polygon(row), 0.42)
+
+# World-space centre of a board row, used to anchor the row VFX.
+func _row_origin(row: int) -> Vector2:
+	if not battle_grid:
+		return Vector2.ZERO
+	return battle_grid.to_global(battle_grid.grid_to_world(
+		Vector2i(battle_grid.grid_width / 2, clampi(row, 0, battle_grid.grid_height - 1))))
+
+# The row's real cell quads, as a polygon relative to _row_origin. Built from
+# BoardPerspective so the highlight matches the trapezoid cells exactly (same
+# approach as the Hill Giant's footprint) rather than being a flat rectangle
+# that would drift out of alignment on the perspective board.
+func _row_polygon(row: int) -> PackedVector2Array:
+	if not battle_grid:
+		return PackedVector2Array()
+	var r: int = clampi(row, 0, battle_grid.grid_height - 1)
+	var w: int = battle_grid.grid_width
+	var h: int = battle_grid.grid_height
+	var cs: int = battle_grid.cell_size
+	var left := BoardPerspective.cell_quad(0, r, w, h, cs)
+	var right := BoardPerspective.cell_quad(w - 1, r, w, h, cs)
+	var origin := _row_origin(r)
+	return PackedVector2Array([
+		battle_grid.to_global(left[0]) - origin,
+		battle_grid.to_global(right[1]) - origin,
+		battle_grid.to_global(right[2]) - origin,
+		battle_grid.to_global(left[3]) - origin])
+
+# Persistent Cold Blood readout, synced from the passive tick.
+func _sync_cold_blood_vfx(unit: UnitBase, regenerating: bool) -> void:
+	if not skill_effect_container:
+		return
+	var id: int = unit.get_instance_id()
+	var fx: LizardVFX = _cold_blood_vfx.get(id)
+	if regenerating:
+		if not (fx and is_instance_valid(fx)):
+			fx = LizardVFX.new()
+			skill_effect_container.add_child(fx)
+			fx.setup_cold_blood(unit)
+			_cold_blood_vfx[id] = fx
+	elif fx and is_instance_valid(fx):
+		fx.queue_free()
+		_cold_blood_vfx.erase(id)
+
+func _clear_lizard_actions() -> void:
+	for cast in _lizard_aims:
+		for k in ["aim", "warn"]:
+			if cast.get(k) and is_instance_valid(cast[k]):
+				cast[k].queue_free()
+	_lizard_aims.clear()
+	for fx in _cold_blood_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_cold_blood_vfx.clear()
+
+# ── Infected Bite (Rat / Hellhound Searing Bite / Sky Wyvern Venom Stinger) ───
+# Shared `rat_bite` key. The DoT's FLAVOUR is per-unit (`dot_flavor` meta), so
+# the Rat infects, the Hellhound burns and the Wyvern envenoms while all three
+# keep using one code path and identical numbers.
+func _is_rat(caster: UnitBase) -> bool:
+	return str(caster.get_meta("dot_flavor", "fire")) == "disease"
+
+# Units whose basic attack resolves at a CONTACT frame (begin_windup_auto) rather
+# than inside UnitBase.attack(). They must be excluded from the immediate
+# _apply_on_hit_passives call after unit.attack(), or every landed-hit passive
+# fires twice per swing — once on the swing, once at contact. Sheildor carries
+# its own exclusion in the same condition for exactly this reason.
+func _has_delayed_auto(unit: UnitBase) -> bool:
+	return bool(unit.get_meta("windup_bot", false)) or _is_rat(unit)
+
+func _begin_rat_bite(caster: UnitBase, target: UnitBase) -> void:
+	# A 75hp skirmisher gets a SHORT tell, not the Hill Giant's half-second
+	# commitment — long enough to read, short enough to still feel like vermin.
+	caster.set_meta("hill_giant_committed", true)
+	var fx = null
+	if skill_effect_container and _is_rat(caster):
+		fx = RatVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_windup(caster, RAT_BITE_REACH, RAT_BITE_CONTACT)
+	elif skill_effect_container and _is_wyvern(caster):
+		fx = WyvernVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_on(WyvernVFX.Mode.STING_WINDUP, caster, WYVERN_REACH, RAT_BITE_CONTACT)
+	_rat_bites.append({"caster": caster, "target": target,
+		"time": RAT_BITE_CONTACT, "effect": fx, "lunged": false})
+
+func _tick_rat_bites(dt: float) -> void:
+	for cast in _rat_bites.duplicate():
+		var caster: UnitBase = cast["caster"]
+		var target: UnitBase = cast["target"]
+		if not (caster and is_instance_valid(caster)):
+			_rat_bites.erase(cast)
+			continue
+		cast["time"] = float(cast["time"]) - dt
+		if caster.current_hp <= 0 or caster.stun_time > 0.0:
+			caster.set_meta("hill_giant_committed", false)
+			if cast["effect"] and is_instance_valid(cast["effect"]): cast["effect"].queue_free()
+			_rat_bites.erase(cast)
+			continue
+		# Lunge released so the jaws arrive on the damage frame.
+		if not bool(cast["lunged"]) and float(cast["time"]) <= RAT_LUNGE_LEAD:
+			cast["lunged"] = true
+			if caster.has_method("play_skill_attack") and _is_alive(target):
+				caster.play_skill_attack(target)
+		if float(cast["time"]) > 0.0:
+			continue
+		_rat_bites.erase(cast)
+		caster.set_meta("hill_giant_committed", false)
+		if not _is_alive(target) or _unit_dist(caster, target) > caster.skill_range:
+			continue
+		var raw: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+		var pre_hp: int = target.current_hp
+		target.take_damage(raw, caster.current_element, caster)
+		# POST-MITIGATION, as everywhere else — the old line credited `raw`.
+		caster.damage_dealt += maxi(0, pre_hp - target.current_hp)
+		# Infestation: while packed with 2+ other rats the disease lingers 50%
+		# longer (flag set each tick in _tick_mob_passive).
+		var dur: float = 4.5 if bool(caster.get_meta("rat_disease_boost", false)) else 3.0
+		var flavor := str(caster.get_meta("dot_flavor", "fire"))
+		apply_burn(target, float(caster.attack_damage) * 0.35, dur, caster, flavor)
+		if _is_rat(caster):
+			_spawn_rat_point(RatVFX.Mode.BITE_IMPACT, target.global_position, RAT_BITE_REACH, 0.34)
+		elif _is_wyvern(caster):
+			var wfx := WyvernVFX.new()
+			skill_effect_container.add_child(wfx)
+			wfx.setup_point(WyvernVFX.Mode.STING_IMPACT, target.global_position, WYVERN_REACH, 0.44)
+		else:
+			_spawn_skill_effect_sized(SkillEffect.Type.BURN, target.global_position, 20.0)
+
+func _spawn_rat_point(kind: RatVFX.Mode, world_pos: Vector2, size: float, life: float) -> void:
+	if not skill_effect_container: return
+	var fx := RatVFX.new()
+	skill_effect_container.add_child(fx)
+	fx.setup_point(kind, world_pos, size, life)
+
+# Persistent plague cloud for as long as the DoT actually runs. Driven from the
+# victim's burn_time rather than spawned at cast, so it can never outlive or
+# undershoot the mechanic it represents (a cleanse ends it on the same frame).
+func _sync_disease_vfx() -> void:
+	if not skill_effect_container:
+		return
+	for key in _disease_vfx.keys().duplicate():
+		var id: int = int(key)
+		var fx = _disease_vfx[id]
+		var u = instance_from_id(id) if is_instance_id_valid(id) else null
+		var still: bool = u != null and is_instance_valid(u) and u.burn_time > 0.0 \
+			and _dot_has_visual(str(u.burn_flavor)) and u.current_hp > 0 \
+			and str(u.burn_flavor) == str(fx.get_meta("dot_flavor", ""))
+		if not still:
+			if fx and is_instance_valid(fx): fx.queue_free()
+			_disease_vfx.erase(id)
+	for u in player_units + enemy_units:
+		if not (u and is_instance_valid(u)) or u.current_hp <= 0:
+			continue
+		if u.burn_time <= 0.0 or not _dot_has_visual(str(u.burn_flavor)):
+			continue
+		var id: int = u.get_instance_id()
+		if _disease_vfx.has(id):
+			continue
+		# One flavour, one look. "fire" deliberately has none — it keeps the
+		# generic burn it always had, which is correct for the Hellhound.
+		var fx: Node2D = null
+		if str(u.burn_flavor) == "disease":
+			var rfx := RatVFX.new()
+			rfx.setup_disease(u, RAT_BITE_REACH)
+			fx = rfx
+		else:
+			var wfx := WyvernVFX.new()
+			wfx.setup_on(WyvernVFX.Mode.VENOM, u, RAT_BITE_REACH * 1.15, INF)
+			fx = wfx
+		fx.set_meta("dot_flavor", str(u.burn_flavor))
+		skill_effect_container.add_child(fx)
+		_disease_vfx[id] = fx
+
+# One ground ring per swarming rat, strength = how packed it is.
+func _sync_infest_vfx(unit: UnitBase, strength: float) -> void:
+	if not skill_effect_container:
+		return
+	var id := unit.get_instance_id()
+	var fx: RatVFX = _infest_vfx.get(id)
+	if not (fx and is_instance_valid(fx)):
+		fx = RatVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_infest(unit, RAT_INFEST_RING)
+		_infest_vfx[id] = fx
+	fx.set_pack_strength(strength)
+
+func _clear_rat_actions() -> void:
+	for cast in _rat_bites:
+		if cast.get("effect") and is_instance_valid(cast["effect"]):
+			cast["effect"].queue_free()
+	_rat_bites.clear()
+	for fx in _disease_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_disease_vfx.clear()
+	for fx in _infest_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_infest_vfx.clear()
+
+# ── Wind-Up Punch (Wind-Up Bot / Minotaur Gore Rush / Storm Giant Thunderclap) ─
+# Shared `windup_punch` key, but the KNOCK-UP and the 1.5s stun are Wind-Up Bot
+# properties carried on the unit (`windup_bot` / `windup_stun` meta), not on
+# the key — the Minotaur and Storm Giant keep their own 1.0s stun and their own
+# visual language, so polishing the bot does not silently retune two other mobs.
+func _windup_stun_seconds(caster: UnitBase) -> float:
+	return float(caster.get_meta("windup_stun", 1.0))
+
+func _is_windup_bot(caster: UnitBase) -> bool:
+	return bool(caster.get_meta("windup_bot", false))
+
+func _begin_windup_punch(caster: UnitBase, target: UnitBase) -> void:
+	# The bot has no authored attack sheet, so play_skill_attack falls through to
+	# the 0.13s procedural lunge. Firing that NOW would put the whole body motion
+	# ~0.4s before contact — the exact desync being fixed. Instead the wind-up
+	# VFX runs alone while the bot coils, and the lunge is released late (see
+	# _tick_windup_punches) so the fist is at full extension on the damage frame.
+	# Mobs that DO have a real swing sheet (Minotaur, Storm Giant) keep playing
+	# it immediately, exactly as before.
+	if not _is_windup_bot(caster) and caster.has_method("play_skill_attack"):
+		caster.play_skill_attack(target)
+	# Blocks the normal attack/move branch for the wind-up so the bot visibly
+	# commits: it plants and winds instead of strolling on mid-cast. Reused
+	# key — despite the name this is the generic "committed action" gate in
+	# _tick_unit, not anything Hill-Giant-specific.
+	caster.set_meta("hill_giant_committed", true)
+	var fx = null
+	if skill_effect_container and _is_windup_bot(caster):
+		fx = WindUpBotVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_windup(caster, caster.current_element, WINDUP_PUNCH_REACH, WINDUP_PUNCH_CONTACT)
+	elif skill_effect_container and _is_minotaur(caster):
+		fx = MinotaurVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_on(MinotaurVFX.Mode.GORE_WINDUP, caster, MINOTAUR_REACH, WINDUP_PUNCH_CONTACT)
+	elif skill_effect_container and _is_storm_giant(caster):
+		fx = StormGiantVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_on(StormGiantVFX.Mode.CLAP_WINDUP, caster, STORM_GIANT_REACH, WINDUP_PUNCH_CONTACT)
+	_windup_punches.append({"caster": caster, "target": target,
+		"time": WINDUP_PUNCH_CONTACT, "effect": fx, "lunged": false})
+
+func _tick_windup_punches(dt: float) -> void:
+	for cast in _windup_punches.duplicate():
+		var caster: UnitBase = cast["caster"]
+		var target: UnitBase = cast["target"]
+		if not (caster and is_instance_valid(caster)):
+			_windup_punches.erase(cast)
+			continue
+		cast["time"] = float(cast["time"]) - dt
+		# INTERRUPTIBLE. Killing or stunning the bot mid-wind-up cancels the
+		# punch outright and tears down the wind-up glow, so the anticipation
+		# is a real counterplay window rather than decoration.
+		var interrupted: bool = caster.current_hp <= 0 or caster.stun_time > 0.0
+		if interrupted:
+			caster.set_meta("hill_giant_committed", false)
+			if cast["effect"] and is_instance_valid(cast["effect"]): cast["effect"].queue_free()
+			_windup_punches.erase(cast)
+			continue
+		# Release the body motion one lunge-length before contact so the fist
+		# reaches full extension on the exact frame the damage resolves.
+		if _is_windup_bot(caster) and not bool(cast["lunged"]) \
+				and float(cast["time"]) <= WINDUP_AUTO_CONTACT:
+			cast["lunged"] = true
+			if caster.has_method("play_skill_attack") and _is_alive(target):
+				caster.play_skill_attack(target)
+		if float(cast["time"]) > 0.0:
+			continue
+		_windup_punches.erase(cast)
+		caster.set_meta("hill_giant_committed", false)
+		# Target died or walked out of reach during the wind-up: the swing
+		# whiffs. No damage, no stun, and the cooldown is already spent.
+		if not _is_alive(target) or _unit_dist(caster, target) > caster.skill_range:
+			continue
+		var raw: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+		var pre_hp: int = target.current_hp
+		target.take_damage(raw, caster.current_element, caster)
+		# POST-MITIGATION. The old line credited the pre-mitigation `raw`, so a
+		# normal bot that removed 127 HP and an elemental bot that removed 84
+		# both reported a flat 90 to the damage meter.
+		var actual: int = maxi(0, pre_hp - target.current_hp)
+		caster.damage_dealt += actual
+		# No apply_relic_on_hit here on purpose: the instant version never called
+		# it, and goblin_shank (the closest committed-melee-SKILL precedent) does
+		# not either. Adding it would be an unrequested behaviour change; the
+		# AUTO path below does call it, because UnitBase.attack's melee branch
+		# always did and that must be preserved exactly.
+		apply_stun(target, _windup_stun_seconds(caster))
+		if _is_windup_bot(caster):
+			_spawn_windup_point(WindUpBotVFX.Mode.PUNCH_IMPACT, target.global_position,
+				caster.current_element, WINDUP_PUNCH_REACH, 0.55)
+			# The punt. Driven by the stun that was ACTUALLY applied (tenacity
+			# already folded in by apply_stun), so the target lands on the exact
+			# frame it recovers instead of hanging in the air after the stun
+			# ended or snapping down while still helpless.
+			if target.has_method("play_knockup") and target.current_hp > 0:
+				target.play_knockup(target.stun_time)
+		elif _is_minotaur(caster):
+			var mfx := MinotaurVFX.new()
+			skill_effect_container.add_child(mfx)
+			mfx.setup_point(MinotaurVFX.Mode.GORE_IMPACT, target.global_position, MINOTAUR_REACH, 0.44)
+		elif _is_storm_giant(caster):
+			var sfx := StormGiantVFX.new()
+			skill_effect_container.add_child(sfx)
+			sfx.setup_point(StormGiantVFX.Mode.CLAP_IMPACT, target.global_position,
+				STORM_GIANT_REACH, 0.52)
+		else:
+			# Storm Giant keeps the effect it already shipped with.
+			_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, target.global_position, 26.0)
+
+# The bot's basic attack, resolved on the lunge's forward extent. Same shape as
+# the Hill Giant's club and Sheildor's shield: the complete landed-hit package
+# (damage, ult charge, relics, on-hit passives, impact VFX) happens at contact.
+func begin_windup_auto(caster: UnitBase, target: UnitBase, damage: int,
+		is_crit: bool, is_true_damage: bool) -> void:
+	_windup_autos.append({"caster": caster, "target": target, "damage": damage,
+		"crit": is_crit, "true": is_true_damage, "time": WINDUP_AUTO_CONTACT})
+
+func _tick_windup_autos(dt: float) -> void:
+	for swing in _windup_autos.duplicate():
+		var caster: UnitBase = swing["caster"]
+		var target: UnitBase = swing["target"]
+		if not (caster and is_instance_valid(caster)):
+			_windup_autos.erase(swing); continue
+		swing["time"] = float(swing["time"]) - dt
+		if float(swing["time"]) > 0.0: continue
+		_windup_autos.erase(swing)
+		if caster.current_hp <= 0 or caster.stun_time > 0.0 or not _is_alive(target) \
+				or _unit_dist(caster, target) > caster.attack_range:
+			continue
+		var pre_hp: int = target.current_hp
+		var was_alive: bool = pre_hp > 0
+		target.take_damage(int(swing["damage"]), caster.current_element, caster,
+			bool(swing["true"]), 0, false, bool(swing["crit"]))
+		var actual: int = maxi(0, pre_hp - target.current_hp)
+		caster.damage_dealt += actual
+		caster._charge_ultimate(actual / 4)
+		caster.apply_relic_on_hit(target, actual, was_alive)
+		_apply_on_hit_passives(caster, target,
+			enemy_units if caster.is_player_unit else player_units)
+		# A LIGHTER member of the same family as the unit's signature move, so an
+		# auto and a signature can never be mistaken for each other while still
+		# reading as the same creature.
+		if _is_rat(caster):
+			_spawn_rat_point(RatVFX.Mode.BITE_IMPACT, target.global_position,
+				RAT_BITE_REACH * 0.6, 0.22)
+		else:
+			_spawn_windup_point(WindUpBotVFX.Mode.AUTO_IMPACT, target.global_position,
+				caster.current_element, WINDUP_PUNCH_REACH, 0.30)
+
+func _spawn_windup_point(kind: WindUpBotVFX.Mode, world_pos: Vector2,
+		element: int, size: float, life: float) -> void:
+	if not skill_effect_container: return
+	var fx := WindUpBotVFX.new()
+	skill_effect_container.add_child(fx)
+	fx.setup_point(kind, world_pos, element, size, life)
+
+# One persistent Overclock mechanism per bot, fed the live step count.
+func _sync_windup_overclock_vfx(unit: UnitBase, steps: int) -> void:
+	if not skill_effect_container:
+		return
+	var id := unit.get_instance_id()
+	var fx: WindUpBotVFX = _windup_oc_vfx.get(id)
+	if not (fx and is_instance_valid(fx)):
+		fx = WindUpBotVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_overclock(unit, unit.current_element)
+		_windup_oc_vfx[id] = fx
+	fx.set_overclock_steps(steps)
+
+func _clear_windup_actions() -> void:
+	for cast in _windup_punches:
+		if cast.get("effect") and is_instance_valid(cast["effect"]):
+			cast["effect"].queue_free()
+	_windup_punches.clear()
+	_windup_autos.clear()
+	for fx in _windup_oc_vfx.values():
+		if fx and is_instance_valid(fx):
+			fx.queue_free()
+	_windup_oc_vfx.clear()
+
+func _clear_hill_giant_actions() -> void:
+	for smash in _hill_giant_smashes:
+		if smash.get("effect") and is_instance_valid(smash["effect"]):
+			smash["effect"].queue_free()
+	_hill_giant_smashes.clear()
+	_hill_giant_autos.clear()
 
 # ── Basic-monster signature moves (2026-07-03) ────────────────────────────────
 # Basic mobs piggyback hero UnitClass values for stats/sprites, so their skills
@@ -1339,49 +3669,42 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 	var tar := find_nearest_enemy(caster, opponents)
 	match key:
 		"goblin_shank":
-			# Quick lunge for bonus damage — goblins get scarier in numbers.
-			if not tar: return
-			var dmg: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
-			tar.take_damage(dmg, caster.current_element, caster)
-			caster.damage_dealt += dmg
-			_spawn_skill_effect_sized(SkillEffect.Type.SHADOW_STRIKE, tar.global_position, 22.0)
+			# A committed melee lunge; trigger gating already guarantees adjacency.
+			if not tar or _unit_dist(caster, tar) > caster.skill_range: return
+			_begin_goblin_shank(caster, tar)
 		"archer_cripple":
-			# Crippling Arrow: modest damage + slow.
+			# Damage and slow travel together and resolve on arrow impact.
 			if not tar: return
 			var adm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
-			tar.take_damage(adm, caster.current_element, caster)
-			caster.damage_dealt += adm
-			apply_slow(tar, 0.30, 2.0)
-			_spawn_skill_effect_sized(SkillEffect.Type.ARROW_RAIN, tar.global_position, 24.0)
+			caster.spawn_crippling_arrow(tar, adm, 0.30, 2.0)
+		"hill_giant_smash":
+			_begin_hill_giant_smash(caster, opponents)
 		"shaman_mend":
-			# Mend: heal the most-wounded ally (the reason to focus shamans first).
-			var heal_tar := _lowest_hp_ally(caster, _allies, 6.0, true)
+			# Mend travels visibly from caster to recipient; healing resolves at the
+			# tether's contact beat rather than before the cast can be read.
+			var heal_tar := _lowest_wounded_ally(caster, _allies, caster.skill_range, true)
 			if not heal_tar: return
 			var amt: int = int(float(caster.magic_power) * 1.5)
-			heal_tar.heal(amt)
-			caster.combat_healing_done += amt
-			_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, heal_tar.global_position, 26.0)
+			_begin_shaman_mend(caster, heal_tar, amt)
 		"brute_crush":
 			# Crushing Blow: big hit + short stun. Long cooldown — telegraphed bully.
-			if not tar: return
-			var bdm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
-			tar.take_damage(bdm, caster.current_element, caster)
-			caster.damage_dealt += bdm
-			tar.stun_time = maxf(tar.stun_time, 1.0)
-			_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, tar.global_position, 30.0)
+			# 2026-09-17: was instant, unranged, credited PRE-mitigation damage and
+			# drew a generic orange WHIRLWIND. Now it commits and resolves on the
+			# slam's contact frame.
+			if not tar or _unit_dist(caster, tar) > caster.skill_range: return
+			_begin_orc_crush(caster, tar)
 		"windup_punch":
 			# Wind-Up Punch: hit + 1s stun, damage scaling with the bot's own
 			# elemental affinity (2026-07-07 user request — every mob skill's
 			# damage should be tied to affinity, same pattern as bear_swipe/
 			# troll_enrage below rather than a flat multiplier like brute_crush).
-			if not tar: return
 			# (2026-07-17: own-element self-buff removed — take_damage now applies
 			# the attacker's off-affinity vs the target centrally, exactly once.)
-			var wudm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
-			tar.take_damage(wudm, caster.current_element, caster)
-			caster.damage_dealt += wudm
-			tar.stun_time = maxf(tar.stun_time, 1.0)
-			_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, tar.global_position, 26.0)
+			# 2026-09-16: was instant — damage, stun and a generic orange
+			# WHIRLWIND all resolved on the same frame the skill came off
+			# cooldown, with no travel and nothing to read. Now it commits.
+			if not tar or _unit_dist(caster, tar) > caster.skill_range: return
+			_begin_windup_punch(caster, tar)
 		"tempest_arc":
 			# Chain Discharge (Tempest Conduit, round-55 Lightning elite): hits the
 			# nearest hero, then arcs from that hero to the next UNHIT hero within
@@ -1463,7 +3786,7 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 				if battle_grid.is_cell_occupied(dest):
 					continue
 				var from: Vector2i = tar.grid_position
-				battle_grid.remove_unit(from)
+				battle_grid.purge_unit(tar)
 				if battle_grid.place_unit(tar, dest):
 					tar.grid_position = dest
 					tar.position = _world_pos_for(tar, dest)
@@ -1496,36 +3819,62 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 				_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, hy_tar.global_position, 26.0)
 		"slime_goo":
 			# Corrosive Goo: weaken the target's outgoing damage.
-			if not tar: return
-			tar.weakened_pct = maxf(tar.weakened_pct, 0.25)
-			tar.weakened_time = maxf(tar.weakened_time, 3.0)
-			_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, tar.global_position, 24.0)
+			# 2026-09-17: was instant and unranged, with a generic ABSORBED puff.
+			# Now the slime visibly gathers goo and the weaken lands on the splat.
+			if not tar or _unit_dist(caster, tar) > caster.skill_range: return
+			_begin_slime_goo(caster, tar)
 		"skeleton_boneshield":
 			# Bone Shield: rattle up a shield — skeletons hold the line.
+			# Application stays INSTANT on purpose (2026-09-17): this is a
+			# defensive SELF-buff shared by Skeleton / Stone Golem / Crystal Crab
+			# / Coral Husk, so adding a wind-up would delay all four mobs' shields
+			# and is a real nerf nobody asked for. The gap was the PERSISTENT half
+			# — see _sync_crab_shell_vfx.
 			var sh: int = int(float(caster.max_hp) * 0.25)
 			caster.current_shield += sh
 			if caster.health_bar:
 				caster.health_bar.update_shield(caster.current_shield, caster.max_hp)
-			_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, caster.global_position, 24.0)
+			if _is_crab(caster):
+				_crab_shell_peak[caster.get_instance_id()] = maxi(
+					int(_crab_shell_peak.get(caster.get_instance_id(), 0)), caster.current_shield)
+				if skill_effect_container:
+					var cfx := CrabVFX.new()
+					skill_effect_container.add_child(cfx)
+					cfx.setup_on(CrabVFX.Mode.SHELL_FORM, caster, CRAB_REACH, 0.42)
+			elif _is_skeleton(caster):
+				if skill_effect_container:
+					var kfx := SkeletonVFX.new()
+					skill_effect_container.add_child(kfx)
+					kfx.setup_on(SkeletonVFX.Mode.BONE_SHIELD, caster, SKELETON_REACH, 0.44)
+			elif _is_coral_husk(caster):
+				if skill_effect_container:
+					var cvx := CoralVFX.new()
+					skill_effect_container.add_child(cvx)
+					cvx.setup_on(CoralVFX.Mode.CALCIFY, caster, CORAL_REACH, 0.50)
+			else:
+				_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, caster.global_position, 24.0)
 		"rat_bite":
 			# Infected Bite: small hit + disease DoT (burn plumbing, flavored).
-			if not tar: return
-			var rdm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
-			tar.take_damage(rdm, caster.current_element, caster)
-			caster.damage_dealt += rdm
-			# Infestation passive: while packed with 2+ other rats the disease lingers
-			# 50% longer (flag set each tick in _tick_mob_passive).
-			var rat_dur: float = 4.5 if bool(caster.get_meta("rat_disease_boost", false)) else 3.0
-			apply_burn(tar, float(caster.attack_damage) * 0.35, rat_dur, caster)
-			_spawn_skill_effect_sized(SkillEffect.Type.BURN, tar.global_position, 20.0)
+			# 2026-09-17: was instant and unranged — damage and the DoT landed the
+			# frame the cooldown expired, from anywhere on the board, with a
+			# generic orange BURN puff. Now it must close to melee and commit.
+			if not tar or _unit_dist(caster, tar) > caster.skill_range: return
+			_begin_rat_bite(caster, tar)
 		"lizard_snipe":
 			# Precision Shot: the lizard barely moves, so this high-multiplier
 			# cooldown-gated snipe (not its auto-attack) is its real threat.
-			if not tar: return
-			var lzdm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
-			tar.take_damage(lzdm, caster.current_element, caster)
-			caster.damage_dealt += lzdm
-			_spawn_skill_effect_sized(SkillEffect.Type.ARROW_RAIN, tar.global_position, 24.0)
+			if not tar or _unit_dist(caster, tar) > caster.skill_range: return
+			if _is_lizard(caster):
+				_begin_precision_shot(caster, tar)
+			elif _is_phoenix(caster):
+				_begin_cinder_lance(caster, tar)
+			else:
+				# Any other future user of this key keeps the original behaviour.
+				var lzdm: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
+				var pre_hp: int = tar.current_hp
+				tar.take_damage(lzdm, caster.current_element, caster)
+				caster.damage_dealt += maxi(0, pre_hp - tar.current_hp)
+				_spawn_skill_effect_sized(SkillEffect.Type.ARROW_RAIN, tar.global_position, 24.0)
 		"bear_swipe":
 			# Rending Swipe: modest hit (the Bear's whole identity is tanking, not
 			# damage) that opens a bleed — the bleed tick rate DOUBLES on any
@@ -1535,14 +3884,13 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 			# with the Bear's own offensive affinity in its own element (2026-07-06
 			# user request — an Ice Bear's swipe hits harder because it's more
 			# affined with ice, not because of any target-element matchup).
-			if not tar: return
 			# (self-buff removed — central affinity; the bleed loses its element
 			# scaling since DoTs are true damage and skip affinity by design.)
-			var bswp: int = int(float(caster.attack_damage) * caster.skill_damage_multiplier)
-			tar.take_damage(bswp, caster.current_element, caster)
-			caster.damage_dealt += bswp
-			apply_bleed(tar, float(caster.attack_damage) * 0.3, 4.0, caster)
-			_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, tar.global_position, 30.0)
+			# 2026-09-17: was instant, unranged, credited PRE-mitigation damage and
+			# drew a generic orange WHIRLWIND. Now it commits and resolves on the
+			# rake's contact frame.
+			if not tar or _unit_dist(caster, tar) > caster.skill_range: return
+			_begin_bear_swipe(caster, tar)
 		"troll_enrage":
 			# Enrage: picks a RANDOM friendly target in range — itself counts as
 			# an eligible pick alongside its allies (2026-07-07 user correction;
@@ -1563,71 +3911,214 @@ func _use_mob_skill(caster: UnitBase, key: String, opponents: Array, _allies: Ar
 			var enrage_tar: UnitBase = enrage_pool[randi() % enrage_pool.size()]
 			enrage_tar.bonus_aspd_pct = maxf(enrage_tar.bonus_aspd_pct, enrage_pct)
 			enrage_tar.bonus_aspd_time = maxf(enrage_tar.bonus_aspd_time, 10.0)
-			_spawn_skill_effect_sized(SkillEffect.Type.CHI_BURST, enrage_tar.global_position, 32.0)
+			# 2026-09-17: application stays INSTANT on purpose — this is a friendly
+			# buff, so a wind-up would simply make the Troll worse, which is a
+			# balance change nobody asked for. The gap was that the 10s buff had
+			# no persistent tell at all (see _sync_enraged_vfx).
+			enrage_tar.aspd_flavor = "troll_enrage"
+			if skill_effect_container:
+				var tfx := TrollVFX.new()
+				skill_effect_container.add_child(tfx)
+				tfx.setup_point(TrollVFX.Mode.ENRAGE_CAST, enrage_tar.global_position,
+					caster.current_element, TROLL_REACH, 0.48)
 
+# Kicks off a Tide chain as a live sequence (see _tick_nemi_tide_seqs) instead
+# of resolving every bounce in one frame. First hit lands immediately; every
+# bounce after that sends a beam DIRECTLY from whoever was just hit to
+# whoever's hit next (Nemi only appears on screen if she's actually the
+# chosen target that turn — see the rules comment above TIDE_MAX_BOUNCES), so
+# the visual matches the targeting logic exactly instead of always routing
+# through Nemi as a hub.
 func _nemi_tide(caster: UnitBase, opponents: Array, allies: Array) -> void:
 	var first := find_nearest_enemy(caster, opponents)
 	if not first:
 		return
 
 	var dmg := _ab(caster, AF_ACTIVE, "dmg")
-	var heal_amt := dmg
+	first.take_magic_damage(dmg, caster.current_element, caster)
+	caster.damage_dealt += dmg
+	_spawn_skill_effect_sized(SkillEffect.Type.TIDE_WAVE, first.global_position, 160.0, TIDE_SPLASH_DUR)
 
-	var visited: Dictionary = {}
-	var current: UnitBase = first
-	var current_is_enemy := true   # the first hit is always an enemy
+	_nemi_tide_seqs.append({
+		"caster": caster,
+		"dmg": dmg,
+		"heal_amt": dmg,
+		"visited": {first: true},
+		"current": first,
+		"current_is_enemy": true,
+		"bounce_count": 1,
+		"phase": "splash",
+		"phase_t": TIDE_SPLASH_DUR,
+	})
 
-	for _bounce in range(TIDE_MAX_BOUNCES):
-		if not (current and is_instance_valid(current)):
-			break
-		visited[current] = true
+# Advances every in-flight Tide chain one dt. Each bounce cycles through two
+# beats — splash lands on the current target, THEN (once the next target is
+# chosen) a beam travels directly from the current target to that next one —
+# before repeating, up to TIDE_MAX_BOUNCES. Damage/heal for a bounce lands the
+# instant its splash appears, at the START of "splash", not when the beam
+# arrives — the beam is purely the travel visual for the NEXT hit.
+func _tick_nemi_tide_seqs(dt: float) -> void:
+	if _nemi_tide_seqs.is_empty():
+		return
+	var alive: Array = []
+	for seq in _nemi_tide_seqs:
+		# NOTE: pull Dictionary values out as untyped locals and validity-check
+		# BEFORE assigning to a typed UnitBase variable. A freed unit sitting in
+		# the Dictionary crashes on the typed assignment itself ("Trying to
+		# assign invalid previously freed instance") — is_instance_valid() has
+		# to run on the untyped value first, or it never gets the chance.
+		var caster_v = seq["caster"]
+		if not is_instance_valid(caster_v):
+			continue   # caster died mid-chain — drop it
+		var caster: UnitBase = caster_v
 
-		# Apply the effect for whichever team `current` belongs to.
-		if current_is_enemy:
-			current.take_magic_damage(dmg, caster.current_element, caster)
-			caster.damage_dealt += dmg
-			_spawn_skill_effect_sized(SkillEffect.Type.TIDE_WAVE, current.global_position, 32.0)
-		else:
-			current.heal(heal_amt)
-			_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, current.global_position, 32.0)
+		seq["phase_t"] -= dt
+		if seq["phase_t"] > 0.0:
+			alive.append(seq)
+			continue
 
-		# Pick the next bounce on the OPPOSITE team, within range of `current`.
-		var want_enemy := not current_is_enemy
-		var pool: Array = opponents if want_enemy else allies
-		var next := _tide_next_target(current, pool, want_enemy, caster, visited)
-		if not next:
-			break
-		current = next
-		current_is_enemy = want_enemy
+		var current_v = seq["current"]
+		var current: UnitBase = current_v if is_instance_valid(current_v) else null
+		match seq["phase"]:
+			"splash":
+				# The splash already landed (damage/heal applied when it was
+				# spawned — either in _nemi_tide for the first hit, or at the
+				# end of "travel" below for every hit after). This beat just
+				# picks the next target and sends a beam straight at them.
+				if seq["bounce_count"] >= TIDE_MAX_BOUNCES:
+					continue   # chain exhausted its bounce cap — done
+				if not current:
+					continue   # the last-hit unit died before the chain could bounce onward
 
-# Nearest unvisited unit in `pool` within TIDE_RANGE of `from`. When looking for an
-# ally bounce, Nemi (the caster) is preferred over any other ally in range.
+				var want_enemy: bool = not seq["current_is_enemy"]
+				var opp_pool: Array = enemy_units if caster.is_player_unit else player_units
+				var ally_pool: Array = player_units if caster.is_player_unit else enemy_units
+				var pool: Array = opp_pool if want_enemy else ally_pool
+				var next := _tide_next_target(current, pool, want_enemy, caster, seq["visited"])
+				if not next:
+					continue   # no valid next target left — chain dies here
+
+				# Only enemies are one-and-done — with N enemies on the field
+				# the chain can hit at most N enemy-turns before it dies (still
+				# capped at TIDE_MAX_BOUNCES either way). Allies (Nemi included)
+				# have no such limit and can be bounced to repeatedly.
+				if want_enemy:
+					seq["visited"][next] = true
+				seq["pending"] = next
+				seq["pending_is_enemy"] = want_enemy
+				# Beam travels DIRECTLY from the unit just hit to the next
+				# target — no detour through Nemi unless she's one of the two
+				# endpoints (i.e. `current` or `next` actually is her).
+				_spawn_tide_link(current.global_position, next.global_position, TIDE_TRAVEL_DUR)
+				seq["phase"] = "travel"
+				seq["phase_t"] = TIDE_TRAVEL_DUR
+				alive.append(seq)
+
+			"travel":
+				var pending_v = seq["pending"]
+				if not is_instance_valid(pending_v):
+					continue   # the chosen target died in transit — chain dies here
+				var pending: UnitBase = pending_v
+				var want_enemy: bool = seq["pending_is_enemy"]
+
+				if want_enemy:
+					pending.take_magic_damage(seq["dmg"], caster.current_element, caster)
+					caster.damage_dealt += seq["dmg"]
+					_spawn_skill_effect_sized(SkillEffect.Type.TIDE_WAVE, pending.global_position, 160.0, TIDE_SPLASH_DUR)
+				else:
+					pending.heal(seq["heal_amt"])
+					_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, pending.global_position, 160.0, TIDE_SPLASH_DUR)
+
+				seq["current"] = pending
+				seq["current_is_enemy"] = want_enemy
+				seq["bounce_count"] += 1
+				seq["phase"] = "splash"
+				seq["phase_t"] = TIDE_SPLASH_DUR
+				alive.append(seq)
+	_nemi_tide_seqs = alive
+
+# Nearest unit in `pool` within TIDE_BOUNCE_RANGE tiles of `from` — wherever
+# the chain currently is (the last unit hit), NOT a fixed anchor on Nemi's own
+# position. Anchoring to Nemi was too restrictive once she's a backline
+# caster several rows from the actual fight — a 5-6 tile bubble around HER
+# barely reached past the first enemy she engaged, so most chains died at
+# bounce 2 (hit enemy -> heal Nemi -> no 2nd enemy in range of NEMI, even
+# though plenty were in range of the fight itself). Anchoring to the current
+# bounce location instead means the reachable area actually follows the
+# chain as it moves. (2026-08-06: an EARLIER version anchored per-hop too, but
+# with a 2-tile range — that died even faster; 6 tiles is wide enough to
+# actually bridge between the two team's halves of the board.)
+# Enemies that are already `visited` are skipped (one-and-done); allies are
+# never marked visited by the caller, so Nemi/allies can be bounced to
+# repeatedly. Nemi is NOT unconditionally preferred for the ally step anymore
+# (2026-08-06) — she's just a normal candidate in the loop below, competing on
+# distance like anyone else, filtered by the same 95% HP floor. She'll still
+# win whenever she genuinely IS the nearest valid ally (which is often, since
+# `from` is frequently near her), but the chain can now also route through a
+# frontline ally instead — which matters because that ally's position is what
+# the NEXT enemy-search anchors to, and a frontline ally sits much closer to
+# more of the fight than Nemi's backline position ever does. Locking every
+# ally-turn onto Nemi was what capped most chains at bounce_count=2 even after
+# TIDE_BOUNCE_RANGE was widened to 6.
 func _tide_next_target(from: UnitBase, pool: Array, want_enemy: bool,
 		caster: UnitBase, visited: Dictionary) -> UnitBase:
-	# Ally bounce: prioritise Nemi if she is a valid, in-range, unvisited target.
-	if not want_enemy and is_instance_valid(caster) and not visited.has(caster):
-		if from.grid_position.distance_to(caster.grid_position) <= TIDE_RANGE:
-			return caster
-
 	var best: UnitBase = null
 	var best_d := INF
 	for u in pool:
-		if not (u and is_instance_valid(u)) or visited.has(u):
+		if not (u and is_instance_valid(u)):
+			continue
+		if want_enemy and visited.has(u):
+			continue
+		# Same 95% HP floor as the auto-prefer check above — otherwise a
+		# topped-up Nemi could still get picked here just for being nearest.
+		if not want_enemy and u == caster and float(u.current_hp) / maxf(float(u.max_hp), 1.0) > 0.95:
 			continue
 		var d := from.grid_position.distance_to(u.grid_position)
-		if d <= TIDE_RANGE and d < best_d:
+		if d > TIDE_BOUNCE_RANGE:
+			continue
+		if d < best_d:
 			best_d = d; best = u
 	return best
 
 func _spawn_skill_effect(type: SkillEffect.Type, world_pos: Vector2) -> void:
 	_spawn_skill_effect_sized(type, world_pos, 56.0)
 
-func _spawn_skill_effect_sized(type: SkillEffect.Type, world_pos: Vector2, r: float) -> void:
+func _spawn_skill_effect_sized(type: SkillEffect.Type, world_pos: Vector2, r: float, life: float = 0.8) -> void:
 	if not skill_effect_container:
 		return
 	var fx := SkillEffect.new()
 	skill_effect_container.add_child(fx)
-	fx.setup(type, world_pos, r)
+	fx.setup(type, world_pos, r, life)
+
+func _spawn_static_point(kind: StaticVFX.Mode, world_pos: Vector2, life: float = 0.45) -> void:
+	if not skill_effect_container:
+		return
+	var fx := StaticVFX.new()
+	skill_effect_container.add_child(fx)
+	fx.setup_point(kind, world_pos, life)
+
+func _spawn_static_pair(kind: StaticVFX.Mode, from: Node2D, to: Node2D, life: float) -> void:
+	if not skill_effect_container:
+		return
+	var fx := StaticVFX.new()
+	skill_effect_container.add_child(fx)
+	fx.setup_pair(kind, from, to, life)
+
+# Doc's Inject serum jet, caster -> healed ally.
+func _spawn_serum_spray(from_pos: Vector2, to_pos: Vector2) -> void:
+	if not skill_effect_container:
+		return
+	var fx := SkillEffect.new()
+	skill_effect_container.add_child(fx)
+	fx.setup_spray(from_pos, to_pos)
+
+# Connecting trail between two consecutive Nemi Tide bounce points.
+func _spawn_tide_link(from_pos: Vector2, to_pos: Vector2, life: float = 0.8) -> void:
+	if not skill_effect_container:
+		return
+	var fx := SkillEffect.new()
+	skill_effect_container.add_child(fx)
+	fx.setup_link(from_pos, to_pos, 720.0, life)
 
 # Sprite-sheet skill effect (used for heroes with dedicated frame-by-frame art,
 # e.g. Bouncer's active/ultimate). `size` is the max on-screen bounding box in
@@ -1801,6 +4292,12 @@ func restore_stat_theft(dying_stealer: UnitBase) -> void:
 # Requires >=2 living heroes so seizing your last one can't instantly defeat you;
 # if that safety fails, Khagan just dies with no phase 3 this time.
 func start_khagan_possession(khagan: UnitBase) -> void:
+	# Captured immediately, before any other logic runs: this is called from
+	# mid-way through VisualUnit.die(), so khagan's body is still valid right
+	# now, but proceeds to its own death-fade/queue_free() the moment this
+	# function returns. A plain Vector2 survives that; the node reference
+	# would not. See _play_khagan_possession_vfx / KhaganPossessionVFX.
+	var source_pos: Vector2 = khagan.global_position
 	var candidates: Array = player_units.filter(func(u): return u and is_instance_valid(u))
 	if candidates.size() < 2:
 		return
@@ -1828,9 +4325,27 @@ func start_khagan_possession(khagan: UnitBase) -> void:
 	_khagan_puppet = chosen
 	_khagan_timer  = KHAGAN_POSSESS_SECONDS
 	if chosen.has_method("show_possession_icon"):
-		chosen.show_possession_icon(load("res://assets/using/khagan_phase2.png"))
+		chosen.show_possession_icon(load("res://assets/using/enemies/normal/khagan_phase2.png"))
 	action_logged.emit("Khagan's spirit seizes %s! Outlast the possession!" % chosen.unit_name, false)
-	_spawn_skill_effect_sized(SkillEffect.Type.SHADOW_STRIKE, chosen.global_position, 56.0)
+	_play_khagan_possession_vfx(source_pos, chosen)
+	# Ground state follows the authoritative possession event itself (this
+	# function only runs once possession has actually succeeded — see the
+	# candidates.size() < 2 guard above), not the fire-and-forget VFX's own
+	# success/failure, so the overlay's shift can't get stuck waiting on a
+	# trail that might abort if its target later becomes invalid.
+	if _khagan_overlay and is_instance_valid(_khagan_overlay):
+		_khagan_overlay.escalate_to_phase3()
+
+# Source-release → travel → arrival seizure beat. Presentation only — every
+# possession mechanic above this call (target selection, stat detuning, meta,
+# icon, timer) already ran unchanged; this just draws the transition.
+func _play_khagan_possession_vfx(source_pos: Vector2, target: UnitBase) -> void:
+	if not skill_effect_container:
+		return
+	var fx := KhaganPossessionVFX.new()
+	skill_effect_container.add_child(fx)
+	fx.z_index = 5   # skill-effect tier: above units(1)/dismount ring(0), below possession icon(7)/damage text(100)
+	fx.setup(source_pos, target)
 
 # Break the possession — from _process when the survival timer runs out, or from
 # UnitBase/VisualUnit.die() the instant the puppet is burst to 0 HP. Restores the
@@ -1864,10 +4379,12 @@ func end_khagan_possession(unit: UnitBase) -> void:
 
 # Sheildor skill: shield + small heal to the most-damaged nearby ally (or self)
 func _sheildor_shield_ally(caster: UnitBase, allies: Array) -> void:
+	if caster.has_method("play_skill_oneshot"):
+		caster.play_skill_oneshot()
 	var best_target: UnitBase = caster
 	var lowest_hp_pct: float = float(caster.current_hp) / float(max(caster.max_hp, 1))
 	for ally in allies:
-		if not (ally and is_instance_valid(ally)) or ally == caster:
+		if not _is_alive(ally) or ally == caster:
 			continue
 		if caster.grid_position.distance_to(ally.grid_position) > float(caster.skill_range):
 			continue
@@ -1879,36 +4396,143 @@ func _sheildor_shield_ally(caster: UnitBase, allies: Array) -> void:
 		+ int(float(best_target.max_hp) * _abf(caster, AF_ACTIVE, "bonus"))
 	_grant_shield(best_target, shield_amt)
 	best_target.heal(int(float(best_target.max_hp) * _abf(caster, AF_ACTIVE, "heal")))
-	_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, best_target.global_position, 44.0)
+	_spawn_sheildor_pair(SheildorVFX.Mode.BULWARK_LINK, caster, best_target, 0.72)
+	_spawn_sheildor_point(SheildorVFX.Mode.HEAL_PULSE, best_target.global_position, 0.58, best_target)
+	_ensure_sheildor_barrier(best_target)
 	action_logged.emit("%s shields %s!" % [caster.unit_name, best_target.unit_name], caster.is_player_unit)
 
-# Sheildor ultimate: Guardian Leap — teleport to lowest-HP ally, grant big shield to both
+# Sheildor ultimate: Guardian Leap — a short readable tell, visible travel, then
+# a landing beat before the protection resolves. It must read as a leap, never
+# as an unexplained teleport.
 func _sheildor_guardian_leap(caster: UnitBase, allies: Array, opponents: Array) -> void:
 	var target: UnitBase = null
 	var lowest: float = INF
 	for ally in allies:
-		if not (ally and is_instance_valid(ally)) or ally == caster:
+		if not _is_alive(ally) or ally == caster:
 			continue
 		var pct: float = float(ally.current_hp) / float(max(ally.max_hp, 1))
 		if pct < lowest:
 			lowest = pct; target = ally
 	if not target:
 		return
-	# Teleport to open cell adjacent to target
-	var dest := _nearest_open_adjacent(target.grid_position)
-	if dest != Vector2i(-1, -1):
-		battle_grid.remove_unit(caster.grid_position)
-		if battle_grid.place_unit(caster, dest):
+	if caster.has_method("play_ult_oneshot"):
+		caster.play_ult_oneshot()
+	caster.set_meta("sheildor_leaping", true)
+	_spawn_sheildor_point(SheildorVFX.Mode.LEAP_WARNING, caster.global_position,
+		SHEILDOR_LEAP_TELL, caster)
+	_sheildor_leaps.append({
+		"caster": caster, "target": target, "state": "tell",
+		"time": SHEILDOR_LEAP_TELL, "from": caster.position,
+	})
+
+func _tick_sheildor_leaps(dt: float) -> void:
+	for leap in _sheildor_leaps.duplicate():
+		var caster: UnitBase = leap.get("caster")
+		var target: UnitBase = leap.get("target")
+		if not (caster and is_instance_valid(caster)) or caster.current_hp <= 0:
+			_sheildor_leaps.erase(leap)
+			continue
+		var state: String = leap.get("state", "tell")
+		leap["time"] = float(leap.get("time", 0.0)) - dt
+		if state == "tell":
+			if not _is_alive(target):
+				caster.set_meta("sheildor_leaping", false)
+				_sheildor_leaps.erase(leap)
+				continue
+			if float(leap["time"]) > 0.0:
+				continue
+			var dest := _nearest_open_adjacent(target.grid_position)
+			if dest == Vector2i(-1, -1):
+				_finish_sheildor_leap(leap)
+				continue
+			var start: Vector2 = caster.position
+			battle_grid.purge_unit(caster)
+			if not battle_grid.place_unit(caster, dest):
+				battle_grid.place_unit(caster, caster.grid_position)
+				_finish_sheildor_leap(leap)
+				continue
 			caster.grid_position = dest
-			caster.position = _world_pos_for(caster, dest)
-	# Massive shield for both
+			var finish := _world_pos_for(caster, dest)
+			leap["from"] = start
+			leap["to"] = finish
+			leap["state"] = "travel"
+			leap["time"] = SHEILDOR_LEAP_TRAVEL
+			caster.untargetable_time = maxf(caster.untargetable_time, SHEILDOR_LEAP_TRAVEL)
+			_spawn_sheildor_leap(caster.get_parent().to_global(start),
+				caster.get_parent().to_global(finish),
+				SHEILDOR_LEAP_TRAVEL)
+		elif state == "travel":
+			var progress := 1.0 - clampf(float(leap["time"]) / SHEILDOR_LEAP_TRAVEL, 0.0, 1.0)
+			var start: Vector2 = leap["from"]
+			var finish: Vector2 = leap["to"]
+			caster.position = start.lerp(finish, smoothstep(0.0, 1.0, progress))
+			caster.position.y -= sin(progress * PI) * 34.0
+			if float(leap["time"]) > 0.0:
+				continue
+			caster.position = finish
+			leap["state"] = "land"
+			leap["time"] = SHEILDOR_LEAP_LAND_HOLD
+			_spawn_sheildor_point(SheildorVFX.Mode.LEAP_LAND,
+				caster.global_position, SHEILDOR_LEAP_LAND_HOLD + 0.28, caster)
+		else:
+			if float(leap["time"]) <= 0.0:
+				_finish_sheildor_leap(leap)
+
+func _finish_sheildor_leap(leap: Dictionary) -> void:
+	var caster: UnitBase = leap.get("caster")
+	var target: UnitBase = leap.get("target")
+	_sheildor_leaps.erase(leap)
+	if not (caster and is_instance_valid(caster)):
+		return
+	caster.set_meta("sheildor_leaping", false)
+	caster.untargetable_time = 0.0
+	if caster.current_hp <= 0:
+		return
+	# Massive shield for both, released only after the landing has had time to read.
+	var target_max_hp: int = target.max_hp if target and is_instance_valid(target) else caster.max_hp
 	var big_shield: int = _ab(caster, AF_ULT, "shield") \
-		+ int(float(target.max_hp) * _abf(caster, AF_ULT, "bonus"))
-	_grant_shield(target, big_shield)
+		+ int(float(target_max_hp) * _abf(caster, AF_ULT, "bonus"))
+	if _is_alive(target):
+		_grant_shield(target, big_shield)
 	_grant_shield(caster, int(float(big_shield) * _abf(caster, AF_ULT, "self")))
-	_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, target.global_position, 64.0)
-	_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, caster.global_position, 48.0)
-	action_logged.emit("%s leaps to protect %s!" % [caster.unit_name, target.unit_name], caster.is_player_unit)
+	if _is_alive(target):
+		_spawn_sheildor_pair(SheildorVFX.Mode.BULWARK_LINK, caster, target, 0.85)
+		_ensure_sheildor_barrier(target)
+	_ensure_sheildor_barrier(caster)
+	var target_name: String = target.unit_name if target and is_instance_valid(target) else "their ally"
+	action_logged.emit("%s leaps to protect %s!" % [caster.unit_name, target_name], caster.is_player_unit)
+
+func _spawn_sheildor_point(kind: SheildorVFX.Mode, world_pos: Vector2, life: float,
+		follow: Node2D = null) -> SheildorVFX:
+	var fx := SheildorVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_point(kind, world_pos, life, follow)
+	return fx
+
+func _spawn_sheildor_pair(kind: SheildorVFX.Mode, source: Node2D, target: Node2D,
+		life: float) -> void:
+	var fx := SheildorVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_pair(kind, source, target, life)
+
+func _spawn_sheildor_leap(from: Vector2, to: Vector2, life: float = 0.72) -> void:
+	var fx := SheildorVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_leap(from, to, life)
+
+func _ensure_sheildor_barrier(unit: UnitBase) -> void:
+	if not _is_alive(unit) or unit.current_shield <= 0:
+		return
+	var id := unit.get_instance_id()
+	# Dictionary entries can outlive a barrier queued for deletion. Keep this
+	# untyped until after the validity check: assigning a freed Object directly
+	# to a typed local raises before is_instance_valid() gets a chance to run.
+	var existing = _sheildor_barriers.get(id)
+	if existing and is_instance_valid(existing) and not existing.is_queued_for_deletion():
+		existing.refresh()
+		return
+	var fx := _spawn_sheildor_point(SheildorVFX.Mode.BARRIER, unit.global_position, 9999.0, unit)
+	_sheildor_barriers[id] = fx
 
 # Lordee skill: Ground Slam — AoE around nearest enemy, 4-hex radius
 func _lordee_ground_slam(caster: UnitBase, opponents: Array) -> void:
@@ -1940,7 +4564,7 @@ func _lordee_parasite_lunge(caster: UnitBase, opponents: Array) -> void:
 	# Blink to adjacent open cell
 	var dest := _nearest_open_adjacent(target.grid_position)
 	if dest != Vector2i(-1, -1):
-		battle_grid.remove_unit(caster.grid_position)
+		battle_grid.purge_unit(caster)
 		if battle_grid.place_unit(caster, dest):
 			caster.grid_position = dest
 			caster.position = _world_pos_for(caster, dest)
@@ -2142,6 +4766,59 @@ const HYDRA_MAX_HEADS := 4
 const SKYRENDER_GROUND_TIME := 8.0
 const SKYRENDER_ALOFT_TIME := 4.0
 
+# Gust of Wind (2026-08-04 addition, user feedback: the fight needed a visible
+# reason for the mid-fight speed-up the aspd-bonus arrows were already implying
+# with nothing behind them). One-shot enrage at half HP — permanent for the
+# rest of the fight, announced once, with its own wind-gust VFX at the trigger
+# moment so the buff has a cause instead of just an icon. HP-gated on purpose
+# (unlike Cyclone Ascent/Long Fall, which are fixed-interval by the boss-
+# fairness rule): this is a straightforward "the fight gets harder as it dies"
+# escalation, not a lockout, so there's nothing unfair about it firing on a
+# damage threshold.
+const SKYRENDER_ENRAGE_HP_PCT := 0.5
+const SKYRENDER_ENRAGE_DMG := 0.20
+const SKYRENDER_ENRAGE_ASPD := 0.20
+
+# ── The Long Fall (Skyrender's second beat) ───────────────────────────────────
+# REDESIGNED 2026-08-04 per user feedback on the first cut ("it's sudden with
+# no logic"). The boss now PHYSICALLY CARRIES the victim toward the board edge
+# before throwing — the carry itself is the tell, and it's also the cost:
+# the boss is stunned for the whole grab→carry→throw sequence, so hauling a
+# hero across the board means it isn't attacking. That replaces landing damage
+# as the fight's cost (this is why the current build stays stun-only — the
+# user's original "damage + stun" ask was explicitly traded for this instead).
+#
+# Sequence: GRAB (small hoist) → CARRY (boss visibly treks toward the edge,
+# hero held aloft and dragged along — this is the readable "why" the first
+# version lacked) → a beat PAUSED at the edge → THROW (hero launches off-screen,
+# boss recoils back to its own spot) → GONE (real absence) → RE-ENTRY (falls
+# from the top) → lands at a RANDOM open cell in its own team zone, dazed.
+#
+# ⚠️ Landing at a random cell (not the origin square) is a deliberate change
+# from the first build, and it means the victim's cell is genuinely vacated —
+# `_skyrender_long_fall` now removes/re-places it with Arcfang's
+# remove→search→place→restore-on-failure idiom, not a pure sprite trick. The
+# formation CAN be rearranged by this now; that's the accepted trade for the
+# beat reading as real instead of a snap-back. Restore-on-failure still applies
+# (falls back to the origin cell) if the team zone is too crowded to find a spot.
+#
+# Boss and boss-fairness rules unchanged: fixed interval (never HP-gated), only
+# fires while GROUNDED (aloft is already the punishing half of Cyclone Ascent),
+# targets the top damage_dealt (Arcfang's rule, kept consistent).
+const LONG_FALL_INTERVAL := 13.0    # seconds between grabs (first one is offset below)
+const LONG_FALL_FIRST := 9.0        # slightly later opener so the fight reads before it lands
+const LONG_FALL_GRAB := 0.15        # hoist — the "snatched" beat
+const LONG_FALL_CARRY := 1.1        # boss treks toward the edge, hero in tow — the "why"
+const LONG_FALL_EDGE_PAUSE := 0.15  # beat held at the edge before the throw lands
+const LONG_FALL_THROW := 0.3        # launch off-screen; boss recoils back to position
+const LONG_FALL_GONE := 1.0         # off-screen — real absence
+const LONG_FALL_REENTRY := 0.3      # falling back in from the top
+const LONG_FALL_STUN := 1.3         # dazed on landing, on top of the whole sequence above
+# Total time the boss can't attack: exactly the carried portion the user asked
+# for ("the boss stops attacking for 1-2 seconds to carry the hero to the
+# edge") — grab + carry + edge pause + throw ≈ 1.7s.
+const LONG_FALL_BOSS_BUSY := LONG_FALL_GRAB + LONG_FALL_CARRY + LONG_FALL_EDGE_PAUSE + LONG_FALL_THROW
+
 # Drowned Maw (wave-30 Water boss) — Riptide. A board-wide aura that scales all
 # healing the player's units RECEIVE. Board-wide rather than a radius on purpose:
 # the fight asks "does your comp fall apart without sustain", which is a DRAFT
@@ -2284,7 +4961,7 @@ func _arcfang_blink(unit: UnitBase, opponents: Array) -> void:
 	if best == null:
 		return
 	var origin: Vector2i = unit.grid_position
-	battle_grid.remove_unit(origin)
+	battle_grid.purge_unit(unit)
 	var dest: Vector2i = Pathfinding.find_nearest_free_origin(best.grid_position, battle_grid, unit)
 	if dest == Vector2i(-1, -1) or not battle_grid.place_unit(unit, dest):
 		battle_grid.place_unit(unit, origin)   # put it back exactly where it was
@@ -2296,6 +4973,156 @@ func _arcfang_blink(unit: UnitBase, opponents: Array) -> void:
 	_spawn_skill_effect_sized(SkillEffect.Type.LIGHTNING, unit.global_position, 42.0)
 	action_logged.emit("%s flashes across the field onto %s!" % [unit.unit_name, best.unit_name],
 			unit.is_player_unit)
+
+# The Long Fall now has THREE beats instead of two, per user feedback that the
+# grab alone still wasn't enough build-up: PICK the target → WALK to be
+# adjacent to it (real footsteps, real pathfinding, can be blocked/detoured
+# like anything else) → then the existing GRAB → CARRY → EDGE → THROW chain.
+# Splitting the walk out this way also means Skyrender's basic attack range
+# dropping to 1 (see enemy_factory.create_skyrender) isn't a soft-lock: this
+# ability is now the thing that actually closes the distance.
+func _skyrender_long_fall_begin(unit: UnitBase, opponents: Array) -> void:
+	if battle_grid == null:
+		return
+	# The carry: most damage dealt, falling back to raw attack before anyone has
+	# swung. Same selection rule as Arcfang's blink, on purpose.
+	var best: UnitBase = null
+	var best_dmg: int = -1
+	for opp in opponents:
+		if not (opp and is_instance_valid(opp) and opp.current_hp > 0):
+			continue
+		# Never grab someone already airborne — the tween would fight itself and
+		# the stun would silently stack into a much longer removal.
+		if opp.has_meta("long_fall_active"):
+			continue
+		var score: int = opp.damage_dealt if opp.damage_dealt > 0 else opp.attack_damage
+		if score > best_dmg:
+			best_dmg = score
+			best = opp
+	if best == null:
+		return
+
+	unit.set_meta("long_fall_state", "approaching")
+	unit.set_meta("long_fall_target", best)
+	action_logged.emit("%s stalks toward %s!" % [unit.unit_name, best.unit_name], false)
+
+# Driven every frame while Skyrender is walking to its Long Fall target (from
+# the "skyrender_ascent" passive tick). Reuses the same A* the rest of the
+# cast uses to close distance, so it can be sidestepped/detoured like any
+# other approach — this is deliberately not a teleport.
+func _skyrender_long_fall_approach_tick(unit: UnitBase, opponents: Array, dt: float) -> void:
+	var target: UnitBase = unit.get_meta("long_fall_target", null)
+	var still_valid: bool = target and is_instance_valid(target) and target.current_hp > 0 \
+			and not target.has_meta("long_fall_active") and opponents.has(target)
+	if not still_valid:
+		unit.set_meta("long_fall_state", "")
+		unit.remove_meta("long_fall_target")
+		unit_paths.erase(unit)
+		return
+
+	if _unit_dist(unit, target) <= 1:
+		unit.set_meta("long_fall_state", "")
+		unit.remove_meta("long_fall_target")
+		unit_paths.erase(unit)
+		_skyrender_long_fall_grab(unit, target)
+		return
+
+	if unit.movement_speed > 0 and unit.root_time <= 0.0:
+		move_unit_towards_with_pathfinding(unit, target.grid_position, dt)
+
+# The grab → carry → throw chain — see the LONG_FALL_* constants for the
+# design rationale. The victim IS removed from the grid for the duration
+# (unlike the first cut): it lands at a random open cell in its own team zone,
+# not necessarily the one it left. Uses Arcfang's remove→search→place→
+# restore-on-failure idiom.
+func _skyrender_long_fall_grab(unit: UnitBase, best: UnitBase) -> void:
+	if battle_grid == null:
+		return
+
+	var origin: Vector2i = best.grid_position
+	best.set_meta("long_fall_active", true)
+	best.set_meta("long_fall_origin", origin)
+
+	# Whole sequence duration: everything from the grab to the daze wearing off.
+	var total_away: float = LONG_FALL_GRAB + LONG_FALL_CARRY + LONG_FALL_EDGE_PAUSE \
+			+ LONG_FALL_THROW + LONG_FALL_GONE + LONG_FALL_REENTRY
+	best.untargetable_time = maxf(best.untargetable_time, total_away)
+	# Tenacity (2026-08-07) shortens only the DAZE on landing, not the off-board
+	# window: `total_away` is the time the victim physically isn't on the grid,
+	# so scaling that portion would let it act from off the board (and would
+	# break the long_fall_smoke invariant stun_time > untargetable_time).
+	best.stun_time = maxf(best.stun_time, total_away + best.tenacity_scaled(LONG_FALL_STUN))
+	# Drop any in-flight movement before pulling it off the grid.
+	best.is_moving = false
+	best.move_progress = 0.0
+	unit_paths.erase(best)
+	battle_grid.purge_unit(best)
+
+	# The boss can't attack while it's hauling a body across the board — this
+	# IS the cost the user asked for, replacing landing damage.
+	# NOT tenacity-scaled: this is the boss's own self-imposed recovery, the cost
+	# of the mechanic, not crowd control being done TO it.
+	unit.stun_time = maxf(unit.stun_time, LONG_FALL_BOSS_BUSY)
+
+	# Carry direction: toward the victim's own back edge (where the throw exits
+	# the screen — see play_long_fall's OFFSCREEN constant), so a player-side
+	# victim is hauled toward the bottom of the board and an enemy-side one
+	# toward the top. Purely visual; neither unit's grid_position moves for this.
+	var carry_dir: float = 1.0 if best.is_player_unit else -1.0
+	if best.has_method("play_long_fall") and unit.has_method("play_carry_lurch"):
+		best.play_long_fall(LONG_FALL_GRAB, LONG_FALL_CARRY, LONG_FALL_EDGE_PAUSE,
+				LONG_FALL_THROW, LONG_FALL_GONE, LONG_FALL_REENTRY, carry_dir)
+		unit.play_carry_lurch(LONG_FALL_GRAB, LONG_FALL_CARRY, LONG_FALL_EDGE_PAUSE,
+				LONG_FALL_THROW, carry_dir)
+	_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, unit.global_position, 52.0)
+	action_logged.emit("%s snatches %s and hauls them toward the edge!"
+			% [unit.unit_name, best.unit_name], false)
+	# Punch in on the grab and hold through the carry — eased back out to
+	# normal right as the throw releases, so the zoom brackets exactly the
+	# part of the beat the user can't otherwise see coming.
+	camera_punch_requested.emit(unit.global_position,
+			LONG_FALL_GRAB + LONG_FALL_CARRY + LONG_FALL_EDGE_PAUSE)
+
+	var tree := get_tree()
+	if tree == null:
+		battle_grid.place_unit(best, origin)   # can't schedule the landing — put it back now
+		best.grid_position = origin
+		best.remove_meta("long_fall_active")
+		return
+	var timer := tree.create_timer(total_away)
+	timer.timeout.connect(func():
+		if not is_instance_valid(best):
+			return
+		best.remove_meta("long_fall_active")
+		best.remove_meta("long_fall_origin")
+		if best.current_hp <= 0:
+			return   # died mid-air (e.g. a burn tick) — nothing left to place
+		var landed: Vector2i = _skyrender_long_fall_landing(best, origin)
+		best.grid_position = landed
+		best.position = _world_pos_for(best, landed)
+		_spawn_skill_effect_sized(SkillEffect.Type.GRAVITY_DROP, best.global_position, 60.0)
+		action_logged.emit("%s crashes back down, dazed!" % best.unit_name, false)
+	)
+
+# Picks the landing cell for the Long Fall: a random open cell in the victim's
+# own team zone, falling back to the origin cell (then a grid-wide search) if
+# the zone is too crowded. Never fails to place the unit somewhere.
+func _skyrender_long_fall_landing(victim: UnitBase, origin: Vector2i) -> Vector2i:
+	var gh: int = battle_grid.grid_height
+	var gw: int = battle_grid.grid_width
+	var y0: int = gh - 4 if victim.is_player_unit else 0   # matches _in_team_zone
+	var anchor := Vector2i(randi() % gw, y0 + randi() % 4)
+	var dest: Vector2i = Pathfinding.find_nearest_free_origin(anchor, battle_grid, victim)
+	if dest == Vector2i(-1, -1) or not _in_team_zone(victim.is_player_unit, dest):
+		dest = Pathfinding.find_nearest_free_origin(origin, battle_grid, victim)
+	if dest == Vector2i(-1, -1):
+		dest = origin   # last resort — battle_grid.place_unit below still tries it
+	if not battle_grid.place_unit(victim, dest):
+		# Board is somehow completely full; origin is guaranteed free (we
+		# vacated it ourselves and nothing else can occupy a 1x1 cell twice).
+		battle_grid.place_unit(victim, origin)
+		return origin
+	return dest
 
 func emberhollow_hearts_alive(boss: UnitBase) -> bool:
 	var army: Array = player_units if boss.is_player_unit else enemy_units
@@ -2370,6 +5197,14 @@ func spawn_slime_split(parent: UnitBase) -> void:
 		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
 		Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1),
 	]
+	# The split had NO visual whatsoever — a slime dying and becoming two read as
+	# "two slimes appeared". Spawned before the children so the burst is behind
+	# them as they arrive.
+	if skill_effect_container:
+		var burst := SlimeVFX.new()
+		skill_effect_container.add_child(burst)
+		burst.setup_point(SlimeVFX.Mode.SPLIT, parent.global_position,
+			parent.current_element, SLIME_REACH * 2.0, 0.55)
 	var spawned := 0
 	for offset in search_offsets:
 		if spawned >= 2:
@@ -2446,6 +5281,9 @@ func spawn_cloven_halves(parent: UnitBase) -> void:
 		half.summon_owner = parent
 		half.is_player_unit = parent.is_player_unit
 		half.is_boss = false
+		# A split half is no longer a single irreplaceable body, so it drops from
+		# boss tenacity to elite tenacity along with the boss flag.
+		half.tenacity = EnemyFactory.TENACITY_ELITE
 		half.gold_reward = 0
 		half.crystal_reward = 0
 		half.xp_reward = 0
@@ -2499,7 +5337,17 @@ func end_battle(player_won: bool) -> void:
 	if not battle_active:
 		return
 	battle_active = false
+	# Shields are combat-temporary. Clear both the gameplay value and the health
+	# bar's cached overlay before the between-round board becomes visible.
+	for unit in player_units + enemy_units:
+		if not (unit and is_instance_valid(unit)):
+			continue
+		unit.current_shield = 0
+		if unit.health_bar:
+			unit.health_bar.update_shield(0.0, unit.max_hp)
 	_clear_board_effects()
+	_clear_khagan_overlay()
+	_clear_arena_overlay()
 	afterimage_actor = null
 	afterimage_time = 0.0
 	battle_ended.emit(player_won)
@@ -2650,6 +5498,19 @@ func _world_pos_for(unit: UnitBase, grid_pos: Vector2i) -> Vector2:
 	return w
 
 func start_unit_movement(unit: UnitBase, from_pos: Vector2i, to_pos: Vector2i) -> void:
+	# Grid first, and BAIL if the destination won't take us (2026-08-07): this
+	# used to remove-then-place and ignore place_unit's return, so a lost race
+	# for the cell left the unit registered NOWHERE while its grid_position
+	# claimed to_pos. From there every later position-keyed removal missed, and
+	# the stranded cells became a permanent invisible wall — see
+	# BattleGrid.purge_unit. Rolling back keeps grid_position and occupancy tied.
+	battle_grid.purge_unit(unit)
+	if not battle_grid.place_unit(unit, to_pos):
+		battle_grid.place_unit(unit, from_pos)
+		unit.grid_position = from_pos
+		unit_paths.erase(unit)
+		return
+
 	unit.is_moving = true
 	unit.move_start_pos = _world_pos_for(unit, from_pos)
 	unit.move_target_pos = _world_pos_for(unit, to_pos)
@@ -2657,9 +5518,6 @@ func start_unit_movement(unit: UnitBase, from_pos: Vector2i, to_pos: Vector2i) -
 	unit.target_grid_pos = to_pos
 	# Drives the walk_south/north/east/west pick in VisualUnit._update_animation().
 	unit.last_move_direction = unit.move_target_pos - unit.move_start_pos
-
-	battle_grid.remove_unit(from_pos)
-	battle_grid.place_unit(unit, to_pos)
 	unit.grid_position = to_pos
 
 func update_unit_movements(delta: float) -> void:
@@ -2676,7 +5534,8 @@ func update_unit_movements(delta: float) -> void:
 func update_single_unit_movement(unit: UnitBase, delta: float) -> void:
 	# Calculate movement speed based on unit's movement_speed stat
 	# Higher movement_speed = faster interpolation
-	var speed_multiplier = unit.movement_speed * base_movement_speed * unit.speed_modifier()
+	var effective_speed: int = unit.move_speed_override if unit.move_speed_override > 0 else unit.movement_speed
+	var speed_multiplier = effective_speed * base_movement_speed * unit.speed_modifier()
 	unit.move_progress += delta * speed_multiplier
 
 	if unit.move_progress >= 1.0:
@@ -2684,6 +5543,7 @@ func update_single_unit_movement(unit: UnitBase, delta: float) -> void:
 		unit.position = unit.move_target_pos
 		unit.is_moving = false
 		unit.move_progress = 0.0
+		unit.move_speed_override = 0   # one-shot: back to her real speed next step
 		_on_unit_finished_step(unit)
 
 		# Remove completed step from path
@@ -2812,6 +5672,9 @@ func _tick_statuses(unit: UnitBase, dt: float) -> void:
 	if unit.bonus_aspd_time > 0.0:
 		unit.bonus_aspd_time -= dt
 		if unit.bonus_aspd_time <= 0.0: unit.bonus_aspd_pct = 0.0
+	if unit.bonus_regen_time > 0.0:
+		unit.bonus_regen_time -= dt
+		if unit.bonus_regen_time <= 0.0: unit.bonus_regen_amt = 0.0
 	if unit.weakened_time > 0.0:
 		unit.weakened_time -= dt
 		if unit.weakened_time <= 0.0: unit.weakened_pct = 0.0
@@ -2835,11 +5698,15 @@ func _tick_statuses(unit: UnitBase, dt: float) -> void:
 		unit.outgoing_dmg_time = 0.1  # keep refreshed so the normal expiry path never fires
 
 # ── Status application helpers (refresh = take stronger value / longer time) ───
-func apply_burn(target: UnitBase, dps: float, dur: float, source) -> void:
+func apply_burn(target: UnitBase, dps: float, dur: float, source, flavor: String = "fire") -> void:
 	if not (target and is_instance_valid(target)): return
+	# NOTE: dps/time take the MAX rather than stacking — two sources burning the
+	# same target give the stronger one, not the sum. Unchanged here, but worth
+	# knowing when reading the Rat's pack passive (see the Infestation notes).
 	target.burn_dps = maxf(target.burn_dps, dps)
 	target.burn_time = maxf(target.burn_time, dur)
 	target.burn_source = source
+	target.burn_flavor = flavor
 
 const BLEED_MOVE_MULT := 2.0   # bleed tick rate while is_moving — see _tick_statuses
 func apply_bleed(target: UnitBase, dps: float, dur: float, source) -> void:
@@ -2851,7 +5718,30 @@ func apply_bleed(target: UnitBase, dps: float, dur: float, source) -> void:
 func apply_slow(target: UnitBase, pct: float, dur: float) -> void:
 	if not (target and is_instance_valid(target)): return
 	target.slow_pct = maxf(target.slow_pct, pct)
-	target.slow_time = maxf(target.slow_time, dur)
+	target.slow_time = maxf(target.slow_time, target.tenacity_scaled(dur))
+
+# ── Crowd control (2026-08-07 tenacity pass) ──────────────────────────────────
+# EVERY write to stun_time / root_time / taunt_time from one unit onto another
+# goes through these, so the tenacity curve is applied exactly ONCE, at the
+# moment of application, and no call site can quietly bypass it. Refresh rule
+# is unchanged (take the longer remaining time).
+# The two deliberate exceptions, both self-inflicted busy windows rather than
+# incoming CC, are commented at their call sites: the Skyrender's own
+# LONG_FALL_BOSS_BUSY recovery, and the off-board portion of the long fall
+# (the victim is physically off the grid for that time — shortening it would
+# let it act from nowhere).
+func apply_stun(target: UnitBase, dur: float) -> void:
+	if not (target and is_instance_valid(target)): return
+	target.stun_time = maxf(target.stun_time, target.tenacity_scaled(dur))
+
+func apply_root(target: UnitBase, dur: float) -> void:
+	if not (target and is_instance_valid(target)): return
+	target.root_time = maxf(target.root_time, target.tenacity_scaled(dur))
+
+func apply_taunt(target: UnitBase, source, dur: float) -> void:
+	if not (target and is_instance_valid(target)): return
+	target.taunt_source = source
+	target.taunt_time = maxf(target.taunt_time, target.tenacity_scaled(dur))
 
 func _lowest_hp_ally(unit: UnitBase, allies: Array, rng: float, include_self: bool) -> UnitBase:
 	var best: UnitBase = null
@@ -2866,6 +5756,10 @@ func _lowest_hp_ally(unit: UnitBase, allies: Array, rng: float, include_self: bo
 		if pct < best_pct:
 			best_pct = pct; best = a
 	return best
+
+func _lowest_wounded_ally(unit: UnitBase, allies: Array, rng: float, include_self: bool) -> UnitBase:
+	var best := _lowest_hp_ally(unit, allies, rng, include_self)
+	return best if best and best.current_hp < best.max_hp else null
 
 func _highest_hp_enemy(_unit: UnitBase, opponents: Array) -> UnitBase:
 	var best: UnitBase = null
@@ -2894,12 +5788,21 @@ func _team_has_stitch(team: Array) -> bool:
 			return true
 	return false
 
-func _find_open_in_row(row: int) -> Vector2i:
-	for x in range(battle_grid.grid_width):
-		var c := Vector2i(x, row)
-		if battle_grid.is_valid_position(c) and not battle_grid.is_cell_occupied(c):
-			return c
-	return Vector2i(-1, -1)
+## Centre of mass of the living units in `pool`, as a valid grid cell.
+## Returns (-1,-1) when nothing is alive to gather.
+func _living_centroid_cell(pool: Array) -> Vector2i:
+	var sum := Vector2.ZERO
+	var n := 0
+	for u in pool:
+		if u and is_instance_valid(u) and u.current_hp > 0:
+			sum += Vector2(u.grid_position)
+			n += 1
+	if n == 0:
+		return Vector2i(-1, -1)
+	var c := Vector2i(roundi(sum.x / float(n)), roundi(sum.y / float(n)))
+	c.x = clampi(c.x, 0, battle_grid.grid_width - 1)
+	c.y = clampi(c.y, 0, battle_grid.grid_height - 1)
+	return c
 
 func _nearest_open_cell_to(center: Vector2i) -> Vector2i:
 	if battle_grid.is_valid_position(center) and not battle_grid.is_cell_occupied(center):
@@ -2922,11 +5825,32 @@ func _explosion(caster: UnitBase, center_cell: Vector2i, dmg: int, opponents: Ar
 					caster.damage_dealt += dmg
 
 func _chain_lightning(caster: UnitBase, first: UnitBase, opponents: Array, radius: float, dmg: int) -> void:
-	for opp in opponents:
-		if opp and is_instance_valid(opp) and first.grid_position.distance_to(opp.grid_position) <= radius:
-			opp.take_magic_damage(dmg, UnitBase.Element.LIGHTNING, caster)
-			caster.damage_dealt += dmg
-			_spawn_skill_effect_sized(SkillEffect.Type.LIGHTNING, opp.global_position, 22.0)
+	# Primary victim plus three nearest successive jumps. Target selection and
+	# the drawn cable now describe the same actual chain.
+	var chain: Array = [first]
+	var current := first
+	while chain.size() < 4:
+		var next: UnitBase = null
+		var nearest := INF
+		for opp in opponents:
+			if not (opp and is_instance_valid(opp)) or opp in chain or opp.current_hp <= 0:
+				continue
+			var dist := current.grid_position.distance_to(opp.grid_position)
+			if dist <= radius and dist < nearest:
+				nearest = dist
+				next = opp
+		if not next: break
+		chain.append(next)
+		current = next
+	for opp in chain:
+		var pre_hp: int = opp.current_hp
+		opp.take_magic_damage(dmg, UnitBase.Element.LIGHTNING, caster)
+		caster.damage_dealt += max(0, pre_hp - opp.current_hp)
+		_spawn_zolt_point(ZoltVFX.Mode.AUTO_IMPACT, opp.global_position, 0.36, opp)
+	if chain.size() > 1:
+		var fx := ZoltVFX.new()
+		(skill_effect_container if skill_effect_container else self).add_child(fx)
+		fx.setup_chain(chain, 0.62)
 
 # Per-frame signature passives for basic mobs. Dispatches on the `mob_passive`
 # meta (set in EnemyFactory). Attack-speed and outgoing-damage bonuses are stashed
@@ -2939,7 +5863,10 @@ func _tick_mob_passive(unit: UnitBase, opponents: Array, allies: Array, dt: floa
 		"goblin_pack":
 			# Pack Courage: +6% aspd per OTHER goblin within 3 tiles, cap +30%.
 			var pack := _count_passive_allies(unit, allies, "goblin_pack", 3.0)
-			unit.set_meta("mob_aspd_bonus", minf(pack * 0.06, 0.30))
+			var bonus := minf(pack * 0.06, 0.30)
+			unit.set_meta("mob_aspd_bonus", bonus)
+			if str(unit.get_meta("sprite_folder", "")) == "goblin":
+				_sync_goblin_pack_vfx(unit, bonus / 0.30)
 
 		"architect_phases":
 			# The Architect (wave 100, the finale). Reprises the run's three trials
@@ -3015,6 +5942,19 @@ func _tick_mob_passive(unit: UnitBase, opponents: Array, allies: Array, dt: floa
 			# the worst moment"), it always comes back down, and a pure-melee team
 			# still gets SKYRENDER_GROUND_TIME of every cycle to hit back — slower,
 			# never impossible.
+			# Gust of Wind: one-shot, permanent enrage the first time HP drops to
+			# or below half. Checked every tick rather than hooked into take_damage
+			# so it also catches DoT ticks and doesn't need a second call site.
+			if not unit.has_meta("skyrender_enraged") \
+					and unit.current_hp <= unit.max_hp * SKYRENDER_ENRAGE_HP_PCT:
+				unit.set_meta("skyrender_enraged", true)
+				unit.set_meta("mob_dmg_bonus", SKYRENDER_ENRAGE_DMG)
+				unit.set_meta("mob_aspd_bonus", SKYRENDER_ENRAGE_ASPD)
+				_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, unit.global_position, 70.0)
+				action_logged.emit(
+						"%s tears the sky open — a gust of wind speeds its every strike!" % unit.unit_name,
+						false)
+
 			var aloft: bool = bool(unit.get_meta("skyrender_aloft", false))
 			var t: float = float(unit.get_meta("skyrender_timer", 0.0)) + dt
 			var window: float = SKYRENDER_ALOFT_TIME if aloft else SKYRENDER_GROUND_TIME
@@ -3025,10 +5965,33 @@ func _tick_mob_passive(unit: UnitBase, opponents: Array, allies: Array, dt: floa
 				action_logged.emit(
 					"%s %s!" % [unit.unit_name, "sweeps into the sky" if aloft else "slams back down"],
 					false)
+				# BOSS_SPECTACLE_PLAN.md §2e — Skyrender was the "0/3 reads" case:
+				# the wind window had no visual proof beyond a log line. The board
+				# now shows it directly instead of only gating melee targeting.
+				if arena_overlay and is_instance_valid(arena_overlay):
+					if aloft:
+						arena_overlay.fade_in("windswept")
+					else:
+						arena_overlay.fade_out()
 			unit.set_meta("skyrender_timer", t)
 			# Refreshed every tick rather than set once, so the normal status
 			# decay in _tick_status can't quietly expire it mid-window.
 			unit.melee_untargetable_time = SKYRENDER_ALOFT_TIME if aloft else 0.0
+
+			# The Long Fall — its second beat. Only while GROUNDED: aloft is
+			# already the punishing half of the cycle, and firing both at once
+			# would be exactly the "worst possible moment" pile-on the fairness
+			# rule forbids. The clock still runs while aloft, so the grab lands
+			# shortly after it slams down rather than being skipped entirely.
+			var lf_state: String = unit.get_meta("long_fall_state", "")
+			if lf_state == "approaching":
+				_skyrender_long_fall_approach_tick(unit, opponents, dt)
+			elif lf_state == "":
+				var lf: float = float(unit.get_meta("long_fall_timer", LONG_FALL_INTERVAL - LONG_FALL_FIRST)) + dt
+				if lf >= LONG_FALL_INTERVAL and not aloft:
+					lf = 0.0
+					_skyrender_long_fall_begin(unit, opponents)
+				unit.set_meta("long_fall_timer", lf)
 
 		"aspect_devour":
 			# Devour Aspect (Aspect Devourer, round-95 capstone elite): every
@@ -3116,46 +6079,92 @@ func _tick_mob_passive(unit: UnitBase, opponents: Array, allies: Array, dt: floa
 			var enraged: bool = unit.current_hp < unit.max_hp * 0.5
 			unit.set_meta("mob_dmg_bonus", 0.20 if enraged else 0.0)
 			unit.set_meta("mob_aspd_bonus", 0.15 if enraged else 0.0)
+			# Only the Orc gets a readout — the Ogre and Fire Giant reuse this key
+			# and keep their existing silent behaviour until their own passes.
+			if _is_orc(unit):
+				_sync_orc_rage_vfx(unit, enraged)
 
 		"bear_fury":
 			# Fury: aspd ramps with missing HP, up to +30%.
 			var missing: float = 1.0 - float(unit.current_hp) / float(maxi(unit.max_hp, 1))
-			unit.set_meta("mob_aspd_bonus", minf(missing * 0.40, 0.30))
+			var fury_bonus: float = minf(missing * 0.40, 0.30)
+			unit.set_meta("mob_aspd_bonus", fury_bonus)
+			# Only the Bear gets a readout — the Minotaur, Crystal Crab and Sky
+			# Wyvern reuse this key and keep their existing silent behaviour.
+			if _is_bear(unit):
+				_sync_fury_vfx(unit, fury_bonus / 0.30)
+			elif _is_minotaur(unit):
+				_sync_savage_vfx(unit, fury_bonus / 0.30)
+			elif _is_wyvern(unit):
+				_sync_wounded_dive_vfx(unit, fury_bonus / 0.30)
 
 		"windup_overclock":
-			# Overclock: +5%/3s aspd, cap +50% — accumulates smoothly.
-			var oc: float = float(unit.get_meta("oc_bonus", 0.0)) + (0.05 / 3.0) * dt
-			oc = minf(oc, 0.50)
+			# Overclock: +5% attack speed every 3s of battle, cap +50% at 30s.
+			# DISCRETE STEPS (2026-09-16). It used to ramp smoothly at
+			# (0.05/3)*dt, which hit the same +50% at the same 30s but had no
+			# moment to show the player: the bonus was a continuous invisible
+			# drift, so a passive whose whole identity is "it is winding up"
+			# had literally nothing to watch. Stepping it makes each +5% a
+			# readable mechanical CLICK, and matches the printed description
+			# exactly ("+5% every 3s") instead of approximating it.
+			var oc_t: float = float(unit.get_meta("oc_time", 0.0)) + dt
+			unit.set_meta("oc_time", oc_t)
+			var steps: int = clampi(int(oc_t / 3.0), 0, 10)
+			var oc: float = 0.05 * float(steps)
 			unit.set_meta("oc_bonus", oc)
 			unit.set_meta("mob_aspd_bonus", oc)
+			if bool(unit.get_meta("windup_bot", false)):
+				_sync_windup_overclock_vfx(unit, steps)
+			elif _is_storm_giant(unit):
+				# Same ramp, different fiction ("Gathering Storm"), so its own
+				# visual rather than the Bot's clockwork key.
+				_sync_gathering_vfx(unit, float(steps) / 10.0)
+			elif _is_coral_husk(unit):
+				# Same ramp again, third fiction ("Slow Tide") — a rising
+				# waterline rather than clockwork or a thunderhead.
+				_sync_slow_tide_vfx(unit, float(steps) / 10.0)
 
 		"troll_regen":
 			# Regeneration: +2% max HP/s, unless a recent Fire/Lightning hit blocked it
 			# (block flag set in UnitBase.take_damage, counted down here).
 			var block_t: float = float(unit.get_meta("troll_regen_block_t", 0.0))
-			if block_t > 0.0:
+			var regen_on: bool = block_t <= 0.0
+			if not regen_on:
 				unit.set_meta("troll_regen_block_t", block_t - dt)
 			else:
 				unit.hp_regen_accum += float(unit.max_hp) * 0.02 * dt
+			# Only the Phoenix gets a readout — the 6 Trolls and the Gargoyle
+			# reuse this key and keep their existing (silent) behaviour.
+			if _is_phoenix(unit):
+				_sync_rekindle_vfx(unit, regen_on)
+			elif _is_troll(unit):
+				_sync_troll_regen_vfx(unit, regen_on)
+			elif _is_gargoyle(unit):
+				_sync_stone_skin_vfx(unit, regen_on)
 
 		"lizard_coldblood":
-			# Cold Blood: 3% max HP/s regen while un-hit for 3s. Detect hits by watching
-			# cumulative damage-taken rise (element/attacker-agnostic, cheap dict sum).
-			var total: int = 0
-			for v in unit.damage_taken_from.values():
-				total += int(v)
-			var seen: int = int(unit.get_meta("cb_dmg_seen", 0))
-			if total > seen:
-				unit.set_meta("cb_dmg_seen", total)
+			# Cold Blood: 3% max HP/s regen while un-hit for 3s.
+			# 2026-09-17: used to sum damage_taken_from, which ONLY records hits
+			# that carry an attacker — so Static's Grid field, reflect damage and
+			# orphaned DoTs never reset the timer and the Lizard healed straight
+			# through them. times_hit counts every hit from every source.
+			var seen: int = int(unit.get_meta("cb_hits_seen", -1))
+			if unit.times_hit > seen:
+				unit.set_meta("cb_hits_seen", unit.times_hit)
 				unit.set_meta("cb_calm_t", 3.0)
 			var calm: float = float(unit.get_meta("cb_calm_t", 0.0)) - dt
 			unit.set_meta("cb_calm_t", calm)
-			if calm <= 0.0:
+			var regenerating: bool = calm <= 0.0
+			if regenerating:
 				unit.hp_regen_accum += float(unit.max_hp) * 0.03 * dt
+			# A passive that only pays out while the player IGNORES this unit must
+			# be visible, or "go hit the backline" is never communicated.
+			_sync_cold_blood_vfx(unit, regenerating)
 
 		"shaman_link":
 			# Spirit Link: nearby allies regen +0.5 HP/s. Throttled full-roster scan
 			# (perf: same reasoning as the NEMI/BOUNCER auras above).
+			_ensure_shaman_aura(unit)
 			var link_t: float = float(unit.get_meta("aura_tick_t", 0.0)) - dt
 			if link_t > 0.0:
 				unit.set_meta("aura_tick_t", link_t)
@@ -3173,6 +6182,13 @@ func _tick_mob_passive(unit: UnitBase, opponents: Array, allies: Array, dt: floa
 			var infesting: bool = swarm >= 2
 			unit.set_meta("mob_dmg_bonus", 0.15 if infesting else 0.0)
 			unit.set_meta("rat_disease_boost", infesting)
+			# Infestation was entirely invisible, which is the worst case for a
+			# POSITIONAL buff: "break up the swarm" is the counterplay, and the
+			# player could not see which rats were swarming. The ring shows the
+			# build-up too (1 neighbour = half strength), so a cluster forming is
+			# readable a moment BEFORE it goes live.
+			if _is_rat(unit):
+				_sync_infest_vfx(unit, clampf(float(swarm) / 2.0, 0.0, 1.0))
 
 		# "archer_focus" (Focus Fire) is on-hit, handled in _apply_on_hit_passives.
 		# "slime_split" / "skeleton_undying" are on-death, handled in VisualUnit.die().
@@ -3310,42 +6326,52 @@ func propagate_damage_links(victim: UnitBase, dmg: int, attacker) -> void:
 	# full waves. Root cause was actually _cross_judgment reading lifetime
 	# combat_healing_done (never reset), so every ult cast scaled off ALL
 	# healing ever done in the fight — see that function's comment.
+	# Balance 2026-08-07: the percentage was never the bug — the SHAPE was. A
+	# %-of-damage-taken heal scales off the attacker, so every enemy buff made
+	# Cross stronger; against a 9,884-ATK boss each hit healed him ~1,482 on a
+	# ~1,000 HP bar, i.e. a full heal per hit, forever. The heal is now capped
+	# against his own max HP (AF_PASSIVE "cap"), which leaves normal-sized hits
+	# untouched and ends the solo. Judgment banks the capped amount, so the
+	# ultimate's damage is re-anchored automatically.
 	if victim.unit_class == UnitBase.UnitClass.CROSS:
-		var ch: int = int(float(dmg) * _abf(victim, AF_PASSIVE, "share"))
+		var ch: int = mini(int(float(dmg) * _abf(victim, AF_PASSIVE, "share")),
+				_ab(victim, AF_PASSIVE, "cap"))
 		if ch > 0:
 			victim.heal(ch)
 			victim.combat_healing_done += ch
 			victim.judgment_pool += ch
 
 	# Rift Backlash: redirect 30% of damage to a random enemy.
+	# The pool requires current_hp > 0, not just validity: a corpse that hasn't
+	# been purged yet used to be a legal pick, and take_damage early-returns on
+	# a dead unit, so the passive silently did nothing for that hit.
 	if victim.unit_class == UnitBase.UnitClass.RIFT:
 		var rift_opps: Array = enemy_units if victim.is_player_unit else player_units
-		var pool: Array = rift_opps.filter(func(u): return u != null and is_instance_valid(u))
+		var pool: Array = rift_opps.filter(func(u):
+			return u != null and is_instance_valid(u) and u.current_hp > 0)
 		if not pool.is_empty():
 			var pick: UnitBase = pool[randi() % pool.size()]
 			var rdmg: int = int(float(dmg) * _abf(victim, AF_PASSIVE, "redirect"))
 			if rdmg > 0:
 				pick.take_damage(rdmg, UnitBase.Element.NORMAL, victim, true)
 				victim.damage_dealt += rdmg
+				# Purple lightning from Rift to whoever ate the redirect, plus a
+				# flare on the persistent aura, so the remote damage number has a
+				# visible cause.
+				_spawn_rift_pair(RiftVFX.Mode.BACKLASH_ARC, victim, pick, 0.34)
+				var aura = _rift_auras.get(victim.get_instance_id())
+				if aura and is_instance_valid(aura):
+					aura.pulse()
 
-	# Stitch Link: bound partner shares the hit.
-	if victim.link_partner != null and is_instance_valid(victim.link_partner):
-		# Class-level lookup: the Stitch that cast this may already be dead.
-		var share: int = int(float(dmg) * AbilityFormulas.flat(
-				UnitBase.UnitClass.STITCH, AF_ACTIVE, "share"))
+	# Stitch Link: every other living member shares the hit. The share is
+	# snapshotted from the caster's MAG when the network is created.
+	if not victim.link_group.is_empty() and victim.link_share > 0.0:
+		var share: int = int(float(dmg) * victim.link_share)
 		if share > 0:
-			victim.link_partner.take_damage(share, UnitBase.Element.NORMAL, attacker, true)
-
-	# Stitch Loose Threads: if the victim's foes field a Stitch, bleed to its teammates.
-	var team: Array = player_units if victim.is_player_unit else enemy_units
-	var foes: Array = enemy_units if victim.is_player_unit else player_units
-	if _team_has_stitch(foes):
-		var bleed: int = int(float(dmg) * AbilityFormulas.flat(
-				UnitBase.UnitClass.STITCH, AF_PASSIVE, "bleed"))
-		if bleed > 0:
-			for mate in team.duplicate():
-				if mate and is_instance_valid(mate) and mate != victim:
-					mate.take_damage(bleed, UnitBase.Element.NORMAL, null, true)
+			for linked in victim.link_group.duplicate():
+				if linked and is_instance_valid(linked) and linked != victim and linked.current_hp > 0:
+					linked.take_damage(share, UnitBase.Element.NORMAL, attacker, true)
+					_stitch_shield_from_link(victim.link_owner, share)
 
 	# Equipment Thorns: reflect a fraction of incoming damage back to the attacker
 	var thorns_eq: float = victim.equipment_passives.get("Thorns", 0.0)
@@ -3362,21 +6388,27 @@ func _on_unit_finished_step(unit: UnitBase) -> void:
 		return
 	var cell: Vector2i = unit.grid_position
 
-	# Brand lays a burning trail on the tile it now stands on.
+	# Scorched Path lays a burning trail on the tile it now stands on.
 	if unit.unit_class == UnitBase.UnitClass.SEAR:
+		var trail_dur: float = _abf(unit, AF_PASSIVE, "dur")
 		fire_trail[cell] = {
 			"dmg": _abf(unit, AF_PASSIVE, "trail"),
-			"time": _abf(unit, AF_PASSIVE, "dur"),
+			"time": trail_dur,
 			"source": unit, "owner_is_player": unit.is_player_unit,
 		}
+		# The trail had NO visual anywhere in the codebase — burning ground the
+		# player was meant to path around but could not see.
+		_ensure_sear_scorch(cell, trail_dur)
 
-	# Field hazards burn the mover if it belongs to the opposing side.
-	if thorns_time > 0.0 and unit.is_player_unit != thorns_owner_is_player:
-		unit.take_damage(thorns_dmg, UnitBase.Element.EARTH, null, true)
+	# Bloom no longer fires from here. It used to charge per TILE MOVED, which
+	# meant a stationary enemy paid nothing and the ultimate's whole output
+	# depended on enemy pathing. It is now an area that damages and re-roots on
+	# a timer — see _tick_bloom_fields.
 	if is_instance_valid(unit) and fire_trail.has(cell):
 		var ft = fire_trail[cell]
 		if unit.is_player_unit != ft["owner_is_player"]:
 			apply_burn(unit, ft["dmg"], 2.0, ft["source"])
+			_ensure_sear_burn_mark(unit)
 
 # ── Track fallen heroes so Doc can revive one ─────────────────────────────────
 # Stores the ACTUAL downed node, not a stat snapshot (2026-07-24): hero nodes
@@ -3403,7 +6435,13 @@ func _doc_inject(caster: UnitBase, allies: Array) -> void:
 	var amt: int = int(lo + (_abf(caster, AF_ACTIVE, "hi") - lo) * miss)
 	tar.heal(amt)
 	caster.combat_healing_done += amt
-	_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, tar.global_position, 48.0)
+	# Inject is a SHOT, not an aura: Doc fires serum from the syringe and it
+	# travels to the ally (user call 2026-09-10). The generic HOLY_LIGHT burst
+	# that used to sit on the target read as a blessing landing from above and
+	# said nothing about where it came from, which is exactly the legibility
+	# problem a ranged support has on a crowded board.
+	_spawn_serum_spray(caster.global_position, tar.global_position)
+	_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, tar.global_position, 30.0)
 
 func _riot_shield_bash(caster: UnitBase, opponents: Array) -> void:
 	var tar := find_nearest_enemy(caster, opponents)
@@ -3411,9 +6449,8 @@ func _riot_shield_bash(caster: UnitBase, opponents: Array) -> void:
 	var dmg: int = _ab(caster, AF_ACTIVE, "dmg")
 	tar.take_damage(dmg, caster.current_element, caster)
 	caster.damage_dealt += dmg
-	tar.stun_time = maxf(tar.stun_time, _abf(caster, AF_ACTIVE, "stun"))
-	tar.taunt_source = caster
-	tar.taunt_time = maxf(tar.taunt_time, _abf(caster, AF_ACTIVE, "taunt"))
+	apply_stun(tar, _abf(caster, AF_ACTIVE, "stun"))
+	apply_taunt(tar, caster, _abf(caster, AF_ACTIVE, "taunt"))
 	_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, tar.global_position, 36.0)
 
 func _pastor_sermon(caster: UnitBase, allies: Array) -> void:
@@ -3457,7 +6494,7 @@ func _rush_blitz(caster: UnitBase, opponents: Array) -> void:
 			_spawn_skill_effect_sized(SkillEffect.Type.SHADOW_STRIKE, opp.global_position, 26.0)
 	var dest := _nearest_open_adjacent(tar.grid_position)
 	if dest != Vector2i(-1, -1):
-		battle_grid.remove_unit(caster.grid_position)
+		battle_grid.purge_unit(caster)
 		if battle_grid.place_unit(caster, dest):
 			caster.grid_position = dest
 			caster.position = _world_pos_for(caster, dest)
@@ -3466,15 +6503,52 @@ func _rush_blitz(caster: UnitBase, opponents: Array) -> void:
 func _stitch_link(caster: UnitBase, opponents: Array) -> void:
 	var pool: Array = opponents.filter(func(u): return u != null and is_instance_valid(u))
 	pool.sort_custom(func(a, b): return caster.grid_position.distance_to(a.grid_position) < caster.grid_position.distance_to(b.grid_position))
-	if pool.size() < 2:
+	if pool.is_empty():
 		return
-	var a: UnitBase = pool[0]
-	var b: UnitBase = pool[1]
-	a.link_partner = b
-	b.link_partner = a
-	_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, a.global_position, 30.0)
-	_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, b.global_position, 30.0)
-	action_logged.emit("%s links two enemies!" % caster.unit_name, caster.is_player_unit)
+	# Recasting replaces this Stitch's previous network.
+	var previous: Array = caster.get_meta("stitch_linked_targets", [])
+	for old in previous:
+		if old and is_instance_valid(old):
+			old.link_group.clear()
+			old.link_share = 0.0
+			old.link_owner = null
+	var old_edges: Array = caster.get_meta("stitch_link_edges", [])
+	for edge in old_edges:
+		var old_fx = edge.get("fx")
+		if old_fx and is_instance_valid(old_fx):
+			old_fx.queue_free()
+	var count: int = mini(_ab(caster, AF_ACTIVE, "targets"), pool.size())
+	var linked: Array = pool.slice(0, count)
+	var share: float = _abf(caster, AF_ACTIVE, "share")
+	for target in linked:
+		target.link_group = linked.duplicate()
+		target.link_share = share
+		target.link_owner = caster
+		_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, target.global_position, 30.0)
+	var edges: Array = []
+	for i in range(linked.size() - 1):
+		edges.append(_spawn_stitch_thread(linked[i], linked[i + 1]))
+	caster.set_meta("stitch_linked_targets", linked)
+	caster.set_meta("stitch_link_edges", edges)
+	if caster.has_method("play_skill_oneshot"):
+		caster.play_skill_oneshot()
+	action_logged.emit("%s links %d enemies!" % [caster.unit_name, linked.size()], caster.is_player_unit)
+
+func _spawn_stitch_thread(a: Node2D, b: Node2D) -> Dictionary:
+	var fx := StitchThreadVFX.new()
+	skill_effect_container.add_child(fx)
+	fx.setup(a, b)
+	_stitch_thread_effects.append(fx)
+	return {"a": a, "b": b, "fx": fx}
+
+func _stitch_shield_from_link(caster: UnitBase, link_damage: int) -> void:
+	if not (caster and is_instance_valid(caster)) or caster.current_hp <= 0:
+		return
+	var shield_gain := int(float(link_damage) * _abf(caster, AF_PASSIVE, "convert"))
+	if shield_gain <= 0:
+		return
+	_grant_shield(caster, shield_gain)
+	_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, caster.global_position, 22.0)
 
 func _coal_stoke(caster: UnitBase) -> void:
 	caster.stoke_charges = _ab(caster, AF_ACTIVE, "charges")
@@ -3483,12 +6557,17 @@ func _coal_stoke(caster: UnitBase) -> void:
 func _june_root(caster: UnitBase, opponents: Array) -> void:
 	var tar := find_nearest_enemy(caster, opponents)
 	if not tar: return
-	tar.root_time = maxf(tar.root_time, _abf(caster, AF_ACTIVE, "root"))
+	if caster.has_method("play_skill_oneshot"):
+		caster.play_skill_oneshot()
+	apply_root(tar, _abf(caster, AF_ACTIVE, "root"))
 	var dmg: int = _ab(caster, AF_ACTIVE, "dmg")
 	if dmg > 0:
 		tar.take_magic_damage(dmg, caster.current_element, caster)
 		caster.damage_dealt += dmg
-	_spawn_skill_effect_sized(SkillEffect.Type.NATURE, tar.global_position, 38.0)
+	# Bark cuffs that last the ROOT's real duration, replacing the one-shot
+	# generic NATURE burst. Three seconds of hard CC previously had no tell at
+	# all — stun is still the only entry in STATUS_ICON_SHEETS.
+	_ensure_june_root_cuff(tar)
 
 func _cross_absolution(caster: UnitBase, allies: Array) -> void:
 	var tar := _lowest_hp_ally(caster, allies, float(caster.skill_range), true)
@@ -3507,7 +6586,13 @@ func _sear_ignite(caster: UnitBase, opponents: Array) -> void:
 	tar.take_magic_damage(dmg, caster.current_element, caster)
 	caster.damage_dealt += dmg
 	apply_burn(tar, _abf(caster, AF_ACTIVE, "burn"), _abf(caster, AF_ACTIVE, "dur"), caster)
-	_spawn_skill_effect_sized(SkillEffect.Type.BURN, tar.global_position, 40.0)
+	# Three beats, all starting this frame because the damage resolves now: Sear
+	# throws it, fire crosses the ground, the target goes up. Was one shared
+	# SkillEffect.Type.BURN puff (nine call sites used that same effect).
+	_spawn_sear_point(SearVFX.Mode.IGNITE_CAST, caster.global_position, 0.42, caster)
+	_spawn_sear_pair(SearVFX.Mode.IGNITE_RUN, caster, tar, 0.40)
+	_spawn_sear_point(SearVFX.Mode.IGNITE_HIT, tar.global_position, 0.85, tar)
+	_ensure_sear_burn_mark(tar)
 
 func _ember_cinder(caster: UnitBase, opponents: Array) -> void:
 	var center := find_nearest_enemy(caster, opponents)
@@ -3523,21 +6608,46 @@ func _ember_cinder(caster: UnitBase, opponents: Array) -> void:
 func _rift_tear(caster: UnitBase, opponents: Array) -> void:
 	var tar := find_nearest_enemy(caster, opponents)
 	if not tar: return
+	if caster.has_method("play_skill_oneshot"):
+		caster.play_skill_oneshot()
 	var dmg: int = _ab(caster, AF_ACTIVE, "dmg")
 	tar.take_magic_damage(dmg, caster.current_element, caster)
 	caster.damage_dealt += dmg
-	# Banish to the far edge away from the caster.
-	var far_y: int = 0 if caster.is_player_unit else battle_grid.grid_height - 1
-	var dest := _find_open_in_row(far_y)
-	if dest != Vector2i(-1, -1) and tar.cell_size == 1:
-		battle_grid.remove_unit(tar.grid_position)
+	# Banish to a RANDOM cell on the board's edge (approved 2026-09-17). The old
+	# version took the LEFTMOST free cell of one fixed far row, which meant every
+	# Tear in a fight stacked its victims into the same column, and did nothing at
+	# all when that one row happened to be full — the ability's signature effect
+	# silently no-opped with no feedback.
+	var origin_world: Vector2 = tar.global_position
+	var dest := _random_open_edge_cell(tar.grid_position)
+	var banished := false
+	if dest != Vector2i(-1, -1) and tar.cell_size == 1 and tar.current_hp > 0:
+		var from_cell: Vector2i = tar.grid_position
+		battle_grid.purge_unit(tar)
 		if battle_grid.place_unit(tar, dest):
 			tar.grid_position = dest
 			tar.position = _world_pos_for(tar, dest)
+			# Cancel the in-flight step AND drop the cached path. Without both,
+			# the victim keeps lerping along a route computed from the cell it no
+			# longer stands on (the same bug the Gravity shove documents).
 			tar.is_moving = false
-	_spawn_skill_effect_sized(SkillEffect.Type.SHADOW_STRIKE, tar.global_position, 36.0)
+			tar.move_progress = 0.0
+			unit_paths.erase(tar)
+			banished = true
+		else:
+			battle_grid.place_unit(tar, from_cell)
+	# A seam at BOTH ends: space splits where the target was, and splits again
+	# where it lands, so the player can follow it instead of watching a unit
+	# blink out and reappear somewhere unrelated.
+	_spawn_rift_point(RiftVFX.Mode.TEAR_SEAM, origin_world, 0.42)
+	if banished:
+		_spawn_rift_point(RiftVFX.Mode.TEAR_SEAM, tar.global_position, 0.42)
+	action_logged.emit("%s tears space open!" % caster.unit_name, caster.is_player_unit)
 
 func _zolt_summon_storm(caster: UnitBase) -> void:
+	if caster.has_method("play_skill_oneshot"):
+		caster.play_skill_oneshot()
+	_spawn_zolt_point(ZoltVFX.Mode.AUTO_MUZZLE, caster.global_position, 0.42, caster)
 	var step := Vector2i(0, -1) if caster.is_player_unit else Vector2i(0, 1)
 	var cell: Vector2i = caster.grid_position + step
 	if not battle_grid.is_valid_position(cell):
@@ -3581,11 +6691,16 @@ func _lumen_refract(caster: UnitBase, opponents: Array) -> void:
 func _static_tripwire(caster: UnitBase, opponents: Array) -> void:
 	var tar := find_nearest_enemy(caster, opponents)
 	if not tar: return
-	tar.stun_time = maxf(tar.stun_time, _abf(caster, AF_ACTIVE, "stun"))
+	if caster.has_method("play_skill_oneshot"):
+		caster.play_skill_oneshot()
+	_spawn_static_point(StaticVFX.Mode.THUNDER_STRIKE, tar.global_position, 0.68)
+	apply_stun(tar, _abf(caster, AF_ACTIVE, "stun"))
 	var dmg: int = _ab(caster, AF_ACTIVE, "dmg")
 	tar.take_magic_damage(dmg, UnitBase.Element.LIGHTNING, caster)
 	caster.damage_dealt += dmg
-	_spawn_skill_effect_sized(SkillEffect.Type.LIGHTNING, tar.global_position, 34.0)
+	_spawn_static_point(StaticVFX.Mode.AUTO_IMPACT, tar.global_position, 0.48)
+	_spawn_static_pair(StaticVFX.Mode.STUN_RESIDUE, tar, tar,
+		_abf(caster, AF_ACTIVE, "stun"))
 
 func _reed_cleanse(caster: UnitBase, allies: Array) -> void:
 	var tar := _lowest_hp_ally(caster, allies, float(caster.skill_range), true)
@@ -3600,8 +6715,13 @@ func _reed_cleanse(caster: UnitBase, allies: Array) -> void:
 func _vail_updraft(caster: UnitBase, allies: Array) -> void:
 	var tar := _lowest_hp_ally(caster, allies, 99.0, false)
 	if not tar: tar = caster
-	tar.untargetable_time = maxf(tar.untargetable_time, _abf(caster, AF_ACTIVE, "dur"))
-	_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, tar.global_position, 40.0)
+	var lift_dur: float = _abf(caster, AF_ACTIVE, "dur")
+	tar.untargetable_time = maxf(tar.untargetable_time, lift_dur)
+	tar.bonus_regen_amt = maxf(tar.bonus_regen_amt, _abf(caster, AF_ACTIVE, "regen"))
+	tar.bonus_regen_time = maxf(tar.bonus_regen_time, _abf(caster, AF_ACTIVE, "regen_dur"))
+	_spawn_skill_effect_sized(SkillEffect.Type.TORNADO, tar.global_position, 34.0, lift_dur)
+	if tar.has_method("play_updraft_lift"):
+		tar.play_updraft_lift(lift_dur)
 
 func _spore_bloom(caster: UnitBase, opponents: Array) -> void:
 	var tar := find_nearest_enemy(caster, opponents)
@@ -3669,8 +6789,7 @@ func _doc_field_surgery(caster: UnitBase, allies: Array) -> void:
 func _riot_kettle(caster: UnitBase, opponents: Array) -> void:
 	for opp in opponents:
 		if opp and is_instance_valid(opp):
-			opp.taunt_source = caster
-			opp.taunt_time = maxf(opp.taunt_time, _abf(caster, AF_ULT, "taunt"))
+			apply_taunt(opp, caster, _abf(caster, AF_ULT, "taunt"))
 	_spawn_skill_effect_sized(SkillEffect.Type.GRAVITY_DROP, caster.global_position, 90.0)
 	action_logged.emit("%s kettles the enemy!" % caster.unit_name, caster.is_player_unit)
 
@@ -3706,25 +6825,189 @@ func _rush_afterimage(caster: UnitBase, opponents: Array) -> void:
 	_spawn_skill_effect_sized(SkillEffect.Type.OVERDRIVE, caster.global_position, 60.0)
 	action_logged.emit("%s blurs into afterimages!" % caster.unit_name, caster.is_player_unit)
 
-func _stitch_puppet(caster: UnitBase, opponents: Array) -> void:
-	var tar := _highest_hp_enemy(caster, opponents)
-	if not tar: tar = find_nearest_enemy(caster, opponents)
-	if not tar: return
-	tar.puppet_time = _abf(caster, AF_ULT, "dur")
-	_spawn_skill_effect_sized(SkillEffect.Type.SHADOW_STRIKE, tar.global_position, 44.0)
-	action_logged.emit("%s seizes control of %s!" % [caster.unit_name, tar.unit_name], caster.is_player_unit)
+func _stitch_unravel(caster: UnitBase, opponents: Array) -> void:
+	var edges: Array = caster.get_meta("stitch_link_edges", []).duplicate()
+	edges = edges.filter(func(e): return e.get("a") and is_instance_valid(e["a"]) and e.get("b") and is_instance_valid(e["b"]))
+	if edges.is_empty():
+		var target := _highest_hp_enemy(caster, opponents)
+		if not target: target = find_nearest_enemy(caster, opponents)
+		if not target: return
+		edges.append(_spawn_stitch_thread(caster, target))
+	edges.shuffle()
+	_stitch_ult_seqs.append({"caster": caster, "edges": edges, "index": 0, "timer": 0.14,
+		"interval": STITCH_UNRAVEL_TOTAL / float(maxi(edges.size(), 1)),
+		"damage": _ab(caster, AF_ULT, "dmg"), "stun": _abf(caster, AF_ULT, "stun")})
+	if caster.has_method("play_ult_oneshot"): caster.play_ult_oneshot()
+	_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, caster.global_position, 58.0)
+	action_logged.emit("%s begins Unravel!" % caster.unit_name, caster.is_player_unit)
+
+func _tick_stitch_unravel(dt: float) -> void:
+	for seq in _stitch_ult_seqs.duplicate():
+		seq["timer"] -= dt
+		if seq["timer"] > 0.0: continue
+		var edges: Array = seq["edges"]
+		var index: int = seq["index"]
+		if index >= edges.size():
+			_stitch_ult_seqs.erase(seq)
+			continue
+		var edge: Dictionary = edges[index]
+		var caster: UnitBase = seq["caster"]
+		if caster and is_instance_valid(caster) and caster.has_method("play_stitch_rupture_stab"):
+			caster.play_stitch_rupture_stab(seq["interval"] * 0.9)
+		var a = edge.get("a")
+		var b = edge.get("b")
+		var fx = edge.get("fx")
+		if fx and is_instance_valid(fx): fx.rupture()
+		if a and is_instance_valid(a) and b and is_instance_valid(b):
+			var midpoint: Vector2 = (a.global_position + b.global_position) * 0.5
+			_spawn_skill_effect_sized(SkillEffect.Type.SHADOW_STRIKE, midpoint, 52.0)
+			for endpoint in [a, b]:
+				if endpoint == caster or not (endpoint is UnitBase) or not is_instance_valid(endpoint): continue
+				endpoint.take_magic_damage(seq["damage"], caster.current_element, caster)
+				caster.damage_dealt += seq["damage"]
+				_stitch_shield_from_link(caster, seq["damage"])
+				apply_stun(endpoint, seq["stun"])
+				_spawn_skill_effect_sized(SkillEffect.Type.ABSORBED, endpoint.global_position, 40.0)
+		seq["index"] = index + 1
+		seq["timer"] += seq["interval"]
+		if seq["index"] >= edges.size():
+			for target in caster.get_meta("stitch_linked_targets", []):
+				if target and is_instance_valid(target):
+					target.link_group.clear()
+					target.link_share = 0.0
+					target.link_owner = null
+			caster.set_meta("stitch_linked_targets", [])
+			caster.set_meta("stitch_link_edges", [])
+			action_logged.emit("%s tears every thread apart!" % caster.unit_name, caster.is_player_unit)
 
 func _coal_meltdown(caster: UnitBase) -> void:
 	caster.meltdown_time = _abf(caster, AF_ULT, "dur")
 	_spawn_skill_effect_sized(SkillEffect.Type.BURN, caster.global_position, 60.0)
 	action_logged.emit("%s overheats — Meltdown!" % caster.unit_name, caster.is_player_unit)
 
-func _june_bloom(caster: UnitBase) -> void:
-	thorns_time = _abf(caster, AF_ULT, "dur")
-	thorns_dmg = _ab(caster, AF_ULT, "thorns")
-	thorns_owner_is_player = caster.is_player_unit
-	_spawn_skill_effect_sized(SkillEffect.Type.NATURE, caster.global_position, 100.0)
-	action_logged.emit("%s blankets the field in thorns!" % caster.unit_name, caster.is_player_unit)
+func _june_bloom(caster: UnitBase, opponents: Array) -> void:
+	# Bloom is an AREA now (user decision 2026-09-17): a band of thorned ground
+	# on the enemy cluster that damages and re-roots whoever stands in it. Rooted
+	# units can still attack — root only stops movement — so a caught melee line
+	# keeps swinging at whatever is already in reach.
+	var centre := _living_centroid_cell(opponents)
+	if centre == Vector2i(-1, -1):
+		return
+	if caster.has_method("play_ult_oneshot"):
+		caster.play_ult_oneshot()
+
+	# Clamp the band so it always lies fully on the board — the whole footprint
+	# is the promise the visual makes, and a half-off band would damage cells
+	# the player can't see.
+	var x0: int = clampi(centre.x - BLOOM_COLS / 2, 0, maxi(0, battle_grid.grid_width - BLOOM_COLS))
+	var y0: int = clampi(centre.y - BLOOM_ROWS / 2, 0, maxi(0, battle_grid.grid_height - BLOOM_ROWS))
+	var cells: Dictionary = {}
+	var quads: Array = []
+	for dy in range(BLOOM_ROWS):
+		for dx in range(BLOOM_COLS):
+			var c := Vector2i(x0 + dx, y0 + dy)
+			if not battle_grid.is_valid_position(c):
+				continue
+			cells[c] = true
+			# The board is a faked-perspective trapezoid grid, so the overlay is
+			# built from the REAL cell quads; an axis-aligned rect floats above it.
+			var q := BoardPerspective.cell_quad(c.x, c.y, battle_grid.grid_width,
+					battle_grid.grid_height, battle_grid.cell_size)
+			var g := PackedVector2Array()
+			for pt: Vector2 in q:
+				g.append(battle_grid.to_global(pt))
+			quads.append(g)
+	if cells.is_empty():
+		return
+
+	# The band's OUTER edge, walked cell by cell rather than taken as a rect: the
+	# board's rows each have their own perspective scale, so the left and right
+	# sides are stepped, not straight. Drawing the field as one shape with this
+	# perimeter is what makes it read as a single thicket instead of fifteen
+	# separate squares (the first pass looked like scattered debris).
+	var y1: int = y0 + BLOOM_ROWS - 1
+	var x1: int = x0 + BLOOM_COLS - 1
+	var edge := PackedVector2Array()
+	var top_q := BoardPerspective.cell_quad(x0, y0, battle_grid.grid_width,
+			battle_grid.grid_height, battle_grid.cell_size)
+	edge.append(battle_grid.to_global(top_q[0]))
+	edge.append(battle_grid.to_global(BoardPerspective.cell_quad(x1, y0,
+			battle_grid.grid_width, battle_grid.grid_height, battle_grid.cell_size)[1]))
+	for y in range(y0, y1 + 1):
+		var rq := BoardPerspective.cell_quad(x1, y, battle_grid.grid_width,
+				battle_grid.grid_height, battle_grid.cell_size)
+		edge.append(battle_grid.to_global(rq[2]))
+	edge.append(battle_grid.to_global(BoardPerspective.cell_quad(x0, y1,
+			battle_grid.grid_width, battle_grid.grid_height, battle_grid.cell_size)[3]))
+	for y in range(y1, y0 - 1, -1):
+		var lq := BoardPerspective.cell_quad(x0, y, battle_grid.grid_width,
+				battle_grid.grid_height, battle_grid.cell_size)
+		edge.append(battle_grid.to_global(lq[0]))
+
+	var centre_world: Vector2 = battle_grid.to_global(battle_grid.grid_to_world(
+		Vector2i(x0 + BLOOM_COLS / 2, y0 + BLOOM_ROWS / 2)))
+	var dur: float = _abf(caster, AF_ULT, "dur")
+	var fx := JuneVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_field(quads, dur, centre_world, edge)
+	# A cast beat: roots tearing out of the ground at June and running to the
+	# band. Without it the ultimate was a field that simply appeared, with no
+	# visible source and no anticipation.
+	var cast := JuneVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(cast)
+	cast.setup_cast(caster.global_position, centre_world, 0.75)
+	cast.target = caster
+
+	bloom_fields.append({
+		"caster": caster,
+		"owner_is_player": caster.is_player_unit,
+		"dmg": _ab(caster, AF_ULT, "thorns"),
+		"time": dur,
+		"tick_t": 0.0,       # first tick lands immediately, on the cast
+		"cells": cells,
+		"vfx": fx,
+	})
+	action_logged.emit("%s raises a thicket of thorns!" % caster.unit_name, caster.is_player_unit)
+
+## Bloom's damage + re-root cadence. Runs for every active field, so two Junes
+## stack instead of overwriting each other.
+func _tick_bloom_fields(dt: float) -> void:
+	if bloom_fields.is_empty():
+		return
+	for i in range(bloom_fields.size() - 1, -1, -1):
+		var f: Dictionary = bloom_fields[i]
+		f["time"] -= dt
+		if f["time"] <= 0.0:
+			if f.get("vfx") and is_instance_valid(f["vfx"]):
+				f["vfx"].queue_free()
+			bloom_fields.remove_at(i)
+			continue
+		f["tick_t"] -= dt
+		if f["tick_t"] > 0.0:
+			continue
+		f["tick_t"] += BLOOM_TICK
+		var victims: Array = enemy_units if f["owner_is_player"] else player_units
+		var caster = f["caster"]
+		var caster_live: bool = caster != null and is_instance_valid(caster)
+		if f.get("vfx") and is_instance_valid(f["vfx"]):
+			f["vfx"].pulse()
+		for u in victims:
+			if not (u and is_instance_valid(u)) or u.current_hp <= 0:
+				continue
+			if not f["cells"].has(u.grid_position):
+				continue
+			# Credited to the caster, not to `null`: Bloom used to pass no
+			# attacker at all, so June's signature ability contributed exactly
+			# nothing to her damage_dealt. take_damage charges the VICTIM's
+			# ultimate, never the attacker's, so this is attribution only — it
+			# does not feed her own ult charge.
+			u.take_damage(f["dmg"], UnitBase.Element.EARTH,
+					caster if caster_live else null, true)
+			if caster_live:
+				caster.damage_dealt += f["dmg"]
+			apply_root(u, BLOOM_ROOT)
+			_ensure_june_root_cuff(u)
+			_spawn_june_point(JuneVFX.Mode.BLOOM_TICK, u.global_position, 0.45, u)
 
 func _cross_judgment(caster: UnitBase, opponents: Array) -> void:
 	# Balance 2026-07-24, first pass: this used to read lifetime
@@ -3757,18 +7040,37 @@ func _cross_judgment(caster: UnitBase, opponents: Array) -> void:
 	action_logged.emit("%s passes judgment! (%d dmg)" % [caster.unit_name, dmg], caster.is_player_unit)
 
 func _sear_conflagration(caster: UnitBase, opponents: Array) -> void:
+	# Find the worst burn on the board, and remember WHO carried it — the spread
+	# now visibly runs out from that enemy instead of appearing everywhere at once.
 	var maxdps: float = _abf(caster, AF_ULT, "floor")
+	var worst: UnitBase = null
 	for opp in opponents:
-		if opp and is_instance_valid(opp) and opp.burn_dps > maxdps:
+		if not (opp and is_instance_valid(opp)) or opp.current_hp <= 0:
+			continue
+		if opp.burn_dps > maxdps:
 			maxdps = opp.burn_dps
+			worst = opp
+	var origin: Node2D = worst if worst else caster
+	var dur: float = _abf(caster, AF_ULT, "dur")
+	# NOTE ON ORDER: apply_burn runs before the burst is measured and takes a
+	# maxf, so by the time `burst` is computed every target already carries
+	# `maxdps` — the burst is UNIFORM, not per-target. That is existing behaviour
+	# and is left alone; the multiply now reads `maxdps` directly so the code
+	# stops implying a per-target variance that cannot occur. (Ember's Wildfire is
+	# the other shape: it detonates what each target was already carrying.)
+	var burst: int = int(maxdps * _abf(caster, AF_ULT, "burst"))
 	for opp in opponents:
-		if opp and is_instance_valid(opp):
-			apply_burn(opp, maxdps, _abf(caster, AF_ACTIVE, "dur"), caster)
-			var burst: int = int(opp.burn_dps * _abf(caster, AF_ULT, "burst"))
-			if burst > 0:
-				opp.take_damage(burst, UnitBase.Element.FIRE, caster, true)
-				caster.damage_dealt += burst
-			_spawn_skill_effect_sized(SkillEffect.Type.BURN, opp.global_position, 36.0)
+		# Corpses awaiting purge used to be burned, burst and given VFX.
+		if not (opp and is_instance_valid(opp)) or opp.current_hp <= 0:
+			continue
+		apply_burn(opp, maxdps, dur, caster)
+		_ensure_sear_burn_mark(opp)
+		if opp != origin:
+			_spawn_sear_pair(SearVFX.Mode.ULT_SPREAD, origin, opp, 0.45)
+		if burst > 0:
+			opp.take_damage(burst, UnitBase.Element.FIRE, caster, true)
+			caster.damage_dealt += burst
+		_spawn_sear_point(SearVFX.Mode.ULT_BURST, opp.global_position, 0.62, opp)
 	action_logged.emit("%s ignites the battlefield!" % caster.unit_name, caster.is_player_unit)
 
 func _ember_wildfire(caster: UnitBase, opponents: Array) -> void:
@@ -3780,34 +7082,290 @@ func _ember_wildfire(caster: UnitBase, opponents: Array) -> void:
 	action_logged.emit("%s detonates the flames!" % caster.unit_name, caster.is_player_unit)
 
 func _rift_collapse(caster: UnitBase, opponents: Array) -> void:
-	var center := Vector2i(battle_grid.grid_width / 2, battle_grid.grid_height / 2)
+	# Collapse folds space around the ENEMIES, not around the middle of the map.
+	# Centring on the board's geometric centre (the original) meant the well sat
+	# wherever the board happened to be rather than where the fight was, and for
+	# a player-side Rift it dragged the whole enemy team INTO his own front line.
+	# The centroid of the living targets is both on-cluster and never off-board.
+	var center := _living_centroid_cell(opponents)
+	if center == Vector2i(-1, -1):
+		return
+	# to_global, NOT the raw grid_to_world result: grid_to_world returns a point
+	# in battle_grid's OWN local space, and skill_effect_container does not share
+	# that space. Assigning it straight to a global_position offsets the effect by
+	# the board's origin — which is why the well drew off the edge of the board
+	# while the damage and the per-enemy drag streaks (anchored to
+	# opp.global_position) landed correctly. Same bug, same fix, as Nemi's Tidal
+	# Wave on 2026-08-06; see _nemi_fire_tidal_wave's setup comment.
+	var center_world: Vector2 = battle_grid.to_global(battle_grid.grid_to_world(center))
 	var dmg: int = _ab(caster, AF_ULT, "dmg")
-	_spawn_skill_effect_sized(SkillEffect.Type.GRAVITY_DROP, battle_grid.grid_to_world(center), 110.0)
+	if caster.has_method("play_ult_oneshot"):
+		caster.play_ult_oneshot()
+	# Rift's own well replaces the borrowed GRAVITY_DROP effect — that one is
+	# Bouncer's authored blue/gold ultimate ring and reading it on a void mage
+	# made two different ultimates look like the same ability.
+	_spawn_rift_point(RiftVFX.Mode.COLLAPSE_WELL, center_world, 0.90)
 	for opp in opponents:
-		if not (opp and is_instance_valid(opp)): continue
+		if not (opp and is_instance_valid(opp)) or opp.current_hp <= 0: continue
+		var drag_from: Vector2 = opp.global_position
 		if opp.cell_size == 1:
 			var dest := _nearest_open_cell_to(center)
 			if dest != Vector2i(-1, -1):
-				battle_grid.remove_unit(opp.grid_position)
+				var from_cell: Vector2i = opp.grid_position
+				battle_grid.purge_unit(opp)
 				if battle_grid.place_unit(opp, dest):
 					opp.grid_position = dest
 					opp.position = _world_pos_for(opp, dest)
+					# Same stale-path cancel as Tear — and this one moves EVERY
+					# enemy at once, so a missed path cache stranded the whole field.
 					opp.is_moving = false
-		opp.take_damage(dmg, caster.current_element, caster)
+					opp.move_progress = 0.0
+					unit_paths.erase(opp)
+				else:
+					battle_grid.place_unit(opp, from_cell)
+		# Magic damage: Collapse scales off magic_power in AbilityFormulas, but
+		# used plain take_damage, so it was mitigated by ARMOR instead of magic
+		# resist — the only ability in Rift's kit resolving as the wrong type.
+		opp.take_magic_damage(dmg, caster.current_element, caster)
 		caster.damage_dealt += dmg
-		_spawn_skill_effect_sized(SkillEffect.Type.SHADOW_STRIKE, opp.global_position, 30.0)
+		# One streak per enemy from where it stood into the well, so the pull is
+		# visible as a pull rather than every enemy snapping to centre at once.
+		if drag_from.distance_to(opp.global_position) > 4.0:
+			_spawn_rift_streak(RiftVFX.Mode.COLLAPSE_DRAG, drag_from, opp.global_position)
 	action_logged.emit("%s collapses space!" % caster.unit_name, caster.is_player_unit)
 
 func _zolt_thunderhammer(caster: UnitBase, opponents: Array) -> void:
 	var tar := _highest_hp_enemy(caster, opponents)
 	if not tar: tar = find_nearest_enemy(caster, opponents)
 	if not tar: return
+	if caster.has_method("play_ult_oneshot"):
+		caster.play_ult_oneshot()
+	_spawn_zolt_point(ZoltVFX.Mode.ULT_MARK, tar.global_position, 0.38, tar)
 	var dmg: int = _ab(caster, AF_ULT, "dmg")
 	tar.take_damage(dmg, UnitBase.Element.LIGHTNING, caster)
 	caster.damage_dealt += dmg
-	tar.stun_time = maxf(tar.stun_time, _abf(caster, AF_ULT, "stun"))
-	_spawn_skill_effect_sized(SkillEffect.Type.LIGHTNING, tar.global_position, 72.0)
+	apply_stun(tar, _abf(caster, AF_ULT, "stun"))
+	_spawn_zolt_point(ZoltVFX.Mode.ULT_STRIKE, tar.global_position, 0.9, tar)
+	_spawn_zolt_point(ZoltVFX.Mode.STUN_RESIDUE, tar.global_position,
+		_abf(caster, AF_ULT, "stun"), tar)
 	action_logged.emit("%s calls down the thunderhammer!" % caster.unit_name, caster.is_player_unit)
+
+func _spawn_zolt_point(kind: ZoltVFX.Mode, world_pos: Vector2, life: float, follow: Node2D = null) -> void:
+	var fx := ZoltVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_point(kind, world_pos, life, follow)
+
+# ── Sear VFX (scorched earth) ─────────────────────────────────────────────────
+func _spawn_sear_point(kind: SearVFX.Mode, world_pos: Vector2, life: float,
+		follow: Node2D = null) -> SearVFX:
+	var fx := SearVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_point(kind, world_pos, life, follow)
+	return fx
+
+func _spawn_sear_pair(kind: SearVFX.Mode, from: Node2D, to: Node2D, life: float) -> void:
+	if not (from and is_instance_valid(from) and to and is_instance_valid(to)):
+		return
+	var fx := SearVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_pair(kind, from, to, life)
+
+## One scorch visual per burning tile, keyed by cell. Re-stepping a tile that is
+## already alight refreshes the gameplay timer, so the visual restarts with it
+## rather than stacking a second node on the same square.
+func _ensure_sear_scorch(cell: Vector2i, life: float) -> void:
+	if not battle_grid:
+		return
+	var existing = _sear_scorch_vfx.get(cell)
+	if existing and is_instance_valid(existing):
+		existing.queue_free()
+	var q := BoardPerspective.cell_quad(cell.x, cell.y, battle_grid.grid_width,
+			battle_grid.grid_height, battle_grid.cell_size)
+	var g := PackedVector2Array()
+	for pt: Vector2 in q:
+		g.append(battle_grid.to_global(pt))
+	var fx := SearVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_tile(g, life, battle_grid.to_global(battle_grid.grid_to_world(cell)))
+	_sear_scorch_vfx[cell] = fx
+
+## A persistent "on fire" tell for a unit Sear set alight. Burn is a shared
+## status with no icon (STATUS_ICON_SHEETS has only "stun"), so before this a
+## five-second burn showed nothing but ticking damage numbers. Scoped to Sear's
+## own applications: generalising it to every burn source on the board would
+## change enemy visuals, which this pass does not own.
+func _ensure_sear_burn_mark(unit: UnitBase) -> void:
+	if not (unit and is_instance_valid(unit)) or unit.current_hp <= 0:
+		return
+	var id: int = unit.get_instance_id()
+	var existing = _sear_burn_marks.get(id)
+	if existing and is_instance_valid(existing):
+		return
+	var fx := SearVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_burn_mark(unit)
+	_sear_burn_marks[id] = fx
+
+# ── June VFX (loam and overgrowth) ────────────────────────────────────────────
+func _spawn_june_point(kind: JuneVFX.Mode, world_pos: Vector2, life: float,
+		follow: Node2D = null) -> JuneVFX:
+	var fx := JuneVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_point(kind, world_pos, life, follow)
+	return fx
+
+func _spawn_june_pair(kind: JuneVFX.Mode, from: Node2D, to: Node2D, life: float) -> void:
+	if not (from and is_instance_valid(from) and to and is_instance_valid(to)):
+		return
+	var fx := JuneVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_pair(kind, from, to, life)
+
+## ONE persistent aura per June, and ONE root cuff per rooted unit — both keyed
+## by instance id, the same bookkeeping as _ensure_sheildor_barrier. Spawning per
+## tick would stack a node every time the aura or the root refreshed.
+func _ensure_june_aura(unit: UnitBase) -> void:
+	if not (unit and is_instance_valid(unit)) or unit.current_hp <= 0:
+		return
+	var id: int = unit.get_instance_id()
+	var existing = _june_auras.get(id)
+	if not (existing and is_instance_valid(existing)):
+		existing = JuneVFX.new()
+		(skill_effect_container if skill_effect_container else self).add_child(existing)
+		existing.setup_ground(JuneVFX.Mode.AURA_LATTICE, unit.global_position, 9999.0,
+				_abf(unit, AF_PASSIVE, "radius") * battle_grid.cell_size, unit)
+		_june_auras[id] = existing
+	# Rebuild the highlighted cells whenever she changes square. grid_position only
+	# updates when a step COMPLETES, which is exactly right: the heal is resolved
+	# from grid_position, so the lit tiles and the healed allies change together.
+	if existing.anchor_cell != unit.grid_position:
+		existing.anchor_cell = unit.grid_position
+		var ae: Dictionary = _june_aura_edges(unit)
+		existing.set_aura_edges(ae["segments"], int(ae["cells"]))
+
+## The OUTER EDGE of the region Verdant Aura reaches, as board-space segments.
+##
+## Returns only boundary edges: an edge is kept when the cell across it is NOT
+## in the healed set. Internal cell borders are dropped, so the result is the
+## outline of the affected area rather than a lit grid of squares (user call
+## 2026-09-17).
+##
+## The membership test is character-for-character the one in _tick_passive
+## (Euclidean distance_to <= radius). That is deliberate: the moment the outline
+## is computed a second way, it becomes a promise the heal does not keep. It also
+## means the outline is a DISC, because the passive measures Euclidean while most
+## range checks in combat use Chebyshev (_grid_dist) — the outline makes that
+## inconsistency visible rather than fixing it, since changing who gets healed is
+## a balance decision.
+func _june_aura_edges(unit: UnitBase) -> Dictionary:
+	var segments: Array = []
+	if not battle_grid:
+		return {"segments": segments, "cells": 0}
+	var radius: float = _abf(unit, AF_PASSIVE, "radius")
+	var r: int = int(ceil(radius))
+	var inside: Dictionary = {}
+	for dy in range(-r, r + 1):
+		for dx in range(-r, r + 1):
+			var c: Vector2i = unit.grid_position + Vector2i(dx, dy)
+			if not battle_grid.is_valid_position(c):
+				continue
+			if unit.grid_position.distance_to(c) <= radius:
+				inside[c] = true
+	# cell_quad corners are [TL, TR, BR, BL]; each edge pairs with the neighbour
+	# that shares it.
+	var edges := [
+		[0, 1, Vector2i(0, -1)],   # top
+		[1, 2, Vector2i(1, 0)],    # right
+		[2, 3, Vector2i(0, 1)],    # bottom
+		[3, 0, Vector2i(-1, 0)],   # left
+	]
+	for c: Vector2i in inside.keys():
+		var q := BoardPerspective.cell_quad(c.x, c.y, battle_grid.grid_width,
+				battle_grid.grid_height, battle_grid.cell_size)
+		for e in edges:
+			if inside.has(c + (e[2] as Vector2i)):
+				continue   # shared with another lit cell — an interior line
+			segments.append(PackedVector2Array([
+				battle_grid.to_global(q[e[0]]), battle_grid.to_global(q[e[1]])]))
+	return {"segments": segments, "cells": inside.size()}
+
+## Root is the game's first non-stun status tell. The cuffs free themselves off
+## the unit's real root_time, so they can never outlive the CC they advertise.
+func _ensure_june_root_cuff(unit: UnitBase) -> void:
+	if not (unit and is_instance_valid(unit)) or unit.current_hp <= 0:
+		return
+	var id: int = unit.get_instance_id()
+	var existing = _june_root_cuffs.get(id)
+	if existing and is_instance_valid(existing):
+		return
+	var fx := JuneVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_ground(JuneVFX.Mode.ROOT_CUFF, unit.global_position, 9999.0, 26.0, unit)
+	# In FRONT of the unit, unlike the aura and the Bloom field: cuffs sit AROUND
+	# the ankles, and at ground z_index the unit's own sprite covered them
+	# completely — the cuffs existed and drew nothing the player could see.
+	# JuneVFX._track_z then keeps this one layer above the target as it changes
+	# rows, rather than pinning a constant a back-row unit would out-sort.
+	_june_root_cuffs[id] = fx
+
+# ── Rift VFX (purple lightning) ───────────────────────────────────────────────
+func _spawn_rift_point(kind: RiftVFX.Mode, world_pos: Vector2, life: float,
+		follow: Node2D = null) -> RiftVFX:
+	var fx := RiftVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_point(kind, world_pos, life, follow)
+	return fx
+
+func _spawn_rift_pair(kind: RiftVFX.Mode, from: Node2D, to: Node2D, life: float) -> void:
+	if not (from and is_instance_valid(from) and to and is_instance_valid(to)):
+		return
+	var fx := RiftVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_pair(kind, from, to, life)
+
+func _spawn_rift_streak(kind: RiftVFX.Mode, start: Vector2, finish: Vector2) -> void:
+	var fx := RiftVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_streak(kind, start, finish)
+
+## ONE persistent Backlash aura per Rift, keyed by instance id — the same
+## bookkeeping as _ensure_sheildor_barrier. Spawning per hit would stack a node
+## for every point of damage he takes.
+func _ensure_rift_aura(unit: UnitBase) -> void:
+	if not (unit and is_instance_valid(unit)) or unit.current_hp <= 0:
+		return
+	var id: int = unit.get_instance_id()
+	var existing = _rift_auras.get(id)
+	if existing and is_instance_valid(existing):
+		return
+	_rift_auras[id] = _spawn_rift_point(RiftVFX.Mode.BACKLASH_AURA,
+			unit.global_position, 9999.0, unit)
+
+## A random free cell on the board's perimeter, for Tear's banish. Falls back to
+## the nearest open cell to a random edge point so a crowded perimeter degrades
+## into "moved somewhere far" rather than "did nothing", and never returns the
+## victim's own cell (which would look like the ability failed).
+func _random_open_edge_cell(avoid: Vector2i) -> Vector2i:
+	var edges: Array[Vector2i] = []
+	for x in range(battle_grid.grid_width):
+		edges.append(Vector2i(x, 0))
+		edges.append(Vector2i(x, battle_grid.grid_height - 1))
+	for y in range(1, battle_grid.grid_height - 1):
+		edges.append(Vector2i(0, y))
+		edges.append(Vector2i(battle_grid.grid_width - 1, y))
+	edges.shuffle()
+	for c: Vector2i in edges:
+		if c == avoid:
+			continue
+		if battle_grid.is_valid_position(c) and not battle_grid.is_cell_occupied(c):
+			return c
+	for c: Vector2i in edges:
+		if c == avoid:
+			continue
+		var near := _nearest_open_cell_to(c)
+		if near != Vector2i(-1, -1) and near != avoid:
+			return near
+	return Vector2i(-1, -1)
 
 func _lumen_prism(caster: UnitBase, opponents: Array) -> void:
 	var dmg: int = _ab(caster, AF_ULT, "dmg")
@@ -3826,7 +7384,15 @@ func _static_grid(caster: UnitBase) -> void:
 	grid_owner_is_player = caster.is_player_unit
 	static_grid_channel_time = _abf(caster, AF_ULT, "lock")
 	static_grid_channel_caster = caster
-	_spawn_skill_effect_sized(SkillEffect.Type.LIGHTNING, caster.global_position, 100.0)
+	if caster.has_method("play_ult_oneshot"):
+		caster.play_ult_oneshot()
+	_spawn_static_point(StaticVFX.Mode.AUTO_MUZZLE, caster.global_position, 0.65)
+	if _static_grid_vfx and is_instance_valid(_static_grid_vfx):
+		_static_grid_vfx.queue_free()
+	if skill_effect_container and battle_grid:
+		_static_grid_vfx = StaticVFX.new()
+		skill_effect_container.add_child(_static_grid_vfx)
+		_static_grid_vfx.setup_grid(battle_grid, grid_field_time + 0.35)
 	action_logged.emit("%s electrifies the entire field!" % caster.unit_name, caster.is_player_unit)
 
 func _reed_confluence(caster: UnitBase, allies: Array) -> void:
@@ -3843,13 +7409,14 @@ func _reed_confluence(caster: UnitBase, allies: Array) -> void:
 			_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, a.global_position, 34.0)
 	action_logged.emit("%s channels the confluence! (x%.1f)" % [caster.unit_name, mult], caster.is_player_unit)
 
-func _vail_tailwind(caster: UnitBase, allies: Array) -> void:
-	for a in allies:
-		if a and is_instance_valid(a):
-			a.bonus_aspd_pct = maxf(a.bonus_aspd_pct, _abf(caster, AF_ULT, "aspd"))
-			a.bonus_aspd_time = maxf(a.bonus_aspd_time, _abf(caster, AF_ULT, "dur"))
-			_spawn_skill_effect_sized(SkillEffect.Type.OVERDRIVE, a.global_position, 26.0)
-	action_logged.emit("%s summons a tailwind!" % caster.unit_name, caster.is_player_unit)
+func _vail_downburst(caster: UnitBase, opponents: Array) -> void:
+	var slow_pct: float = _abf(caster, AF_ULT, "slow")
+	var dur: float = _abf(caster, AF_ULT, "dur")
+	for e in opponents:
+		if e and is_instance_valid(e):
+			apply_slow(e, slow_pct, dur)
+			_spawn_skill_effect_sized(SkillEffect.Type.DOWNBURST, e.global_position, 30.0, 1.0)
+	action_logged.emit("%s slams a downburst on the enemy team!" % caster.unit_name, caster.is_player_unit)
 
 func _spore_release(caster: UnitBase, opponents: Array) -> void:
 	# Registry stores the band ends (0.2 and 1.5 stack multipliers folded in); the

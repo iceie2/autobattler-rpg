@@ -1,0 +1,23 @@
+{
+  "frame_w": 256,
+  "frame_h": 256,
+  "count": 8,
+  "cols": 8,
+  "rows": 1,
+  "fps": 12,
+  "hero": "vail",
+  "anim": "walk_east",
+  "source_video": "vail_walk_east.mp4",
+  "oneshot": false,
+  "source_picks": [
+    80,
+    83,
+    86,
+    89,
+    93,
+    96,
+    99,
+    102
+  ],
+  "auto_selected": true
+}

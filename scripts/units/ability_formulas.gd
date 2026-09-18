@@ -203,7 +203,7 @@ static func _spec() -> Dictionary:
 				"text": "Backs away; her next attack hits {boost} harder.",
 			},
 			ULTIMATE: {
-				"terms": [_f("dur", "Duration", 4.0, "sec")],
+				"terms": [_f("dur", "Duration", 7.0, "sec")],
 				"text": "She attacks twice per swing for {dur}.",
 			},
 		},
@@ -424,20 +424,29 @@ static func _spec() -> Dictionary:
 			},
 		},
 
-		# ── Stitch — MAG disruptor. Pure percentage kit: nothing scales.
+		# ── Stitch — MAG disruptor. Link capacity and transfer strength scale
+		# with MAG as explicit exceptions to the usual flat-effect rule.
 		C.STITCH: {
 			"scale": "magic_power",
 			PASSIVE: {
-				"terms": [_f("bleed", "Bleed share", 0.08, "pct")],
-				"text": "Damage to an enemy bleeds {bleed} onto each of its allies.",
+				"terms": [_f("convert", "Link damage to shield", 0.25, "pct")],
+				"text": "Gains shield equal to {convert} of transferred and rupture damage.",
 			},
 			ACTIVE: {
-				"terms": [_f("share", "Shared damage", 0.50, "pct")],
-				"text": "Ties two enemies: each takes {share} of the other's damage.",
+				"terms": [
+					_t("targets", "Linked enemies", "", 3.0, "num", "", false, false,
+						"floor_lerp:magic_power:0:500:3:6"),
+					_t("share", "Shared damage", "", 0.15, "pct", "", false, false,
+						"percent_lerp:magic_power:0:500:0.15:0.30"),
+				],
+				"text": "Links {targets} foes; each shares {share} of hits with linked foes.",
 			},
 			ULTIMATE: {
-				"terms": [_f("dur", "Duration", 4.0, "sec")],
-				"text": "The toughest enemy fights for your side for {dur}.",
+				"terms": [
+					_t("dmg", "Damage / endpoint", "magic_power", 1.35, "dmg"),
+					_f("stun", "Stun / rupture", 0.45, "sec"),
+				],
+				"text": "Breaks every link; endpoints take {dmg} and stun {stun}.",
 			},
 		},
 
@@ -489,7 +498,7 @@ static func _spec() -> Dictionary:
 					_t("thorns", "Thorns damage", "magic_power", 0.5, "dmg", "", true),
 					_f("dur", "Duration", 8.0, "sec"),
 				],
-				"text": "For {dur}, enemies take {thorns} each tile they move.",
+				"text": "Thorned ground for {dur}: {thorns}/s, and roots those inside.",
 			},
 		},
 
@@ -499,8 +508,21 @@ static func _spec() -> Dictionary:
 		C.CROSS: {
 			"scale": "attack_damage",
 			PASSIVE: {
-				"terms": [_f("share", "Damage healed", 0.15, "pct")],
-				"text": "Heals {share} of damage taken, and banks that much.",
+				# The "cap" term (2026-08-07) is the third attempt at Penance and
+				# the first that changes its SHAPE rather than its percentage
+				# (0.35 → 0.20 → 0.15 all failed; see auto_battle_manager).
+				# A pure %-of-damage-taken heal scales off the ATTACKER, so the
+				# harder something hit Cross the more unkillable he got — arena
+				# measured a level-1 Cross soloing the wave-100 Architect: 6.24M
+				# damage taken, 940k self-healed, finished at 100% HP. Capping
+				# each heal against Cross's OWN max HP re-anchors the passive to
+				# his statline: unchanged against normal hits (15% of a 100-hit
+				# is well under the cap), decisive against boss-sized ones.
+				"terms": [
+					_f("share", "Damage healed", 0.15, "pct"),
+					_t("cap", "Heal cap per hit", "max_hp", 0.06, "heal"),
+				],
+				"text": "Heals {share} of damage taken (max {cap}/hit), banking it.",
 			},
 			ACTIVE: {
 				"terms": [
@@ -540,8 +562,13 @@ static func _spec() -> Dictionary:
 				"terms": [
 					_t("floor", "Minimum burn", "magic_power", 0.2, "dmg", "", true),
 					_f("burst", "Instant burst", 2.0, "x"),
+					# Owns its duration now. It used to read the ACTIVE slot's
+					# "dur", so the panel never showed how long Conflagration
+					# burned for, and retuning Ignite silently retuned the
+					# ultimate. 5.0 is the value it was borrowing — no change.
+					_f("dur", "Burn duration", 5.0, "sec"),
 				],
-				"text": "Spreads the worst burn (min {floor}) to all, bursting {burst}.",
+				"text": "Spreads the worst burn (min {floor}) for {dur}, bursting {burst}.",
 			},
 		},
 
@@ -578,7 +605,7 @@ static func _spec() -> Dictionary:
 			},
 			ACTIVE: {
 				"terms": [_t("dmg", "Damage", "magic_power", 1.0, "dmg", "skill")],
-				"text": "Deals {dmg} and teleports the target to the far edge.",
+				"text": "Deals {dmg} and teleports the target to a random edge.",
 			},
 			ULTIMATE: {
 				"terms": [_t("dmg", "Damage", "magic_power", 1.0, "dmg", "ult")],
@@ -693,15 +720,19 @@ static func _spec() -> Dictionary:
 				"text": "Allies within {radius} tiles attack {aspd} faster.",
 			},
 			ACTIVE: {
-				"terms": [_f("dur", "Untargetable", 2.0, "sec")],
-				"text": "Lifts the weakest ally away {dur} - they cannot be hit.",
+				"terms": [
+					_f("dur", "Untargetable", 1.0, "sec"),
+					_t("regen", "Regen/s", "magic_power", 0.12, "heal", "", true),
+					_f("regen_dur", "Regen duration", 8.0, "sec"),
+				],
+				"text": "Tornado lifts the weakest ally airborne {dur} - untargetable, then regenerates {regen} HP/s for {regen_dur}.",
 			},
 			ULTIMATE: {
 				"terms": [
-					_f("aspd", "Attack speed", 0.50, "pct"),
-					_f("dur", "Duration", 6.0, "sec"),
+					_f("slow", "Slow", 0.35, "pct", true),
+					_f("dur", "Duration", 5.0, "sec"),
 				],
-				"text": "The whole team attacks {aspd} faster for {dur}.",
+				"text": "Slams a downburst on the enemy team, grounding them - {slow} slower for {dur}.",
 			},
 		},
 
@@ -778,10 +809,8 @@ static func value_of(unit: UnitBase, slot: String, term_id: String,
 	return 0.0
 
 
-# Class-level constant lookup for terms that outlive their caster. Stitch's Link
-# and Loose Threads both pay out through victims that may still be on the field
-# after the Stitch has died, so there is no unit to resolve against — but the
-# number still belongs in the registry rather than inline in the damage hook.
+# Class-level constant lookup for flat terms that outlive their caster. These
+# numbers still belong in the registry rather than inline in damage hooks.
 # Only valid for flat terms (no stat, no level scaling); returns 0.0 otherwise.
 static func flat(unit_class: int, slot: String, term_id: String) -> float:
 	var s := spec()
@@ -891,6 +920,11 @@ static func _apply_curve(unit: UnitBase, curve: String, overrides: Dictionary) -
 		var v: float = _stat(unit, parts[1], overrides)
 		var t: float = clampf(inverse_lerp(float(parts[2]), float(parts[3]), v), 0.0, 1.0)
 		return lerpf(float(parts[4]), float(parts[5]), t)
+	if parts.size() == 6 and parts[0] in ["floor_lerp", "percent_lerp"]:
+		var v: float = _stat(unit, parts[1], overrides)
+		var t: float = clampf(inverse_lerp(float(parts[2]), float(parts[3]), v), 0.0, 1.0)
+		var result: float = lerpf(float(parts[4]), float(parts[5]), t)
+		return floorf(result * 100.0) / 100.0 if parts[0] == "percent_lerp" else floorf(result)
 	push_warning("AbilityFormulas: unknown curve '%s'" % curve)
 	return 0.0
 

@@ -1,0 +1,23 @@
+{
+  "frame_w": 256,
+  "frame_h": 256,
+  "count": 8,
+  "cols": 8,
+  "rows": 1,
+  "fps": 12,
+  "hero": "rush",
+  "anim": "idle_south",
+  "source_video": "rush_idle.mp4",
+  "oneshot": false,
+  "source_picks": [
+    80,
+    84,
+    88,
+    92,
+    96,
+    100,
+    104,
+    108
+  ],
+  "auto_selected": true
+}

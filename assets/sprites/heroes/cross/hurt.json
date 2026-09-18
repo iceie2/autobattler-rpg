@@ -1,0 +1,32 @@
+{
+  "frame_w": 256,
+  "frame_h": 256,
+  "count": 18,
+  "cols": 18,
+  "rows": 1,
+  "fps": 12,
+  "hero": "cross",
+  "anim": "hurt",
+  "source_video": "cross_hit.mp4",
+  "oneshot": false,
+  "source_picks": [
+    70,
+    72,
+    73,
+    74,
+    76,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    92,
+    94,
+    97,
+    99,
+    101,
+    103,
+    105
+  ]
+}

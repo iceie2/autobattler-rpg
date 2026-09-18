@@ -19,9 +19,12 @@ class_name ShopGenerator
 # stays relevant as income grows. All numbers are arena-tunable.
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Which rounds the merchant appears on. Deliberately dodges elite rounds (5/15/25),
-# relic waves (1/11/21) and boss rounds (10/20/30) so big moments don't pile up.
-const MERCHANT_ROUNDS: Array[int] = [4, 8, 12, 16, 22, 26]
+# Which rounds the merchant appears on. Deliberately dodges elite rounds (5/15/25/.../95),
+# relic waves (1/11/21/.../91) and boss rounds (10/20/30/.../100) so big moments don't pile up.
+const MERCHANT_ROUNDS: Array[int] = [
+	4, 8, 12, 16, 22, 26, 32, 36, 42, 46, 52, 56,
+	62, 66, 72, 76, 82, 86, 92, 96,
+]
 
 # Inventory shape per visit (7 slots total — medium, StS-like).
 const N_HEROES := 2
@@ -33,8 +36,12 @@ const N_RELICS := 1
 const STAT_BASE  := 4                              # stat-upgrade base price
 const HERO_BASE  := 10                             # hero base (prep-shop hero is 10g flat — shop heroes are KNOWN rolls, that's the premium)
 const ITEM_BASE_BY_RARITY := [4, 7, 10, 14, 20]    # COMMON..LEGENDARY
-const RELIC_BASE_BY_GRADE := {"D": 8, "C": 12, "B": 16, "A": 22, "S": 30}
-const RELIC_BASE_DEFAULT  := 12
+# Relic bases ~1.8x'd 2026-08-07 (user: "relics are too cheap") — a relic is a
+# PERMANENT run-wide effect (see relic_system_design), and at 8-30g base a
+# round-4 C relic (14g) cost less than a single hero (10g) plus a coffee. Item
+# and hero bases untouched — those were never called out as underpriced.
+const RELIC_BASE_BY_GRADE := {"D": 14, "C": 22, "B": 30, "A": 40, "S": 55}
+const RELIC_BASE_DEFAULT  := 22
 
 # Grade → price multiplier (shared by heroes' letter grades and any letter path).
 # Mirrors the F–S quality steps used by perks/recruits/relics everywhere else.
@@ -42,7 +49,11 @@ const GRADE_PRICE_MULT := {
 	"F": 0.6, "D": 0.75, "C": 1.0, "B": 1.3, "A": 1.7, "S": 2.4,
 }
 
-const ROUND_PRICE_SCALE := 0.04   # +4% per round; keeps late shops meaningful
+# 0.04 -> 0.05 (2026-08-07 user: "price of items should also factor in the
+# round" — items/relics/heroes/stats already ALL run through round_scale()
+# below via _price(), this just steepens the existing curve a bit rather than
+# adding a second mechanism).
+const ROUND_PRICE_SCALE := 0.05
 const SALE_MULT := 0.55           # the one sale slot: ~45% off
 # Reroll: escalates WITHIN a visit (resets next shop). 3, 5, 7, 9 ...
 const REROLL_BASE := 3

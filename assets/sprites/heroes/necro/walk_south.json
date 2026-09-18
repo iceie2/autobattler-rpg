@@ -1,0 +1,23 @@
+{
+  "frame_w": 256,
+  "frame_h": 256,
+  "count": 8,
+  "cols": 8,
+  "rows": 1,
+  "fps": 12,
+  "hero": "necro",
+  "anim": "walk_south",
+  "source_video": "necro_walk_south.mp4",
+  "oneshot": false,
+  "source_picks": [
+    80,
+    82,
+    85,
+    87,
+    89,
+    91,
+    94,
+    96
+  ],
+  "auto_selected": true
+}

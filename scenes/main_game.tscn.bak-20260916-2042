@@ -1,0 +1,1279 @@
+[gd_scene load_steps=23 format=3 uid="uid://c2qx8ydlq8vny"]
+
+[ext_resource type="Script" uid="uid://g0qrs80ptukf" path="res://scripts/core/main_game.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://dy2nsxf8t0l4p" path="res://scripts/combat/background_layer.gd" id="3_bg"]
+
+[sub_resource type="StyleBoxFlat" id="TopBarStyle"]
+bg_color = Color(0.15, 0.15, 0.2, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 2
+border_color = Color(0.3, 0.3, 0.4, 1)
+
+[sub_resource type="StyleBoxFlat" id="ActionPanelStyle"]
+bg_color = Color(0.12, 0.12, 0.18, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.4, 0.5, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="ButtonNormal"]
+bg_color = Color(0.2, 0.2, 0.3, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.4, 0.4, 0.5, 0.8)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="ButtonPressed"]
+bg_color = Color(0.15, 0.15, 0.25, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2, 0.2, 0.3, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="ButtonHover"]
+bg_color = Color(0.3, 0.3, 0.4, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.6, 0.6, 0.7, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="ButtonReadyNormal"]
+bg_color = Color(0.3, 0.15, 0.15, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.7, 0.3, 0.3, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="ButtonReadyHover"]
+bg_color = Color(0.4, 0.2, 0.2, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.9, 0.4, 0.4, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="TeamPanelStyle"]
+bg_color = Color(0.1, 0.1, 0.16, 0.97)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.35, 0.35, 0.5, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="PlayerBarBg"]
+bg_color = Color(0.08, 0.18, 0.09, 1)
+
+[sub_resource type="StyleBoxFlat" id="PlayerBarFill"]
+bg_color = Color(0.2, 0.78, 0.3, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="EnemyBarBg"]
+bg_color = Color(0.18, 0.07, 0.07, 1)
+
+[sub_resource type="StyleBoxFlat" id="EnemyBarFill"]
+bg_color = Color(0.82, 0.18, 0.18, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="BottomBarStyle"]
+bg_color = Color(0.15, 0.15, 0.2, 0.9)
+border_width_left = 1
+border_width_top = 2
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.3, 0.3, 0.4, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+
+[sub_resource type="StyleBoxFlat" id="DetailsPanelStyle"]
+bg_color = Color(0.12, 0.12, 0.18, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5, 0.4, 0.6, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 4
+
+[sub_resource type="StyleBoxFlat" id="DPortraitFrame"]
+content_margin_left = 3.0
+content_margin_top = 3.0
+content_margin_right = 3.0
+content_margin_bottom = 3.0
+bg_color = Color(0.06, 0.06, 0.1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.5, 0.4, 0.6, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="DChip"]
+content_margin_left = 8.0
+content_margin_top = 2.0
+content_margin_right = 8.0
+content_margin_bottom = 2.0
+bg_color = Color(0.2, 0.2, 0.3, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.45, 0.45, 0.6, 0.9)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="DBarBG"]
+bg_color = Color(0.08, 0.08, 0.12, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="DBarHP"]
+bg_color = Color(0.2, 0.78, 0.3, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="DBarMP"]
+bg_color = Color(0.25, 0.4, 0.9, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="DBarXP"]
+bg_color = Color(0.85, 0.65, 0.1, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="MainGame" type="Node2D"]
+script = ExtResource("1_main")
+
+[node name="GameState" type="Node" parent="."]
+
+[node name="Background" type="Node2D" parent="."]
+position = Vector2(480, 60)
+script = ExtResource("3_bg")
+
+[node name="BattleGrid" type="Node2D" parent="."]
+position = Vector2(480, 60)
+
+[node name="AutoBattleManager" type="Node" parent="."]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="TopBar" type="Panel" parent="UI"]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 450.0
+offset_bottom = 120.0
+theme_override_styles/panel = SubResource("TopBarStyle")
+
+[node name="GoldLabel" type="Label" parent="UI/TopBar"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 12.0
+offset_right = 220.0
+offset_bottom = 46.0
+theme_override_colors/font_color = Color(1, 0.84, 0, 1)
+theme_override_font_sizes/font_size = 22
+text = "💰 0"
+
+[node name="CrystalsLabel" type="Label" parent="UI/TopBar"]
+layout_mode = 0
+offset_left = 230.0
+offset_top = 12.0
+offset_right = 432.0
+offset_bottom = 46.0
+theme_override_colors/font_color = Color(0.4, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 22
+text = "💎 0"
+
+[node name="RoundLabel" type="Label" parent="UI/TopBar"]
+layout_mode = 0
+offset_left = 18.0
+offset_top = 60.0
+offset_right = 220.0
+offset_bottom = 94.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "Round: 0"
+
+[node name="StateLabel" type="Label" parent="UI/TopBar"]
+layout_mode = 0
+offset_left = 230.0
+offset_top = 60.0
+offset_right = 432.0
+offset_bottom = 94.0
+theme_override_colors/font_color = Color(0, 1, 0, 1)
+theme_override_font_sizes/font_size = 20
+text = "PLAYER TURN"
+horizontal_alignment = 2
+
+[node name="ActionPanel" type="Panel" parent="UI"]
+offset_left = 1470.0
+offset_top = 10.0
+offset_right = 1910.0
+offset_bottom = 222.0
+theme_override_styles/panel = SubResource("ActionPanelStyle")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/ActionPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 7.0
+offset_right = -8.0
+offset_bottom = -13.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="ActionToggleBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/hover = SubResource("ButtonHover")
+text = "PLAYER ACTIONS  ▼"
+
+[node name="spawn_heroBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 28
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/hover = SubResource("ButtonHover")
+text = "Buy Hero (10g) [B]"
+
+[node name="UseItemsBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 26
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/hover = SubResource("ButtonHover")
+text = "Use Items"
+
+[node name="ClassesBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 26
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/hover = SubResource("ButtonHover")
+text = "View Classes"
+
+[node name="RosterBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 26
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/hover = SubResource("ButtonHover")
+text = "View Roster"
+
+[node name="HSeparator" type="HSeparator" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+
+[node name="ReadyBtn" type="Button" parent="UI/ActionPanel/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 42
+theme_override_styles/normal = SubResource("ButtonReadyNormal")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/hover = SubResource("ButtonReadyHover")
+text = "READY FOR BATTLE"
+
+[node name="TeamStatsPanel" type="Panel" parent="UI"]
+offset_left = 10.0
+offset_top = 135.0
+offset_right = 450.0
+offset_bottom = 177.0
+theme_override_styles/panel = SubResource("TeamPanelStyle")
+
+[node name="VBox" type="VBoxContainer" parent="UI/TeamStatsPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 10.0
+offset_right = -12.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 5
+
+[node name="TeamToggleBtn" type="Button" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/hover = SubResource("ButtonHover")
+text = "TEAM STATUS  ▶"
+
+[node name="HSep1" type="HSeparator" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+
+[node name="PlayerTeamLabel" type="Label" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.9, 0.45, 1)
+theme_override_font_sizes/font_size = 22
+text = "Your Team"
+
+[node name="PlayerHPBar" type="ProgressBar" parent="UI/TeamStatsPanel/VBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+theme_override_styles/background = SubResource("PlayerBarBg")
+theme_override_styles/fill = SubResource("PlayerBarFill")
+value = 100.0
+show_percentage = false
+
+[node name="PlayerHPLabel" type="Label" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.9, 0.65, 1)
+theme_override_font_sizes/font_size = 11
+text = "— / — HP  (0 units)"
+horizontal_alignment = 1
+
+[node name="PlayerUnitList" type="VBoxContainer" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="HSep2" type="HSeparator" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+
+[node name="EnemyTeamLabel" type="Label" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.38, 0.38, 1)
+theme_override_font_sizes/font_size = 13
+text = "Enemy Team"
+
+[node name="EnemyHPBar" type="ProgressBar" parent="UI/TeamStatsPanel/VBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+theme_override_styles/background = SubResource("EnemyBarBg")
+theme_override_styles/fill = SubResource("EnemyBarFill")
+value = 100.0
+show_percentage = false
+
+[node name="EnemyHPLabel" type="Label" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.65, 0.65, 1)
+theme_override_font_sizes/font_size = 11
+text = "— / — HP  (0 units)"
+horizontal_alignment = 1
+
+[node name="EnemyUnitList" type="VBoxContainer" parent="UI/TeamStatsPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="DamageMeterPanel" type="Panel" parent="UI"]
+offset_left = 1470.0
+offset_top = 240.0
+offset_right = 1910.0
+offset_bottom = 282.0
+theme_override_styles/panel = SubResource("TeamPanelStyle")
+
+[node name="DMVBox" type="VBoxContainer" parent="UI/DamageMeterPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 6.0
+offset_right = -12.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+
+[node name="DMToggleBtn" type="Button" parent="UI/DamageMeterPanel/DMVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.75, 0.3, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/hover = SubResource("ButtonHover")
+text = "DAMAGE METER  ▶"
+
+[node name="DMTabRow" type="HBoxContainer" parent="UI/DamageMeterPanel/DMVBox"]
+visible = false
+layout_mode = 2
+
+[node name="AllyTabBtn" type="Button" parent="UI/DamageMeterPanel/DMVBox/DMTabRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.35, 0.92, 0.45, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/hover = SubResource("ButtonHover")
+text = "Allies"
+
+[node name="EnemyTabBtn" type="Button" parent="UI/DamageMeterPanel/DMVBox/DMTabRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.95, 0.38, 0.38, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/hover = SubResource("ButtonHover")
+text = "Enemies"
+
+[node name="DMScroll" type="ScrollContainer" parent="UI/DamageMeterPanel/DMVBox"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DMList" type="VBoxContainer" parent="UI/DamageMeterPanel/DMVBox/DMScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="EventHistoryPanel" type="Panel" parent="UI"]
+offset_left = 1470.0
+offset_top = 555.0
+offset_right = 1910.0
+offset_bottom = 597.0
+theme_override_styles/panel = SubResource("TeamPanelStyle")
+
+[node name="EHVBox" type="VBoxContainer" parent="UI/EventHistoryPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 6.0
+offset_right = -12.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+
+[node name="EHToggleBtn" type="Button" parent="UI/EventHistoryPanel/EHVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/hover = SubResource("ButtonHover")
+text = "EVENT HISTORY  ▶"
+
+[node name="EHScroll" type="ScrollContainer" parent="UI/EventHistoryPanel/EHVBox"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="EHList" type="VBoxContainer" parent="UI/EventHistoryPanel/EHVBox/EHScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="BottomBar" type="Panel" parent="UI"]
+offset_left = 466.0
+offset_top = 1038.0
+offset_right = 1454.0
+offset_bottom = 1078.0
+theme_override_styles/panel = SubResource("BottomBarStyle")
+
+[node name="InfoLabel" type="Label" parent="UI/BottomBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -3.0
+offset_top = -5.0
+offset_right = -3.0
+offset_bottom = -5.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "Click on the grid to place units. Use action buttons during your turn."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="UnitDetailsPanel" type="Panel" parent="UI"]
+visible = false
+offset_left = 190.0
+offset_top = 40.0
+offset_right = 850.0
+offset_bottom = 1040.0
+theme_override_styles/panel = SubResource("DetailsPanelStyle")
+
+[node name="Margin" type="MarginContainer" parent="UI/UnitDetailsPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 10
+
+[node name="ScrollContainer" type="ScrollContainer" parent="UI/UnitDetailsPanel/Margin"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Root" type="VBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="TitleBar" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/TitleBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 26
+text = "Unit Details"
+
+[node name="CloseBtn" type="Button" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/TitleBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.6, 1)
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+text = "X"
+
+[node name="Sep0" type="HSeparator" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+
+[node name="Header" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PortraitFrame" type="PanelContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header"]
+custom_minimum_size = Vector2(76, 76)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("DPortraitFrame")
+
+[node name="Portrait" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/PortraitFrame"]
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="HeaderInfo" type="VBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 5
+
+[node name="UnitName" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.6, 1)
+theme_override_font_sizes/font_size = 18
+text = "Unit Name"
+
+[node name="ChipRow" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ClassChip" type="PanelContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("DChip")
+
+[node name="ClassLabel" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow/ClassChip"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "Class"
+
+[node name="ElementChip" type="PanelContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("DChip")
+
+[node name="EChipRow" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow/ElementChip"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ElementIcon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow/ElementChip/EChipRow"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ElementLabel" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow/ElementChip/EChipRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Element"
+
+[node name="LevelChip" type="PanelContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("DChip")
+
+[node name="LevelLabel" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow/LevelChip"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
+theme_override_font_sizes/font_size = 12
+text = "Lv 1"
+
+[node name="ChipSpacer" type="Control" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ItemBag" type="GridContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/h_separation = 3
+theme_override_constants/v_separation = 3
+columns = 6
+
+[node name="Sep1" type="HSeparator" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+
+[node name="Vitals" type="VBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="HPBar" type="ProgressBar" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Vitals"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+theme_override_styles/background = SubResource("DBarBG")
+theme_override_styles/fill = SubResource("DBarHP")
+value = 100.0
+show_percentage = false
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Vitals/HPBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.85)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 20
+text = "HP"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MPBar" type="ProgressBar" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Vitals"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+theme_override_styles/background = SubResource("DBarBG")
+theme_override_styles/fill = SubResource("DBarMP")
+value = 100.0
+show_percentage = false
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Vitals/MPBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.85)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 20
+text = "MP"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="XPBar" type="ProgressBar" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Vitals"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+theme_override_styles/background = SubResource("DBarBG")
+theme_override_styles/fill = SubResource("DBarXP")
+show_percentage = false
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/Vitals/XPBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.85)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 10
+text = "XP"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Sep2" type="HSeparator" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+
+[node name="SkillHeader" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.8, 1)
+theme_override_font_sizes/font_size = 22
+text = "SKILL"
+
+[node name="SkillRow" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SkillIcon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow"]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="SkillTextCol" type="VBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SkillName" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow/SkillTextCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.85, 0.4, 1)
+theme_override_font_sizes/font_size = 24
+text = "-"
+
+[node name="SkillDesc" type="RichTextLabel" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/SkillRow/SkillTextCol"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+theme_override_colors/default_color = Color(0.82, 0.82, 0.9, 1)
+theme_override_font_sizes/normal_font_size = 20
+text = "-"
+[node name="Sep3" type="HSeparator" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+
+[node name="CombatHeader" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.8, 1)
+theme_override_font_sizes/font_size = 22
+text = "COMBAT"
+
+[node name="CombatGrid" type="GridContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 6
+columns = 2
+
+[node name="CellAtk" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellAtk"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellAtk"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellDef" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellDef"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellDef"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellMag" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellMag"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellMag"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellAspd" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellAspd"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellAspd"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellHpRegen" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellHpRegen"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellHpRegen"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellMpRegen" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellMpRegen"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellMpRegen"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellMove" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellMove"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellMove"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellRange" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellRange"]
+custom_minimum_size = Vector2(16, 16)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/CombatGrid/CellRange"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="Sep4" type="HSeparator" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+
+[node name="AffinityRow" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="AffinityCol" type="VBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AffinityHeader" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.8, 1)
+theme_override_font_sizes/font_size = 22
+text = "ELEMENTAL AFFINITY"
+
+[node name="AffinityGrid" type="GridContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol"]
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 4
+columns = 7
+
+[node name="Corner" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+
+[node name="IconNormal" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="IconFire" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="IconWater" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="IconEarth" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="IconAir" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="IconLightning" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 26)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="AtkHdr" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.55, 0.75, 1)
+theme_override_font_sizes/font_size = 10
+text = "ATK"
+vertical_alignment = 1
+
+[node name="AtkNormal" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+horizontal_alignment = 1
+
+[node name="AtkFire" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+horizontal_alignment = 1
+
+[node name="AtkWater" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+horizontal_alignment = 1
+
+[node name="AtkEarth" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+horizontal_alignment = 1
+
+[node name="AtkAir" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+horizontal_alignment = 1
+
+[node name="AtkLightning" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+horizontal_alignment = 1
+
+[node name="DefHdr" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.55, 0.75, 1)
+theme_override_font_sizes/font_size = 10
+text = "DEF"
+vertical_alignment = 1
+
+[node name="DefNormal" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+horizontal_alignment = 1
+
+[node name="DefFire" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+horizontal_alignment = 1
+
+[node name="DefWater" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+horizontal_alignment = 1
+
+[node name="DefEarth" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+horizontal_alignment = 1
+
+[node name="DefAir" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+horizontal_alignment = 1
+
+[node name="DefLightning" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/AffinityCol/AffinityGrid"]
+custom_minimum_size = Vector2(26, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "-"
+horizontal_alignment = 1
+
+[node name="VSep1" type="VSeparator" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow"]
+layout_mode = 2
+
+[node name="GrowthCol" type="VBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="GrowthHeader" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.8, 1)
+theme_override_font_sizes/font_size = 22
+text = "GROWTH / LEVEL"
+
+[node name="GrowthGrid" type="GridContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol"]
+layout_mode = 2
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 5
+columns = 2
+
+[node name="CellGHp" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGHp"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGHp"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellGAtk" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGAtk"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGAtk"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellGMana" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGMana"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGMana"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellGMag" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGMag"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGMag"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellGDef" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGDef"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGDef"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellGAspd" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGAspd"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGAspd"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellGHpRegen" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGHpRegen"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGHpRegen"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 20
+text = "-"
+
+[node name="CellGMpRegen" type="HBoxContainer" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGMpRegen"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Value" type="Label" parent="UI/UnitDetailsPanel/Margin/ScrollContainer/Root/AffinityRow/GrowthCol/GrowthGrid/CellGMpRegen"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 20
+text = "-"
+
