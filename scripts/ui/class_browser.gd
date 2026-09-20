@@ -465,7 +465,7 @@ const CLASSES := [
 			"every Water-aspect unit on your side (the payoff for a water comp)."
 		),
 		"lore": "A river hermit who rewards committing to water. The more of the team flows " +
-			"with her, the bigger Confluence heals."
+			"with him, the bigger Confluence heals."
 	},
 	{
 		"name": "Vail", "unit_class": UnitBase.UnitClass.VAIL,

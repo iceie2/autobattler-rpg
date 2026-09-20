@@ -9,9 +9,9 @@ signal chosen(relic)
 signal reroll_requested()
 
 const PANEL_W := 1000.0
-const PANEL_H := 560.0
+const PANEL_H := 440.0
 const CARD_W  := 290.0
-const CARD_H  := 360.0
+const CARD_H  := 260.0
 
 # ── Slot-machine reveal pacing (2026-07-21, restaggered same day) — shared
 # with hero_shop/level_up_screen. Only 2 reels here (relics have no numeric
@@ -132,7 +132,7 @@ func _make_card(relic: Dictionary, idx: int) -> Button:
 	# Description (wrapped)
 	var desc := Label.new()
 	desc.position             = Vector2(24, 182)
-	desc.size                 = Vector2(CARD_W - 48, 140)
+	desc.size                 = Vector2(CARD_W - 48, 70)
 	UITheme.apply_font(desc, UITheme.FONT_VALUE)
 	desc.add_theme_color_override("font_color", Color(0.82, 0.82, 0.92))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

@@ -128,6 +128,136 @@ NAME_MAP = {
                                           # for (visual_unit.gd), not "ultimate".
     # "Knock_Down" -> death, "Running" -> walk and "Walking" -> walk_slow are
     # already mapped above and apply unchanged.
+
+    # Vail (2026-09-19). Air-support healer, range 4. Every pick was
+    # constrained by her ankle-length wrap gown: the gown is skinned to the
+    # legs, so lunges, high knees and wide stances tear it. That rejected most
+    # of the CastingSpell set (126/131/132/133/135 all lunge) in favour of the
+    # planted, upright ones.
+    "Idle_7": "idle",                     # action 247
+    "mage_soell_cast_7": "attack",        # action 136 -- an upright two-hand
+                                          # push, not a swing: she is range 4
+                                          # at aspd 0.70, so a slow cast.
+    "mage_soell_cast": "skill",           # action 129 -- Updraft. The arm
+                                          # sweeps 0.67 -> 1.79 in 9 frames,
+                                          # which IS the ally being lifted.
+    "dying_backwards": "death",           # action 189 -- legs stay together
+                                          # through the fall, unlike Knock_Down
+    "Grip_and_Throw_Down": "ult",         # action 389 -- Downburst. Cross's
+                                          # Charged_Ground_Slam (127) was tried
+                                          # first and rejected: the slam pitches
+                                          # the whole torso over and tore the
+                                          # gown at 2.91x (tools/model3d/
+                                          # skirt_stress.py). This one throws
+                                          # downward from a standing pose --
+                                          # hips drop 6% against the slam's
+                                          # 49% -- so the gesture survives.
+    # "Charged_Ground_Slam" -> ult (Cross's action 127, reused here as
+    # Downburst: raise and slam = enemies grounded) and "Hit_Reaction_1" ->
+    # hurt and "running" -> walk are already mapped above.
+
+    # Lumen (2026-09-19). Lightning magic carry, range 5 -- the longest in the
+    # roster -- at aspd 0.72, so every offensive clip is a planted ranged CAST,
+    # never a melee swing. His kit is one light source split many ways (passive
+    # arcs to a 2nd enemy, skill chains 5 at -15%/bounce, ult hits the whole
+    # field), so the three casts were picked to read apart BY MEASUREMENT, not
+    # by eye -- hand spread and hand height over the hips, per frame:
+    #     attack  spread 0.25 (hands together)  z 0.62   forward channel
+    #     skill   spread 1.33 (arms wide)       z 0.45   beam fanning out
+    #     ult     spread 0.65                   z 0.92   raised overhead
+    # A 5x spread split and a 2x height split is what makes them distinguishable
+    # at 115 px; Vail's report left exactly this question open with no numbers.
+    "Idle_11": "idle",                    # action 251 -- stands dead still,
+                                          # arms at sides. He is a hollow suit
+                                          # of armour; a human weight-shift
+                                          # idle would read as someone alive
+                                          # being inside it.
+    # BOTH KEYS BELOW CARRY A "_lumen" SUFFIX, renamed in his raw/_merge staged
+    # copies. The bare names collided with Reed, added later the same week:
+    # Reed maps bare "mage_soell_cast_8" -> skill and bare "mage_soell_cast_1"
+    # -> ult. NAME_MAP is one dict, so the later entries won and a Lumen re-merge
+    # would have lost "attack" entirely. His shipped .glb predates Reed and is
+    # correct; this keeps the merge REPRODUCIBLE. Same fix as the ult key below.
+    "mage_soell_cast_8_lumen": "attack",  # action 137, trimmed f2-f26
+    "mage_soell_cast_1_lumen": "skill",   # action 130, trimmed f13-f37 -- the
+                                          # window where the arms FLING wide
+                                          # (spread 0.55 -> 1.27), not the
+                                          # later frames where they merely sit
+                                          # wide. You have to see them travel.
+    "Electrocuted_Fall": "death",         # action 181 -- an electric construct
+                                          # losing its arc. Trimmed f88-f113:
+                                          # the source holds 28 frames of dead
+                                          # static after f126.
+    "Charged_Spell_Cast_lumen": "ult",    # action 125, trimmed f38-f62.
+                                          # RENAMED IN THE STAGED COPY, not
+                                          # here: the raw key "Charged_Spell_Cast"
+                                          # is already Cross's SKILL above, and
+                                          # NAME_MAP is global, so mapping the
+                                          # bare key to "ult" would silently
+                                          # change Cross. The raw f20-f36 is
+                                          # dead hold (travel 0.006-0.03) and
+                                          # f16-f36 is a deep kneel; the trim
+                                          # window skips both and keeps only
+                                          # the overhead raise.
+    # "Hit_Reaction_1" -> hurt, "running" -> walk and "walking_man" -> walk_slow
+    # are already mapped above and apply unchanged.
+
+    # Reed (2026-09-19). Anthropomorphic frog river hermit, WATER healer,
+    # range 4 at aspd 0.66 -- the slowest attacker on the roster, so his auto is
+    # a measured cast, not a swing. Picks deliberately avoid Vail's so the two
+    # casters do not share motion. His robe ends mid-shin with the feet clear,
+    # so he tolerates a wider stance than her floor-length gown does.
+    "Long_Breathe_and_Look_Around": "idle",   # action 336 -- still and upright
+    "mage_soell_cast_3": "attack",            # action 132 -- a directed forward
+                                              # push. Replaced action 134
+                                              # ("mage_soell_cast_5", kept in
+                                              # raw/ as the alternative), which
+                                              # reads as a hunch on him even
+                                              # after the arm retarget: the
+                                              # problem there is the TORSO, and
+                                              # retarget_arms.py only fixes arms.
+    "mage_soell_cast_8": "skill",             # action 137 -- Cleanse. A calm
+                                              # HOLD, not a big gesture: the
+                                              # hands travel only 0.1 units
+                                              # across the whole clip, so the
+                                              # VFX has to carry this beat.
+    "mage_soell_cast_1": "ult",               # action 130 -- Confluence. Arms
+                                              # throw WIDE open to the team.
+    # No key collides with Vail's (_7 attack, bare skill) or Lumen's.
+    # "dying_backwards" -> death is already mapped above.
+    #
+    # CORRECTION 2026-09-20: the line above was wrong -- bare "mage_soell_cast_8"
+    # and "mage_soell_cast_1" DID collide with Lumen, who had them as attack and
+    # skill. NAME_MAP is one dict, so these later entries won and a Lumen re-merge
+    # lost "attack". Fixed by suffixing LUMEN's two keys "_lumen" (see his block);
+    # Reed's bare keys here are unchanged and still correct for Reed.
+
+    # Lordee (2026-09-20). Undead pirate captain -- a hollow suit of clothes with
+    # a violet soul inside. FIGHTER, range 1 melee, cutlass on weapon_r. First
+    # MELEE hero built since the coat-vs-lunge problem was understood, so every
+    # pick was screened against his knee-length coat tail from the free preview
+    # GIFs BEFORE spending:
+    #   238 Axe Spin Attack was the natural fit for the skill (a spin reads as
+    #   "slams everything within 2 tiles") and was REJECTED UNSPENT -- it pitches
+    #   the torso fully over, which is what collapsed Vail's gown at 2.91x.
+    # The three picks below all keep the torso upright and the feet close.
+    "Right_Hand_Sword_Slash": "attack",   # action 219 -- right-handed, which is
+                                          # the hand weapon_r hangs off. Measured
+                                          # RightHand height peaks 0.62 while the
+                                          # hand spread narrows to 0.13: the
+                                          # sword arm extends, the off hand tucks.
+                                          # Trimmed f5-f29.
+    "Charged_Slash": "skill",             # action 242 -- a wide horizontal sweep
+                                          # from a PLANTED stance, spread cycling
+                                          # 0.10 <-> 0.98. Trimmed f9-f33.
+    "Thrust_Slash": "ult",                # action 240 -- a forward run-through,
+                                          # which is the blink-in ATK steal.
+                                          # Trimmed f15-f39.
+    # "Idle_7" -> idle, "Hit_Reaction_1" -> hurt, "dying_backwards" -> death,
+    # "running" -> walk and "walking_man" -> walk_slow are already mapped above.
+    # dying_backwards is doubly right here: it keeps the legs together through
+    # the fall (kind to the coat), and a hollow suit of clothes dropping flat
+    # when the soul leaves it is the death this character should have.
 }
 
 

@@ -604,6 +604,61 @@ signal shield_changed(current: int)        # shield value changed (absorbed dama
 func _ready():
 	update_visuals()
 
+# ── Negative effects: ONE canonical definition ───────────────────────────────
+#
+# THE CONTRACT: when a new negative effect is added to this class, add its timer
+# here and reset its companion fields in `clear_debuffs()`. Nothing else needs
+# to change — every cleanse in the game reads this list.
+#
+# WHY. Before this existed the same partial list was copy-pasted in three
+# places (Reed's Cleanse, Cross's Absolution, the round reset) and they had
+# already drifted apart: Reed's passive faded slow/burn/root, his active also
+# cleared bleed, and neither touched stun — which is the debuff a player most
+# expects a cleanse to answer. Both abilities claim to remove "all debuffs".
+# The roster is still growing per element, so a hand-maintained list in each
+# ability would drift again by the next hero.
+#
+# NOT IN THIS LIST, deliberately:
+#   • outgoing_dmg_mult / outgoing_dmg_time — Pastor GRANTS this as a damage
+#     BUFF. Only a value below 1.0 is a penalty, handled explicitly below.
+#   • untargetable_time / melee_untargetable_time / bonus_* — beneficial.
+#   • drain_stolen — the theft persists by design and is restored only when the
+#     Stat Stealer dies (see restore_stat_theft). Cleansing the TIMER stops
+#     further loss, which is the correct scope for a cleanse.
+const DEBUFF_TIMERS: Array[String] = [
+	"stun_time", "burn_time", "bleed_time", "slow_time", "root_time",
+	"taunt_time", "weakened_time", "heal_cut_time", "drain_time", "puppet_time",
+]
+
+## Remove every negative effect. Used by any "cleanse" ability.
+func clear_debuffs() -> void:
+	for t in DEBUFF_TIMERS:
+		set(t, 0.0)
+	# Companion fields. A timer at 0 with a live dps/pct behind it is a bug
+	# waiting for the next thing that re-arms the timer without resetting them.
+	burn_dps = 0.0;  burn_accum = 0.0;  burn_source = null
+	bleed_dps = 0.0; bleed_accum = 0.0; bleed_source = null
+	slow_pct = 0.0
+	taunt_source = null
+	weakened_pct = 0.0; weaken_flavor = ""
+	drain_stat = ""; drain_per_sec = 0.0; drain_accum = 0.0
+	spore_stacks = 0.0; spore_tick_accum = 0.0
+	# Only when it is actually a penalty — see the note above.
+	if outgoing_dmg_mult < 1.0:
+		outgoing_dmg_mult = 1.0
+		outgoing_dmg_time = 0.0
+
+## Shorten every negative effect by `seconds`, without removing it outright.
+## Reed's Wellspring uses this so "debuffs fade faster" covers the same set his
+## Cleanse strips, instead of the two disagreeing about what a debuff is.
+func fade_debuffs(seconds: float) -> void:
+	if seconds <= 0.0:
+		return
+	for t in DEBUFF_TIMERS:
+		var v: float = get(t)
+		if v > 0.0:
+			set(t, maxf(v - seconds, 0.0))
+
 # Magic-typed damage: identical pipeline, mitigated by magic_resist instead of
 # armor. Use this for any hit whose amount scales off the caster's magic_power.
 func take_magic_damage(amount: int, element: Element = Element.NORMAL, attacker = null) -> void:
@@ -1016,6 +1071,17 @@ func spawn_projectile(target, damage: int, is_magic: bool = false, is_crit: bool
 	projectile.caster = self   # so on_reach_target can credit damage_dealt
 	projectile.is_goblin_arrow = str(get_meta("sprite_folder", "")) == "goblin_archer"
 	projectile.is_goblin_shaman_orb = str(get_meta("sprite_folder", "")).begins_with("goblin_shaman_")
+	projectile.is_vail_gust = unit_class == UnitClass.VAIL
+	if projectile.is_vail_gust:
+		# Muzzle beat at Vail herself. Spawned here rather than in the battle
+		# manager because this is the one place that knows a shot was actually
+		# fired — the manager's skill path never runs for a basic attack.
+		var vail_fx_host = battle_manager.skill_effect_container \
+			if battle_manager.skill_effect_container else battle_manager
+		if vail_fx_host:
+			var muzzle := VailVFX.new()
+			vail_fx_host.add_child(muzzle)
+			muzzle.setup_point(VailVFX.Mode.GUST_MUZZLE, global_position, 0.30, self)
 	projectile.focus_stacks = int(get_meta("ff_stacks", 0)) if projectile.is_goblin_arrow else 0
 	projectile.spawn_delay = PROJECTILE_MUZZLE_DELAY.get(unit_class, 0.0)
 	if unit_class == UnitClass.STATIC:

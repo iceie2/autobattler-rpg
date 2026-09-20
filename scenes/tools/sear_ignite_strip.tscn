@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/tools/sear_ignite_strip.gd" id="1_sis"]
+[ext_resource type="Script" path="res://scripts/tools/captures/sear_ignite_strip.gd" id="1_sis"]
 
 [node name="SearIgniteStrip" type="Node2D"]
 script = ExtResource("1_sis")

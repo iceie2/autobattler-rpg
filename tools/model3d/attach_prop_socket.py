@@ -58,6 +58,56 @@ EPS = 1e-5
 TAIL_FRAC = 0.15
 
 
+def _assert_export_moves(path, min_channels=8, min_degrees=5.0):
+    """Re-read the EXPORTED glb and confirm its animation actually moves.
+
+    Pure struct/json parsing — no Blender state involved — because the whole
+    point is to check the artefact on disk rather than the scene we think we
+    exported. Counts rotation channels whose quaternion samples deviate from
+    their first key; a rest-mode export yields exactly zero.
+    """
+    import math
+    import struct
+    try:
+        with open(path, "rb") as f:
+            f.read(12)
+            jlen, _ = struct.unpack("<II", f.read(8))
+            j = json.loads(f.read(jlen))
+            blen, _ = struct.unpack("<II", f.read(8))
+            blob = f.read(blen)
+    except Exception as e:                                  # pragma: no cover
+        return {"pass": False, "error": "could not re-read export: %s" % e}
+
+    def samples(idx):
+        a = j["accessors"][idx]
+        bv = j["bufferViews"][a["bufferView"]]
+        off = bv.get("byteOffset", 0) + a.get("byteOffset", 0)
+        n = {"SCALAR": 1, "VEC3": 3, "VEC4": 4}[a["type"]]
+        return [struct.unpack_from("<" + "f" * n, blob, off + k * n * 4)
+                for k in range(a["count"])]
+
+    worst = {}
+    for anim in j.get("animations", []):
+        moving, peak = 0, 0.0
+        for ch in anim["channels"]:
+            if ch["target"]["path"] != "rotation":
+                continue
+            vs = samples(anim["samplers"][ch["sampler"]]["output"])
+            q0 = vs[0]
+            dev = max(2.0 * math.degrees(math.acos(
+                min(1.0, abs(sum(a * b for a, b in zip(q0, q)))))) for q in vs)
+            if dev > 1.0:
+                moving += 1
+                peak = max(peak, dev)
+        worst[anim.get("name", "?")] = {"moving": moving, "peak_deg": round(peak, 1)}
+
+    bad = {k: v for k, v in worst.items()
+           if v["moving"] < min_channels or v["peak_deg"] < min_degrees}
+    return {"pass": not bad, "per_clip": worst, "failing": bad,
+            "note": ("a clip with 0 moving channels means the armature was "
+                     "exported in REST mode")}
+
+
 def args():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     o = {"in": None, "out": None, "map": "", "json": None, "save_blend": ""}
@@ -284,17 +334,48 @@ def main():
     A["actions_intact"] = {"pass": after_actions == R["actions_before"],
                            "before": R["actions_before"], "after": after_actions}
 
+    # BACK TO POSE BEFORE THE SAVE, not just before the export. Everything above
+    # runs in REST because that is what makes a socket bone's rest matrix its own
+    # bind matrix. But a master saved in REST hands REST to every tool that opens
+    # it afterwards — nudge_socket.py then re-exports flat, and the fix applied
+    # only at export time here is silently undone one step later. Measured on
+    # Riot, 2026-09-18: the socket export was correct and the nudge that followed
+    # was dead.
+    arm.data.pose_position = "POSE"
+    bpy.context.view_layer.update()
+
     if o["save_blend"]:
         bpy.ops.wm.save_as_mainfile(filepath=o["save_blend"])
         R["saved_blend"] = o["save_blend"]
 
     # ---- export -----------------------------------------------------------
+    # BACK TO POSE FIRST. Everything above runs with pose_position = "REST",
+    # because that is what makes the socket bone's rest matrix its own bind
+    # matrix and conserves the prop's placement exactly. But the glTF exporter
+    # SAMPLES the evaluated depsgraph: exporting while still in REST writes a
+    # flat channel for every bone on every frame, so the model arrives in Godot
+    # animated-but-motionless.
+    #
+    # This is not hypothetical. Riot shipped that way on 2026-09-18 — 78
+    # channels present, 0 of them moving, 48 identical cells in the probe sheet
+    # — and Rift lost days to the identical failure upstream. `actions_intact`
+    # does NOT catch it: the Blender actions really are intact, it is only the
+    # EXPORT that is dead. Hence the assertion below, which measures the file
+    # that was actually written.
+    arm.data.pose_position = "POSE"
+    bpy.context.view_layer.update()
     try:
         bpy.ops.export_scene.gltf(filepath=o["out"], export_format="GLB",
                                   export_animations=True, use_selection=False)
         A["export_glb"] = {"pass": True, "path": o["out"]}
     except Exception as e:
         A["export_glb"] = {"pass": False, "error": str(e)}
+
+    # Prove the written GLB still MOVES. Re-reads the exported file and counts
+    # rotation channels whose samples actually vary, so "the export is flat" can
+    # never pass silently again.
+    if A.get("export_glb", {}).get("pass"):
+        A["export_animation_moves"] = _assert_export_moves(o["out"])
 
     R["all_pass"] = all(v.get("pass") for v in A.values())
     if o["json"]:

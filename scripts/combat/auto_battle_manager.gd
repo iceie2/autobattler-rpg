@@ -163,6 +163,8 @@ const STORM_GIANT_REACH := 210.0   # 2x2 body — the biggest footprint so far
 # Crushing Blow commits; Bloodrage is a binary state with a trigger beat.
 var _orc_crushes: Array = []
 var _orc_rage_vfx: Dictionary = {}
+var _forge_fury_vfx: Dictionary = {}
+const FIRE_GIANT_REACH := 150.0   # 2x2 body, same as the Sky Wyvern
 const ORC_CRUSH_CONTACT := 0.46   # heavy overhead slam — between the Bear and the Hill Giant
 const ORC_LUNGE_LEAD := 0.13
 const ORC_REACH := 104.0
@@ -268,6 +270,14 @@ signal unit_action(unit, action_type: String)
 signal action_logged(text: String, is_player: bool)   # event-history feed
 signal pace_changed(is_paused: bool, scale: float)
 signal unit_summoned(unit: UnitBase)
+# A unit brought back to life MID-FIGHT (currently only Doc's Field Surgery).
+# This manager keeps its OWN roster arrays, rebuilt from the grid by
+# collect_units — main_game keeps a separate, authoritative one for the whole
+# run. Fixing only this manager's copy left the hero out of main_game's team
+# for good: no reposition, no dragging, missing from save_run, and eventually
+# queue_free()'d by the middle-row sweep (2026-09-19 tester report). This is
+# the counterpart to `died`, which main_game already listens to.
+signal unit_revived(unit: UnitBase)
 # Momentary camera zoom-punch toward `world_pos`, held for `hold_time` seconds
 # then eased back out. Battles have no player-facing lever (see the Long Fall
 # / boss-fairness notes above), so this is pure spectacle — a beat like the
@@ -614,6 +624,7 @@ func _tick_global_effects(dt: float) -> void:
 	_tick_nemi_tide_seqs(dt)
 	_tick_nemi_tidal_waves(dt)
 	_tick_nemi_pending_ult_casts()
+	_tick_vail_slams(dt)
 	_tick_bloodhound_pending_ult_casts()
 	_tick_goblin_shanks(dt)
 	_tick_shaman_mends(dt)
@@ -721,6 +732,7 @@ func _clear_board_effects() -> void:
 			w["effect"].queue_free()
 	_nemi_tidal_waves.clear()
 	_nemi_pending_ult_casts.clear()
+	_vail_slams.clear()
 	_bloodhound_pending_ult_casts.clear()
 	_goblin_shanks.clear()
 	for fx in _goblin_pack_vfx.values():
@@ -757,6 +769,7 @@ func _clear_board_effects() -> void:
 	_clear_coral_actions()
 	_clear_gargoyle_actions()
 	_clear_wyvern_actions()
+	_clear_fire_giant_actions()
 	for fx in _sheildor_barriers.values():
 		if fx and is_instance_valid(fx):
 			fx.queue_free()
@@ -1353,12 +1366,12 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 				unit.set_meta("aura_tick_t", AURA_TICK_INTERVAL)
 				for ally in allies:
 					if ally and is_instance_valid(ally) and ally != unit:
-						if unit.grid_position.distance_to(ally.grid_position) <= 3.0:
+						if unit.grid_position.distance_to(ally.grid_position) <= _abf(unit, AF_PASSIVE, "radius"):
 							ally.hp_regen_accum += _abf(unit, AF_PASSIVE, "regen") * AURA_TICK_INTERVAL
-							var fade: float = AURA_TICK_INTERVAL * _abf(unit, AF_PASSIVE, "cleanse")
-							if ally.slow_time > 0.0: ally.slow_time -= fade
-							if ally.burn_time > 0.0: ally.burn_time -= fade
-							if ally.root_time > 0.0: ally.root_time -= fade
+							# Same canonical set his Cleanse strips. The old
+							# version faded only slow/burn/root, so the passive
+							# and the active disagreed about what a debuff is.
+							ally.fade_debuffs(AURA_TICK_INTERVAL * _abf(unit, AF_PASSIVE, "cleanse"))
 
 		UnitBase.UnitClass.RIFT:
 			# "Backlash" has no tick of its own — it resolves in the on-being-hit
@@ -1400,7 +1413,11 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 						if unit.grid_position.distance_to(v_ally.grid_position) <= _abf(unit, AF_PASSIVE, "radius"):
 							v_ally.bonus_aspd_pct = maxf(v_ally.bonus_aspd_pct, vail_bonus)
 							v_ally.bonus_aspd_time = maxf(v_ally.bonus_aspd_time, 0.35)
-							_spawn_skill_effect_sized(SkillEffect.Type.WIND_GLIMMER, v_ally.global_position, 20.0, 1.1)
+							# Follows the ally: the buff is on THEM, and a tailwind
+							# left behind on the tile they just vacated reads as a
+							# puddle rather than as haste.
+							_spawn_vail_point(VailVFX.Mode.AURA_PULSE,
+								v_ally.global_position, 1.1, v_ally)
 
 		UnitBase.UnitClass.SPORE:
 			# Spore Cloud: enemies within 2 cells accrue stacks; burst handled in _tick_statuses.
@@ -1808,12 +1825,16 @@ func _use_skill(caster: UnitBase, opponents: Array, allies: Array = []) -> void:
 	# one-shot particle burst, so skip the generic spawn for him too.
 	# Rift spawns his own paired TEAR_SEAM in _rift_tear; the generic burst here
 	# was a second SHADOW_STRIKE (the shared Thief/Zombie/Bat flash) on top of it.
+	# Vail spawns her own GUST_MUZZLE cast beat in _vail_updraft. Without this
+	# she ALSO fired the generic burst, and her effect_type was HOLY_LIGHT — a
+	# gold holy flash on the roster's AIR healer, on top of her own tornado.
 	if caster.unit_class != UnitBase.UnitClass.BOUNCER \
 			and caster.unit_class != UnitBase.UnitClass.HEADHUNTER \
 			and caster.unit_class != UnitBase.UnitClass.STATIC \
 			and caster.unit_class != UnitBase.UnitClass.RIFT \
 			and caster.unit_class != UnitBase.UnitClass.JUNE \
 			and caster.unit_class != UnitBase.UnitClass.SEAR \
+			and caster.unit_class != UnitBase.UnitClass.VAIL \
 			and caster.unit_class != UnitBase.UnitClass.SHEILDOR:
 		_spawn_skill_effect(effect_type, caster.global_position)
 
@@ -2692,11 +2713,15 @@ func _is_orc(u: UnitBase) -> bool:
 
 func _begin_orc_crush(caster: UnitBase, target: UnitBase) -> void:
 	caster.set_meta("hill_giant_committed", true)
-	var fx: OrcVFX = null
+	var fx = null
 	if skill_effect_container and _is_orc(caster):
 		fx = OrcVFX.new()
 		skill_effect_container.add_child(fx)
 		fx.setup_on(OrcVFX.Mode.CRUSH_WINDUP, caster, _crush_vfx_reach(caster), ORC_CRUSH_CONTACT)
+	elif skill_effect_container and _is_fire_giant(caster):
+		fx = FireGiantVFX.new()
+		skill_effect_container.add_child(fx)
+		fx.setup_on(FireGiantVFX.Mode.SMASH_WINDUP, caster, FIRE_GIANT_REACH, ORC_CRUSH_CONTACT)
 	_orc_crushes.append({"caster": caster, "target": target,
 		"time": ORC_CRUSH_CONTACT, "effect": fx, "lunged": false})
 
@@ -2732,6 +2757,10 @@ func _tick_orc_crushes(dt: float) -> void:
 			var ifx := OrcVFX.new()
 			skill_effect_container.add_child(ifx)
 			ifx.setup_point(OrcVFX.Mode.CRUSH_IMPACT, target.global_position, _crush_vfx_reach(caster), 0.46)
+		elif _is_fire_giant(caster):
+			var gfx := FireGiantVFX.new()
+			skill_effect_container.add_child(gfx)
+			gfx.setup_point(FireGiantVFX.Mode.SMASH_IMPACT, target.global_position, FIRE_GIANT_REACH, 0.50)
 		else:
 			_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, target.global_position, 30.0)
 
@@ -2765,6 +2794,41 @@ func _clear_orc_actions() -> void:
 	for fx in _orc_rage_vfx.values():
 		if fx and is_instance_valid(fx): fx.queue_free()
 	_orc_rage_vfx.clear()
+
+# ── Molten Smash + Forge Fury (Fire Giant) ───────────────────────────────────
+# Rides `brute_crush` and `orc_rage`, both already fixed for the Orc, so it
+# inherits the range gate, the committed contact frame and the post-mitigation
+# damage credit. What it had no version of was a LOOK: both its abilities are
+# named differently from the Orc's, so the name-match rule says it must not
+# borrow the Orc's slam.
+func _is_fire_giant(u: UnitBase) -> bool:
+	return bool(u.get_meta("fire_giant", false))
+
+# Forge Fury is BINARY (below 50% HP) exactly like Bloodrage, and was equally
+# silent: a 2300 HP round-6 anchor quietly gained +20% damage and +15% attack
+# speed with nothing on screen.
+func _sync_forge_fury_vfx(unit: UnitBase, enraged: bool) -> void:
+	if not skill_effect_container:
+		return
+	var id: int = unit.get_instance_id()
+	var fx: FireGiantVFX = _forge_fury_vfx.get(id)
+	if enraged:
+		if not (fx and is_instance_valid(fx)):
+			var burst := FireGiantVFX.new()
+			skill_effect_container.add_child(burst)
+			burst.setup_on(FireGiantVFX.Mode.FORGE_TRIGGER, unit, FIRE_GIANT_REACH, 0.55)
+			fx = FireGiantVFX.new()
+			skill_effect_container.add_child(fx)
+			fx.setup_on(FireGiantVFX.Mode.FORGE_FURY, unit, FIRE_GIANT_REACH, INF)
+			_forge_fury_vfx[id] = fx
+	elif fx and is_instance_valid(fx):
+		fx.queue_free()
+		_forge_fury_vfx.erase(id)
+
+func _clear_fire_giant_actions() -> void:
+	for fx in _forge_fury_vfx.values():
+		if fx and is_instance_valid(fx): fx.queue_free()
+	_forge_fury_vfx.clear()
 
 # ── Gore Rush + Savage Charge (Minotaur) ─────────────────────────────────────
 # Gore Rush reuses `windup_punch` (Wind-Up Bot) and Savage Charge reuses
@@ -4617,6 +4681,33 @@ func _in_team_zone(is_player: bool, pos: Vector2i) -> bool:
 	var gh: int = battle_grid.grid_height if battle_grid else 9
 	return (pos.y >= gh - 4 and pos.y < gh) if is_player else (pos.y >= 0 and pos.y < 4)
 
+# Nearest free cell to `near` that lies inside `unit`'s OWN team zone, preferring
+# the unit's formation slot when that happens to be free. Used by anything that
+# puts a unit back on the board mid-fight, where landing on the divider row or in
+# the enemy half has consequences that outlive the round (main_game sweeps the
+# divider at every wave spawn, and the player can't drag a hero out of the enemy
+# half). _nearest_open_adjacent / _nearest_open_cell_to are unconstrained and are
+# the wrong tool for that job.
+func _open_cell_in_zone_near(unit: UnitBase, near: Vector2i) -> Vector2i:
+	if battle_grid == null:
+		return Vector2i(-1, -1)
+	if _in_team_zone(unit.is_player_unit, unit.home_position) \
+			and not battle_grid.is_cell_occupied(unit.home_position):
+		return unit.home_position
+	var y0: int = (battle_grid.grid_height - 4) if unit.is_player_unit else 0
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for y in range(y0, y0 + 4):
+		for x in range(battle_grid.grid_width):
+			var c := Vector2i(x, y)
+			if not battle_grid.is_valid_position(c) or battle_grid.is_cell_occupied(c):
+				continue
+			var d: float = Vector2(c).distance_to(Vector2(near))
+			if d < best_d:
+				best_d = d
+				best = c
+	return best
+
 func _spawn_summon(summoner: UnitBase, summon_class: UnitBase.UnitClass) -> void:
 	# Find an open cell close to summoner (towards enemies)
 	var forward_y: int = -1 if summoner.is_player_unit else 1
@@ -6083,6 +6174,8 @@ func _tick_mob_passive(unit: UnitBase, opponents: Array, allies: Array, dt: floa
 			# and keep their existing silent behaviour until their own passes.
 			if _is_orc(unit):
 				_sync_orc_rage_vfx(unit, enraged)
+			elif _is_fire_giant(unit):
+				_sync_forge_fury_vfx(unit, enraged)
 
 		"bear_fury":
 			# Fury: aspd ramps with missing HP, up to +30%.
@@ -6572,8 +6665,12 @@ func _june_root(caster: UnitBase, opponents: Array) -> void:
 func _cross_absolution(caster: UnitBase, allies: Array) -> void:
 	var tar := _lowest_hp_ally(caster, allies, float(caster.skill_range), true)
 	if not tar: return
-	tar.slow_time = 0.0; tar.burn_time = 0.0; tar.bleed_time = 0.0; tar.root_time = 0.0
-	tar.taunt_time = 0.0; tar.taunt_source = null
+	# Absolution is a cleanse too, so it uses the canonical list rather than its
+	# own copy. NOTE: this is a real POWER INCREASE for Cross — he now also
+	# clears stun, weaken, heal-cut, drain, puppet and spore, same as Reed.
+	# Keeping two different definitions of "all debuffs" is what let them drift
+	# in the first place.
+	tar.clear_debuffs()
 	var h: int = _ab(caster, AF_ACTIVE, "hp") + _ab(caster, AF_ACTIVE, "res")
 	tar.heal(h)
 	caster.combat_healing_done += h
@@ -6705,12 +6802,13 @@ func _static_tripwire(caster: UnitBase, opponents: Array) -> void:
 func _reed_cleanse(caster: UnitBase, allies: Array) -> void:
 	var tar := _lowest_hp_ally(caster, allies, float(caster.skill_range), true)
 	if not tar: return
-	tar.slow_time = 0.0; tar.burn_time = 0.0; tar.bleed_time = 0.0; tar.root_time = 0.0
-	tar.taunt_time = 0.0; tar.taunt_source = null
+	# "Strips ALL debuffs" — so it uses the canonical list rather than a local
+	# one. The old inline version missed stun, weaken, heal-cut, drain, puppet
+	# and spore; stun in particular is the debuff the tooltip most implies.
+	tar.clear_debuffs()
 	var h: int = _ab(caster, AF_ACTIVE, "heal")
 	tar.heal(h)
 	caster.combat_healing_done += h
-	_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, tar.global_position, 40.0)
 
 func _vail_updraft(caster: UnitBase, allies: Array) -> void:
 	var tar := _lowest_hp_ally(caster, allies, 99.0, false)
@@ -6719,7 +6817,12 @@ func _vail_updraft(caster: UnitBase, allies: Array) -> void:
 	tar.untargetable_time = maxf(tar.untargetable_time, lift_dur)
 	tar.bonus_regen_amt = maxf(tar.bonus_regen_amt, _abf(caster, AF_ACTIVE, "regen"))
 	tar.bonus_regen_time = maxf(tar.bonus_regen_time, _abf(caster, AF_ACTIVE, "regen_dur"))
-	_spawn_skill_effect_sized(SkillEffect.Type.TORNADO, tar.global_position, 34.0, lift_dur)
+	# Follows the lifted ally, and holds for the whole lift — UPDRAFT_LIFT is
+	# authored as a loop rather than a burst for exactly this.
+	_spawn_vail_point(VailVFX.Mode.UPDRAFT_LIFT, tar.global_position, lift_dur, tar)
+	# A cast beat on Vail herself, so the ability visibly originates from her
+	# rather than just appearing on the ally.
+	_spawn_vail_point(VailVFX.Mode.GUST_MUZZLE, caster.global_position, 0.34, caster)
 	if tar.has_method("play_updraft_lift"):
 		tar.play_updraft_lift(lift_dur)
 
@@ -6760,9 +6863,12 @@ func _doc_field_surgery(caster: UnitBase, allies: Array) -> void:
 				caster.combat_healing_done += h
 				_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, a.global_position, 36.0)
 		return
-	var cell := _nearest_open_adjacent(caster.grid_position)
-	if cell == Vector2i(-1, -1):
-		cell = _nearest_open_cell_to(caster.grid_position)
+	# The landing cell must be in the revived hero's OWN half. This used to be
+	# _nearest_open_adjacent, which has no team-zone constraint, so a Doc holding
+	# the front player row — flanks and back covered by its own team, i.e. the
+	# ordinary case — revived onto the DIVIDER row. main_game._clear_middle_row
+	# then swept that row at the next wave spawn (2026-09-19 tester report).
+	var cell := _open_cell_in_zone_near(downed, caster.grid_position)
 	if cell == Vector2i(-1, -1):
 		# No room right now — leave them down; the round-end revival still gets them.
 		fallen_allies.append(downed)
@@ -6770,7 +6876,10 @@ func _doc_field_surgery(caster: UnitBase, allies: Array) -> void:
 	caster.revive_used = true
 	downed.revive(_abf(caster, AF_ULT, "revive"))
 	downed.grid_position = cell
-	downed.home_position = cell   # slots back in here next round
+	# home_position is deliberately NOT rewritten. It is the slot the PLAYER
+	# chose, and reset_player_positions already falls back on its own when that
+	# cell is taken. Stamping a battle cell into it silently relocated the hero
+	# for the rest of the run — onto the divider, in the case above.
 	if battle_grid.place_unit(downed, cell):
 		# The node was never removed from the scene tree and its `died` signal is
 		# still wired from its original recruit, so this only has to put it back
@@ -6779,6 +6888,9 @@ func _doc_field_surgery(caster: UnitBase, allies: Array) -> void:
 			if downed not in player_units: player_units.append(downed)
 		elif downed not in enemy_units:
 			enemy_units.append(downed)
+		# main_game keeps the run's authoritative roster and has no other way to
+		# learn this hero is back — see the signal's declaration.
+		unit_revived.emit(downed)
 		downed.position = _world_pos_for(downed, cell)
 		_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, downed.global_position, 60.0)
 		action_logged.emit("%s revives %s!" % [caster.unit_name, downed.unit_name], caster.is_player_unit)
@@ -7415,8 +7527,42 @@ func _vail_downburst(caster: UnitBase, opponents: Array) -> void:
 	for e in opponents:
 		if e and is_instance_valid(e):
 			apply_slow(e, slow_pct, dur)
-			_spawn_skill_effect_sized(SkillEffect.Type.DOWNBURST, e.global_position, 30.0, 1.0)
+			# Three beats, not one flash: pressure gathers overhead, the column
+			# lands, then the slow stays readable for its whole 5s. A single
+			# burst gave the team-wide ultimate less presence on screen than a
+			# basic attack.
+			_spawn_vail_point(VailVFX.Mode.DOWNBURST_MARK, e.global_position, 0.30, e)
+			_queue_vail_slam(e, 0.30)
+			_spawn_vail_point(VailVFX.Mode.GROUNDED_RESIDUE, e.global_position, dur, e)
 	action_logged.emit("%s slams a downburst on the enemy team!" % caster.unit_name, caster.is_player_unit)
+
+# ── Vail VFX (moving air) ─────────────────────────────────────────────────────
+func _spawn_vail_point(kind: VailVFX.Mode, world_pos: Vector2, life: float,
+		follow: Node2D = null) -> VailVFX:
+	var fx := VailVFX.new()
+	(skill_effect_container if skill_effect_container else self).add_child(fx)
+	fx.setup_point(kind, world_pos, life, follow)
+	return fx
+
+# The slam has to land AFTER its telegraph, and a per-enemy timer node would
+# leak if the battle ends mid-cast. Queued here and drained by _tick_vail_slams,
+# which the same _clear_transient_state that empties Nemi's sequences clears.
+var _vail_slams: Array = []
+
+func _queue_vail_slam(victim: UnitBase, delay: float) -> void:
+	_vail_slams.append({"victim": victim, "t": delay})
+
+func _tick_vail_slams(dt: float) -> void:
+	for i in range(_vail_slams.size() - 1, -1, -1):
+		var s: Dictionary = _vail_slams[i]
+		s["t"] = float(s["t"]) - dt
+		var v = s["victim"]
+		if not (v and is_instance_valid(v)):
+			_vail_slams.remove_at(i)
+			continue
+		if float(s["t"]) <= 0.0:
+			_spawn_vail_point(VailVFX.Mode.DOWNBURST_SLAM, v.global_position, 0.70, v)
+			_vail_slams.remove_at(i)
 
 func _spore_release(caster: UnitBase, opponents: Array) -> void:
 	# Registry stores the band ends (0.2 and 1.5 stack multipliers folded in); the

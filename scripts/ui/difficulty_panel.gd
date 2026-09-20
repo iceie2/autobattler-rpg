@@ -20,6 +20,7 @@ var _rewards_by_diff: Dictionary = {}
 # every matchup, so telling the player what to do would flatten real depth.
 var _dossier_name: Label
 var _dossier_comp: Label
+var _heading_lbl: Label
 
 # Difficulty button art (2026-07-04, user-picked tiles from the pixel-button
 # sheet — see assets/UI/Pixel Buttom.png, 32px grid). Each button is a 2-tile
@@ -110,8 +111,9 @@ func _build_ui() -> void:
 	_dossier_comp.visible = false
 	add_child(_dossier_comp)
 
-	# Heading
+	# Heading (held in a member so briefing mode can retitle it)
 	var heading := Label.new()
+	_heading_lbl = heading
 	heading.text = "ENEMY DIFFICULTY"
 	if font:
 		heading.add_theme_font_override("font", font)
@@ -219,12 +221,32 @@ func _build_ui() -> void:
 	_build_tooltip()
 
 func _on_difficulty_button_pressed(diff: int) -> void:
-	if diff == current_difficulty:
+	if briefing_only or diff == current_difficulty:
 		return
 	current_difficulty = diff
 	_update_button_colors()
 	_refresh_reward_display()
 	difficulty_selected.emit(diff)
+
+# ── Briefing mode (2026-09-19, RUN_MAP_PLAN §3.4) ─────────────────────────────
+# When the run map is driving, INTENSITY IS A PATHING CHOICE: you picked it on
+# the map, before the board was dealt. This panel then stops being a picker and
+# becomes the briefing — the wave dossier and the reward that the node you chose
+# has already rolled. The tier buttons stay on screen (they're how the player
+# reads which tier they took) but no longer take input.
+#
+# The dossier is the part that MUST survive the move: placement legibility was
+# measured as the real gap (see the placement_sensitivity work), and a map that
+# took the dossier away would trade a measured win for a new feature.
+var briefing_only: bool = false
+
+func set_briefing_only(on: bool) -> void:
+	briefing_only = on
+	for b in _diff_btns:
+		if b:
+			b.mouse_default_cursor_shape = Control.CURSOR_ARROW if on else Control.CURSOR_POINTING_HAND
+	if _heading_lbl:
+		_heading_lbl.text = "THIS FIGHT" if on else "ENEMY DIFFICULTY"
 
 func set_panel_visible(show: bool) -> void:
 	visible = show
@@ -415,12 +437,12 @@ func _update_button_colors() -> void:
 	# is re-synced here too since main_game sets current_difficulty directly
 	# (e.g. resetting to EASY each round) without going through the click
 	# handler, and the ButtonGroup's own auto-untoggle only fires on click.
-	# The selected button's power number is hidden while it stays pressed
-	# (its own pressed art already signals selection) and reappears once a
-	# different difficulty is chosen.
+	# Keep every power number visible, including the selected tier. The map
+	# promised this exact threat value, so the battle briefing should confirm it
+	# rather than replacing the number with an empty pressed tile.
 	for i in range(_diff_btns.size()):
 		var btn: Button = _diff_btns[i]
 		var selected: bool = (i == current_difficulty)
 		btn.modulate = Color(1, 1, 1) if selected else Color(0.6, 0.6, 0.6)
 		btn.button_pressed = selected
-		btn.text = "" if selected else "%d" % int(_power_by_diff.get(i, 0.0))
+		btn.text = "%d" % int(_power_by_diff.get(i, 0.0))

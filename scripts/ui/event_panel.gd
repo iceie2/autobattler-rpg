@@ -48,6 +48,7 @@ var _desc: Label
 var _art: TextureRect
 var _choices_box: VBoxContainer
 var _resolution: Label
+var _grade_lbl: Label          # the outcome-grade reel (see show_resolution)
 var _current_event: EventBlessing = null
 var _choice_buttons: Array[Button] = []
 
@@ -92,12 +93,20 @@ func _build_ui() -> void:
 	_resolution = _lbl(_panel, "", 22, Color.WHITE, Vector2.ZERO, Vector2(CHOICE_W, 60), true)
 	_resolution.visible = false
 
+	# The grade reel's landing spot — one-per-screen hero text, so it takes the
+	# display step of the type scale rather than a hand-picked number.
+	_grade_lbl = _lbl(_panel, "", UITheme.FONT_DISPLAY, Color.WHITE,
+		Vector2.ZERO, Vector2(CHOICE_W, 52), true)
+	_grade_lbl.visible = false
+
 	visible = false
 
 func show_event(event: EventBlessing) -> void:
 	_current_event = event
 	if _resolution:
 		_resolution.visible = false   # clear any leftover outcome from last event
+	if _grade_lbl:
+		_grade_lbl.visible = false
 	if _choices_box:
 		_choices_box.visible = true   # re-show choices (hidden after last resolution)
 	_refresh_display()
@@ -178,15 +187,44 @@ func _make_choice_button(choice, index: int) -> Button:
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(title)
 
-	if choice.description != "":
+	# A graded choice has no effects yet (they're rolled at pick time), so it
+	# advertises its BAND instead of a number — and the line is colored by how
+	# risky that band is: green "sure thing", orange spread, purple gamble.
+	var line: String = choice.button_line()
+	if line != "":
 		var outcome := Label.new()
-		outcome.text = choice.description
+		outcome.text = line
 		outcome.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		UITheme.apply_font(outcome, UITheme.body_font(11))
-		outcome.add_theme_color_override("font_color", _outcome_color(choice.effects))
+		outcome.add_theme_color_override("font_color", _choice_line_color(choice))
 		outcome.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		col.add_child(outcome)
 	return btn
+
+# Colour the preview line by WHAT THE CHOICE DOES, same axis as the old fixed
+# events (gain / cost / trade-off / gamble). A catalog choice has no effects
+# dict until it resolves, so the colour comes from its resolver kind instead;
+# how risky the roll is already reads in the preview TEXT ("graded F–S"), and
+# putting risk on the colour too would mean two scales fighting for one cue.
+const KIND_COLOR_COST := ["gold_cost", "damage", "team_curse", "destroy_items", "debt"]
+const KIND_COLOR_GAIN := ["gold", "item", "perk", "heal", "team_buff", "hero_xp",
+	"level_up", "team_size", "shop_discount", "shop_sales"]
+
+func _choice_line_color(choice) -> Color:
+	if choice.kind != "":
+		if choice.kind == "gamble":
+			return OUT_GAMBLE
+		# Scars and wave modifiers are trade-offs by definition — something for
+		# something — so they read in the same colour as a combo, not as a
+		# straight gain.
+		if choice.kind in ["combo", "scar", "next_wave"]:
+			return OUT_MIXED
+		if choice.kind in KIND_COLOR_COST:
+			return OUT_COST
+		if choice.kind in KIND_COLOR_GAIN:
+			return OUT_GAIN
+		return OUT_NEUTRAL
+	return _outcome_color(choice.effects)
 
 # Classify a choice's effects: pure gain (green), pure cost (red), trade-off
 # (orange), coin-flip gamble (purple), or nothing (muted).
@@ -222,14 +260,44 @@ func _on_choice_selected(choice_index: int) -> void:
 	event_choice_made.emit(choice_index)
 
 # Swap the choice buttons for the outcome line, hold ~1.4s, then close.
-func show_resolution(text: String, good: bool) -> void:
+#
+# 2026-09-19: a graded choice lands its LETTER first, on the same slot-machine
+# reel recruits/perks/relics use (GradeRoll), and only then reads out what the
+# letter bought. The reel's candidate pool is the choice's band, not the whole
+# alphabet — flashing an S on a "safe" choice would be lying about the odds.
+func show_resolution(text: String, good: bool, grade: String = "", band: String = "") -> void:
 	_choices_box.visible = false
 	_resolution.visible = true
+
+	# The choices leave a hole exactly their own height, so the resolution beat
+	# is centred IN that hole rather than pinned to where the first button was.
+	# Pinning put the grade letter on top of the description line (the panel is
+	# sized for its choices, so the first button starts right under the text).
+	var top: float = _choices_box.position.y
+	var bottom: float = _panel.size.y - 24.0
+	var mid: float = (top + bottom) * 0.5
+	var x: float = _choices_box.position.x
+	var reel: bool = grade != "" and EventGrade.has_reel(band)
+	_resolution.position = Vector2(x, mid + (6.0 if reel else -20.0))
+
+	if reel:
+		_grade_lbl.visible = true
+		_grade_lbl.position = Vector2(x, mid - 62.0)
+		_resolution.text = ""
+		var paint := func(g: String) -> void:
+			_grade_lbl.text = g
+			_grade_lbl.add_theme_color_override("font_color", EventGrade.color(g))
+		var punch := func() -> void: GradeRoll.land_punch(_grade_lbl)
+		await GradeRoll.spin(_grade_lbl, EventGrade.reel_pool(band), grade, paint,
+			0.0, 14, 0.04, 1.15, punch)
+	else:
+		_grade_lbl.visible = false
+
 	_resolution.text = text
 	_resolution.add_theme_color_override("font_color",
 		Color(0.55, 1.0, 0.6) if good else Color(1.0, 0.55, 0.5))
-	_resolution.position = _choices_box.position + Vector2(0, 8)
 	await get_tree().create_timer(1.4).timeout
+	_grade_lbl.visible = false
 	visible = false
 	resolved.emit()
 

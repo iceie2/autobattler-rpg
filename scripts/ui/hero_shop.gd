@@ -303,6 +303,13 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	UITheme.apply_rich_font(sub_rt, UITheme.body_font(13))
 	btn.add_child(sub_rt)
 
+	# Tactical identity belongs beside the name, before the player starts
+	# parsing ability prose. Rank already owns the corner badge, so the subtitle
+	# is reserved for element and growth rather than repeating the same grade.
+	var role_lbl := _clbl(btn, _role_name(cls).to_upper(), 12,
+		Color(0.72, 0.74, 0.86), Vector2(0, y_name + 55), Vector2(CARD_W, 20), true)
+	role_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
 	# ── Slot-machine reveal sequencing (2026-07-21) ────────────────────────────
 	# Cards resolve strictly left to right: card N stays hidden until card N-1
 	# has fully finished all three of its reels (hero identity -> rank+color ->
@@ -314,7 +321,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 		badge_lbl, badge_bg, cls, elem, grade, avg_rel)
 
 	# ── Divider ───────────────────────────────────────────────────────────────
-	var div_y := y_name + 58.0
+	var div_y := y_name + 78.0
 	var div := ColorRect.new()
 	div.position = Vector2(16, div_y)
 	div.size     = Vector2(CARD_W - 32, 1)
@@ -342,102 +349,44 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	div_ult.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(div_ult)
 
-	# ── Stat roll table ───────────────────────────────────────────────────────
-	# Each row shows: LABEL   stat value   +growth-per-level
-	# We deliberately don't expose the base/bonus roll breakdown here (2026-07-04
-	# clarity pass, user request) — just the number and how much it goes up per
-	# level (can be negative from bad-roll effects).
-	var table_y := div_ult_y + 8.0
-	var ROW_H   := 22.0
-
-	# [roll_key, display_name, base_key, is_small_float]
-	var GROWTH_ROWS := [
-		["hp",        "HP",       "hp",        false],
-		["mana",      "MP",       "mana",      false],
-		["atk",       "ATK",      "atk",       false],
-		["magic",     "MAG",      "magic",     false],
-		["res",       "ARM",      "res",       false],   # rendered as an ARM|MR column pair below
-		["aspd",      "AS",       "aspd",      true],
-		["hpregen",   "HP/S",     "hpregen",   true],
-		["manaregen", "MP/S",     "manaregen", true],
+	# ── Compact stat footer ───────────────────────────────────────────────────
+	# The old eight-row spreadsheet competed with the abilities for attention.
+	# Keep the comparison stats available, but compress them into two quiet rows.
+	var footer_y := div_ult_y + 10.0
+	var stat_specs := [
+		["HP", "hp", "hp", false], ["ATK", "atk", "atk", false],
+		["MAG", "magic", "magic", false], ["ARM", "res", "res", false],
+		["MP", "mana", "mana", false], ["AS", "aspd", "aspd", true],
+		["SPD", "move", "move", false], ["RNG", "range", "range", false],
 	]
+	for s in range(stat_specs.size()):
+		var spec: Array = stat_specs[s]
+		var flat: float = float((stats_dict.get(spec[1], {}) as Dictionary).get("flat", 0.0))
+		var value: float = float(base.get(spec[2], 0.0))
+		value = value + flat if spec[1] in ["move", "range"] else value * (1.0 + flat)
+		var value_text := "%.2f" % value if bool(spec[3]) else str(int(round(value)))
+		var col: int = s % 4
+		var row: int = s / 4
+		_clbl(btn, "%s  %s" % [spec[0], value_text], 11,
+			Color(0.70, 0.71, 0.80), Vector2(18 + col * 94, footer_y + row * 23),
+			Vector2(88, 20), false)
 
-	var class_growth: Dictionary = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(cls, {})
-
-	var row_y := table_y
-	for row in GROWTH_ROWS:
-		var roll_key: String       = row[0]
-		var disp_name: String      = row[1]
-		var base_key: String       = row[2]
-		var is_small_float: bool   = row[3]
-
-		var roll_entry: Dictionary = stats_dict.get(roll_key, {"flat": 0.0, "growth": 1.0})
-		var class_base: float      = base.get(base_key, 0)
-		var flat: float            = roll_entry.get("flat", 0.0)
-		var current_val: float     = class_base * (1.0 + flat)
-
-		# Additive growth: fixed per-class amount + this recruit's personalized
-		# bonus (base_growth * rolled multiplier). e.g. base 18, growth 3, bonus 4
-		# → 25. See UnitBase.stat_growth()/UnitFactory.apply_recruit_rolls.
-		var base_growth: float = class_growth.get(base_key, 0.0)
-		var mult: float         = roll_entry.get("growth", 1.0)
-		var bonus: float        = snappedf(base_growth * mult, 0.01) if is_small_float else float(round(base_growth * mult))
-		var next_val: float     = current_val + base_growth + bonus
-		var delta: float        = base_growth + bonus
-
-		# Growth (the delta) is tier-colored by the ROLL MULTIPLIER, so color
-		# always tells you the QUALITY of this roll. The stat value itself is
-		# plain white.
-		var growth_col: Color = UnitFactory.grade_color_for_growth(mult)
-
-		var base_str: String
-		var growth_str: String
-		if is_small_float:
-			base_str = "%.2f" % next_val
-			growth_str = "%+.2f" % delta
-		else:
-			base_str = "%d" % int(next_val)
-			growth_str = "%+d" % int(delta)
-
-		if roll_key == "res":
-			# Armor + Magic Armor side by side, SPD/RNG-style (2026-07-16 user
-			# request). Both stats ride the same "res" roll and growth today.
-			var res_col_w := CARD_W / 2.0 - 10.0
-			for pair2 in [["res", "ARM"], ["mres", "MR"]]:
-				var col2: int = 0 if pair2[0] == "res" else 1
-				var ox2 := 14.0 + col2 * (res_col_w + 16.0)
-				_add_stat_icon(btn, pair2[0], Vector2(ox2, row_y + 2), 18.0)
-				_clbl(btn, pair2[1], 10, Color(0.55, 0.55, 0.72),
-					Vector2(ox2 + 20, row_y), Vector2(34, ROW_H))
-				_clbl(btn, base_str, 12, Color(0.92, 0.92, 0.96),
-					Vector2(ox2 + 56, row_y), Vector2(40, ROW_H))
-				_clbl(btn, growth_str, 11, growth_col,
-					Vector2(ox2 + 96, row_y), Vector2(res_col_w - 96, ROW_H))
-			row_y += ROW_H
-			continue
-
-		_add_stat_icon(btn, roll_key, Vector2(14, row_y + 2), 18.0)
-		_clbl(btn, disp_name, 10, Color(0.55, 0.55, 0.72),
-			Vector2(34, row_y), Vector2(40, ROW_H))
-		_clbl(btn, base_str, 12, Color(0.92, 0.92, 0.96),
-			Vector2(74, row_y), Vector2(44, ROW_H))
-		_clbl(btn, growth_str, 11, growth_col,
-			Vector2(118, row_y), Vector2(CARD_W - 132, ROW_H))
-		row_y += ROW_H
-
-	# ── Move / Range (no per-level growth) ────────────────────────────────────
-	var COL_W := CARD_W / 2.0 - 10.0
-	for pair in [["move", "SPD", "move"], ["range", "RNG", "range"]]:
-		var col_i: int = ["move", "range"].find(pair[0])
-		var roll_entry: Dictionary = stats_dict.get(pair[0], {"flat": 0.0})
-		var val: int = int(base.get(pair[2], 0)) + int(roll_entry.get("flat", 0.0))
-		var ox := 14.0 + col_i * (COL_W + 16.0)
-		_add_stat_icon(btn, pair[0], Vector2(ox, row_y + 2), 18.0)
-		_clbl(btn, pair[1], 10, Color(0.55, 0.55, 0.72),
-			Vector2(ox + 20, row_y), Vector2(30, ROW_H))
-		_clbl(btn, str(val), 12, Color(0.86, 0.86, 1.0),
-			Vector2(ox + 54, row_y), Vector2(70, ROW_H))
-	row_y += ROW_H
+	# Selection is an affordance, not another permanent headline. It appears only
+	# when the player commits attention to a card.
+	var recruit := _clbl(btn, "RECRUIT", 16, Color(1.0, 0.88, 0.42),
+		Vector2(118, CARD_H - 45), Vector2(CARD_W - 236, 28), true)
+	var recruit_box := StyleBoxFlat.new()
+	recruit_box.bg_color = Color(0.06, 0.06, 0.09, 0.88)
+	recruit_box.border_color = Color(1.0, 0.75, 0.22, 0.75)
+	recruit_box.set_border_width_all(1)
+	recruit_box.corner_radius_top_left = 3
+	recruit_box.corner_radius_top_right = 3
+	recruit_box.corner_radius_bottom_left = 3
+	recruit_box.corner_radius_bottom_right = 3
+	recruit.add_theme_stylebox_override("normal", recruit_box)
+	recruit.visible = false
+	btn.mouse_entered.connect(func(): recruit.visible = true)
+	btn.mouse_exited.connect(func(): recruit.visible = false)
 
 	_add_lock_toggle(btn, idx)
 	return btn
@@ -531,6 +480,13 @@ func reopen(gold: int) -> void:
 # re-showing stale offers. Also called on prep-phase start so a roll never
 # survives into a new round.
 func clear_offers() -> void:
+	# NEVER strip the cards out of a picker the player is still looking at.
+	# _enter_player_turn() calls this at the start of every prep phase to retire
+	# a stale roll; with the run map that could fire while the free Call to Arms
+	# picker was open, which emptied the panel mid-decision and soft-locked a
+	# first playthrough (no cards, no cancel button in free mode, no way out).
+	if visible:
+		return
 	for old in _card_btns:
 		if is_instance_valid(old):
 			old.queue_free()
@@ -558,6 +514,29 @@ func _portrait_tex(cls: UnitBase.UnitClass) -> Texture2D:
 	return null
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+func _role_name(cls: UnitBase.UnitClass) -> String:
+	# A few kits are more specific than their synergy trait; the fallback keeps
+	# future heroes useful without requiring UI work before they can ship.
+	match cls:
+		UnitBase.UnitClass.DOC, UnitBase.UnitClass.JUNE, UnitBase.UnitClass.REED, UnitBase.UnitClass.VAIL:
+			return "Support"
+		UnitBase.UnitClass.PASTOR, UnitBase.UnitClass.STITCH, UnitBase.UnitClass.STATIC:
+			return "Disruptor"
+		UnitBase.UnitClass.SABLE, UnitBase.UnitClass.EMBER:
+			return "Ranged Carry"
+		UnitBase.UnitClass.SEAR, UnitBase.UnitClass.RIFT:
+			return "Magic Fighter"
+		UnitBase.UnitClass.ZOLT, UnitBase.UnitClass.LUMEN, UnitBase.UnitClass.SPORE:
+			return "Magic Carry"
+	var trait_id: int = int(UnitFactory.TRAIT_CLASS_MAP.get(cls, UnitBase.TraitClass.FIGHTER))
+	match trait_id:
+		UnitBase.TraitClass.TANK: return "Tank"
+		UnitBase.TraitClass.MAGE: return "Mage"
+		UnitBase.TraitClass.RANGED: return "Ranged"
+		UnitBase.TraitClass.HEALER: return "Support"
+		UnitBase.TraitClass.SUMMONER: return "Summoner"
+		_: return "Fighter"
+
 func _skill_short_desc(unit: UnitBase) -> String:
 	if unit.skill_name == "":
 		return ""
@@ -733,7 +712,7 @@ func _run_card_reveal(delay: float, btn: Button, portrait: TextureRect,
 	# which keeps the progressive reveal intact. Dictionary (not local vars)
 	# because lambdas capture by value — see CONVENTIONS landmine #5.
 	var seg := {"elem": "", "elem_col": Color.WHITE,
-				"rank": "", "rank_col": Color.WHITE, "growth": ""}
+				"rank_col": Color.WHITE, "growth": ""}
 	var refresh_sub := func() -> void:
 		if not is_instance_valid(sub_rt):
 			return
@@ -741,9 +720,6 @@ func _run_card_reveal(delay: float, btn: Button, portrait: TextureRect,
 		if seg["elem"] != "":
 			parts.append("[color=#%s]%s[/color]"
 				% [(seg["elem_col"] as Color).to_html(false), seg["elem"]])
-		if seg["rank"] != "":
-			parts.append("[color=#%s]%s[/color]"
-				% [(seg["rank_col"] as Color).to_html(false), seg["rank"]])
 		if seg["growth"] != "":
 			parts.append("[color=#%s]%s[/color]"
 				% [(seg["rank_col"] as Color).to_html(false), seg["growth"]])
@@ -800,7 +776,6 @@ func _run_card_reveal(delay: float, btn: Button, portrait: TextureRect,
 		badge_lbl.add_theme_color_override("font_color", gcol)
 		badge_bg.color = gcol.darkened(0.4)
 		_paint_card_grade(btn, gcol)
-		seg["rank"] = "%s-RANK" % g
 		seg["rank_col"] = gcol
 		refresh_sub.call()
 	var punch_rank := func() -> void: GradeRoll.land_punch(badge_lbl)

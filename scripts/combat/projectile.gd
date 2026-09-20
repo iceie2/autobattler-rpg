@@ -22,6 +22,10 @@ var is_phoenix_lance: bool = false  # Ember Phoenix Cinder Lance: forge-spark bo
 var pierce_row: int = -1
 var is_goblin_arrow: bool = false
 var is_goblin_shaman_orb: bool = false
+# Vail is range 4, so her basic attack is a cast, not a swing. Without this
+# her auto had only the shared AIR element particles while her abilities got
+# bespoke beats, which made her strongest-looking moment her weakest one.
+var is_vail_gust: bool = false
 var is_crippling_arrow: bool = false
 var slow_pct: float = 0.0
 var slow_duration: float = 0.0
@@ -207,6 +211,8 @@ func on_reach_target():
 			# UnitBase.attack).
 			if caster.has_method("apply_relic_on_hit"):
 				caster.apply_relic_on_hit(target_unit, actual, was_alive)
+		if is_vail_gust:
+			_spawn_vail_gust_impact(target_unit.global_position)
 		if is_goblin_arrow:
 			_spawn_goblin_arrow_impact(target_unit.global_position, is_crippling_arrow)
 			if not is_crippling_arrow and actual > 0 and caster and is_instance_valid(caster) \
@@ -279,6 +285,13 @@ func _spawn_goblin_arrow_impact(world_pos: Vector2, crippling: bool) -> void:
 	var fx := GoblinArcherVFX.new()
 	container.add_child(fx)
 	fx.setup(world_pos, crippling)
+
+func _spawn_vail_gust_impact(world_pos: Vector2) -> void:
+	var container := get_parent()
+	if not container: return
+	var fx := VailVFX.new()
+	container.add_child(fx)
+	fx.setup_point(VailVFX.Mode.GUST_IMPACT, world_pos, 0.34)
 
 func _spawn_shaman_impact(world_pos: Vector2) -> void:
 	var container := get_parent()

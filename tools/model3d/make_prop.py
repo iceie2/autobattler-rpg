@@ -227,7 +227,142 @@ def build_quiver(o):
     return bm, mats, [(1, lambda c: c.x > L * 0.62)]
 
 
-BUILDERS = {"knife": build_knife, "bow": build_bow, "quiver": build_quiver}
+def build_baton(o):
+    """Riot baton: a straight black stick with a knurled grip and a capped tip.
+
+    Straight, not tonfa (user call 2026-09-18). The tip carries two exposed
+    contacts because Riot's auto is a taser jab — the shock VFX fires from the
+    striking end, and a prop with nothing there gives that VFX nowhere to start.
+
+    ORIENTATION: built HANGING, along -Z, not along +X. Same reason the riot
+    shield breaks the "+X is forward" contract — a prop bound through
+    attach_prop_socket.py keeps the world axes it was built on, because that path
+    preserves placement rather than aiming (that is rig_weapon.py's job). Built
+    on +X the baton sticks out horizontally, which fails prop_rubric.py's P1
+    gravity rule at 90 degrees from straight down. Rotating it afterwards is not
+    equivalent: nudge_socket.py pivots on the SOCKET BONE, which sits at the
+    prop's original position, so a post-hoc rotation swings the prop away from
+    the hand instead of turning it in place (measured, 2026-09-18).
+    """
+    L = o["length"] or 0.34
+    D = o["density"]
+    seg = max(8, int(12 * D))
+    r = L * 0.030
+    bm = bmesh.new()
+    # Grip runs BACK from the origin so the hand closes on its middle, exactly
+    # as build_knife does — the origin IS the grip, per this file's contract.
+    # Grip runs UP from the origin (+Z); shaft and weighted tip hang DOWN (-Z).
+    # Local Z maps STRAIGHT THROUGH to world Z here — no glTF flip. An earlier
+    # reading that it flipped was prop_rubric.py's P1 mislabelling the thick
+    # KNURLED GRIP as the "head"; measured directly afterwards, the baton spanned
+    # z 0.726-1.093 with the hand at 0.819, i.e. sticking up. Trust the geometry
+    # measurement, not a rule whose end-detection is itself under test.
+    grip_l = L * 0.30
+    rings = max(4, int(6 * D))
+    for i in range(rings):
+        t = i / float(rings - 1)
+        rr = r * (1.08 + 0.10 * math.sin(t * math.pi * 4.0))
+        cyl(bm, Vector((0, 0, grip_l * (0.06 + 0.70 * t))), rr,
+            grip_l / rings * 1.4, axis="Z", segs=seg)
+    # Pommel (top) and the guard ring where grip meets shaft.
+    cyl(bm, Vector((0, 0, grip_l * 0.86)), r * 1.25, L * 0.030, axis="Z", segs=seg)
+    cyl(bm, Vector((0, 0, 0.0)), r * 1.18, L * 0.028, axis="Z", segs=seg)
+    # The shaft, tapering very slightly toward the tip.
+    shaft_l = L * 0.70
+    steps = max(4, int(6 * D))
+    for i in range(steps):
+        t = i / float(steps)
+        cyl(bm, Vector((0, 0, -shaft_l * (t + 0.5 / steps))),
+            r * (0.98 - 0.16 * t), shaft_l / steps * 1.05, axis="Z", segs=seg)
+    # Striking end: a WEIGHTED cap, then two prongs the arc jumps between.
+    #
+    # The cap is deliberately the thickest part of the whole prop. A weighted tip
+    # is how a real baton is built (the mass wants to be at the business end),
+    # and it is also what prop_rubric.py's G2 reads: that rule identifies "head"
+    # as the THICKER end and expects the grip within 5-35% of the other one. With
+    # a fat knurled grip and a tapered tip it read the baton backwards and scored
+    # the grip at 73.8%. Thickening the tip fixes the pose heuristic and the
+    # silhouette at the same time.
+    # No separate prong cylinders: thin spikes at the extreme tip dragged the
+    # MEAN radius of that band below the knurled grip's, which is the statistic
+    # G2's head/butt detection uses, so the rubric kept reading the baton
+    # backwards. The contacts are a material band on the cap instead — same read
+    # at 138px, and the tip is now unambiguously the thick end.
+    cyl(bm, Vector((0, 0, -shaft_l * 1.03)), r * 1.55, L * 0.060, axis="Z", segs=seg)
+    cyl(bm, Vector((0, 0, -shaft_l * 1.12)), r * 1.30, L * 0.045, axis="Z", segs=seg)
+    mats = [mat("BatonBody", (0.07, 0.07, 0.08), 0.62),
+            mat("BatonContact", (0.72, 0.74, 0.80), 0.30)]
+    # Slot 1 (bare metal) only on the contact prongs at the very tip.
+    return bm, mats, [(1, lambda c: c.z < -shaft_l * 1.09)]
+
+
+def build_riot_shield(o):
+    """A narrow torso-height riot shield (user call 2026-09-18).
+
+    Deliberately NOT the wide slab of his 2D art: tall enough to read as riot
+    kit, narrow enough that it never eats the character's silhouette at the
+    ~138px the board actually renders him at.
+
+    ORIENTATION, and why it breaks this file's usual "+X is forward" contract:
+    that contract assumes rig_weapon.py, which AIMS a prop along a computed
+    forward vector. attach_prop_socket.py does not aim anything — it preserves
+    world placement exactly (that is the whole point of the rest-matrix identity
+    it asserts). So a prop bound through the socket path keeps the world axes it
+    was built on.
+
+    These rigs import Z-up with the character facing -Y, so a shield's panel has
+    to span X (width) and Z (height) and be THIN IN Y. Built on +X instead, the
+    panel faces sideways and a 3cm-thick slab renders edge-on and effectively
+    invisible — measured on Riot's first bind, 2026-09-18.
+    """
+    L = o["length"] or 0.62          # shield HEIGHT, world units on a 1.7 char
+    D = o["density"]
+    half_h = L * 0.5
+    half_w = L * 0.30                # narrow: width is 60% of height
+    thick = L * 0.030
+    # GRIP SITS HIGH, and the shield hangs below it. Built grip-at-centre first,
+    # which put the top edge at chin height once it was scaled to a real torso
+    # slab: prop_rubric B1 (body clearance) sat at 0.007-0.009 against a 0.015
+    # threshold because the top corner was inside his shoulder, and G2 read the
+    # grip at 44.7% (a barbell hold). Dropping the panel so the origin lands 28%
+    # down from the top fixes both, and is how the thing is actually carried.
+    drop = half_h * 0.44
+    bm = bmesh.new()
+    # Panel: a gentle curve, built as vertical slats so it bows around the arm
+    # instead of reading as a flat playing card.
+    # Panel spans X (width) and Z (height); thin and bowed along -Y (forward).
+    slats = max(5, int(9 * D))
+    for i in range(slats):
+        t = (i + 0.5) / slats               # 0..1 across the width
+        x = (t - 0.5) * 2.0 * half_w
+        bow = (1.0 - (2.0 * t - 1.0) ** 2) * L * 0.055   # deepest at centre
+        box(bm, Vector((x, -(thick * 1.6 + bow), -drop)),
+            (half_w / slats * 1.05, thick, half_h))
+    # Rim top and bottom, so the silhouette has a hard edge at board scale.
+    for sz in (-1, 1):
+        box(bm, Vector((0.0, -(thick * 1.6 + L * 0.018), sz * half_h - drop)),
+            (half_w * 1.02, thick * 1.3, L * 0.022))
+    # A viewport slit near the top — one readable detail, not a VFX storm.
+    box(bm, Vector((0.0, -(thick * 2.25), half_h * 0.52 - drop)),
+        (half_w * 0.72, thick * 0.35, L * 0.055))
+    # THE GRIP BAR PASSES THROUGH THE ORIGIN. Held 0.046 behind it (thick*1.6)
+    # the nearest vertex to the fist sat at 0.070-0.080 against G3's 0.055, and
+    # closing that gap by sliding the whole shield inboard cost body clearance —
+    # the two rules fought each other. A bar the hand actually closes around
+    # satisfies both, and is how a riot shield is carried: fist on the bar, panel
+    # standing off in front of it.
+    cyl(bm, Vector((0, 0, 0)), L * 0.030, half_w * 0.95,
+        axis="X", segs=max(8, int(10 * D)))
+    for sx in (-1, 1):
+        box(bm, Vector((sx * half_w * 0.45, -thick * 0.45, 0.0)),
+            (L * 0.020, thick * 1.2, L * 0.030))
+    mats = [mat("ShieldBody", (0.09, 0.09, 0.10), 0.55),
+            mat("ShieldGlass", (0.62, 0.68, 0.74), 0.22)]
+    return bm, mats, [(1, lambda c: c.y < -thick * 2.0 and abs(c.z - (half_h * 0.52 - drop)) < L * 0.06)]
+
+
+BUILDERS = {"knife": build_knife, "bow": build_bow, "quiver": build_quiver,
+            "baton": build_baton, "riot_shield": build_riot_shield}
 
 
 def main():

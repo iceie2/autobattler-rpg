@@ -100,6 +100,14 @@ def main():
         ob.data.update()
         print("  %-12s rotated %s%s about %s"
               % (name, deg, axis.upper(), tuple(round(v, 3) for v in pivot_w)))
+    # The glTF exporter SAMPLES the evaluated depsgraph, so an armature left in
+    # REST — which is how attach_prop_socket.py used to hand over its master —
+    # writes a flat channel for every bone and the character ships motionless.
+    # Forced here as well as upstream, because this script is also run against
+    # hand-edited masters whose mode nobody has checked.
+    for ob2 in bpy.data.objects:
+        if ob2.type == "ARMATURE":
+            ob2.data.pose_position = "POSE"
     bpy.context.view_layer.update()
 
     if o["out_blend"]:
@@ -108,6 +116,59 @@ def main():
         bpy.ops.export_scene.gltf(filepath=o["out_glb"], export_format="GLB",
                                   export_animations=True, use_selection=False)
         print("  wrote %s" % o["out_glb"])
+        moved = _export_moves(o["out_glb"])
+        print("  export_animation_moves: %s  %s"
+              % ("PASS" if moved["pass"] else "FAIL", moved["per_clip"]))
+        if not moved["pass"]:
+            sys.exit("nudge_socket: the written glb has clips with NO motion — "
+                     "the armature was exported in REST mode")
+
+
+def _export_moves(path, min_channels=8, min_degrees=5.0):
+    """Re-read the WRITTEN glb and confirm its clips still move.
+
+    Same guard as attach_prop_socket.py. Parses the file on disk rather than
+    inspecting Blender state, because the whole failure mode is "the scene was
+    right and the export was not".
+    """
+    import json as _json
+    import math
+    import struct
+    try:
+        with open(path, "rb") as f:
+            f.read(12)
+            jlen, _ = struct.unpack("<II", f.read(8))
+            j = _json.loads(f.read(jlen))
+            blen, _ = struct.unpack("<II", f.read(8))
+            blob = f.read(blen)
+    except Exception as e:                                  # pragma: no cover
+        return {"pass": False, "per_clip": {"error": str(e)}}
+
+    def samples(idx):
+        a = j["accessors"][idx]
+        bv = j["bufferViews"][a["bufferView"]]
+        off = bv.get("byteOffset", 0) + a.get("byteOffset", 0)
+        n = {"SCALAR": 1, "VEC3": 3, "VEC4": 4}[a["type"]]
+        return [struct.unpack_from("<" + "f" * n, blob, off + k * n * 4)
+                for k in range(a["count"])]
+
+    out = {}
+    for anim in j.get("animations", []):
+        moving, peak = 0, 0.0
+        for ch in anim["channels"]:
+            if ch["target"]["path"] != "rotation":
+                continue
+            vs = samples(anim["samplers"][ch["sampler"]]["output"])
+            q0 = vs[0]
+            dev = max(2.0 * math.degrees(math.acos(
+                min(1.0, abs(sum(a * b for a, b in zip(q0, q)))))) for q in vs)
+            if dev > 1.0:
+                moving += 1
+                peak = max(peak, dev)
+        out[anim.get("name", "?")] = (moving, round(peak, 1))
+    bad = {k: v for k, v in out.items()
+           if v[0] < min_channels or v[1] < min_degrees}
+    return {"pass": not bad, "per_clip": out, "failing": bad}
 
 
 if __name__ == "__main__":

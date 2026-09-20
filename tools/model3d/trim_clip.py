@@ -64,10 +64,14 @@ def main():
     lo, hi = o["start"], o["end"]
     for fc in list(fcurves_of(act)):
         # Drop keys outside [lo, hi], then shift the survivors so lo -> 0.
-        pts = list(fc.keyframe_points)
-        for kp in pts:
-            if kp.co[0] < lo or kp.co[0] > hi:
-                fc.keyframe_points.remove(kp)
+        # Blender 5.2: removing a keyframe invalidates the OTHER RNA pointers
+        # held in a cached list, so "for kp in list(pts): pts.remove(kp)" dies
+        # with "Keyframe not in F-Curve" on the second removal. Walk indices
+        # backwards instead -- a reverse index stays valid as later entries go.
+        pts = fc.keyframe_points
+        for i in range(len(pts) - 1, -1, -1):
+            if pts[i].co[0] < lo or pts[i].co[0] > hi:
+                pts.remove(pts[i])
         for kp in fc.keyframe_points:
             kp.co[0] -= lo
             kp.handle_left[0] -= lo

@@ -2630,9 +2630,18 @@ static func create_fire_giant(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 8
 	u.skill_mana_cost = 0
 	u.skill_description = "Deal 180% ATK and stun for 1s. · 8s CD"
+	# Declares no ultimate but inherits UnitBase's 300 pool. At 2300 HP that is
+	# ~7.7 free Molten Smashes per fight, tied with the Storm Giant for the
+	# largest leak found. See the Rat for the full note.
+	u.ultimate_charge_max = 0
 	u.set_meta("mob_skill", "brute_crush")       # reused key — big hit + stun
 	u.set_meta("mob_passive", "orc_rage")        # reused key — below 50% hp: +20% dmg / +15% aspd
 	u.set_meta("passive_name", "Forge Fury")
+	# Its own visual fiction: "Molten Smash"/"Forge Fury" are NOT the Orc's
+	# "Crushing Blow"/"Bloodrage", so it must not borrow the Orc's slam. It
+	# deliberately does NOT set crush_vfx_reach (that meta means "draw the Orc's
+	# effect at this size") — see FireGiantVFX.
+	u.set_meta("fire_giant", true)
 	u.set_meta("passive_desc", "Below 50% HP: +20% damage and +15% attack speed.")
 	if lvl > 1: u.set_level(lvl)
 	return u

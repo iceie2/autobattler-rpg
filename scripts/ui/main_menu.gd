@@ -390,7 +390,7 @@ func _build_main(canvas: CanvasLayer) -> void:
 	root.add_child(quit)
 	by += 40.0
 
-	_lbl(root, "v0.4.1.0 – early development", 12, Color(0.3, 0.3, 0.4),
+	_lbl(root, "v0.4.2.2 – early development", 12, Color(0.3, 0.3, 0.4),
 		Vector2(stack_x + stack_w / 2.0 - 150, by + 14), Vector2(300, 24), true)
 
 # ── Options panel ─────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/tools/rift_ult_center_check.gd" id="1_rucc"]
+[ext_resource type="Script" path="res://scripts/tools/checks/rift_ult_center_check.gd" id="1_rucc"]
 
 [node name="RiftUltCenterCheck" type="Node2D"]
 script = ExtResource("1_rucc")

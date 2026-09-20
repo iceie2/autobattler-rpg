@@ -13,6 +13,111 @@ const HEAVY_XP_CAP: int = 90
 # fodder-bodies of power: a real anchor, not a one-unit wave. Applied to the
 # FULLY scaled stats (after level + late-mult) so it tracks the round curve.
 const HEAVY_STAT_MULT: float = 0.6
+
+# ── SCORING THE BUDGET IN THE CURRENCY WE ACTUALLY MEASURE IN ─────────────────
+# The difficulty budget used to be denominated in WaveScaler.UNIT_POWER — a hand
+# set integer table written very early in the project. The THREAT number the
+# player reads (and the arena reports) is score_unit() on INSTANTIATED units at
+# the round's level. Those are two different currencies, so multiplying one
+# never moved the other predictably. Measured over rounds 1-20 on 2026-09-19:
+# nominal Veteran ×1.75 came out anywhere from ×1.17 to ×2.25, nominal Brutal
+# ×3.5 from ×1.83 to ×5.37, and round 2 Brutal landed BELOW round 2 Veteran.
+#
+# They cannot be reconciled with a better constant table either: per-level growth
+# is additive and PER CLASS (UnitBase.apply_stat_growth), and Balance's late
+# multiplier scales HP and damage but not attack speed or resistance — so the
+# ratio between any two units genuinely moves with the round.
+#
+# So the budget is priced by asking the real unit. This lives in WaveDirector
+# rather than WaveScaler because instantiating is this layer's job; WaveScaler
+# stays a pure static helper and receives the pricer as a Callable.
+var _code_score_cache: Dictionary = {}    # "code:round" -> float
+
+# What one body of `code` is worth at `round`, at the level it would actually
+# spawn with. Mirrors generate_wave_spec's own level choice exactly — an elite on
+# its home round is scored at elite_level, a boss at boss_level, everything else
+# at the ordinary curve — or the price would not describe the unit that shows up.
+func score_code(code: String, round: int) -> float:
+	var key: String = "%s:%d" % [code, round]
+	if _code_score_cache.has(key):
+		return float(_code_score_cache[key])
+	var score: float = 0.0
+	var type_name: String = EnemyFactory.CODE_TO_TYPE.get(code, "")
+	if type_name != "":
+		# The entry is built the SAME way the three branches of generate_wave_spec
+		# build theirs. Anything less and the price describes a unit that never
+		# spawns: pricing the Hill Giant at its elite statline while ordinary
+		# waves spawn it demoted (HEAVY_STAT_MULT 0.6) made the budget overpay for
+		# it by two thirds, and every Brutal wave that drew one came in 15-20%
+		# under target — rounds 9, 11, 13, 14 and 16-19, all measured 2026-09-20.
+		var entry: Dictionary = {"type": type_name, "code": code}
+		if WaveScaler.is_boss_round(round):
+			entry["level"] = WaveScaler.boss_level(round) \
+				if code == WaveScaler.boss_code_for(round) \
+				else WaveScaler.enemy_level_for_round(round, false)
+		elif WaveScaler.is_elite_round(round):
+			entry["level"] = WaveScaler.elite_level(round) \
+				if code in WaveScaler.ELITE_POOL \
+				else WaveScaler.enemy_level_for_round(round, false)
+		else:
+			# Ordinary wave: waves 1-10 spawn at level 1 (their compositions carry
+			# the early curve), and a recurring elite is demoted to a heavy anchor.
+			entry["level"] = 1 if round <= 10 \
+				else WaveScaler.enemy_level_for_round(round, false)
+			if code in WaveScaler.ELITE_POOL:
+				entry["heavy"] = true
+		var unit: VisualUnit = create_enemy_for_entry(entry, round)
+		if unit:
+			score = WaveScaler.score_unit(unit)
+			unit.free()
+	_code_score_cache[key] = score
+	return score
+
+# ── WHICH ONE BODY STANDS FOR THE WHOLE WAVE (the map node's silhouette) ──────
+# The body type carrying the most TOTAL WEIGHT in the fight (its price times how
+# many of it there are), priced by the same score the budget uses. score_unit
+# already folds size in (a 2×2 gets ×2.5, the 3×3 Architect ×4.0), so a Giant
+# outranks a goblin without any separate size rule.
+#
+# Two things this fixes, both owner-reported 2026-09-20:
+#   * The old rule ranked by CELL SIZE, then head count, then whatever order the
+#     authored table happened to list — so a wave-4 Veteran drew a goblin over a
+#     Lizard, and even inside the base comp a lone Shaman lost to two goblins
+#     despite being worth more.
+#   * It read WaveData's authored base ONLY, so nothing a Veteran or Brutal tier
+#     added could ever appear on the node. That was a deliberate trade when the
+#     filler rolled fresh on every call (a card that changed each time you looked
+#     is worse than one that under-sells), and it stopped being necessary the
+#     moment the filler was pinned per run — this reads the REAL wave now, which
+#     is the same wave the card's mini-board and the fight will show.
+#
+# Ties break on the code that sorts first, so the same wave always answers the
+# same way rather than depending on Dictionary iteration order.
+func lead_code(round: int, difficulty: int, wave_seed: int) -> String:
+	return lead_of_spec(generate_wave_spec(round, difficulty, 9, -1, wave_seed), round)
+
+# Same question asked of a spec you already have. Callers holding a spec must use
+# THIS — regenerating with an unpinned seed answers about a different wave than
+# the one in hand, which is exactly how the arena's first lead column came back
+# naming bodies that were not in the roster beside it.
+func lead_of_spec(spec: Array, round: int) -> String:
+	var counts: Dictionary = {}
+	for entry: Dictionary in spec:
+		var code: String = String(entry.get("code", ""))
+		if code != "":
+			counts[code] = int(counts.get(code, 0)) + 1
+	var best: String = ""
+	var best_weight: float = -1.0
+	for code: String in counts:
+		# TOTAL WEIGHT, not the single biggest body (owner rule, 2026-09-20):
+		# "1 enemy at 5000 power beats 2 at 2000 each but loses to 8 of 1k each."
+		# What the node is warning you about is where the wave's mass actually
+		# sits — a lone heavy in a swarm of goblins is not what kills you.
+		var weight: float = score_code(code, round) * float(int(counts[code]))
+		if weight > best_weight or (is_equal_approx(weight, best_weight) and code < best):
+			best = code
+			best_weight = weight
+	return best
 # ══════════════════════════════════════════════════════════════════════════════
 # Wave direction (extracted from main_game.gd, 2026-07-04 refactor).
 # Generates wave SPECS ({"type", "level", "pos"?} dicts) and creates the enemy
@@ -36,12 +141,19 @@ const HEAVY_STAT_MULT: float = 0.6
 # chosen_element: the player's pre-battle element pick for the wave-30 Hydra
 # (a UnitBase.Element value; -1/unset defaults to Normal — see
 # WaveScaler.boss_code_for). Irrelevant for every other round.
-func generate_wave_spec(round: int, difficulty: int, grid_width: int, chosen_element: int = -1) -> Array:
+# wave_seed: the run's per-node pin for the Veteran/Brutal filler roll, minted by
+# RunMap and carried on the node (see WaveScaler._filler_rng). It is the LAST
+# parameter and defaults to 0 = "unpinned, roll freshly" on purpose: every
+# existing caller — the arena harness, the tool checks, the pre-map save path —
+# keeps its current meaning without being touched.
+func generate_wave_spec(round: int, difficulty: int, grid_width: int,
+		chosen_element: int = -1, wave_seed: int = 0) -> Array:
 	var spec: Array = []
 
 	# ── Boss rounds (10 / 20 / 30): a scaled boss + escalating adds. ──
 	if WaveScaler.is_boss_round(round):
-		var placed: Array = WaveScaler.build_boss_formation(round, difficulty, grid_width, chosen_element)
+		var placed: Array = WaveScaler.build_boss_formation(round, difficulty, grid_width, chosen_element,
+				wave_seed, score_code)
 		var boss_lvl: int = WaveScaler.boss_level(round)
 		var boss_code: String = WaveScaler.boss_code_for(round, chosen_element)
 		for entry: Dictionary in placed:
@@ -56,7 +168,8 @@ func generate_wave_spec(round: int, difficulty: int, grid_width: int, chosen_ele
 
 	# ── Elite rounds (5 / 15 / 25): a mini-boss + light fodder support. ──
 	if WaveScaler.is_elite_round(round):
-		var placed: Array = WaveScaler.build_elite_formation(round, difficulty, grid_width)
+		var placed: Array = WaveScaler.build_elite_formation(round, difficulty, grid_width,
+				wave_seed, score_code)
 		var elite_lvl: int = WaveScaler.elite_level(round)
 		for entry: Dictionary in placed:
 			var code: String = entry["code"]
@@ -68,7 +181,7 @@ func generate_wave_spec(round: int, difficulty: int, grid_width: int, chosen_ele
 			spec.append({"type": t, "level": lvl, "pos": entry["pos"], "code": code})
 		return spec
 
-	var formation_data: Array = WaveScaler.build_formation(round, difficulty, grid_width)
+	var formation_data: Array = WaveScaler.build_formation(round, difficulty, grid_width, wave_seed, score_code)
 
 	if formation_data.is_empty():
 		# Procedural round (round 11+): scaled by difficulty.

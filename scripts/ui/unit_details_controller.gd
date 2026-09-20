@@ -327,6 +327,21 @@ func _refresh() -> void:
 	unit_name_lbl.text = unit.unit_name
 	class_lbl.text = unit.get_class_name_string()
 	UITheme.apply_font(class_lbl, UITheme.FONT_VALUE)
+	# ── Scars (2026-09-19) ───────────────────────────────────────────────────
+	# A scar event permanently trades one of this hero's stats for another. That
+	# has to be READABLE afterwards or the hero just becomes a stat mystery — a
+	# tank with inexplicably low HP and no way to find out why. The chip says it
+	# happened; the tooltip lists every trade, in order.
+	var scars: Array = unit.get_meta("scars", [])
+	if scars.is_empty():
+		class_lbl.add_theme_color_override("font_color", UITheme.TEXT_BODY)
+		class_lbl.tooltip_text = ""
+		class_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	else:
+		class_lbl.text = "%s  ·  SCARRED ×%d" % [unit.get_class_name_string(), scars.size()]
+		class_lbl.add_theme_color_override("font_color", Color(0.86, 0.38, 0.34))
+		class_lbl.tooltip_text = "Permanent trades:\n• %s" % "\n• ".join(scars)
+		class_lbl.mouse_filter = Control.MOUSE_FILTER_STOP
 	element_lbl.text = unit.get_element_name_string()
 	element_lbl.add_theme_color_override("font_color", Color(element_color_hex(unit.current_element)))
 	UITheme.apply_font(element_lbl, UITheme.FONT_VALUE)

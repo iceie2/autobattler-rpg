@@ -1,9 +1,0 @@
-Class: archer
-Body: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/body/child/child_walk_brown.png
-Hair: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/hair/male/male_curly/Male_Hair_curly_ruby.png
-Head: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/head/caps/lizardMale_fin_blue.png
-Facial: None
-Armor: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/torso/chain/formal/formal_jacket brown.png
-Weapon_R: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/weapons/right hand/either/greatbow.png
-Weapon_L: None
-Offhand: None

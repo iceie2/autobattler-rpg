@@ -1,4 +1,4 @@
 [gd_scene load_steps=2 format=3]
-[ext_resource type="Script" path="res://scripts/tools/crab_vfx_capture.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/tools/captures/crab_vfx_capture.gd" id="1"]
 [node name="CrabVFXCapture" type="Node2D"]
 script = ExtResource("1")

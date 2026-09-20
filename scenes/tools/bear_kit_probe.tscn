@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/tools/bear_kit_probe.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/tools/probes/bear_kit_probe.gd" id="1"]
 
 [node name="BearKitProbe" type="Node"]
 script = ExtResource("1")

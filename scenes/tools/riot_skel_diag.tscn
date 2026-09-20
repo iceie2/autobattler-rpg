@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/riot_skel_diag.gd" id="1_rsd"]
+
+[node name="RiotSkelDiag" type="Node"]
+script = ExtResource("1_rsd")

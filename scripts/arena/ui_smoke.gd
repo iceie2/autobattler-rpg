@@ -2,8 +2,9 @@ extends Node
 # ══════════════════════════════════════════════════════════════════════════════
 # UI SMOKE TEST (2026-07-04) — the plain boot smoke never exercises the details
 # panel / tooltips, so UI refactors could pass import+boot and still be broken
-# at first click. This scene instantiates the REAL main_game, waits for round 1
-# to spawn, then drives the details panel + refresh paths and reports PASS/FAIL.
+# at first click. This scene instantiates the REAL main_game, explicitly deals
+# a preview wave (map mode correctly spawns none at boot), then drives the
+# details panel + refresh paths and reports PASS/FAIL.
 #
 # Run:  godot --headless res://scenes/ui_smoke.tscn
 # Exit code 0 = pass, 1 = fail. Add checks here whenever a UI subsystem moves.
@@ -15,11 +16,15 @@ func _ready() -> void:
 	var mg_scene := load("res://scenes/main_game.tscn") as PackedScene
 	var mg := mg_scene.instantiate()
 	add_child(mg)
-	# Let _ready + round 1 spawn settle.
+	# Let _ready and the opening map/modal flow settle. UI smoke owns its fixture:
+	# map smoke covers the real node-selection -> round-start contract separately.
 	for i in range(30):
 		await get_tree().process_frame
+	mg.spawn_enemies(WaveScaler.Difficulty.NORMAL)
+	for i in range(3):
+		await get_tree().process_frame
 
-	_check(mg.enemy_units.size() > 0, "round 1 spawned enemies")
+	_check(mg.enemy_units.size() > 0, "UI fixture spawned enemies")
 	if mg.enemy_units.size() > 0:
 		var enemy = mg.enemy_units[0]
 		mg.show_unit_details(enemy)

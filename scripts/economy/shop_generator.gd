@@ -150,9 +150,42 @@ static func _apply_sale(stock: Array) -> void:
 	if stock.is_empty():
 		return
 	var idx := randi() % stock.size()
-	stock[idx]["on_sale"] = true
-	stock[idx]["original_price"] = stock[idx]["price"]
-	stock[idx]["price"] = maxi(1, int(round(float(stock[idx]["price"]) * SALE_MULT)))
+	_mark_on_sale(stock[idx])
+
+static func _mark_on_sale(slot: Dictionary) -> void:
+	if slot.get("on_sale", false):
+		return
+	slot["on_sale"] = true
+	slot["original_price"] = slot["price"]
+	slot["price"] = maxi(1, int(round(float(slot["price"]) * SALE_MULT)))
+
+# ── Event-driven modifiers (2026-09-19) ───────────────────────────────────────
+# Economy events (Merchant's Apprentice, Loyalty Token — see EventCatalog) reach
+# forward into the NEXT merchant visit. They're applied here rather than in the
+# screen so the arena can roll a stock, apply a modifier and assert on the
+# prices without any UI.
+
+# Flat percentage off everything in stock. Keeps original_price so the card can
+# still show what it would have cost.
+static func apply_discount(stock: Array, pct: float) -> void:
+	var f: float = clampf(1.0 - pct, 0.05, 1.0)
+	for slot in stock:
+		if not slot.has("original_price"):
+			slot["original_price"] = slot["price"]
+		slot["price"] = maxi(1, int(round(float(slot["price"]) * f)))
+
+# Put N more slots on sale (skipping ones already discounted). Returns how many
+# it actually managed — a 7-slot stock can't hand out 20 sales.
+static func apply_extra_sales(stock: Array, count: int) -> int:
+	var candidates: Array = []
+	for slot in stock:
+		if not slot.get("on_sale", false):
+			candidates.append(slot)
+	candidates.shuffle()
+	var n: int = mini(maxi(0, count), candidates.size())
+	for i in range(n):
+		_mark_on_sale(candidates[i])
+	return n
 
 static func _count_kind(stock: Array, kind: String) -> int:
 	var n := 0

@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://animpreview_001"]
+[gd_scene load_steps=2 format=3 uid="uid://brutycdep1vdh"]
 
-[ext_resource type="Script" path="res://scripts/tools/anim_preview.gd" id="1_ap"]
+[ext_resource type="Script" uid="uid://de7f6jqiv5x4e" path="res://scripts/tools/anim_preview.gd" id="1_ap"]
 
 [node name="AnimPreview" type="CanvasLayer"]
 script = ExtResource("1_ap")

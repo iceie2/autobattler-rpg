@@ -13,13 +13,30 @@ extends Node2D
 ## that points the wrong way down the board, or a one-shot that never settles
 ## back to idle.
 
-const OUT := "user://_model3d_board.png"
+const CapturePaths = preload("res://scripts/tools/capture_paths.gd")
+
+## Heroes fight EVERY round 1-100, so unlike an enemy (which is gated to a few
+## decades) a hero meets all six backdrops. Sweep them all:
+##   for r in 1 11 21 31 41 51; do GODOT ... -- --hero=CROSS --round=$r; done
+## Output lands in captures/renders/<biome>/_model3d_board_<hero>.png.
+const DEFAULT_ROUND := 1
 const ROW_Y := [190, 430, 660]
 
 var _units: Array = []
 
 func _ready() -> void:
 	get_window().size = Vector2i(1180, 780)
+
+	# The REAL board. This check's whole claim is "on the real board", but until
+	# 2026-09-18 it rendered on the default clear colour — the same fault that
+	# hid a contrast and a z-order bug in the enemy captures. A 3D hero lit and
+	# scaled against empty space tells you nothing about whether it reads on
+	# grass, sand, or the lightning decade's backdrop.
+	var _round: int = CapturePaths.cli_round(DEFAULT_ROUND)
+	var bg := BackgroundLayer.new()
+	add_child(bg)
+	bg.set_biome_from_round(_round)
+	print("board check biome: ", CapturePaths.biome_of(_round), " (round ", _round, ")")
 	await get_tree().process_frame
 
 	# Row 1: the 3D hero in each state. Row 2: 2D heroes at the same scale, so a
@@ -78,8 +95,12 @@ func _ready() -> void:
 	_audit_roster()
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
-	img.save_png(ProjectSettings.globalize_path(OUT))
-	print("\nwrote %s" % OUT)
+	# Named per subject AND filed per biome, so a six-biome sweep leaves six
+	# comparable files instead of overwriting one.
+	var subject: String = monster if monster != "" else str(UnitBase.UnitClass.find_key(hero)).to_lower()
+	var out_path: String = CapturePaths.out("_model3d_board_%s.png" % subject)
+	img.save_png(out_path)
+	print("\nwrote %s" % out_path)
 	get_tree().quit(0)
 
 func _spawn_monster(type: String, x: int, y: int) -> VisualUnit:

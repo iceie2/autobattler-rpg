@@ -1,9 +1,0 @@
-Class: black_mage
-Body: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/body/male/nose/buttonnose_darkelf.png
-Hair: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/hair/male/parted/white-blonde.png
-Head: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/head/helms/male/Male_legion3helmet_steel.png
-Facial: None
-Armor: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/torso/shirts/scoop/scoop_navy.png
-Weapon_R: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/weapons/right hand/male/woodwand_male.png
-Weapon_L: None
-Offhand: None

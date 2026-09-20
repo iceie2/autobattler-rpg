@@ -313,6 +313,12 @@ func save_run() -> void:
 		"player_xp_to_level": game_state.player_xp_to_level,
 		"run_kills": _run_kills,
 		"event_team_size": _event_team_size_bonus,
+		"run_map": _run_map.to_dict() if _run_map else {},
+		"map_node_id": String(_map_node.get("id", "")),
+		"events_seen": _events_seen.duplicate(),
+		"run_flags": _run_flags.duplicate(true),
+		"shop_discount": _shop_discount_pending,
+		"shop_sale_slots": _shop_sale_slots_pending,
 		"relics": _relic_inventory.owned.duplicate(true),
 		"relic_waves_done": _relic_waves_done.duplicate(),
 		"shop_rounds_done": _shop_rounds_done.duplicate(),
@@ -330,6 +336,16 @@ func _resume_run() -> void:
 		return
 	_run_kills = int(d.get("run_kills", 0))
 	_event_team_size_bonus = int(d.get("event_team_size", 0))
+	# Defaulted, not required: a save written before the 2026-09-19 event pass
+	# simply resumes with an empty memory rather than failing to load.
+	var map_data: Dictionary = d.get("run_map", {})
+	if not map_data.is_empty():
+		_run_map = RunMap.from_dict(map_data)
+		_map_node = _run_map.node_by_id(String(d.get("map_node_id", "")))
+	_events_seen = d.get("events_seen", {})
+	_run_flags = d.get("run_flags", {})
+	_shop_discount_pending = float(d.get("shop_discount", 0.0))
+	_shop_sale_slots_pending = int(d.get("shop_sale_slots", 0))
 	game_state.gold = int(d.get("gold", 0))
 	game_state.crystals = int(d.get("crystals", 0))
 	game_state.player_level = int(d.get("player_level", 1))
@@ -357,6 +373,17 @@ func _resume_run() -> void:
 	# Re-enter the saved round's prep phase fresh (wave preview, rewards, and
 	# any still-pending relic/hydra modals regenerate off the round number).
 	game_state.battle_round = int(d.get("round", 1)) - 1
+	# Under the map there are two places a save can be taken: standing ON a
+	# battle node mid-prep (resume into that prep phase, as always), or between
+	# nodes (resume onto the map, where the player left off). Resuming the wrong
+	# one either skips a fight or replays it.
+	if MAP_MODE and _run_map != null and not RunMap.is_battle_node(_map_node):
+		update_ui()
+		if _call_to_arms_pending:
+			_maybe_open_call_to_arms_picker()
+		_open_run_map()
+		info_label.text = "Run resumed — round %d." % game_state.battle_round
+		return
 	game_state.start_battle_round()
 	if _call_to_arms_pending:
 		_maybe_open_call_to_arms_picker()
@@ -383,6 +410,11 @@ func _hero_to_dict(u: UnitBase, on_bench: bool) -> Dictionary:
 		"r_dmg_taken": u.relic_dmg_taken_mult, "r_outgoing": u.relic_outgoing_mult,
 		"r_vs_boss": u.relic_vs_boss_mult, "r_double": u.relic_double_atk_chance,
 		"r_revive": u.relic_revive_pct,
+		# The scar STATS ride along in the absolute values above, but the record
+		# of what was traded lives in meta — without this a resumed run shows a
+		# hero with unexplained numbers and no scar chip (see
+		# unit_details_controller).
+		"scars": u.get_meta("scars", []),
 		"equipment": equipment,
 	}
 
@@ -396,6 +428,9 @@ func _restore_hero(d: Dictionary) -> void:
 	u.level = int(d.get("level", 1))
 	u.unit_name = str(d.get("name", u.unit_name))
 	u.sprite_variant = int(d.get("variant", 0))
+	var saved_scars: Array = d.get("scars", [])
+	if not saved_scars.is_empty():
+		u.set_meta("scars", saved_scars)
 	# Re-register relics + equipment (rebuilds passives and the equipment map);
 	# the stat overwrite below is the final truth, so double-baking is harmless.
 	if _relic_inventory:
@@ -567,6 +602,7 @@ func connect_signals() -> void:
 	auto_battle_manager.action_logged.connect(_on_action_logged)
 	auto_battle_manager.pace_changed.connect(_on_pace_changed)
 	auto_battle_manager.unit_summoned.connect(_on_unit_summoned)
+	auto_battle_manager.unit_revived.connect(_on_unit_revived)
 	auto_battle_manager.camera_punch_requested.connect(_on_camera_punch_requested)
 	
 	# Grid signals
@@ -668,6 +704,17 @@ func connect_signals() -> void:
 	_hydra_element_screen.chosen.connect(_on_hydra_element_chosen)
 	add_child(_hydra_element_screen)
 
+	# Run map (2026-09-19). Layer 2 like the shop: the relic screen and the
+	# stat-reward picker must be able to open ON TOP of it, because choosing a
+	# relic node opens the relic screen while the map is still the thing the
+	# player came from.
+	_run_map_screen = RunMapScreen.new()
+	_run_map_screen.layer = 2
+	_run_map_screen.node_chosen.connect(_on_map_node_chosen)
+	_run_map_screen.preview_probe = _map_node_preview
+	_run_map_screen.sprite_probe = _map_node_sprite
+	add_child(_run_map_screen)
+
 	var go_scene := load("res://scenes/game_over_screen.tscn") as PackedScene
 	_game_over_screen = go_scene.instantiate() as GameOverScreen
 	add_child(_game_over_screen)
@@ -731,6 +778,38 @@ func _team_size_for_level(lvl: int) -> int:
 	return Balance.TEAM_SIZE_BASE + (lvl - 1)
 
 var _event_team_size_bonus: int = 0   # persistent per-run "Reinforcements" event bonus
+
+# ── Event run-state (2026-09-19, see RUN_MAP_PLAN.md §4) ──────────────────────
+# _events_seen  — {def_id: true}, drains the catalog before it repeats and gates
+#                 `unique` events. Saved with the run.
+# _run_flags    — what the run REMEMBERS about your choices ("refused_duel",
+#                 "debt": 40). Callback events read these; without them a pool of
+#                 events is just a pool, not a run with a memory.
+# The two shop modifiers are set by economy events and consumed by the next
+# merchant visit (see _on_battle_round_started / _open_merchant).
+var _events_seen: Dictionary = {}
+var _run_flags: Dictionary = {}
+# ── Run map (2026-09-19) ──────────────────────────────────────────────────────
+# MAP_MODE off = the pre-map behaviour, exactly: fixed relic/merchant rounds and
+# a per-round difficulty pick. See the RUN MAP section further down.
+const MAP_MODE := true
+var _run_map: RunMap = null
+var _run_map_screen: RunMapScreen = null
+var _map_node: Dictionary = {}       # the node being played right now
+# Whether the open event/shop modal was entered FROM a map node, which decides
+# whether closing it returns to the map or starts the battle (classic flow).
+var _event_from_map: bool = false
+var _shop_from_map: bool = false
+# Modifiers an event laid on the NEXT fight: {"extra_enemies": n, "reward_tier": t}.
+# Consumed when that wave is built and when its reward is rolled, then cleared —
+# they last exactly one battle, which is what the event text promises.
+var _next_wave_mods: Dictionary = {}
+# What a scrapped item pays, as a share of its shop price at the current round.
+# Mirrors Balance.SELL_REFUND's intent for heroes (buy 10 / sell 5): selling
+# back is always a loss, so hoarding-then-dumping can't be an income strategy.
+const SALVAGE_RATIO := 0.4
+var _shop_discount_pending: float = 0.0
+var _shop_sale_slots_pending: int = 0
 
 func _recompute_max_player_units() -> void:
 	max_player_units = mini(
@@ -814,6 +893,10 @@ func start_new_game() -> void:
 	_run_passive_picks = []
 	game_state.reset_player_level()
 	_event_team_size_bonus = 0
+	_events_seen.clear()
+	_run_flags.clear()
+	_shop_discount_pending = 0.0
+	_shop_sale_slots_pending = 0
 	_recompute_max_player_units()
 	_relic_inventory = RelicInventory.new()
 	_relic_waves_done.clear()
@@ -845,6 +928,26 @@ func start_new_game() -> void:
 	# _maybe_open_call_to_arms_picker, called from both _on_relic_chosen and
 	# _on_battle_round_started's relic block for the no-offers edge case).
 	_call_to_arms_pending = true
+	if MAP_MODE:
+		# Opening cadence: relic -> starting hero -> map. The old flow showed a
+		# one-choice map whose only purpose was to open this relic screen; that
+		# made the run begin with navigation before the player had anything to
+		# navigate with. Consume the mandatory start landmark here and present
+		# its real three-choice decision immediately.
+		_run_map = null
+		_map_node = {}
+		_ensure_map_for_biome(0)
+		var starts: Array = _run_map.available_next()
+		if not starts.is_empty() and int(starts[0].get("type", -1)) == RunMap.NodeType.RELIC:
+			_map_node = _run_map.advance_to(String(starts[0]["id"]))
+		var offers: Array = Relic.roll_offers(1, _relic_inventory.owned_ids())
+		if not offers.is_empty():
+			_relic_screen_wave = 1
+			_relic_rerolls_left = Progression.get_bonus("+1 Reroll")
+			_relic_screen.present(offers, 1, _relic_rerolls_left)
+		else:
+			_maybe_open_call_to_arms_picker()
+		return
 	game_state.start_battle_round()
 	open_shop()
 
@@ -955,9 +1058,16 @@ func _on_battle_round_started(round_number: int) -> void:
 	# the new wave spawns and before any modal (relic / shop / hydra) opens.
 	# This awaits, so everything below happens once the ceremony is done.
 	await _play_round_start_ceremony()
-	# Generate and lock wave 1 at the baseline (Normal) difficulty
-	_locked_difficulty = WaveScaler.Difficulty.NORMAL
-	current_difficulty = WaveScaler.Difficulty.NORMAL
+	# ── Who decides the intensity ─────────────────────────────────────────────
+	# Map mode: the NODE decided, back on the map, before the board was dealt —
+	# so the tier and the reward are both already fixed and the difficulty panel
+	# becomes a briefing (see difficulty_panel.set_briefing_only).
+	# Classic mode: lock to Normal and let the player pick from the panel.
+	var map_battle: bool = MAP_MODE and not _map_node.is_empty()
+	var chosen_tier: int = int(_map_node.get("difficulty", WaveScaler.Difficulty.NORMAL)) \
+		if map_battle else WaveScaler.Difficulty.NORMAL
+	_locked_difficulty = chosen_tier
+	current_difficulty = chosen_tier
 	_wave_specs.clear()   # fresh rolls for the new round; stable within it
 	_current_wave_spec = _wave_spec_for(_locked_difficulty)
 	_instantiate_wave_from_spec(_current_wave_spec)
@@ -965,12 +1075,28 @@ func _on_battle_round_started(round_number: int) -> void:
 	# full — the player picks a difficulty knowing exactly what they'd win, not
 	# just vague odds. The roll doesn't change no matter how many times you flip
 	# between difficulties this round.
-	_rolled_rewards = {
-		WaveScaler.Difficulty.NORMAL:   RoundReward.roll(WaveScaler.Difficulty.NORMAL, round_number),
-		WaveScaler.Difficulty.VETERAN: RoundReward.roll(WaveScaler.Difficulty.VETERAN, round_number),
-		WaveScaler.Difficulty.BRUTAL:   RoundReward.roll(WaveScaler.Difficulty.BRUTAL, round_number),
-	}
+	#
+	# Under the map, the node did this when the biome was generated: the reward
+	# shown on the map card IS the reward, which is what makes pathing toward a
+	# visible Epic a real decision rather than a gamble on odds.
+	if map_battle:
+		var node_reward: Dictionary = _map_node.get("reward", {})
+		# An event promised this fight would pay at a better tier (Bounty Board).
+		# Re-roll the node's reward on that tier's odds — the upgrade is the whole
+		# reason the player took the harder wave.
+		if _next_wave_mods.has("reward_tier"):
+			node_reward = RoundReward.roll(int(_next_wave_mods["reward_tier"]), round_number)
+			info_label.text = "The bounty pays at %s rates." % \
+				WaveScaler.Difficulty.keys()[int(_next_wave_mods["reward_tier"])].capitalize()
+		_rolled_rewards = {chosen_tier: node_reward}
+	else:
+		_rolled_rewards = {
+			WaveScaler.Difficulty.NORMAL:   RoundReward.roll(WaveScaler.Difficulty.NORMAL, round_number),
+			WaveScaler.Difficulty.VETERAN: RoundReward.roll(WaveScaler.Difficulty.VETERAN, round_number),
+			WaveScaler.Difficulty.BRUTAL:   RoundReward.roll(WaveScaler.Difficulty.BRUTAL, round_number),
+		}
 	if difficulty_panel:
+		difficulty_panel.set_briefing_only(map_battle)
 		difficulty_panel.current_difficulty = current_difficulty
 		difficulty_panel.update_display(_all_difficulty_power(), _rolled_rewards)
 		difficulty_panel.set_panel_visible(true)
@@ -982,7 +1108,10 @@ func _on_battle_round_started(round_number: int) -> void:
 	# Relic pick at the start of waves 1 / 11 / 21 — a modal over the prep phase.
 	# Effects apply immediately (retroactively to units on the team, and to any
 	# hero recruited afterwards), so there's no strict ordering vs. the shop.
-	if round_number in Relic.RELIC_WAVES and not _relic_waves_done.has(round_number):
+	# Under the map, relics and the merchant are NODES the player walked to, not
+	# entries on a timetable — _on_map_node_chosen opens them. These two blocks
+	# are the classic schedule and stay for when MAP_MODE is off.
+	if not MAP_MODE and round_number in Relic.RELIC_WAVES and not _relic_waves_done.has(round_number):
 		_relic_waves_done[round_number] = true
 		var offers: Array = Relic.roll_offers(round_number, _relic_inventory.owned_ids())
 		if not offers.is_empty():
@@ -995,9 +1124,21 @@ func _on_battle_round_started(round_number: int) -> void:
 	# Event shop at the start of merchant rounds (ShopGenerator.MERCHANT_ROUNDS) —
 	# a modal over the prep phase, like the relic screen. Player shops, then
 	# positions/preps as normal, then hits READY. One visit per merchant round.
-	if ShopGenerator.is_merchant_round(round_number) and not _shop_rounds_done.has(round_number):
+	if not MAP_MODE and ShopGenerator.is_merchant_round(round_number) \
+			and not _shop_rounds_done.has(round_number):
 		_shop_rounds_done[round_number] = true
 		_shop_stock = ShopGenerator.roll_stock(round_number, _relic_inventory.owned_ids())
+		_settle_merchant_debt()
+		# Consume anything an economy event promised for "the next merchant"
+		# (see EventCatalog's _pool_economy). Both are one-visit-only.
+		if _shop_discount_pending > 0.0:
+			ShopGenerator.apply_discount(_shop_stock, _shop_discount_pending)
+			info_label.text = "The merchant honours your favour: %d%% off." \
+					% int(round(_shop_discount_pending * 100.0))
+			_shop_discount_pending = 0.0
+		if _shop_sale_slots_pending > 0:
+			ShopGenerator.apply_extra_sales(_shop_stock, _shop_sale_slots_pending)
+			_shop_sale_slots_pending = 0
 		_shop_screen.open(round_number, game_state.gold, _shop_stock)
 
 	# Hydra element pick at the start of wave 30 (the final boss) — a modal over
@@ -1037,6 +1178,12 @@ func _on_relic_reroll() -> void:
 	_relic_screen.set_offers(offers, _relic_rerolls_left)
 
 func _on_relic_chosen(relic: Dictionary) -> void:
+	# Close at the entry point, not only in the screen's own card handler — the
+	# same rule _on_map_node_chosen follows. A modal that only closes on the UI
+	# path stays open for every other caller (debug keys, captures, tests), and
+	# a stack of half-closed modals is how the opening beat locked up.
+	if _relic_screen:
+		_relic_screen.visible = false
 	# Store it, then apply retroactively to heroes already on the team. Newly
 	# recruited heroes pick it up in _on_hero_chosen.
 	var owned_copy: Dictionary = _relic_inventory.add_relic(relic)
@@ -1049,6 +1196,19 @@ func _on_relic_chosen(relic: Dictionary) -> void:
 	info_label.text = "Relic acquired: %s" % relic.get("name", "?")
 	_maybe_open_call_to_arms_picker()
 	save_run()   # checkpoint: relic picks are permanent
+	# A relic NODE is the biome's entry stop — take the relic, then choose where
+	# to go. (In the classic flow the relic screen opens during prep, so there's
+	# nothing to return to.)
+	#
+	# EXCEPT while the free starting-hero picker is up. Re-showing the map over
+	# it let the player choose a battle node with no hero picked; starting that
+	# round ran _enter_player_turn, which calls _hero_shop.clear_offers() and
+	# wiped the cards out of the still-open picker — leaving an empty panel with
+	# no way forward. That was the first-playthrough soft-lock. The map comes
+	# back in _on_hero_chosen instead, once a hero actually exists.
+	if MAP_MODE and not _awaiting_call_to_arms_pick \
+			and int(_map_node.get("type", -1)) == RunMap.NodeType.RELIC:
+		_open_run_map()
 
 # The relics picked this run, shown as grade-bordered icons in the left sidebar
 # (RELICS section, above the bag). Hover an icon for its name + effect.
@@ -1393,6 +1553,103 @@ func _refresh_wave_dossier() -> void:
 			WaveData.name_for(round),
 			WaveScaler.threat_profile(_wave_spec_for(current_difficulty)))
 
+# ── Map node preview (2026-09-19) ─────────────────────────────────────────────
+# What a battle node on the map is actually offering: the wave's NAME, its
+# THREAT PROFILE (melee/ranged/support/large) and its POWER on the same scale
+# the difficulty panel prints. Handed to the map screen as a callable so the
+# screen stays ignorant of WaveDirector and the harness can still generate maps
+# with no scene at all.
+#
+# Without this the map was asking the player to choose between three swords that
+# differed only by a letter. Placement and matchup are where this game's depth
+# measurably lives, so the map has to show what you'd be placing against.
+func _map_node_preview(round_no: int, difficulty: int, wave_seed: int = 0) -> Dictionary:
+	if round_no <= 0:
+		return {}
+	# wave_seed is the NODE's pin. Passing it is what makes this a preview rather
+	# than a guess: without it the card rolled its own filler and the fight rolled
+	# another, so the card could promise a Troll and hand you a Bear.
+	var spec: Array = _wave_director.generate_wave_spec(
+			round_no, difficulty, battle_grid.grid_width, _hydra_chosen_element,
+			wave_seed)
+	return {
+		"name": WaveData.name_for(round_no),
+		"profile": WaveScaler.threat_profile(spec),
+		"power": _wave_director.score_spec(spec, round_no),
+		"formation": _preview_formation(spec),
+		"grid_w": battle_grid.grid_width,
+		# The decade's own ground tile, so the mini board is the board you'll
+		# actually stand on and not a grey grid.
+		"ground": "res://assets/UI/arena/%d-%d/ready/tile.png" % [
+			((round_no - 1) / 10) * 10 + 1, ((round_no - 1) / 10) * 10 + 10],
+	}
+
+# The SPRITE a map node should wear, for nodes that stand for one specific
+# creature. The map draws it as a black silhouette, so every decade's elite and
+# boss node shows the actual thing you'll fight there rather than a generic
+# emblem — and it costs no art at all, because that art already shipped.
+#
+# Battle nodes wear the LEAD BODY of the wave that actually lives on that round
+# (see _lead_body_for). This used to be hardcoded to "M" — the goblin — which
+# meant round 35 in the Earth decade drew you a goblin, and every fight node on
+# the map looked like the same encounter at three tints.
+# The resolution itself is a STATIC on RunMapScreen, not a method here, because
+# the capture harness has to be able to produce the same picture the game does.
+# When it lived in this file the standalone harness could not reach it, silently
+# fell back to the ⚔ glyph, and handed back a screenshot that looked like the
+# game and wasn't — which is exactly how the 2026-09-19 "we lost the silhouettes"
+# scare happened. main_game's only remaining job is to supply the one piece of
+# live run state the resolver can't know: the Hydra's chosen element.
+func _map_node_sprite(round_no: int, node_type: int, difficulty: int = 0,
+		wave_seed: int = 0) -> String:
+	# For a fight node the silhouette is the strongest body in THAT node's actual
+	# wave — tier and seed included — so main_game resolves it through the
+	# director (which owns both the spec and the pricing) and hands the screen a
+	# code. Elite and boss nodes name their own creature and need no lookup.
+	var battle_code: String = ""
+	if node_type == RunMap.NodeType.BATTLE and _wave_director:
+		battle_code = _wave_director.lead_code(round_no, difficulty, wave_seed)
+	return RunMapScreen.sprite_path_for(round_no, node_type, _hydra_chosen_element,
+		battle_code)
+
+# Where the wave's bodies will STAND, for the map's mini-board. Reading "4 melee,
+# 2 ranged" tells you what's coming; seeing that the ranged units are stacked on
+# one flank tells you how to answer it, which is the decision the board actually
+# rewards.
+#
+# Fixed formations carry real cell positions. Procedural waves (the round-11+
+# "random" entries) don't, so they're laid out by ROLE the same way
+# WaveScaler.build_formation does it — front-liners on the rows nearest you,
+# ranged behind — which is where they end up anyway.
+func _preview_formation(spec: Array) -> Array:
+	var out: Array = []
+	var next_front: int = 0
+	var next_back: int = 0
+	var w: int = battle_grid.grid_width
+	for entry: Dictionary in spec:
+		var code: String = String(entry.get("code", ""))
+		var role: String = WaveScaler.role_tag_for_code(code) if code != "" else "melee"
+		var cell: Vector2i
+		if entry.has("pos"):
+			cell = entry["pos"]
+		elif role == "ranged" or role == "support":
+			cell = Vector2i(next_back % w, next_back / w)
+			next_back += 1
+		else:
+			cell = Vector2i(next_front % w, 2 + next_front / w)
+			next_front += 1
+		# The unit's REAL sprite, so the preview shows the fight rather than a
+		# diagram of it. Goes through RunMapScreen.sprite_for_type rather than
+		# reading MONSTER_SPRITE_PATHS directly: a raw lookup misses multi-phase
+		# bosses (there is no plain "khagan" key, only "khagan_phase1"), which
+		# drew the wave-10 BOSS as a blank grey disc in the preview of his own
+		# boss fight.
+		var sprite: String = RunMapScreen.sprite_for_type(
+			String(entry.get("type", "")))
+		out.append({"x": cell.x, "y": cell.y, "role": role, "sprite": sprite,
+			"large": bool(WaveScaler.CODE_IS_LARGE.get(code, false))})
+	return out
+
 # Power for all 3 difficulties at once (dry-run — no units touch the battlefield)
 # so the panel can show every option side by side instead of just the active preview.
 func _all_difficulty_power() -> Dictionary:
@@ -1659,6 +1916,15 @@ func _on_battle_ended(player_won: bool) -> void:
 	# NOTE: level-up perk choices used to be presented here. XP is no longer
 	# granted at round end — it's paid out by the round-start ceremony, so the
 	# perk screen follows it there (see _play_round_start_ceremony).
+	# Wave modifiers last exactly one fight, and this was it.
+	_next_wave_mods.clear()
+	if MAP_MODE:
+		# A cleared fight returns you to the map to pick the next node, instead
+		# of the next round starting on its own.
+		_map_node = {}
+		save_run()
+		_open_run_map()
+		return
 	game_state.start_battle_round()
 
 # Grants the reward rolled at "Ready for Battle" time for the round that was
@@ -2142,6 +2408,11 @@ func _on_shop_screen_reroll() -> void:
 func _on_shop_closed() -> void:
 	update_ui()
 	save_run()
+	# Leaving a merchant NODE returns to the map (it cost you no wave); leaving
+	# the scheduled prep-phase shop just drops you back into prep.
+	if _shop_from_map:
+		_shop_from_map = false
+		_open_run_map()
 
 func _on_spawn_hero_pressed() -> void:
 	if not shop_open:
@@ -2215,6 +2486,12 @@ func _on_hero_chosen(unit_class: UnitBase.UnitClass, element: UnitBase.Element, 
 		_awaiting_call_to_arms_pick = false
 		_recruit_hero(unit_class, element, rolls)   # free — field is guaranteed empty at run start
 		update_ui()
+		# Under the map, the run's opening beat is relic → starting hero → map.
+		# The map is deliberately held back until here so it can't be clicked
+		# through while the picker is still waiting (see _on_relic_chosen).
+		if MAP_MODE:
+			save_run()
+			_open_run_map()
 		return
 	# HERO_COST was already paid in _on_spawn_hero_pressed when this roll was
 	# opened — picking one of the 3 offers is free, nothing to charge here.
@@ -2403,9 +2680,23 @@ func _on_auto_combine_pick_needed(sources: Array, candidates: Array, cap: int) -
 	_equipment_panel.show_auto_pick(typed_sources, candidates, cap)
 
 func _on_event_choice_made(choice_index: int) -> void:
-	if not _event_panel._current_event:
+	var event: EventBlessing = _event_panel._current_event
+	if not event:
 		return
-	var choice = _event_panel._current_event.choices[choice_index]
+	var choice = event.choices[choice_index]
+	# ── Graded resolution (2026-09-19) ────────────────────────────────────────
+	# A catalog choice carries a BAND, not a payout. The grade is rolled here,
+	# the catalog turns (choice, ctx, grade) into concrete effects, and the panel
+	# spins the same reel the rest of the game uses before showing the outcome.
+	# The band picks the spread; the reel only picks where inside it you land.
+	var grade: String = ""
+	var band: String = ""
+	if choice.is_graded():
+		band = choice.band
+		grade = EventGrade.roll(band)
+		var resolved: Dictionary = choice.resolve.call(event.ctx, grade)
+		choice.effects = resolved.get("effects", {})
+		choice.description = String(resolved.get("outcome", ""))
 	var gamble_txt: String = _apply_event_effects(choice.effects)
 	update_ui()
 	# Show the outcome in the panel for a beat, then it fires `resolved` →
@@ -2413,7 +2704,199 @@ func _on_event_choice_made(choice_index: int) -> void:
 	# fixed choices echo their own outcome line.
 	var is_win := gamble_txt.begins_with("★") or (gamble_txt == "" and _choice_is_gain(choice.effects))
 	var shown: String = gamble_txt if gamble_txt != "" else str(choice.description)
-	_event_panel.show_resolution(shown, is_win)
+	_event_panel.show_resolution(shown, is_win, grade, band)
+
+# The Letter of Credit comes due when you next walk into a merchant. Pays what
+# it can out of the purse; whatever's left unpaid sets `debt_unpaid`, which is
+# the only thing that makes the Debt Collector event eligible. Deliberately not
+# a hard block on shopping — being broke at the merchant is punishment enough,
+# and the collector arriving later is the more interesting consequence.
+func _settle_merchant_debt() -> void:
+	var owed: int = int(_run_flags.get("debt", 0))
+	if owed <= 0:
+		return
+	var paid: int = mini(owed, game_state.gold)
+	if paid > 0:
+		game_state.add_gold(-paid)
+	var remainder: int = owed - paid
+	if remainder > 0:
+		# The remainder STAYS owed. Clearing it here (the first version did)
+		# made the loan free: spend down to zero before reaching a merchant and
+		# the debt evaporated — and because the Letter of Credit is gated on
+		# `not_flag: "debt"`, wiping it also let you sign a fresh one.
+		_run_flags["debt"] = remainder
+		_run_flags["debt_unpaid"] = true
+		info_label.text = "The merchant takes %dg — you still owe %dg." % [paid, remainder]
+	else:
+		_run_flags.erase("debt")
+		_run_flags.erase("debt_unpaid")
+		info_label.text = "The merchant takes the %dg you owed." % paid
+
+# ══════════════════════════════════════════════════════════════════════════════
+# RUN MAP (2026-09-19, RUN_MAP_PLAN.md §3)
+# ══════════════════════════════════════════════════════════════════════════════
+# The map replaces the fixed timetable with a path the player chooses. What it
+# does NOT change is the wave counter: battle nodes advance it exactly as rounds
+# always did, interstitial nodes (event / merchant) don't advance it at all, and
+# every path still fights all ten waves of the biome.
+#
+# MAP_MODE is a switch, not a rewrite: with it off, every scheduled block above
+# behaves exactly as it did before this landed. Keep it that way — it's the only
+# cheap way back if the map turns out to be the wrong shape.
+
+# The biome (0-based decade) a round belongs to.
+func _biome_of_round(round_number: int) -> int:
+	return maxi(0, (maxi(1, round_number) - 1) / RunMap.WAVES_PER_BIOME)
+
+# Make sure a map exists for the biome we're standing in, generating a fresh one
+# when the run crosses into a new decade.
+func _ensure_map_for_biome(biome_index: int) -> void:
+	if _run_map != null and _run_map.biome == biome_index:
+		return
+	_run_map = RunMap.generate(biome_index, 0, true)
+	var bad: Array = _run_map.validate()
+	if not bad.is_empty():
+		# Never ship a broken map to the player: regenerate once, and if the
+		# generator is genuinely broken, say so loudly rather than drawing an
+		# unreachable node and letting them click into a dead end.
+		push_warning("RunMap invalid, regenerating: %s" % str(bad))
+		_run_map = RunMap.generate(biome_index, 0, true)
+		if not _run_map.validate().is_empty():
+			push_error("RunMap generator is producing invalid maps — see arena --mode=map")
+
+func _open_run_map() -> void:
+	if not MAP_MODE:
+		return
+	# Which biome's map to show: the one holding the NEXT wave, so clearing a
+	# boss rolls straight into the next decade's map.
+	var next_round: int = game_state.battle_round + 1
+	_ensure_map_for_biome(_biome_of_round(next_round))
+	if _run_map.is_finished():
+		_run_map = null
+		_ensure_map_for_biome(_biome_of_round(next_round))
+	var biome_name: String = ProgressionRails.BIOMES[
+		clampi(_run_map.biome, 0, ProgressionRails.BIOMES.size() - 1)]["name"]
+	_run_map_screen.present(_run_map, biome_name)
+
+# Debug only: walk the fresh map forward until the given wave of the biome is
+# the NEXT battle, picking arbitrarily at every fork. Used by the F6/F7 warp so
+# the map cursor and the wave counter can't disagree after a jump.
+func _warp_map_to_wave(wave: int) -> void:
+	if _run_map == null:
+		return
+	var guard: int = 0
+	while _run_map.waves_cleared() < wave - 1 and guard < 60:
+		guard += 1
+		var options: Array = _run_map.available_next()
+		if options.is_empty():
+			break
+		# Prefer a battle node so the walk actually burns waves rather than
+		# wandering through every event on the way.
+		var pick: Dictionary = options[0]
+		for o in options:
+			if RunMap.is_battle_node(o):
+				pick = o
+				break
+		_run_map.advance_to(String(pick["id"]))
+	# Stand ON the node for the target wave so the prep phase reads its tier.
+	for o in _run_map.available_next():
+		if RunMap.is_battle_node(o) and int(o["wave"]) == wave:
+			_map_node = _run_map.advance_to(String(o["id"]))
+			return
+
+func _on_map_node_chosen(node: Dictionary) -> void:
+	if _run_map == null:
+		return
+	# Close the map here rather than trusting the screen's own click handler to
+	# have done it: this is the one entry point every caller goes through (the
+	# screen, the debug warp, the smoke test), and a map left open over the modal
+	# a node just launched is exactly how the Call to Arms soft-lock happened.
+	if _run_map_screen:
+		_run_map_screen.visible = false
+	var entered: Dictionary = _run_map.advance_to(String(node["id"]))
+	if entered.is_empty():
+		return   # not reachable from here; the screen shouldn't have offered it
+	_map_node = entered
+	save_run()
+
+	if RunMap.is_battle_node(entered):
+		# Force the counters to agree instead of trusting them to. A restored
+		# save, a debug warp or a future refactor could desync the wave counter
+		# from the map, and every downstream system (enemy level, prices, biome
+		# art) keys off battle_round — so the map's round wins, always.
+		game_state.battle_round = int(entered["round"]) - 1
+		game_state.start_battle_round()
+		return
+
+	# Utility nodes occupy a fixed map stage but do not start combat. Run their
+	# modal, then hand the player back to the next stage.
+	match int(entered["type"]):
+		RunMap.NodeType.RELIC:
+			var offers: Array = Relic.roll_offers(
+				maxi(1, game_state.battle_round), _relic_inventory.owned_ids())
+			if offers.is_empty():
+				_open_run_map()
+				return
+			_relic_screen_wave = maxi(1, game_state.battle_round)
+			_relic_rerolls_left = Progression.get_bonus("+1 Reroll")
+			_relic_screen.present(offers, _relic_screen_wave, _relic_rerolls_left)
+		RunMap.NodeType.EVENT:
+			# Utility stages still have a scaler position even though they do not
+			# start combat. Using battle_round here made a stage-1 event query the
+			# catalog at round 0, where every definition is ineligible, so the path
+			# advanced and no panel appeared.
+			var event_ctx: Dictionary = _event_context(int(entered.get("round", 1)))
+			var event: EventBlessing = EventGenerator.generate(event_ctx, _events_seen)
+			if event == null:
+				# An event node must always pay off with an event. Gold Rush has no
+				# state requirements and is the catalog's safe construction fallback.
+				event = EventGenerator.build_by_id("gold_rush", event_ctx)
+			if event == null:
+				push_error("Event node %s could not build any encounter" % entered["id"])
+				_open_run_map()
+				return
+			_events_seen[event.def_id] = true
+			_event_from_map = true
+			_event_panel.show_event(event)
+		RunMap.NodeType.MERCHANT:
+			var round_no: int = maxi(1, int(entered.get("round", game_state.battle_round)))
+			_shop_stock = ShopGenerator.roll_stock(round_no, _relic_inventory.owned_ids())
+			_settle_merchant_debt()
+			if _shop_discount_pending > 0.0:
+				ShopGenerator.apply_discount(_shop_stock, _shop_discount_pending)
+				_shop_discount_pending = 0.0
+			if _shop_sale_slots_pending > 0:
+				ShopGenerator.apply_extra_sales(_shop_stock, _shop_sale_slots_pending)
+				_shop_sale_slots_pending = 0
+			_shop_from_map = true
+			_shop_screen.open(round_no, game_state.gold, _shop_stock)
+		_:
+			# CAMP is now part of generation; its interaction is the next feature
+			# pass. Until then, advancing through it safely returns to the map.
+			_open_run_map()
+
+# Run state the catalog's eligibility rules and payout formulas read. Built
+# fresh per event roll — an event that asks "do you have 2 items" has to be
+# asking about right now, not about whenever the pool was last built.
+func _event_context(round_override: int = -1) -> Dictionary:
+	var elements: Dictionary = {}
+	var dominant: int = 0
+	for u in player_units:
+		if u and is_instance_valid(u):
+			var e: int = int(u.current_element)
+			elements[e] = int(elements.get(e, 0)) + 1
+			dominant = maxi(dominant, int(elements[e]))
+	return {
+		"round": round_override if round_override >= 0 else game_state.battle_round,
+		"gold": game_state.gold,
+		"team_size": player_units.size(),
+		"team_max": max_player_units,
+		"bench": bench_units.size(),
+		"items": _equipment_inventory.items.size() if _equipment_inventory else 0,
+		"relics": _relic_inventory.owned.size() if _relic_inventory else 0,
+		"dominant_element": dominant,
+		"flags": _run_flags,
+	}
 
 func _choice_is_gain(effects: Dictionary) -> bool:
 	# Rough good/bad tint for the resolution beat on non-gamble choices.
@@ -2430,6 +2913,15 @@ func _on_event_resolved() -> void:
 	if not leveled.is_empty():
 		_level_up_screen.present(leveled)
 		await _level_up_screen.all_done
+	# An event reached from a MAP NODE is a stop on the road, not a prelude to
+	# the fight: it hands the player back to the map to choose again. In the
+	# classic flow the event fires after READY, so resolving it starts the
+	# battle, exactly as before.
+	if _event_from_map:
+		_event_from_map = false
+		save_run()
+		_open_run_map()
+		return
 	game_state.player_ready_for_battle()
 
 # Effect application, separated from the panel callback so the headless event
@@ -2514,6 +3006,153 @@ func _apply_event_effects(effects: Dictionary) -> String:
 					unit.level_up()
 					unit.perk_points += 1
 
+	# ── Verbs added with the 2026-09-19 event catalog ─────────────────────────
+	# Each is deliberately small and self-contained: the catalog composes them
+	# (see EventCatalog's "combo" kind) rather than any single verb growing arms.
+
+	# Percentage of the CURRENT purse, so "the bandits take a quarter" stays
+	# proportionate whether you're holding 12g or 300g.
+	if effects.has("gold_pct"):
+		var delta: int = int(round(float(game_state.gold) * float(effects["gold_pct"])))
+		game_state.add_gold(delta)
+
+	if effects.has("heal_pct"):
+		var hp_frac: float = clampf(float(effects["heal_pct"]), 0.0, 1.0)
+		for unit in player_units:
+			if unit and is_instance_valid(unit):
+				unit.current_hp = mini(unit.max_hp,
+						unit.current_hp + int(round(unit.max_hp * hp_frac)))
+
+	if effects.has("mana_pct"):
+		var mp_frac: float = clampf(float(effects["mana_pct"]), 0.0, 1.0)
+		for unit in player_units:
+			if unit and is_instance_valid(unit):
+				unit.current_mana = mini(unit.max_mana,
+						unit.current_mana + int(round(unit.max_mana * mp_frac)))
+
+	# {"count": n, "max_rarity": r} — rarity is a CEILING (generate_item can roll
+	# under it), which is why an S-grade cache can still hand you an Epic.
+	if effects.has("grant_item"):
+		var gi: Dictionary = effects["grant_item"]
+		var granted: Array[String] = []
+		for _i in range(int(gi.get("count", 1))):
+			var item: EquipmentItem = EquipmentManager.generate_item(
+					game_state.battle_round, int(gi.get("max_rarity", EquipmentItem.Rarity.RARE)))
+			if item and _equipment_inventory.add_item(item):
+				granted.append(item.name)
+		if not granted.is_empty():
+			info_label.text = "Event: gained %s" % ", ".join(granted)
+
+	# {"count": n, "grade_mult": m} — the only way to turn items back into gold
+	# anywhere in the game right now (see RUN_MAP_PLAN §5A). Takes the LOWEST
+	# rarity first: a scrap merchant event shouldn't quietly eat your Epic.
+	#
+	# Price: a fraction of what that item would COST in the shop at this round,
+	# nudged by the event's grade. Deriving it from the item (rather than a flat
+	# number in the catalog) is what keeps scrapping strictly worse than buying
+	# at every round — otherwise a late-game scrap event pays more per item than
+	# the merchant charges for one.
+	if effects.has("destroy_items"):
+		var di: Dictionary = effects["destroy_items"]
+		var gm: float = clampf(float(di.get("grade_mult", 1.0)), 0.6, 1.4)
+		var sellable: Array = _equipment_inventory.items.duplicate()
+		sellable.sort_custom(func(a, b): return a.rarity < b.rarity)
+		var sold: int = 0
+		var earned: int = 0
+		for i in range(mini(int(di.get("count", 1)), sellable.size())):
+			var scrap: EquipmentItem = sellable[i]
+			var value: int = maxi(1, int(round(
+					float(ShopGenerator.item_price(scrap, game_state.battle_round))
+					* SALVAGE_RATIO * gm)))
+			if _equipment_inventory.remove_item(scrap):
+				sold += 1
+				earned += value
+				game_state.add_gold(value)
+		if sold > 0:
+			_rebuild_inventory_grid()
+			info_label.text = "Event: scrapped %d item(s) for %dg" % [sold, earned]
+
+	# {"count": n, "target": random|best|weakest, "grade": "B"} — a graded perk
+	# onto a hero, using the same roll_perk_offer/apply_perk_to_unit pair the
+	# level-up screen and round rewards use, so the numbers can't drift.
+	if effects.has("hero_perk"):
+		var hp_def: Dictionary = effects["hero_perk"]
+		var alive: Array = player_units.filter(func(u): return u and is_instance_valid(u))
+		if not alive.is_empty():
+			var targets: Array = _perk_targets(alive, String(hp_def.get("target", "random")),
+					int(hp_def.get("count", 1)))
+			# The perk is issued AT THE EVENT'S GRADE, not at a fresh roll — the
+			# reel the player just watched has to be the grade they receive.
+			var perk_grade: String = String(hp_def.get("grade", "C"))
+			var names: Array[String] = []
+			for unit in targets:
+				var base_perk: Dictionary = LevelUpScreen.PERKS[randi() % LevelUpScreen.PERKS.size()]
+				var offer: Dictionary = LevelUpScreen.offer_at_grade(
+						base_perk, perk_grade, EventGrade.mult(perk_grade))
+				LevelUpScreen.apply_perk_to_unit(unit, offer)
+				names.append("%s %s %s" % [unit.unit_name, perk_grade, String(offer.get("label", ""))])
+			if not names.is_empty():
+				info_label.text = "Event: %s" % ", ".join(names)
+				update_team_health_bars()
+
+	if effects.has("hero_xp"):
+		var xp_amt: float = float(effects["hero_xp"])
+		for unit in player_units:
+			if unit and is_instance_valid(unit):
+				unit.grant_xp(xp_amt)
+
+	# {"target":…, "gain_stat":…, "gain_pct":…, "cost_stat":…, "cost_pct":…}
+	# A SCAR: one hero permanently trades one stat for another. Both sides are
+	# percentages of that hero's current stat so the deal stays meaningful at
+	# level 2 and at level 20.
+	#
+	# Deliberately NOT routed through LevelUpScreen.apply_perk_to_unit: that path
+	# floors every value positive (maxi(1, …)), so a −40 HP perk lands as +1.
+	# Fixing the shared perk math to allow negatives would put a silent trapdoor
+	# under level-ups and round rewards, which have no business going down.
+	if effects.has("hero_scar"):
+		var sc: Dictionary = effects["hero_scar"]
+		var alive_s: Array = player_units.filter(func(u): return u and is_instance_valid(u))
+		if not alive_s.is_empty():
+			var target: UnitBase = _perk_targets(alive_s, String(sc.get("target", "random")), 1)[0]
+			var gained: int = _apply_stat_pct(target, String(sc.get("gain_stat", "attack_damage")),
+					float(sc.get("gain_pct", 0.15)))
+			var lost: int = _apply_stat_pct(target, String(sc.get("cost_stat", "max_hp")),
+					-float(sc.get("cost_pct", 0.12)))
+			# Record it where the player can actually find it later. An invisible
+			# permanent debuff is just a hero whose numbers stop making sense.
+			var scars: Array = target.get_meta("scars", [])
+			scars.append("%+d %s / %+d %s" % [
+				gained, _stat_label(String(sc.get("gain_stat", ""))),
+				lost, _stat_label(String(sc.get("cost_stat", "")))])
+			target.set_meta("scars", scars)
+			info_label.text = "%s is scarred: %+d %s, %+d %s" % [target.unit_name,
+				gained, _stat_label(String(sc.get("gain_stat", ""))),
+				lost, _stat_label(String(sc.get("cost_stat", "")))]
+			update_team_health_bars()
+
+	# {"extra_enemies": n, "reward_tier": t} — see _generate_wave_spec and
+	# _on_battle_round_started. Held until the next battle consumes them.
+	if effects.has("next_wave"):
+		for k in effects["next_wave"].keys():
+			_next_wave_mods[String(k)] = effects["next_wave"][k]
+
+	# Shop modifiers ride on the run until the next merchant consumes them.
+	if effects.has("shop_discount"):
+		_shop_discount_pending = maxf(_shop_discount_pending, float(effects["shop_discount"]))
+	if effects.has("shop_sales"):
+		_shop_sale_slots_pending += int(effects["shop_sales"])
+	if effects.has("debt"):
+		_run_flags["debt"] = int(_run_flags.get("debt", 0)) + int(effects["debt"])
+
+	# Flags are the run's memory — what makes the callback events (the rival,
+	# the debt collector) possible at all.
+	if effects.has("set_flag"):
+		for k in effects["set_flag"].keys():
+			if String(k).begins_with("_"):
+				continue   # "_text" is authoring metadata, not a flag
+			_run_flags[String(k)] = effects["set_flag"][k]
+
 	# Gamble: 50/50 roll between the win and lose payouts.
 	if effects.has("gold_if_win") or effects.has("gold_if_lose"):
 		if randf() < 0.5:
@@ -2526,6 +3165,62 @@ func _apply_event_effects(effects: Dictionary) -> String:
 			gamble_result = "✗ Gamble lost — %dg." % lost
 
 	return gamble_result
+
+# Move one stat by a percentage of its current value, in either direction, and
+# report the actual delta applied. Never takes a stat below 1 — a scar is meant
+# to cost something, not to delete a hero.
+func _apply_stat_pct(unit: UnitBase, stat: String, pct: float) -> int:
+	match stat:
+		"attack_damage":
+			var d: int = maxi(1 - unit.attack_damage, int(round(unit.attack_damage * pct)))
+			unit.attack_damage += d
+			return d
+		"magic_power":
+			var d2: int = maxi(-unit.magic_power, int(round(unit.magic_power * pct)))
+			unit.magic_power += d2
+			return d2
+		"max_hp":
+			var d3: int = maxi(1 - unit.max_hp, int(round(unit.max_hp * pct)))
+			unit.max_hp += d3
+			unit.current_hp = clampi(unit.current_hp, 1, unit.max_hp)
+			return d3
+		"resistance":
+			var d4: int = maxi(-unit.resistance, int(round(unit.resistance * pct)))
+			unit.resistance += d4
+			unit.magic_resist = maxi(0, unit.magic_resist + d4)
+			return d4
+		"attack_speed":
+			# Float stat: report the delta in whole percent so the readout stays
+			# legible (0.12 → "+12").
+			var before: float = unit.attack_speed
+			unit.attack_speed = maxf(0.05, unit.attack_speed * (1.0 + pct))
+			return int(round((unit.attack_speed - before) / maxf(0.01, before) * 100.0))
+	return 0
+
+func _stat_label(stat: String) -> String:
+	match stat:
+		"attack_damage": return "ATK"
+		"magic_power":   return "MAG"
+		"max_hp":        return "HP"
+		"resistance":    return "DEF"
+		"attack_speed":  return "AS%"
+	return stat
+
+# Which heroes a "hero_perk" effect lands on. Level is the sort key because it's
+# the one number that reads as "strongest" at a glance on the board; ties fall
+# back to max HP so the pick is stable rather than arbitrary.
+func _perk_targets(alive: Array, target: String, count: int) -> Array:
+	var pool: Array = alive.duplicate()
+	match target:
+		"best":
+			pool.sort_custom(func(a, b):
+				return a.level > b.level if a.level != b.level else a.max_hp > b.max_hp)
+		"weakest":
+			pool.sort_custom(func(a, b):
+				return a.level < b.level if a.level != b.level else a.max_hp < b.max_hp)
+		_:
+			pool.shuffle()
+	return pool.slice(0, mini(maxi(1, count), pool.size()))
 
 func _on_ready_pressed() -> void:
 	if player_units.is_empty():
@@ -2568,10 +3263,18 @@ func _on_ready_pressed() -> void:
 	# they'd win, so commit to that exact result, not a fresh roll.
 	_pending_round_reward = _rolled_rewards.get(_locked_difficulty, {})
 
-	# Trigger random event between rounds (25% chance)
+	# Trigger random event between rounds (25% chance).
+	# 2026-09-19: now draws from EventCatalog through the run's context and
+	# seen-set, so eligibility (items held, board full, flags set by earlier
+	# choices) and non-repetition are honoured. A null event means the eligible
+	# pool was empty — fall through to the battle rather than stalling the round.
 	if randf() < 0.25 and game_state.battle_round > 1:
-		var event = EventGenerator.generate_event(game_state.battle_round, game_state.gold)
-		_event_panel.show_event(event)
+		var event: EventBlessing = EventGenerator.generate(_event_context(), _events_seen)
+		if event:
+			_events_seen[event.def_id] = true
+			_event_panel.show_event(event)
+		else:
+			game_state.player_ready_for_battle()
 	else:
 		game_state.player_ready_for_battle()
 
@@ -2823,8 +3526,25 @@ func spawn_random_player_unit() -> void:
 # refactor) — scene-independent and shared with the arena harness, so the
 # simulator can never drift from the live game's waves again.
 func _generate_wave_spec(difficulty: int) -> Array:
-	return _wave_director.generate_wave_spec(
-			game_state.battle_round, difficulty, battle_grid.grid_width, _hydra_chosen_element)
+	# The node being played pins the filler roll, so the fight that opens is the
+	# fight the map card showed — the map screen previews through the SAME seed
+	# (see _map_node_preview and WaveScaler._filler_rng). Classic mode and any
+	# pre-map save have no node and pass 0, which rolls freshly as it always did.
+	var spec: Array = _wave_director.generate_wave_spec(
+			game_state.battle_round, difficulty, battle_grid.grid_width,
+			_hydra_chosen_element, int(_map_node.get("wave_seed", 0)))
+	# ── Event-driven wave modifiers (2026-09-19) ─────────────────────────────
+	# Until now events could only hand out gold, stats and items — they had no
+	# way to touch a FIGHT, which is why the whole "accept a harder wave for a
+	# better payout" category didn't exist. Extra bodies are added here, after
+	# the director has built its formation, so the modifier rides on top of
+	# whatever the round would normally field instead of replacing it.
+	var extra: int = int(_next_wave_mods.get("extra_enemies", 0))
+	if extra > 0:
+		var lvl: int = WaveScaler.enemy_level_for_round(game_state.battle_round, false)
+		for _i in range(extra):
+			spec.append({"type": "random", "level": lvl})
+	return spec
 
 # This round's spec for `difficulty` — generated once, then reused for every
 # later preview and for the committed wave. See _wave_specs.
@@ -2853,6 +3573,9 @@ func _instantiate_wave_from_spec(spec: Array, roll_item: bool = true) -> void:
 			_place_at(unit, grid_pos, roll_item)
 		else:
 			_place_enemy(unit, roll_item)
+	# Enemy creation happens after the prep sidebar's initial paint. Refresh it
+	# once the complete wave is present so its totals/list match the visible board.
+	update_team_health_bars()
 
 func spawn_enemies(difficulty: int = WaveScaler.Difficulty.NORMAL) -> void:
 	# Difficulty PREVIEW — the SAME cached spec the wave will actually use (so the
@@ -2970,18 +3693,32 @@ func _clear_middle_row() -> void:
 		var stray = battle_grid.get_unit_at(pos)
 		if not (stray and is_instance_valid(stray)):
 			continue
-		if stray in player_units or stray in _downed_heroes:
-			# Put it back in its own zone rather than losing it outright. A downed
-			# hero is parked (invisible, not in player_units) awaiting revival —
-			# it must never fall through to the enemy-stray branch below and get
-			# queue_free()'d, or it's lost for good despite never really dying.
-			var slot: Vector2i = find_empty_player_slot()
+		# Put a hero back in its own zone rather than losing it outright. This
+		# used to test `stray in player_units or stray in _downed_heroes`, so any
+		# hero that had fallen out of BOTH arrays was treated as an enemy stray
+		# and queue_free()'d — gone for the rest of the run despite never really
+		# dying (2026-09-19; see _on_unit_revived for how that happened).
+		# is_player_unit is the property that actually decides whose unit this is,
+		# and it cannot go stale the way array membership can. Player summons are
+		# still cleaned up, just by _despawn_summons at round end instead.
+		if stray.is_player_unit and not stray.is_summoned:
+			# Cap-free scan on purpose: find_empty_player_slot refuses once the
+			# field is full, which is correct when ADDING a hero and wrong when
+			# RELOCATING one that is already on the board — it left the hero
+			# stranded on the divider it was supposed to be swept off.
+			var slot: Vector2i = _free_player_zone_cell()
 			if slot == Vector2i(-1, -1):
 				continue
 			battle_grid.purge_unit(stray)
 			stray.grid_position = slot
 			stray.position = battle_grid.grid_to_world(slot)
 			battle_grid.place_unit(stray, slot)
+			# Repair a home_position that points outside the player zone, or this
+			# hero gets slotted straight back onto the divider every round. An
+			# existing run can already be carrying one (Doc used to write the
+			# revive cell into it), so this is the migration for saves in flight.
+			if stray.home_position.y < battle_grid.grid_height - 4:
+				stray.home_position = slot
 		else:
 			battle_grid.purge_unit(stray)
 			enemy_units.erase(stray)
@@ -2990,6 +3727,12 @@ func _clear_middle_row() -> void:
 func find_empty_player_slot() -> Vector2i:
 	if player_units.size() >= max_player_units:
 		return Vector2i(-1, -1)
+	return _free_player_zone_cell()
+
+# Any free cell in the player zone, IGNORING the team-size cap. Use this to
+# relocate a hero that is already on the board; use find_empty_player_slot when
+# adding one, since only that case should be refused by a full field.
+func _free_player_zone_cell() -> Vector2i:
 	for y in range(battle_grid.grid_height - 4, battle_grid.grid_height):
 		for x in range(battle_grid.grid_width):
 			var p := Vector2i(x, y)
@@ -3043,9 +3786,20 @@ func _revive_downed_heroes() -> void:
 	for unit in _downed_heroes:
 		if not (unit and is_instance_valid(unit)):
 			continue
-		# Doc's Field Surgery may already have put this hero back on their feet
-		# mid-fight — don't yank a healthy survivor back down to 10%.
-		if unit.current_hp > 0:
+		# Already back on their feet mid-fight — don't yank a healthy survivor
+		# back down to 10%. They MUST still rejoin the roster, though: a bare
+		# `continue` skipped the player_units.append() below, and the
+		# _downed_heroes.clear() at the end then dropped the last reference,
+		# orphaning a live hero out of both arrays (2026-09-19). _on_unit_revived
+		# is the real fix and normally gets there first; this is the backstop for
+		# any other route that lifts a corpse above 0 HP — heal() has no death
+		# guard, so one could appear.
+		# _is_dying distinguishes a hero who was properly stood up (revive()
+		# clears it) from a corpse whose HP number merely got topped up: the
+		# latter still needs the full revive below to become visible again.
+		if unit.current_hp > 0 and not unit._is_dying:
+			if unit not in player_units:
+				player_units.append(unit)
 			continue
 		unit.revive(REVIVE_HP_PCT)
 		if unit not in player_units:
@@ -3352,6 +4106,32 @@ func _log_between_round(unit: UnitBase, heal: int, xp: float, front_t: float) ->
 
 
 # ── UNIT DEATH & SUMMONS ───────────────────────────────────────────────────
+
+# A hero brought back MID-FIGHT (Doc's Field Surgery). The exact counterpart to
+# _on_unit_died below: that one takes the unit out of BOTH rosters, this one puts
+# it back in ours. AutoBattleManager fixes only its own copy, so before this
+# existed main_game never learned the hero was alive again — it stayed out of
+# player_units while its node kept standing on the board, which meant no
+# reset_player_positions (stranded wherever it was revived), no
+# enable_unit_dragging (unclickable), absent from save_run (lost on resume), and
+# finally queue_free()'d by _clear_middle_row. That is the 2026-09-19 tester
+# report: "they moved toward the center and unclickable", units gone for good.
+#
+# Note this also takes the hero OFF _downed_heroes, so the round-start ceremony
+# treats it as the survivor it is: it earns the row heal like anyone else who
+# finished the fight standing, instead of the heal-exempt revive path.
+func _on_unit_revived(unit) -> void:
+	if not (unit and is_instance_valid(unit)):
+		return
+	_downed_heroes.erase(unit)
+	if unit.is_player_unit:
+		if unit not in player_units:
+			player_units.append(unit)
+	elif unit not in enemy_units:
+		enemy_units.append(unit)
+	_rebuild_synergy_display()
+	update_team_health_bars()
+
 func _on_unit_died(unit) -> void:
 	var was_enemy := enemy_units.has(unit)
 	var _dead_level: int = unit.level if (unit and is_instance_valid(unit)) else 1
@@ -3734,6 +4514,15 @@ func _debug_warp_rounds(delta: int) -> void:
 	game_state.gold = maxi(game_state.gold, 50 * target)
 
 	game_state.battle_round = target - 1
+	if MAP_MODE:
+		# Warping crosses biomes, so the old map is the wrong map. Drop it, build
+		# the one for where we landed, and walk it forward to the node matching
+		# the target wave — otherwise the map still thinks we're back at wave 1
+		# and the next choice would rewind the run.
+		_run_map = null
+		_map_node = {}
+		_ensure_map_for_biome(_biome_of_round(target))
+		_warp_map_to_wave((target - 1) % RunMap.WAVES_PER_BIOME + 1)
 	game_state.start_battle_round()
 	_rebuild_bench_bar()
 	_rebuild_synergy_display()
@@ -3878,6 +4667,25 @@ func _update_details_panel() -> void:
 		_details.refresh_live()
 
 
+# Is a modal covering the board? Kept as ONE list because it used to be spelled
+# out inline at its only call site, which made it a maintenance trap: every new
+# full-screen screen had to remember to add itself, and the run map didn't — so
+# the board's row tooltip drew straight through the open map (reported
+# 2026-09-19, the same class of bug as the 2026-07-05 relic overlap the original
+# list was written for). Anything that covers the board belongs in here.
+func _any_modal_open() -> bool:
+	for modal in [_hero_shop, _shop_screen, _level_up_screen, _round_reward_screen,
+			_equipment_panel, _event_panel, _game_over_screen, _relic_screen,
+			_hydra_element_screen, _character_menu, _class_browser]:
+		if modal and modal.visible:
+			return true
+	# The map is asked a QUESTION rather than checked for visibility: its
+	# VIEW BOARD mode keeps the layer up (it owns the BACK TO MAP button) while
+	# hiding the panel, and there the board's tooltips must keep working.
+	if _run_map_screen and _run_map_screen.is_covering_board():
+		return true
+	return unit_details_panel != null and unit_details_panel.visible
+
 func _update_row_tooltip() -> void:
 	if not _row_tip or not battle_grid:
 		return
@@ -3885,15 +4693,7 @@ func _update_row_tooltip() -> void:
 	# (this tooltip lives on CanvasLayer 20 — above every modal's default
 	# layer 1 — so an un-listed modal gets covered by it, not the other way
 	# around; see relic_screen "icon overlap" report, 2026-07-05).
-	if (_hero_shop and _hero_shop.visible) \
-			or (_shop_screen and _shop_screen.visible) \
-			or (_level_up_screen and _level_up_screen.visible) \
-			or (_round_reward_screen and _round_reward_screen.visible) \
-			or (_equipment_panel and _equipment_panel.visible) \
-			or (_event_panel and _event_panel.visible) \
-			or (_game_over_screen and _game_over_screen.visible) \
-			or (_relic_screen and _relic_screen.visible) \
-			or unit_details_panel.visible:
+	if _any_modal_open():
 		_row_tip.visible = false
 		_row_tip_last = -1
 		return

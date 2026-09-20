@@ -11,7 +11,15 @@ enum Role      { FRONT, BACK, BOSS }
 
 # Total-power multiplier relative to the baseline (Normal) wave.
 # Normal base power × this mult = total power budget for Veteran/Brutal.
-const DIFFICULTY_MULT: Array[float] = [1.0, 1.75, 3.5]
+#
+# 1.75/3.5 → 1.5/2.0 (owner call, 2026-09-20). Two reasons, one measured and one
+# design: 3.5× made the hard lane not worth walking, which defeats the point of a
+# map whose lanes are supposed to be real alternatives; and the old numbers were
+# never actually delivered anyway — priced in UNIT_POWER they measured anywhere
+# from ×1.17 to ×5.37. Now that the budget is priced in the same currency the
+# THREAT readout uses (see WaveScaler.fill_to_score), these are honest: a Veteran
+# wave really is half again a Normal one.
+const DIFFICULTY_MULT: Array[float] = [1.0, 1.5, 2.0]
 
 # ── Role registry ─────────────────────────────────────────────────────────────
 # To add a new enemy: register its code here. That's it.
@@ -319,26 +327,197 @@ static func crystals_for_unit(unit: UnitBase) -> int:
 # Normal:         fixed wave from WaveData — no changes.
 # Veteran/Brutal: normal base guaranteed + random filler units up to the power budget.
 #               Filler prefers 1 strong unit over several weak ones (70/30 bias).
-static func build_formation(round: int, difficulty: int, grid_width: int = 9) -> Array:
+# wave_seed pins the Veteran/Brutal FILLER so the same node produces the same
+# fight every time it is looked at. See _filler_rng for why that matters and for
+# what 0 means.
+static func build_formation(round: int, difficulty: int, grid_width: int = 9,
+		wave_seed: int = 0, score_fn: Callable = Callable()) -> Array:
 	var base_counts: Dictionary = WaveData.get_wave(round)
 	if base_counts.is_empty():
 		return []
-
 	if difficulty == Difficulty.NORMAL:
 		return _auto_place(base_counts, grid_width)
+	return _auto_place(
+		_topped_up(base_counts, difficulty, round, wave_seed, score_fn), grid_width)
 
-	# Veteran / Brutal: start with the normal base, add power-budget filler.
-	var base_power: int = _count_power(base_counts)
-	var mult: float = DIFFICULTY_MULT[difficulty]
-	var total_budget: int = int(float(base_power) * mult)
-	var remaining: int = total_budget - base_power
-
+# base counts + whatever the difficulty budget buys, as one counts dictionary.
+# Prefers the SCORED fill; falls back to the old UNIT_POWER budget when no pricer
+# was supplied, which is every tool script and harness that calls build_formation
+# without one. Those keep their old behaviour rather than silently getting a
+# different wave.
+static func _topped_up(base_counts: Dictionary, difficulty: int, round: int,
+		wave_seed: int, score_fn: Callable, preplaced: Dictionary = {}) -> Dictionary:
 	var counts: Dictionary = base_counts.duplicate()
-	var filler: Dictionary = _fill_budget(remaining)
+	for code: String in preplaced:
+		counts[code] = counts.get(code, 0) + int(preplaced[code])
+	var filler: Dictionary
+	if score_fn.is_valid():
+		filler = fill_to_score(base_counts, difficulty, round, wave_seed, score_fn, preplaced)
+	else:
+		var base_power: int = _count_power(base_counts)
+		var remaining: int = int(float(base_power) * DIFFICULTY_MULT[difficulty]) - base_power
+		filler = _fill_budget(remaining, _filler_rng(round, difficulty, wave_seed))
 	for code: String in filler:
-		counts[code] = counts.get(code, 0) + filler[code]
+		counts[code] = counts.get(code, 0) + int(filler[code])
+	return counts
 
-	return _auto_place(counts, grid_width)
+# ── SCORED FILL ───────────────────────────────────────────────────────────────
+# Top `base_counts` up to `mult` times its own SCORED power and return just the
+# added bodies. score_fn is WaveDirector.score_code — see the long note there for
+# why the budget cannot be priced in UNIT_POWER.
+#
+# Tolerance is what the owner asked for: hit the target within a hair rather than
+# "somewhere in the neighbourhood". Whole units can't land exactly, so the fill
+# runs greedily and then TRIMS — repeatedly swapping one chosen body for a
+# differently-priced one whenever that lands closer to the target. Fine tuning is
+# possible because the pool is dense: two Brutal wave-8 rolls measured 45 points
+# apart on 2026-09-19, so there is nearly always a swap that shaves the error.
+const FILL_TOLERANCE_FRAC := 0.004   # ±0.4% of target — the owner asked for ~±50 on 12k
+const FILL_TRIM_PASSES := 10
+
+# reference_counts sets the TARGET (it is the Normal-tier wave, so ×1.5 means
+# one-and-a-half times what Normal fields). preplaced is anything already on the
+# board that is not part of that reference — the boss's hand-designed honour
+# guard — and it is charged AGAINST the budget rather than added on top of it.
+# Without that split a boss's Veteran target would be 1.5× (boss + guard) instead
+# of 1.5× the Normal fight, which is not what the tier is supposed to promise.
+static func fill_to_score(reference_counts: Dictionary, difficulty: int, round: int,
+		wave_seed: int, score_fn: Callable, preplaced: Dictionary = {}) -> Dictionary:
+	if difficulty == Difficulty.NORMAL or not score_fn.is_valid():
+		return {}
+	var base_score: float = 0.0
+	for code: String in reference_counts:
+		base_score += float(score_fn.call(code, round)) * float(int(reference_counts[code]))
+	if base_score <= 0.0:
+		return {}
+	var spent: float = base_score
+	for code: String in preplaced:
+		spent += float(score_fn.call(code, round)) * float(int(preplaced[code]))
+
+	var target: float = base_score * DIFFICULTY_MULT[difficulty]
+	var tol: float = target * FILL_TOLERANCE_FRAC
+	var remaining: float = target - spent
+
+	# Price every candidate once. A code with no sprite/type prices at 0 and is
+	# dropped rather than being treated as free.
+	var cost: Dictionary = {}
+	for code: String in FILLER_POOL:
+		var s: float = float(score_fn.call(code, round))
+		if s > 0.0:
+			cost[code] = s
+
+	var rng := _filler_rng(round, difficulty, wave_seed)
+	var picks: Dictionary = {}
+	var safety: int = 0
+	while remaining > tol and safety < 60:
+		safety += 1
+		var affordable: Array = []
+		for code: String in cost:
+			if float(cost[code]) <= remaining + tol:
+				affordable.append(code)
+		if affordable.is_empty():
+			break
+		# Same character as the old budget fill: usually the strongest body that
+		# still fits, sometimes anything that fits — that 30% is what stops every
+		# hard wave being the same stack of the single best-value unit.
+		affordable.sort_custom(func(a, b): return float(cost[a]) > float(cost[b]))
+		var pick: String = String(affordable[0]) if rng.randf() < 0.7 \
+			else String(affordable[rng.randi() % affordable.size()])
+		picks[pick] = int(picks.get(pick, 0)) + 1
+		remaining -= float(cost[pick])
+
+	# Nothing fit at all. That happens at the very bottom of the curve: wave 1 is
+	# ONE goblin, so Veteran's half-a-goblin of headroom buys nothing and the tier
+	# would field the identical wave while paying Veteran's much richer reward
+	# table — the same free-tier problem the elite rounds had. Take the cheapest
+	# body available and overshoot rather than sell a difficulty tier for nothing.
+	if picks.is_empty() and remaining > tol and not cost.is_empty():
+		var cheapest: String = ""
+		for code: String in cost:
+			if cheapest == "" or float(cost[code]) < float(cost[cheapest]):
+				cheapest = code
+		picks[cheapest] = 1
+		remaining -= float(cost[cheapest])
+
+	# Trim toward the target. Three moves are considered each pass — SWAP one
+	# chosen body for a differently-priced one, ADD a body, or REMOVE one — and
+	# the single best is taken. Swap alone was not enough: the greedy loop often
+	# stops holding a deficit smaller than the cheapest body, which no swap can
+	# close but an add-then-swap can.
+	for _pass in range(FILL_TRIM_PASSES):
+		if absf(remaining) <= tol:
+			break
+		var best_err: float = absf(remaining)
+		var move_out: String = ""
+		var move_in: String = ""
+		for to_code: String in cost:                       # ADD
+			var e_add: float = absf(remaining - float(cost[to_code]))
+			if e_add < best_err - 0.5:
+				best_err = e_add
+				move_out = ""
+				move_in = to_code
+		for from_code: String in picks:
+			var e_rem: float = absf(remaining + float(cost[from_code]))   # REMOVE
+			if e_rem < best_err - 0.5:
+				best_err = e_rem
+				move_out = from_code
+				move_in = ""
+			for to_code2: String in cost:                  # SWAP
+				if to_code2 == from_code:
+					continue
+				var err: float = absf(remaining + float(cost[from_code])
+						- float(cost[to_code2]))
+				if err < best_err - 0.5:
+					best_err = err
+					move_out = from_code
+					move_in = to_code2
+		if move_out == "" and move_in == "":
+			break
+		if move_out != "":
+			remaining += float(cost[move_out])
+			picks[move_out] = int(picks[move_out]) - 1
+			if int(picks[move_out]) <= 0:
+				picks.erase(move_out)
+		if move_in != "":
+			remaining -= float(cost[move_in])
+			picks[move_in] = int(picks.get(move_in, 0)) + 1
+	return picks
+
+# ── THE FILLER RNG, AND WHY THE SEED COMES FROM THE MAP ───────────────────────
+# The filler used to roll bare randf()/randi(), so EVERY call rebuilt the wave
+# from scratch. Two things fell out of that, both live bugs:
+#
+#   1. The map's node card promised a fight the actual round then didn't
+#      deliver — the card generated one spec, the fight generated another. The
+#      map's whole premise is that what you see is what you get.
+#   2. Difficulty could invert. Measured 2026-09-19: round 2 Brutal came out at
+#      1608 power against round 2 Veteran's 1969 — the hard option was easier,
+#      and which way it fell changed per roll.
+#
+# The fix is NOT a fixed seed per (round, difficulty): that would hand every
+# playthrough the same wave 8 forever, which kills the variety this system
+# exists to provide (owner call, 2026-09-20). The seed is PER RUN — RunMap mints
+# one per node from the run's own RNG and stores it on the node, so:
+#   new run          → different cast
+#   same node twice  → identical, card and fight agree
+#   save and quit    → survives, because the seed rides in the node dict
+# Same trick the node's reward already uses (see RunMap.to_dict's reward stub).
+#
+# Round and difficulty are mixed IN rather than trusted to differ on their own:
+# main_game generates all three difficulties from the SAME node to fill the
+# difficulty panel, so a bare node seed would hand Veteran and Brutal identical
+# filler rolls.
+#
+# wave_seed 0 means "nobody pinned this" — the arena harness, the tool scripts
+# and any pre-map save. Those randomize, which is exactly the old behaviour, so
+# no existing caller changes meaning.
+static func _filler_rng(round: int, difficulty: int, wave_seed: int) -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	if wave_seed == 0:
+		rng.randomize()
+	else:
+		rng.seed = hash("%d:%d:%d" % [wave_seed, round, difficulty])
+	return rng
 
 # Sum the power cost of a counts dictionary.
 static func _count_power(counts: Dictionary) -> int:
@@ -351,7 +530,7 @@ static func _count_power(counts: Dictionary) -> int:
 # 70% chance: pick the strongest affordable unit from FILLER_POOL.
 # 30% chance: pick any affordable unit at random.
 # Returns a counts dictionary.
-static func _fill_budget(budget: int) -> Dictionary:
+static func _fill_budget(budget: int, rng: RandomNumberGenerator) -> Dictionary:
 	var result: Dictionary = {}
 	var safety := 0
 	while budget > 0 and safety < 50:
@@ -365,10 +544,10 @@ static func _fill_budget(budget: int) -> Dictionary:
 			break
 
 		var pick: String
-		if randf() < 0.7:
+		if rng.randf() < 0.7:
 			pick = affordable[0]  # strongest affordable (FILLER_POOL is sorted strong→weak)
 		else:
-			pick = affordable[randi() % affordable.size()]
+			pick = affordable[rng.randi() % affordable.size()]
 
 		result[pick] = result.get(pick, 0) + 1
 		budget -= UNIT_POWER.get(pick, 30)
@@ -582,36 +761,49 @@ static func boss_code_for(round: int, chosen_element: int = -1) -> String:
 				UnitBase.Element.LIGHTNING: return "HYL"
 				_: return "HYN"   # NORMAL or unset
 
-static func build_boss_formation(round: int, difficulty: int, grid_width: int = 9, chosen_element: int = -1) -> Array:
+static func build_boss_formation(round: int, difficulty: int, grid_width: int = 9,
+		chosen_element: int = -1, wave_seed: int = 0, score_fn: Callable = Callable()) -> Array:
 	var tier: int = boss_tier(round)
 	var counts: Dictionary = {boss_code_for(round, chosen_element): 1}      # the boss
 	# Normal: boss-only encounter, no escort — every 10 rounds is just the boss.
 	if difficulty == Difficulty.NORMAL:
 		return _auto_place(counts, grid_width)
-	counts["M"] = 2 + tier + difficulty                     # goblin fodder
-	# Honor guard grows with the boss tier (2026-07-12: a lone boss just gets
-	# focus-fired down by a full late-game roster — arena sims had 10 heroes
-	# killing the Hydra in ~20s through its old 5-goblin escort). Trolls buff
-	# the boss's attack speed, shamans heal it — real support, not fodder.
+	# ── The honour guard is a KIT, not filler ────────────────────────────────
+	# 2026-07-12: a lone boss just gets focus-fired down by a full late-game
+	# roster — arena sims had 10 heroes killing the Hydra in ~20s through its old
+	# 5-goblin escort. Trolls buff the boss's attack speed, shamans heal it. That
+	# is a designed answer to a specific failure, so it is kept verbatim and NOT
+	# replaced by budget filler, which would happily buy five bears instead.
+	#
+	# What changed 2026-09-20: it no longer scales with `difficulty` itself. The
+	# guard is now fixed per tier, and the TIER's extra power is bought by the
+	# scored budget below — so Veteran and Brutal mean 1.5× and 2.0× of the
+	# Normal fight instead of "the same kit plus a couple of goblins" (measured
+	# ×1.30 / ×1.38 at round 10 before this).
+	var guard: Dictionary = {"M": 2 + tier}                 # goblin fodder
 	if tier == 2:
-		counts["B"]   = 1 + difficulty                      # orc bruisers
-		counts["BRN"] = 2                                   # bear frontline
-		counts["TLN"] = 2                                   # attack-speed buffers
-		counts["GSN"] = 2                                   # shaman healers
+		guard["B"]   = 1                                    # orc bruisers
+		guard["BRN"] = 2                                    # bear frontline
+		guard["TLN"] = 2                                    # attack-speed buffers
+		guard["GSN"] = 2                                    # shaman healers
 	elif tier >= 3:
-		counts["BRN"] = 2
-		counts["BN"]  = 2
-		counts["TLN"] = 2                                   # attack-speed buffers
-		counts["GSN"] = 2
-		counts["LZN"] = 2                                   # backline snipers
+		guard["BRN"] = 2
+		guard["BN"]  = 2
+		guard["TLN"] = 2                                    # attack-speed buffers
+		guard["GSN"] = 2
+		guard["LZN"] = 2                                    # backline snipers
 	# Boss-specific escort additions. Emberhollow's two Ember Hearts aren't
 	# support — they're the fight's win condition. They're FRONT role, so
 	# _auto_place puts them in rows 3→2, physically between the player and the
 	# boss: nearest-enemy targeting then walks the team into them without the
 	# player needing a targeting lever they don't have.
 	if boss_code_for(round, chosen_element) == "EMB":
-		counts["EMH"] = 2
-	return _auto_place(counts, grid_width)
+		guard["EMH"] = 2
+	# counts holds the boss alone, which is exactly the Normal-tier fight — so it
+	# is the reference the 1.5×/2.0× target is measured against. The guard is
+	# charged against that budget, and whatever is left buys ordinary filler.
+	return _auto_place(
+		_topped_up(counts, difficulty, round, wave_seed, score_fn, guard), grid_width)
 
 # ── Elite waves (every round ending in 5 — the gaps between boss rounds) ─────
 # A mini-boss plus light fodder support. Weaker than a full boss encounter, but
@@ -707,9 +899,28 @@ static func elite_code_for(round: int) -> String:
 	push_warning("elite_code_for: round %d has no ELITE_BY_ROUND entry" % round)
 	return ELITE_POOL[int(round / 10) % ELITE_POOL.size()]
 
-static func build_elite_formation(round: int, difficulty: int, grid_width: int = 9) -> Array:
-	var counts: Dictionary = {elite_code_for(round): 1}
-	# Escort scales with the round — a flat 1-3 goblins is noise next to a
-	# round-95 elite. Still deliberately light: the elite IS the encounter.
-	counts["M"] = 1 + difficulty + int(round / 15)
-	return _auto_place(counts, grid_width)
+# ── ELITE ROUNDS ──────────────────────────────────────────────────────────────
+# REBUILT 2026-09-20. The escort used to be `counts["M"] = 1 + difficulty +
+# round/15` — a hardcoded pile of goblins that ignored the power budget entirely.
+# Two things were wrong with it, both measured:
+#
+#   * It barely scaled. Round 5 came out ×1.00 / ×1.07 / ×1.15 across the three
+#     tiers while ordinary waves swung ×1.0 / ×1.87 / ×2.76. Since Brutal pays a
+#     strictly better reward table (RoundReward.ODDS: 0% Nothing vs 40%), Brutal
+#     on an elite round was +15% difficulty for a full tier of loot — a dominant
+#     strategy with no decision in it.
+#   * The escort was always goblins, at round 5 and at round 95 alike.
+#
+# It now runs the same scored budget as every other wave, so 1.5× and 2.0× mean
+# what they say and the escort is drawn from the pool.
+#
+# NORMAL IS THE ELITE ALONE (owner call, 2026-09-20) — matching what bosses
+# already did. Extra bodies only appear on Veteran and Brutal. The elite stays
+# the centrepiece; on Brutal it is no longer the whole fight.
+static func build_elite_formation(round: int, difficulty: int, grid_width: int = 9,
+		wave_seed: int = 0, score_fn: Callable = Callable()) -> Array:
+	var base: Dictionary = {elite_code_for(round): 1}
+	if difficulty == Difficulty.NORMAL:
+		return _auto_place(base, grid_width)
+	return _auto_place(
+		_topped_up(base, difficulty, round, wave_seed, score_fn), grid_width)

@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/tools/riot_board_check.gd" id="1_rbc"]
+[ext_resource type="Script" path="res://scripts/tools/checks/riot_board_check.gd" id="1_rbc"]
 
 [node name="RiotBoardCheck" type="Node2D"]
 script = ExtResource("1_rbc")

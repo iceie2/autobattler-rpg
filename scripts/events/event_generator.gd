@@ -1,218 +1,108 @@
 extends Node
 class_name EventGenerator
+# ══════════════════════════════════════════════════════════════════════════════
+# EVENT SELECTION (rewritten 2026-09-19 — see RUN_MAP_PLAN.md §4)
+#
+# Was: twelve hard-coded _create_*() builders, one flat pool, uniform odds, no
+# memory. Now: a weighted draw over EventCatalog, filtered by the run's actual
+# state (gold, items, team, flags) and by what this run has already seen.
+#
+# Three rules that make a pool of 32 feel bigger than a pool of 12 did:
+#   1. ELIGIBILITY — an event can require run state (2+ items, a full board, a
+#      flag set by an earlier choice). Callback events only exist because of
+#      something the player already did.
+#   2. SEEN-SET — the pool drains before it repeats. Previously a 12-event pool
+#      rolled uniformly for 100 rounds, so you saw everything twice over and
+#      recognised every one by round 30.
+#   3. UNIQUE — `unique: true` events fire at most once per run, full stop
+#      (the debt collector shouldn't come twice for the same loan).
+#
+# Everything is static and scene-free so `arena --mode=events` can exercise the
+# whole thing headlessly.
+# ══════════════════════════════════════════════════════════════════════════════
 
+# ── Entry points ──────────────────────────────────────────────────────────────
+# ctx  — run state from main_game._event_context()
+# seen — {def_id: true} for this run; caller owns it (it lives in the run save)
+static func generate(ctx: Dictionary, seen: Dictionary = {}) -> EventBlessing:
+	var def: Dictionary = pick_def(ctx, seen)
+	if def.is_empty():
+		return null
+	return build_event(def, ctx)
+
+# Back-compat shim for the old call site (main_game passed round + gold only).
+# Anything that can't build a full context still gets a working event.
 static func generate_event(round: int, gold: int = 0) -> EventBlessing:
-	# Pool is freshly built each call, so no duplicate() needed.
-	# (Resource.duplicate() re-runs _init() with empty defaults and drops the
-	#  choices array of inner-class objects, which blanked the event panel.)
-	var events = _get_event_pool(round, gold)
-	return events[randi() % events.size()]
+	return generate({"round": round, "gold": gold}, {})
 
-static func _get_event_pool(round: int, gold: int = 0) -> Array:
-	var pool = []
+# ── Selection ─────────────────────────────────────────────────────────────────
+static func eligible_defs(ctx: Dictionary, seen: Dictionary = {}) -> Array:
+	var out: Array = []
+	for def in EventCatalog.all_defs():
+		if not EventCatalog.is_eligible(def, ctx):
+			continue
+		var id: String = String(def.get("id", ""))
+		# A unique event that already fired is gone for the rest of the run,
+		# even after the seen-set is exhausted and recycled below.
+		if bool(def.get("unique", false)) and seen.has(id):
+			continue
+		out.append(def)
+	return out
 
-	# Blessing events
-	pool.append(_create_gold_blessing(round))
-	pool.append(_create_extra_hero_blessing(round))
-	pool.append(_create_stat_blessing(round))
-	pool.append(_create_healing_blessing())
+static func pick_def(ctx: Dictionary, seen: Dictionary = {}) -> Dictionary:
+	var pool: Array = eligible_defs(ctx, seen)
+	if pool.is_empty():
+		return {}
+	# Prefer unseen. Only when the eligible pool is fully drained do repeats come
+	# back — so a long run cycles rather than hammering one favourite.
+	var fresh: Array = []
+	for def in pool:
+		if not seen.has(String(def.get("id", ""))):
+			fresh.append(def)
+	if not fresh.is_empty():
+		pool = fresh
+	return _weighted_pick(pool)
 
-	# Curse events (risk/reward)
-	pool.append(_create_gold_curse(round))
-	pool.append(_create_damage_curse())
+static func _weighted_pick(pool: Array) -> Dictionary:
+	var total: int = 0
+	for def in pool:
+		total += maxi(1, int(def.get("weight", 10)))
+	if total <= 0:
+		return pool[0]
+	var r: int = randi() % total
+	var acc: int = 0
+	for def in pool:
+		acc += maxi(1, int(def.get("weight", 10)))
+		if r < acc:
+			return def
+	return pool[pool.size() - 1]
 
-	# Neutral decision events
-	pool.append(_create_sacrifice_event())
-	pool.append(_create_gamble_event(round))
-
-	# 2026-07-03 content pass: pool was only 8 entries, so the same handful of
-	# events repeated constantly — added to add variety/flavor (see balance_journal.md).
-	pool.append(_create_duel_event(round))
-	pool.append(_create_echo_curse())
-	pool.append(_create_blacksmith_blessing(round))
-	pool.append(_create_desperate_wager(round, gold))
-
-	return pool
-
-static func _create_gold_blessing(round: int) -> EventBlessing:
-	var event = EventBlessing.new("Gold Rush", "Merchants are selling cheap", EventBlessing.EventType.BLESSING)
-	var gold_amount = 3 + int(round * 1.5)
-	event.add_choice(
-		"Take the gold",
-		{"gold": gold_amount},
-		"You gain %dg" % gold_amount
-	)
-	# (2026-07-16 audit: text used to promise "+1 max hero level" — no level
-	# cap exists; the handler levels the current team up immediately.)
-	event.add_choice(
-		"Invest in training",
-		{"max_level": 1},
-		"All current heroes gain +1 level"
-	)
+# ── Construction ──────────────────────────────────────────────────────────────
+# Turn a catalog def into the EventBlessing the panel renders. Choices are built
+# GRADED: the effects aren't computed here, they're computed when the player
+# picks and the grade lands (see EventBlessing.EventChoice / event_grade.gd).
+static func build_event(def: Dictionary, ctx: Dictionary) -> EventBlessing:
+	var event := EventBlessing.new(
+		String(def.get("title", "?")),
+		String(def.get("desc", "")),
+		int(def.get("type", EventBlessing.EventType.NEUTRAL)))
+	event.def_id = String(def.get("id", ""))
+	event.ctx = ctx.duplicate(true)
+	for choice_def in def.get("choices", []):
+		var cd: Dictionary = choice_def   # captured by the lambda below
+		var resolver := func(c: Dictionary, g: String) -> Dictionary:
+			return EventCatalog.resolve_choice(cd, c, g)
+		event.add_graded_choice(
+			String(cd.get("text", "…")),
+			String(cd.get("band", EventGrade.DEFAULT_BAND)),
+			resolver,
+			String(cd.get("preview", "")),
+			String(cd.get("kind", "")))
 	return event
 
-static func _create_extra_hero_blessing(round: int) -> EventBlessing:
-	var event = EventBlessing.new("Reinforcements", "A new hero has arrived to help", EventBlessing.EventType.BLESSING)
-	event.add_choice(
-		"Recruit them",
-		{"max_units": 1},
-		"Add 1 to your max unit limit"
-	)
-	event.add_choice(
-		"Turn them down",
-		{"gold": 4},
-		"Gain 4g instead"
-	)
-	return event
-
-static func _create_stat_blessing(round: int) -> EventBlessing:
-	var event = EventBlessing.new("Mystical Enhancement", "A magical aura surrounds your team")
-	event.add_choice(
-		"Boost damage",
-		{"team_dmg_mult": 1.15},
-		"All heroes deal 15% more damage"
-	)
-	event.add_choice(
-		"Boost defense",
-		{"team_def_mult": 1.15},
-		"All heroes take 15% less damage"
-	)
-	event.add_choice(
-		"Boost speed",
-		{"team_spd_mult": 1.20},
-		"All heroes act 20% faster"
-	)
-	return event
-
-static func _create_healing_blessing() -> EventBlessing:
-	var event = EventBlessing.new("Rest Camp", "Your team finds a safe place to rest")
-	event.add_choice(
-		"Full heal",
-		{"heal_all": 1.0},
-		"Restore all hero HP to maximum"
-	)
-	event.add_choice(
-		"Restore mana",
-		{"restore_mana": 1.0},
-		"Restore all hero MP to maximum"
-	)
-	return event
-
-static func _create_gold_curse(round: int) -> EventBlessing:
-	var event = EventBlessing.new("Bandits Attack", "Bandits demand tribute", EventBlessing.EventType.CURSE)
-	event.add_choice(
-		"Pay the toll",
-		{"gold": -4},
-		"Lose 4g but continue"
-	)
-	event.add_choice(
-		"Fight back",
-		{"gold": 7, "hero_damage": -0.2},  # Lose 20% HP across team
-		"Gain 7g but lose 20% team HP"
-	)
-	return event
-
-static func _create_damage_curse() -> EventBlessing:
-	var event = EventBlessing.new("Ambush!", "Enemies attack before the battle", EventBlessing.EventType.CURSE)
-	event.add_choice(
-		"Take the hit",
-		{"hero_damage": -0.3},
-		"Your team loses 30% HP"
-	)
-	event.add_choice(
-		"Dodge and flee",
-		{"gold": -3},
-		"Lose 3g but avoid damage"
-	)
-	return event
-
-static func _create_sacrifice_event() -> EventBlessing:
-	var event = EventBlessing.new("Dark Pact", "A mysterious offer of power", EventBlessing.EventType.NEUTRAL)
-	event.add_choice(
-		"Accept the power",
-		{"team_dmg_mult": 1.25, "max_hp_mult": 0.75},
-		"Deal 25% more damage but have 25% less HP"
-	)
-	event.add_choice(
-		"Decline",
-		{"gold": 0},
-		"Nothing happens"
-	)
-	return event
-
-static func _create_gamble_event(round: int) -> EventBlessing:
-	var event = EventBlessing.new("Gambler's Table", "A merchant offers a risky trade", EventBlessing.EventType.NEUTRAL)
-	var high_gold = 8 + round * 2
-	event.add_choice(
-		"Take the big bet (50/50)",
-		{"gold_if_win": high_gold, "gold_if_lose": -5},
-		"50%% chance for %dg, 50%% chance to lose 5g" % high_gold
-	)
-	event.add_choice(
-		"Skip",
-		{"gold": 2},
-		"Take 2g and move on"
-	)
-	return event
-
-static func _create_duel_event(round: int) -> EventBlessing:
-	var event = EventBlessing.new("Old Rival's Duel", "A former ally challenges your team to a friendly duel", EventBlessing.EventType.NEUTRAL)
-	event.add_choice(
-		"Accept (test your mettle)",
-		{"team_dmg_mult": 1.1, "team_spd_mult": 1.1},
-		"All heroes deal 10% more damage and act 10% faster"
-	)
-	var decline_gold = 2 + int(round * 0.5)
-	event.add_choice(
-		"Decline politely",
-		{"gold": decline_gold},
-		"Gain %dg instead" % decline_gold
-	)
-	return event
-
-static func _create_echo_curse() -> EventBlessing:
-	var event = EventBlessing.new("Cave of Echoes", "Strange echoes sap your team's nerve", EventBlessing.EventType.CURSE)
-	event.add_choice(
-		"Push forward and loot the cave",
-		{"team_def_mult": 0.9, "gold": 4},
-		"All heroes take 10% more damage, but gain 4g"
-	)
-	event.add_choice(
-		"Retreat and regroup",
-		{"gold": 0},
-		"Nothing happens"
-	)
-	return event
-
-static func _create_blacksmith_blessing(round: int) -> EventBlessing:
-	var event = EventBlessing.new("Blacksmith's Offer", "A traveling blacksmith offers to reinforce your gear", EventBlessing.EventType.BLESSING)
-	event.add_choice(
-		"Reinforce armor",
-		{"max_hp_mult": 1.15},
-		"All heroes gain 15% max HP"
-	)
-	var save_gold = 3 + int(round * 0.7)
-	event.add_choice(
-		"Save your coin",
-		{"gold": save_gold},
-		"Gain %dg instead" % save_gold
-	)
-	return event
-
-static func _create_desperate_wager(round: int, gold: int = 0) -> EventBlessing:
-	var event = EventBlessing.new("Desperate Wager", "A stranger offers one final, bigger bet", EventBlessing.EventType.NEUTRAL)
-	# Double-or-nothing on the gold you ACTUALLY hold — "All in" stakes your whole
-	# purse: win and it doubles, lose and you're wiped to 0. (Previously used flat
-	# +12..+N/-8 amounts unrelated to your gold, so a 5g player could "lose 8g".)
-	var stake = maxi(0, gold)
-	event.add_choice(
-		"All in (50/50)",
-		{"gold_if_win": stake, "gold_if_lose": -stake},
-		"50%% chance to WIN %dg, 50%% chance to lose your %dg" % [stake, stake]
-	)
-	event.add_choice(
-		"Play it safe",
-		{"gold": 2},
-		"Take 2g and move on"
-	)
-	return event
+# Build a specific event by catalog id — used by the harness and by debug keys.
+static func build_by_id(id: String, ctx: Dictionary) -> EventBlessing:
+	var def: Dictionary = EventCatalog.def_by_id(id)
+	if def.is_empty():
+		return null
+	return build_event(def, ctx)

@@ -19,7 +19,12 @@ GODOT="/c/anything coding/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mon
 
 # 2. Boot smoke test (after gameplay/UI changes):
 "$GODOT" --headless res://scenes/main_game.tscn --quit-after 150
-#    → must print "Battle round 1 started!" and no SCRIPT ERROR.
+#    → must finish with no SCRIPT ERROR.
+#    NOTE (2026-09-19): this NO LONGER prints "Battle round 1 started!". With
+#    main_game.MAP_MODE on, a run opens on the RUN MAP and no round begins until
+#    the player picks a node — so a silent boot is the correct result now, and
+#    the round-flow check moved to the map smoke (§3g). Set MAP_MODE = false to
+#    get the old linear behaviour (and that line) back.
 
 # 3. Ability probe (after touching ANY hero/monster kit):
 "$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=probe
@@ -38,6 +43,50 @@ GODOT="/c/anything coding/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mon
 #      occupied_cells entries left behind by a removal that missed become an
 #      invisible wall that blocks movement but not ranged attacks. Remove units
 #      with battle_grid.purge_unit(unit), NEVER remove_unit(unit.grid_position).
+
+# 3c-bis. Roster integrity (after touching death / revive / roster arrays):
+"$GODOT" --headless --fixed-fps 30 res://scenes/doc_revive_test.tscn
+#    → "DOC_REVIVE_TEST: ALL PASS". Guards the two-roster class of bug:
+#      main_game.player_units is the run's team, AutoBattleManager.player_units
+#      is a per-fight copy rebuilt from the grid. Anything that moves a unit
+#      between alive and dead MUST update both, or the hero is orphaned out of
+#      the run — unclickable, stranded mid-board, missing from the save, and
+#      eventually queue_free()'d by _clear_middle_row. Use the `died` /
+#      `unit_revived` signals; never mutate one roster alone.
+
+# 3g. Run map (after touching RunMap, the map screen, or round flow):
+"$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=map
+#    → "violations": [] over 2000 generated maps, and every walk must report
+#      13 nodes / 10 waves. Checks reachability, no crossing edges (convergence
+#      rows exempt), two intensities per battle row, one merchant per biome.
+"$GODOT" --headless res://scenes/map_smoke.tscn
+#    → "MAP_SMOKE: PASSED". Drives the REAL main_game through a whole biome and
+#      asserts THE TWO-COUNTER RULE: a battle node advances battle_round by
+#      exactly one (to the node's own round, at the node's own tier), an
+#      interstitial node advances it by ZERO, and the save round-trips the map
+#      with each node's reward type and item rarity intact.
+"$GODOT" --path . res://scenes/_run_map_capture.tscn -- --biome=1 --seed=77 --steps=6
+#    → two PNGs in captures/renders (fresh map / part-walked). Needs a window.
+
+# 3d. Event catalog audit (after touching EventCatalog / event effects):
+"$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=events
+#    → "errors": [] and "warnings": []. Walks every event × choice × grade its
+#      band can roll, at rounds 1/10/50/100, and fails on any effect key that
+#      main_game._apply_event_effects doesn't implement (the catalog's
+#      EFFECT_VERBS list is the contract). Also prints the payout table — read
+#      it against --mode=goldcurve before calling an event's numbers balanced.
+
+# 3e. Event effects end-to-end (after touching event verbs or the catalog):
+"$GODOT" --headless res://scenes/event_smoke.tscn
+#    → "EVENT_SMOKE: PASSED". --mode=events only checks the DATA; this one
+#      instantiates the real main_game, recruits two heroes and pushes every
+#      catalog choice through _apply_event_effects, asserting each verb
+#      actually moves gold/HP/stats/bag/flags rather than silently no-opping.
+
+# 3f. Event panel look (after touching event_panel layout):
+"$GODOT" --path . res://scenes/_event_capture.tscn -- --event=the_crossroads --grade=S
+#    → three PNGs in captures/renders (choices / reel mid-spin / outcome).
+#      Needs a real window — no --headless.
 
 # 4. Balance sim (after touching stats/numbers):
 "$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=sim \
@@ -68,7 +117,7 @@ py -3 tools/model3d/glb_merge_anims.py "assets/3d pipeline/hero/<name>/raw" "ass
 "$GODOT" --headless --path . --import --quit
 "$GODOT" --path . res://scenes/tools/model3d_probe.tscn -- model=res://"assets/3d pipeline/hero/<name>/<name>.glb"
 #    → prints the node tree, bone count and every clip's length, and writes
-#      res://_model3d_probe.png: one row per animation, 6 poses across the clip.
+#      user://_model3d_probe.png: one row per animation, 6 poses across the clip.
 #      LOOK AT THE SHEET. A rig that imports without errors can still be limp
 #      (no Skeleton3D → mesh doesn't deform) or mis-framed, and neither shows up
 #      in the log. Runs WINDOWED on purpose — --headless uses the dummy renderer
@@ -77,8 +126,15 @@ py -3 tools/model3d/glb_merge_anims.py "assets/3d pipeline/hero/<name>/raw" "ass
 
 ```sh
 # 7. 3D hero on the board (after touching Model3DSprite or HERO_MODEL_PATHS):
-"$GODOT" --path . res://scenes/tools/model3d_board_check.tscn
-#    → res://_model3d_board.png: the 3D hero in idle/walk/attack/hurt/death,
+"$GODOT" --path . res://scenes/tools/model3d_board_check.tscn -- --hero=<NAME> --round=1
+#    → captures/renders/<biome>/_model3d_board_<hero>.png
+#      --round selects the BIOME (1 normal, 11 air, 21 water, 31 earth, 41 fire,
+#      51 lightning). Heroes fight every round 1-100, so they meet all six:
+#      sweep `for r in 1 11 21 31 41 51` and compare, don't judge on one.
+#      Until 2026-09-18 this check rendered on a flat clear colour despite
+#      claiming "the real board" — a model lit against empty space tells you
+#      nothing about whether it reads on the ground it fights on.
+#    Contents: the 3D hero in idle/walk/attack/hurt/death,
 #      a row of 2D heroes beneath it for size comparison, and an enemy-side copy
 #      to check facing. Errors if a hero silently fell back to 2D art or if
 #      plain_sprite isn't aimed at the model's inner sprite (which would leave
@@ -121,7 +177,7 @@ py -3 tools/model3d/glb_merge_anims.py "assets/3d pipeline/hero/<name>/raw" "ass
 ```sh
 # 10. Stretch punch (after touching Model3DSprite's stretch bake or its bones):
 "$GODOT" --path . res://scenes/tools/stretch_punch_check.tscn
-#    → "STRETCH_PUNCH: ALL PASS" + res://_stretch_punch.png filmstrip
+#    → "STRETCH_PUNCH: ALL PASS" + user://_stretch_punch.png filmstrip
 #      (top row stretch ON, bottom OFF). ASSERTS the hand actually gets further
 #      from the shoulder, because every failure mode here is silent: a wrong
 #      bone name, a missing track, or a bad track path just yields a normal
@@ -147,7 +203,11 @@ were going to follow.
 | 2D sprite sheets | `assets/sprites/heroes/<name>/` |
 | Static hero / monster art | `assets/using/...` |
 | Python asset tools | `tools/<area>/` |
-| Dev-tool scripts / scenes | `scripts/tools/` + `scenes/tools/` |
+| Dev-tool scripts / scenes | `scripts/tools/<bucket>/` + `scenes/tools/` |
+|  ↳ one-off art captures | `scripts/tools/captures/` (`*_vfx_capture`, `*_capture`, `*_strip`) |
+|  ↳ kit / behaviour probes | `scripts/tools/probes/` (`*_kit_probe`) |
+|  ↳ board & state checks | `scripts/tools/checks/` (`*_check`, `*_board_check`) |
+|  ↳ general dev tools | `scripts/tools/` top level (anim_preview, model3d_*, arena_*) |
 | Throwaway capture PNGs | `../captures/renders/` — **via `CapturePaths.out("<thing>.png")`, never a hardcoded path** |
 
 **Name things what the GAME calls them.** The hero is `bouncer`, so the model is
@@ -157,6 +217,13 @@ runtime filename or a code path.
 
 Raw generator output is SOURCE, not runtime: it belongs behind a `.gdignore` so
 Godot neither imports it nor caches it. Only the merged file is loaded.
+
+**Capture scripts: two ways to get the path wrong.** A literal
+`"res://_x.png"` is the obvious one. The other is building it —
+`"res://" + name`, or `"%s/%s" % [OUT_DIR, name]` with `const OUT_DIR := "res://"`.
+Seven scripts used the second form and survived the 2026-09-18 literal sweep
+untouched, then wrote 26 files straight back into the project root on the next
+run. Grep for `"res://"` as a PREFIX, not just for whole-path literals.
 
 **Debug renders never go under `res://`.** This table used to say "project root,
 named `_<thing>.png`" and every new capture script copied its neighbour: by

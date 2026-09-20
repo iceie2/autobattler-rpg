@@ -693,8 +693,12 @@ static func _spec() -> Dictionary:
 				"terms": [
 					_t("regen", "Regen/s", "magic_power", 0.12, "heal", "", true),
 					_f("cleanse", "Debuffs fade", 0.30, "pct"),
+					# Was hard-coded as 3.0 in auto_battle_manager. Every other
+					# aura hero reads its radius from here, and the level-up
+					# panel cannot show a number that only exists in combat code.
+					_f("radius", "Radius", 3.0, "num"),
 				],
-				"text": "Nearby allies regen {regen}/s and shed debuffs {cleanse} faster.",
+				"text": "Allies within {radius} tiles regen {regen}/s and shed debuffs {cleanse} faster.",
 			},
 			ACTIVE: {
 				"terms": [_t("heal", "Heal", "magic_power", 1.4, "heal", "", true)],

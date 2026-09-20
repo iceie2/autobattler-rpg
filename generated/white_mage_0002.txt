@@ -1,9 +1,0 @@
-Class: white_mage
-Body: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/body/female/nose/buttonnose_dark.png
-Hair: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/hair/female/unkempt/brown.png
-Head: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/head/bandanas/39.png
-Facial: None
-Armor: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/torso/shirts/ls_blouse/ls_blouse_white.png
-Weapon_R: C:/Users/iceie/Downloads/LPC-spritesheet-randomzier-main (1)/LPC-spritesheet-randomzier-main/Universal-LPC-Spritesheet-Character-Generator-master/spritesheets/weapons/right hand/female/woodwand_female.png
-Weapon_L: None
-Offhand: None

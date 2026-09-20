@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/tools/windup_bot_kit_probe.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/tools/probes/windup_bot_kit_probe.gd" id="1"]
 
 [node name="WindUpBotKitProbe" type="Node"]
 script = ExtResource("1")

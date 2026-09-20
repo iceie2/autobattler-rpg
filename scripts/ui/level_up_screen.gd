@@ -517,6 +517,19 @@ static func roll_perk_offer(perk: Dictionary) -> Dictionary:
 	offer["rolled_value"] = _scale_perk_value(perk, float(g.mult))
 	return offer
 
+# Same offer shape, but at a grade the CALLER already rolled. Events roll their
+# outcome grade once (event_grade.gd) and then pay out in whatever currency the
+# choice promised — if a perk payout re-rolled its own grade here, the reel would
+# land on S and hand over a D perk, which is exactly the kind of lie the
+# 2026-07-16 event audit was cleaning up.
+static func offer_at_grade(perk: Dictionary, grade: String, mult: float) -> Dictionary:
+	var offer: Dictionary = perk.duplicate()
+	offer["grade"] = grade
+	offer["grade_color"] = PERK_GRADE_COLORS.get(grade, Color.WHITE)
+	offer["grade_mult"] = mult
+	offer["rolled_value"] = _scale_perk_value(perk, mult)
+	return offer
+
 # Applies an already-rolled perk offer's stat bonus directly to any unit. Static
 # so it works outside the level-up flow too (round-reward stat bonuses).
 static func apply_perk_to_unit(unit: UnitBase, perk: Dictionary) -> void:

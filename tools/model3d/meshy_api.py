@@ -16,7 +16,10 @@ WHY THIS AND NOT `meshy-cli`
 CREDITS
     Every generating call goes through _spend(), which refuses to start when the
     balance is at or below HARD_STOP. That number is a standing instruction from
-    the project owner, not a Meshy limit -- do not raise it here.
+    the project owner, not a Meshy limit -- do not change it here without one.
+    2026-09-19: the owner lifted the reserve ("no more 100 stop, we can use the
+    full thing"), so HARD_STOP is 0 and only a genuinely empty balance blocks a
+    call. It was 500, then 100, then 0; restore a floor only on their say-so.
 
     Verified against Meshy's pricing page 2026-09-09:
 
@@ -70,7 +73,7 @@ BASE = "https://api.meshy.ai/openapi"
 # Discovered by 404 -- the docs do not put the version in the path they show.
 VER = {"text-to-3d": "v2"}
 TEST_KEY = "msy_dummy_api_key_for_test_mode_12345678"
-HARD_STOP = 100
+HARD_STOP = 0
 
 COST_IMAGE_TO_3D = 30
 COST_RIG = 5

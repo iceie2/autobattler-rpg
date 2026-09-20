@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/tools/rift_vfx_capture.gd" id="1_rift"]
+[ext_resource type="Script" path="res://scripts/tools/captures/rift_vfx_capture.gd" id="1_rift"]
 
 [node name="RiftVFXCapture" type="CanvasLayer"]
 script = ExtResource("1_rift")

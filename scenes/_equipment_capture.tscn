@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/tools/equipment_capture.gd" id="1_eqcap"]
+[ext_resource type="Script" path="res://scripts/tools/captures/equipment_capture.gd" id="1_eqcap"]
 
 [node name="EquipmentCapture" type="Node"]
 script = ExtResource("1_eqcap")

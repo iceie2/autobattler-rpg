@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/tools/details_capture.gd" id="1_dcap"]
+[ext_resource type="Script" path="res://scripts/tools/captures/details_capture.gd" id="1_dcap"]
 
 [node name="DetailsCapture" type="Node"]
 script = ExtResource("1_dcap")

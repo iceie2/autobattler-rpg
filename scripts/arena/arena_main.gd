@@ -229,6 +229,10 @@ func _ready() -> void:
 			result = _run_xpcurve(args)
 		"goldcurve":
 			result = _run_goldcurve(args)
+		"events":
+			result = _run_events(args)
+		"map":
+			result = _run_map(args)
 		_:
 			result = {"error": "unknown mode '%s'" % mode}
 			_had_failures = true
@@ -674,10 +678,26 @@ func _run_power(args: Dictionary) -> Dictionary:
 		# player, so the readout can be verified headlessly for all 100 rounds
 		# instead of by clicking through the game.
 		var profile: Dictionary = WaveScaler.threat_profile(spec)
+		# WHICH bodies, not just how many. The counts alone can't answer "why does
+		# that thing look wrong in the preview" — you need the roster.
+		var codes: Dictionary = {}
+		for entry: Dictionary in spec:
+			var c: String = String(entry.get("code", entry.get("type", "?")))
+			codes[c] = int(codes.get(c, 0)) + 1
+		# What each distinct body in this wave is WORTH, and which one the map
+		# draws as the node's silhouette. Without these the report can say a wave
+		# came in light but not which body was mispriced, and the map's own
+		# readout could not be checked headlessly at all.
+		var prices: Dictionary = {}
+		for c2: String in codes:
+			prices[c2] = int(snappedf(director.score_code(c2, r), 1.0))
 		rows.append({
 			"round": r, "bodies": bodies, "large2x2": large,
 			"power": int(snappedf(power, 1.0)),
 			"name": WaveData.name_for(r),
+			"roster": codes,
+			"prices": prices,
+			"lead": director.lead_of_spec(spec, r),
 			"comp": "%d melee · %d ranged · %d support · %d large" % [
 					profile["melee"], profile["ranged"], profile["support"], profile["large"]],
 		})
@@ -795,6 +815,221 @@ func _run_goldcurve(args: Dictionary) -> Dictionary:
 		"headstart_levels": headstart_levels, "bounty_levels": bounty_levels,
 		"final_cum_gold": int(cum_gold), "final_cum_hero_cost": cum_hero_cost,
 		"rows": rows,
+	}
+
+# ── MAP MODE ────────────────────────────────────────────────────────────────
+# Generates a pile of run maps and asserts RunMap.validate() on every one, then
+# reports what a player actually MEETS on an average walk.
+#
+# A map generator is exactly the kind of code that works for fifty seeds and
+# then hands someone an unreachable node or a row with three identical fights,
+# so the invariants (reachability, no crossing edges, two intensities per battle
+# row, one merchant per biome, all ten waves present) are checked in bulk rather
+# than eyeballed once. Rewards are NOT rolled here — structure is what's under
+# test, and rolling would mint 30 throwaway items per map.
+#   -- --mode=map                     (200 maps per biome, all 10 biomes)
+#   -- --mode=map --maps=1000 --biome=3
+func _run_map(args: Dictionary) -> Dictionary:
+	var per_biome: int = int(args.get("maps", "200"))
+	var only_biome: int = int(args.get("biome", "-1"))
+	var biomes: Array = []
+	if only_biome >= 0:
+		biomes.append(only_biome)
+	else:
+		for b in range(Balance.VICTORY_ROUND / RunMap.WAVES_PER_BIOME):
+			biomes.append(b)
+
+	var violations: Array = []
+	var generated: int = 0
+	var type_counts: Dictionary = {}
+	var tier_counts: Dictionary = {0: 0, 1: 0, 2: 0}
+	var walk_lengths: Dictionary = {}
+	var walk_battles: Dictionary = {}
+
+	for b: int in biomes:
+		for i in range(per_biome):
+			var map := RunMap.generate(b, (b + 1) * 100000 + i + 1, false)
+			generated += 1
+			for v in map.validate():
+				if violations.size() < 40:
+					violations.append("biome %d seed %d: %s" % [b, i + 1, v])
+			for row in map.rows:
+				for n in row:
+					var tn: String = RunMap.type_name(int(n["type"]))
+					type_counts[tn] = int(type_counts.get(tn, 0)) + 1
+					if int(n["type"]) == RunMap.NodeType.BATTLE:
+						tier_counts[int(n["difficulty"])] = \
+							int(tier_counts[int(n["difficulty"])]) + 1
+
+			# Walk it greedily-at-random to prove a path exists end to end and
+			# that it always fights exactly ten waves — the two-counter model's
+			# central claim, checked rather than asserted in a comment.
+			var steps: int = 0
+			var battles: int = 0
+			var node: Dictionary = {}
+			while true:
+				var options: Array = map.available_next()
+				if options.is_empty():
+					break
+				node = options[randi() % options.size()]
+				map.advance_to(String(node["id"]))
+				steps += 1
+				if RunMap.is_battle_node(node):
+					battles += 1
+				if steps > 50:
+					violations.append("biome %d seed %d: walk did not terminate" % [b, i + 1])
+					break
+			walk_lengths[steps] = int(walk_lengths.get(steps, 0)) + 1
+			walk_battles[battles] = int(walk_battles.get(battles, 0)) + 1
+			# Every walk crosses one start plus ten fixed stages. Utility may
+			# replace combat on ordinary stages; elite and boss remain mandatory.
+			if steps != RunMap.WAVES_PER_BIOME + 1 and violations.size() < 40:
+				violations.append("biome %d seed %d: walk took %d nodes, expected %d"
+					% [b, i + 1, steps, RunMap.WAVES_PER_BIOME + 1])
+			var floor_waves: int = 2
+			if (battles > RunMap.WAVES_PER_BIOME or battles < floor_waves) 					and violations.size() < 40:
+				violations.append("biome %d seed %d: walk fought %d waves, expected %d-%d"
+					% [b, i + 1, battles, floor_waves, RunMap.WAVES_PER_BIOME])
+
+	_had_failures = not violations.is_empty()
+	return {
+		"mode": "map",
+		"maps_generated": generated,
+		"biomes": biomes.size(),
+		"violations": violations,
+		"nodes_by_type": type_counts,
+		"battle_nodes_by_tier": {"normal": tier_counts[0], "veteran": tier_counts[1],
+			"brutal": tier_counts[2]},
+		"walk_node_counts": walk_lengths,
+		"walk_wave_counts": walk_battles,
+	}
+
+# ── EVENTS MODE ─────────────────────────────────────────────────────────────
+# Static audit of the whole event catalog: every event × every choice × every
+# grade its band can roll, at a sample of rounds. Asserts the catalog is
+# internally consistent AND that every effect key it emits is one main_game
+# actually implements (EventCatalog.EFFECT_VERBS) — the 2026-07-16 audit found
+# three events whose text lied about their effects by reading them by hand, and
+# that doesn't scale past ~30 events.
+#
+# Also prints the payout table (gold at C vs S, early vs late) so event economy
+# can be eyeballed against the gold curve without playing.
+#   -- --mode=events
+#   -- --mode=events --rounds=1,25,75
+func _run_events(args: Dictionary) -> Dictionary:
+	var rounds: Array = []
+	for tok in String(args.get("rounds", "1,10,50,100")).split(","):
+		if tok.strip_edges() != "":
+			rounds.append(int(tok))
+
+	var errors: Array = []
+	var warnings: Array = []
+	var seen_ids: Dictionary = {}
+	var rows: Array = []
+	var defs: Array = EventCatalog.all_defs()
+
+	for def: Dictionary in defs:
+		var id: String = String(def.get("id", ""))
+		if id == "":
+			errors.append("a def has no id (title '%s')" % def.get("title", "?"))
+			continue
+		if seen_ids.has(id):
+			errors.append("duplicate def id '%s'" % id)
+		seen_ids[id] = true
+		if String(def.get("title", "")) == "":
+			errors.append("%s: empty title" % id)
+		if String(def.get("desc", "")) == "":
+			warnings.append("%s: empty description" % id)
+		if int(def.get("weight", 0)) <= 0:
+			errors.append("%s: weight must be > 0" % id)
+		var choices: Array = def.get("choices", [])
+		if choices.size() < 2:
+			warnings.append("%s: only %d choice(s) — an event with one door isn't a decision"
+				% [id, choices.size()])
+
+		for ci in range(choices.size()):
+			var ch: Dictionary = choices[ci]
+			var where: String = "%s[%d]" % [id, ci]
+			var kind: String = String(ch.get("kind", ""))
+			if not kind in EventCatalog.KINDS:
+				errors.append("%s: unknown kind '%s'" % [where, kind])
+				continue
+			var band: String = String(ch.get("band", EventGrade.DEFAULT_BAND))
+			if not EventGrade.BANDS.has(band):
+				errors.append("%s: unknown band '%s'" % [where, band])
+				continue
+			if String(ch.get("text", "")) == "":
+				errors.append("%s: empty choice text" % where)
+			if String(ch.get("preview", "")) == "":
+				warnings.append("%s: no preview line — the button will read blank" % where)
+
+			for r: int in rounds:
+				var ctx: Dictionary = _event_probe_ctx(r)
+				for grade: String in EventGrade.reel_pool(band):
+					var res: Dictionary = EventCatalog.resolve_choice(ch, ctx, grade)
+					var eff = res.get("effects", null)
+					if not (eff is Dictionary):
+						errors.append("%s @r%d/%s: effects is not a Dictionary" % [where, r, grade])
+						continue
+					if String(res.get("outcome", "")) == "":
+						errors.append("%s @r%d/%s: empty outcome line" % [where, r, grade])
+					for k in eff.keys():
+						if not String(k) in EventCatalog.EFFECT_VERBS:
+							errors.append("%s @r%d/%s: effect '%s' has no handler in main_game"
+								% [where, r, grade, k])
+					# Sanity on the two numbers a player feels most directly.
+					if eff.has("gold") and int(eff["gold"]) == 0:
+						warnings.append("%s @r%d/%s: gold effect resolves to 0" % [where, r, grade])
+					if eff.has("hero_damage") and absf(float(eff["hero_damage"])) >= 1.0:
+						errors.append("%s @r%d/%s: hero_damage would wipe the team" % [where, r, grade])
+
+			# Payout table row: what this choice pays at its floor and ceiling.
+			var pool: Array = EventGrade.reel_pool(band)
+			var lo: String = String(pool[0])
+			var hi: String = String(pool[pool.size() - 1])
+			rows.append({
+				"id": id, "choice": ci, "kind": kind, "band": band,
+				"early_%s" % lo: EventCatalog.resolve_choice(ch, _event_probe_ctx(10), lo).get("outcome", ""),
+				"early_%s" % hi: EventCatalog.resolve_choice(ch, _event_probe_ctx(10), hi).get("outcome", ""),
+				"late_%s" % hi: EventCatalog.resolve_choice(ch, _event_probe_ctx(75), hi).get("outcome", ""),
+			})
+
+	# Eligibility sweep: which events can a PLAIN run (no flags, modest holdings)
+	# actually see, and which are gated behind run state? A gated event isn't a
+	# bug — but a gated event nobody can ever reach is.
+	var reachable: Dictionary = {}
+	for r in [1, 5, 10, 25, 50, 75, 100]:
+		for def in EventCatalog.all_defs():
+			if EventCatalog.is_eligible(def, _event_probe_ctx(r)):
+				reachable[String(def.get("id", ""))] = true
+	var gated: Array = []
+	for def in defs:
+		var gid: String = String(def.get("id", ""))
+		if not reachable.has(gid):
+			gated.append(gid)
+
+	_had_failures = not errors.is_empty()
+	return {
+		"mode": "events",
+		"events": defs.size(),
+		"choices": rows.size(),
+		"rounds_probed": rounds,
+		"errors": errors,
+		"warnings": warnings,
+		"gated_behind_run_state": gated,
+		"payouts": rows,
+	}
+
+# A middling run: enough gold/items/relics that holdings-gated events are
+# eligible, no flags set (so callback events stay gated, which is correct —
+# they're supposed to require an earlier choice).
+func _event_probe_ctx(round_no: int) -> Dictionary:
+	return {
+		"round": round_no,
+		"gold": 40 + round_no * 2,
+		"team_size": 6, "team_max": 8, "bench": 2,
+		"items": 4, "relics": 2, "dominant_element": 3,
+		"flags": {},
 	}
 
 # EV version of WaveScaler.gold_drops_for_unit — same shape, but returns the

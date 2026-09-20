@@ -43,6 +43,39 @@ const HERO_MODEL_PATHS: Dictionary = {
 	# are separate and socket to weapon_r / shield_l, so until those land he
 	# renders empty-handed.
 	UnitBase.UnitClass.RIOT: "res://assets/3d pipeline/hero/riot/riot.glb",
+	# Vail, 2026-09-19. Versioned candidate pending human art review. Her 2D
+	# portrait ends in a legless tornado, which the fixed 24-bone Meshy biped
+	# cannot rig, so the coil became an ankle-length wrap gown wide enough to
+	# hold legs. She carries nothing — no sockets, no props.
+	UnitBase.UnitClass.VAIL: "res://assets/3d pipeline/hero/vail/vail_v001.glb",
+	# Reed, 2026-09-19. Versioned candidate pending human art review. An
+	# anthropomorphic frog whose head is ~29% of his height, which put his
+	# shoulders 11 points lower than a human's and made every retargeted library
+	# action land his hands on top of his head. Corrected in-place with
+	# tools/model3d/retarget_arms.py (k=0.4), not by regenerating the body.
+	UnitBase.UnitClass.REED: "res://assets/3d pipeline/hero/reed/reed_v001.glb",
+	# Lumen, 2026-09-19. Versioned candidate pending human art review. REDESIGNED
+	# rather than converted: his 2D portrait is a hooded human mage in a
+	# floor-length iridescent robe, which fails this rig three ways at once (no
+	# hood bones, no cloth bones, and floating crystal shards cannot be rigged)
+	# and is near-white, the exact value that made Vail vanish into the air
+	# board. He is now a HOLLOW SUIT of blackened iron animated by the violet
+	# arc caged in its chest — near-black mass plus bright emissive seams, so
+	# some part of the silhouette separates from a board at any luminance.
+	# Knee-length rigid tassets instead of a gown: every clip scores 1.19-1.46x
+	# on skirt_stress (Vail's gown hit 3.16x on this same run cycle). He carries
+	# nothing — no sockets, no props.
+	UnitBase.UnitClass.LUMEN: "res://assets/3d pipeline/hero/lumen/lumen_v001.glb",
+	# Lordee, 2026-09-20. Versioned candidate pending human art review. REDESIGNED
+	# rather than converted, on the owner's call: his 2D portrait is an ordinary
+	# human pirate with a sword, which does not carry a kit whose ult blinks in
+	# and permanently STEALS 7% of a target's ATK. He is now a HOLLOW SUIT of
+	# pirate clothes — tricorn, crimson coat, boots — worn by nothing, with a
+	# violet soul-void inside showing as rim light at the collar and cuffs and
+	# two bright points under the hat brim. Deliberately NOT a hooded skeleton
+	# with soul flames: that is Necro's silhouette already.
+	# He carries a cutlass, bound 100% to weapon_r under RightHand.
+	UnitBase.UnitClass.LORDEE: "res://assets/3d pipeline/hero/lordee/lordee_v001.glb",
 }
 # On-screen pixel height of a 1-cell 3D character. Tuned to sit between the
 # HERO_SPRITE_RENDER_H the 2D heroes use and the LPC scale, so a converted hero

@@ -14,9 +14,9 @@ THE CAMERA IS THE GAME'S CAMERA, not a flattering one:
     VisualUnit.MODEL_CAMERA_PITCH_DEG also derives from. Do not "improve" this
     to a nicer angle -- the whole point is that a problem visible here is a
     problem the player will see.
-  - --game-scale renders at MODEL_RENDER_H (138 px tall, visual_unit.gd) so
+  - --game-scale renders at MODEL_RENDER_H (115 px tall, visual_unit.gd) so
     silhouettes are judged at the size they actually ship at. A model that
-    reads at 800px and turns to mush at 138 is a failed model, and that is the
+    reads at 800px and turns to mush at 115 is a failed model, and that is the
     single most common way a render flatters something.
 
   blender --background --python turntable.py -- \
@@ -37,7 +37,7 @@ import bpy
 from mathutils import Vector
 
 PITCH_DEG = 28.0     # board_perspective.gd PITCH_DEG
-GAME_H = 138         # visual_unit.gd MODEL_RENDER_H
+GAME_H = 115         # visual_unit.gd MODEL_RENDER_H (was 138; corrected 2026-09-19)
 
 
 def args():
