@@ -16,19 +16,21 @@ the current game without proposing stat changes.
 
 ## What real-run history currently records
 
-`RunHistory` keeps outcome, terminal wave, total kills, crystals, meta investment,
-difficulty trace, final team/levels, relic ids, equipment rarity counts, fusion
-choices and terminal death cause.
+The legacy `RunHistory` keeps outcome, terminal wave, total kills, crystals, a
+coarse meta-investment count, difficulty trace, final team/levels, relic ids,
+equipment rarity counts, fusion choices and terminal death cause. Schema-v2
+telemetry is being added because equal node counts or crystal spend can describe
+radically different builds.
 
 The field named `damage` is **not run damage**. It is the damage from the final
 battle only. Per-battle after-action rows already exist in memory (damage,
 healing, attributed damage taken and first-contribution time), but ordinary
 battles discard them after producing one heuristic sentence.
 
-The minimum observational upgrade before mechanical tuning is a schema-v2
-`battles` array containing:
+The minimum observational upgrade before mechanical tuning is schema-v2 local
+telemetry containing:
 
-- build id and run seed;
+- build id, stable run id, map seed and exact crystal-tree loadout;
 - wave, map node tier, battle seed and encounter roster;
 - outcome, simulated/real duration and survivors;
 - team damage, healing and damage taken;
@@ -90,6 +92,12 @@ duration and survival margin must accompany the power number.
 
 ## Progression/economy baseline
 
+The crystal tree is a core roguelite system, not an exception to the balance
+model. A fresh account is only one cohort. Every analysis must preserve exact
+upgrade levels and compare at least fresh, economy-focused, roster/XP-focused,
+combat-focused and high-investment cohorts. Wallet balance, crystals earned and
+tree investment are separate axes.
+
 The existing gold and XP curves assume all ten battles are fought. The map can
 replace fights with event/camp/merchant nodes, so these are optimistic
 all-combat, no-spend bounds rather than representative paths.
@@ -98,8 +106,10 @@ all-combat, no-spend bounds rather than representative paths.
   Brutal 50, excluding node rewards, interest, events and merchant spending.
 - Normal full-combat XP reaches account/team cap 3 by wave 10; Veteran and
   Brutal reach cap 4.
-- This conflicts with the documented expectation of fielding four to five
-  heroes by wave 10 on Normal.
+- These all-combat bounds cannot predict a representative wave-10 roster:
+  starting resources, hero slots/levels, crystal income, events and merchant
+  choices can produce substantially larger teams, including roughly 10–11
+  heroes for high-investment/event-assisted runs.
 - Higher tiers compound their advantage: stronger node rewards plus more kill
   XP, gold and drop opportunities. Preserve and measure this snowball before
   adjusting rewards.
@@ -133,7 +143,8 @@ Major attribution gaps:
 4. Wave-5 legal starter duos/trios at level 2 across tiers and formations.
 5. Same legal level-3 teams on wave 9 and wave 10; record boss phase transitions,
    duration and survival, not only `score_spec`.
-6. Fresh-account roster sampling constrained by real unlocks, economy and cap.
+6. Cohort roster sampling constrained by each exact crystal-tree loadout,
+   unlocks, economy and cap; fresh-account runs are one named cohort only.
 7. Premature-debut check for difficulty filler.
 8. Presentation-layer determinism check: same seed with narration enabled and
    disabled must produce identical targets, hit timing, HP, winner and rewards.

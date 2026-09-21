@@ -312,6 +312,17 @@ func save_run() -> void:
 		"player_xp": game_state.player_xp,
 		"player_xp_to_level": game_state.player_xp_to_level,
 		"run_kills": _run_kills,
+		"run_start_nodes": _run_start_nodes,
+		"run_start_spent": _run_start_spent,
+		"run_difficulties": _run_difficulty_choices.duplicate(true),
+		"run_team_fielded": _run_team_fielded.duplicate(true),
+		"run_team_fielded_levels": _run_team_fielded_levels.duplicate(true),
+		"run_last_death": _run_last_death.duplicate(true),
+		"telemetry_run_id": _telemetry_run_id,
+		"telemetry_seq": _telemetry_seq,
+		"telemetry_battles": _telemetry_battles.duplicate(true),
+		"telemetry_decisions": _telemetry_decisions.duplicate(true),
+		"telemetry_meta_start": _telemetry_meta_start.duplicate(true),
 		"event_team_size": _event_team_size_bonus,
 		"run_map": _run_map.to_dict() if _run_map else {},
 		"map_node_id": String(_map_node.get("id", "")),
@@ -335,6 +346,18 @@ func _resume_run() -> void:
 		start_new_game()
 		return
 	_run_kills = int(d.get("run_kills", 0))
+	_run_start_nodes = int(d.get("run_start_nodes", Progression.nodes_owned()))
+	_run_start_spent = int(d.get("run_start_spent", Progression.total_spent()))
+	_run_difficulty_choices = d.get("run_difficulties", [])
+	_run_team_fielded = d.get("run_team_fielded", [])
+	_run_team_fielded_levels = d.get("run_team_fielded_levels", [])
+	_run_last_death = d.get("run_last_death", {})
+	_telemetry_run_id = String(d.get("telemetry_run_id", RunTelemetry.new_run_id()))
+	_telemetry_seq = maxi(int(d.get("telemetry_seq", 0)),
+			RunTelemetry.last_seq(_telemetry_run_id))
+	_telemetry_battles = d.get("telemetry_battles", [])
+	_telemetry_decisions = d.get("telemetry_decisions", [])
+	_telemetry_meta_start = d.get("telemetry_meta_start", _telemetry_meta_snapshot())
 	_event_team_size_bonus = int(d.get("event_team_size", 0))
 	# Defaulted, not required: a save written before the 2026-09-19 event pass
 	# simply resumes with an empty memory rather than failing to load.
@@ -373,6 +396,7 @@ func _resume_run() -> void:
 	# Re-enter the saved round's prep phase fresh (wave preview, rewards, and
 	# any still-pending relic/hydra modals regenerate off the round number).
 	game_state.battle_round = int(d.get("round", 1)) - 1
+	_telemetry_event("run_resumed", {"meta": _telemetry_meta_snapshot()})
 	# Under the map there are two places a save can be taken: standing ON a
 	# battle node mid-prep (resume into that prep phase, as always), or between
 	# nodes (resume onto the map, where the player left off). Resuming the wrong
@@ -859,6 +883,15 @@ var _run_last_death: Dictionary = {}
 # Passive-pick choices made at the equipment combine dialog this run: one
 # entry per fusion, {"cap": int, "picked": Array[String], "available": Array[String]}.
 var _run_passive_picks: Array = []
+# Local telemetry identity and compact run summary. Detailed events are also
+# appended to user://telemetry_v2.jsonl so a crash does not erase the run.
+var _telemetry_run_id: String = ""
+var _telemetry_seq: int = 0
+var _telemetry_battles: Array = []
+var _telemetry_decisions: Array = []
+var _telemetry_battle_resources: Dictionary = {}
+var _telemetry_meta_start: Dictionary = {}
+var _telemetry_relic_offers: Array = []
 # One spec per difficulty, generated at most once per round (2026-07-27). Same
 # reasoning as _rolled_rewards below it: generate_wave_spec() ends in a
 # randi()%3 for enemy levels (WaveScaler.enemy_level_for_round), and it used to
@@ -891,6 +924,16 @@ func start_new_game() -> void:
 	_run_team_fielded_levels = []
 	_run_last_death = {}
 	_run_passive_picks = []
+	_telemetry_run_id = RunTelemetry.new_run_id()
+	_telemetry_seq = 0
+	_telemetry_battles = []
+	_telemetry_decisions = []
+	_telemetry_battle_resources = {}
+	_telemetry_meta_start = _telemetry_meta_snapshot()
+	_telemetry_event("run_started", {
+		"meta": _telemetry_meta_start.duplicate(true),
+		"starting_resources": {"gold": game_state.gold, "crystals": game_state.crystals},
+	})
 	game_state.reset_player_level()
 	_event_team_size_bonus = 0
 	_events_seen.clear()
@@ -944,6 +987,7 @@ func start_new_game() -> void:
 		if not offers.is_empty():
 			_relic_screen_wave = 1
 			_relic_rerolls_left = Progression.get_bonus("+1 Reroll")
+			_telemetry_relic_offers = _telemetry_relic_ids(offers)
 			_relic_screen.present(offers, 1, _relic_rerolls_left)
 		else:
 			_maybe_open_call_to_arms_picker()
@@ -1117,6 +1161,7 @@ func _on_battle_round_started(round_number: int) -> void:
 		if not offers.is_empty():
 			_relic_screen_wave = round_number
 			_relic_rerolls_left = Progression.get_bonus("+1 Reroll")
+			_telemetry_relic_offers = _telemetry_relic_ids(offers)
 			_relic_screen.present(offers, round_number, _relic_rerolls_left)
 		else:
 			_maybe_open_call_to_arms_picker()
@@ -1175,9 +1220,18 @@ func _on_relic_reroll() -> void:
 		return
 	_relic_rerolls_left -= 1
 	var offers: Array = Relic.roll_offers(_relic_screen_wave, _relic_inventory.owned_ids())
+	_telemetry_relic_offers = _telemetry_relic_ids(offers)
+	_telemetry_decision("relic_offers_rerolled", {
+		"offers": _telemetry_relic_offers.duplicate(),
+		"rerolls_left": _relic_rerolls_left,
+	})
 	_relic_screen.set_offers(offers, _relic_rerolls_left)
 
 func _on_relic_chosen(relic: Dictionary) -> void:
+	_telemetry_decision("relic_chosen", {
+		"chosen": String(relic.get("id", relic.get("name", ""))),
+		"offers": _telemetry_relic_offers.duplicate(),
+	})
 	# Close at the entry point, not only in the screen's own card handler — the
 	# same rule _on_map_node_chosen follows. A modal that only closes on the UI
 	# path stays open for every other caller (debug keys, captures, tests), and
@@ -1391,6 +1445,7 @@ func _on_battle_started() -> void:
 		difficulty_panel.set_panel_visible(false)
 	enable_unit_dragging(false)
 	_apply_team_synergies()
+	_telemetry_battle_started()
 	info_label.text = "Battle joined! Your heroes fight on their own from here."
 	close_shop()
 	update_team_health_bars()
@@ -1726,6 +1781,178 @@ func _vacuum_all_items() -> void:
 const AA_LATE_JOIN_SECONDS := 4.0     # spread before a team reads as piecemeal
 const AA_CARRY_SHARE := 0.55          # damage share before one hero "carried it"
 
+const TELEMETRY_EFFECT_KEYS: Array[String] = [
+	"starting gold", "starting_gold", "gold_per_kill", "interest_cap",
+	"crystal_per_round", "crystal_drop", "crystal_bounty", "hero_slots",
+	"bench_slots", "hero_start_level", "bonus_xp", "quick_learner",
+	"catch_up_xp", "max_level", "team_hp", "mana_well", "spellpower",
+	"might", "warding", "bulwark", "fleetfoot", "vitality_flow",
+	"mana_flow", "swiftness", "lethality", "killing_blow",
+	"attack_per_level", "spellpower_per_level", "attack_speed_per_level",
+	"hp_regen_per_level", "mana regen per level", "health_per_level",
+	"mana_per_level", "crit_per_level", "crit_dmg_per_lvl", "armor_per_lvl",
+	"loot_drop_chance", "loot_to_uncommon", "loot_to_rare", "+1 Equipment",
+	"item_lock", "starting_equipment", "+1 Reroll", "+1 Reroll_2",
+	"+1 number of items per sale", "+10% discount to items on sale.",
+]
+
+func _telemetry_context() -> Dictionary:
+	return {
+		"round": game_state.battle_round,
+		"biome": _run_map.biome if _run_map else -1,
+		"map_seed": _run_map.generation_seed if _run_map else 0,
+		"node_id": String(_map_node.get("id", "")),
+		"node_type": int(_map_node.get("type", -1)),
+	}
+
+func _telemetry_event(type: String, payload: Dictionary = {}) -> void:
+	if _telemetry_run_id == "":
+		return
+	_telemetry_seq = RunTelemetry.append(
+			_telemetry_run_id, _telemetry_seq, type, _telemetry_context(), payload)
+
+func _telemetry_decision(type: String, payload: Dictionary = {}) -> void:
+	var row := {"type": type, "round": game_state.battle_round}
+	row.merge(payload.duplicate(true), true)
+	_telemetry_decisions.append(row)
+	_telemetry_event(type, payload)
+
+func _telemetry_relic_ids(offers: Array) -> Array:
+	var out: Array = []
+	for relic in offers:
+		if relic is Dictionary:
+			out.append(String(relic.get("id", relic.get("name", ""))))
+	return out
+
+func _telemetry_hero_offers() -> Array:
+	var out: Array = []
+	if not _hero_shop:
+		return out
+	for offer in _hero_shop._offers:
+		if offer is Dictionary:
+			out.append({
+				"class": int(offer.get("class", -1)),
+				"element": int(offer.get("element", -1)),
+				"rolls": Dictionary(offer.get("rolls", {})).duplicate(true),
+			})
+	return out
+
+func _telemetry_reward(reward: Dictionary) -> Dictionary:
+	var safe := reward.duplicate(true)
+	for key in safe.keys():
+		var value = safe[key]
+		if value is Resource:
+			safe[key] = {"class": value.get_class(), "path": value.resource_path}
+	return safe
+
+func _telemetry_node(node: Dictionary) -> Dictionary:
+	return {
+		"id": String(node.get("id", "")),
+		"row": int(node.get("row", -1)),
+		"col": int(node.get("col", -1)),
+		"type": int(node.get("type", -1)),
+		"difficulty": int(node.get("difficulty", -1)),
+		"wave": int(node.get("wave", 0)),
+		"round": int(node.get("round", 0)),
+		"grade": String(node.get("grade", "")),
+		"reward": _telemetry_reward(Dictionary(node.get("reward", {}))),
+	}
+
+func _telemetry_run_summary(won: bool) -> Dictionary:
+	return {
+		"run_id": _telemetry_run_id,
+		"won": won,
+		"wave": game_state.battle_round,
+		"kills": _run_kills,
+		"meta_start": _telemetry_meta_start.duplicate(true),
+		"meta_end": _telemetry_meta_snapshot(),
+		"battles": _telemetry_battles.duplicate(true),
+		"decisions": _telemetry_decisions.duplicate(true),
+	}
+
+func _telemetry_run_ended(won: bool) -> Dictionary:
+	var summary := _telemetry_run_summary(won)
+	_telemetry_event("run_ended", summary)
+	return summary
+
+func _telemetry_meta_snapshot() -> Dictionary:
+	var effective: Dictionary = {}
+	for key in TELEMETRY_EFFECT_KEYS:
+		effective[key] = Progression.get_bonus_float(key)
+	return {
+		"upgrade_levels": Progression.upgrade_levels.duplicate(true),
+		"nodes_owned": Progression.nodes_owned(),
+		"crystals_spent_ledger": Progression.crystals_spent,
+		"calculated_total_spent": Progression.total_spent(),
+		"wallet_crystals": Progression.crystals,
+		"effective": effective,
+	}
+
+func _telemetry_unit_snapshot(unit) -> Dictionary:
+	if not unit or not is_instance_valid(unit):
+		return {}
+	return {
+		"name": String(unit.unit_name),
+		"class": int(unit.unit_class),
+		"element": int(unit.current_element),
+		"level": int(unit.level),
+		"grid": [int(unit.grid_position.x), int(unit.grid_position.y)],
+		"hp": int(unit.current_hp),
+		"max_hp": int(unit.max_hp),
+		"mana": int(unit.current_mana),
+		"max_mana": int(unit.max_mana),
+		"atk": int(unit.attack_damage),
+		"magic": int(unit.magic_power),
+		"armor": int(unit.resistance),
+		"magic_armor": int(unit.magic_resist),
+		"attack_speed": float(unit.attack_speed),
+		"range": int(unit.attack_range),
+		"cell_size": int(unit.cell_size),
+	}
+
+func _telemetry_units(units: Array) -> Array:
+	var out: Array = []
+	for unit in units:
+		var row := _telemetry_unit_snapshot(unit)
+		if not row.is_empty():
+			out.append(row)
+	return out
+
+func _telemetry_battle_started() -> void:
+	_telemetry_battle_resources = {
+		"gold": game_state.gold,
+		"crystals": game_state.crystals,
+		"kills": _run_kills,
+	}
+	_telemetry_event("battle_started", {
+		"difficulty": _locked_difficulty,
+		"wave_seed": int(_map_node.get("wave_seed", 0)),
+		"legacy_threat": int(round(_estimate_wave_power(_locked_difficulty))),
+		"player": _telemetry_units(player_units),
+		"enemy": _telemetry_units(enemy_units),
+		"relics": _relic_inventory.owned_ids() if _relic_inventory else [],
+		"resources": _telemetry_battle_resources.duplicate(true),
+	})
+
+func _telemetry_battle_ended(player_won: bool) -> void:
+	var duration := float(auto_battle_manager.battle_elapsed) if auto_battle_manager else 0.0
+	var after_action: Array = auto_battle_manager.after_action_rows() if auto_battle_manager else []
+	var battle := {
+		"round": game_state.battle_round,
+		"difficulty": _locked_difficulty,
+		"node_id": String(_map_node.get("id", "")),
+		"won": player_won,
+		"duration_sim_s": duration,
+		"after_action": after_action.duplicate(true),
+		"survivors_player": player_units.size(),
+		"survivors_enemy": enemy_units.size(),
+		"resources_before": _telemetry_battle_resources.duplicate(true),
+		"resources_at_resolution": {"gold": game_state.gold, "crystals": game_state.crystals,
+			"kills": _run_kills},
+	}
+	_telemetry_battles.append(battle)
+	_telemetry_event("battle_ended", battle)
+
 # Damage the team dealt in the battle just fought, from the manager's snapshot.
 # Summing player_units instead (as the run-summary used to) UNDER-REPORTS: dead
 # heroes are erased from that array, so a defeat — where every hero is dead —
@@ -1813,6 +2040,8 @@ func _build_after_action_verdict() -> String:
 	return ""
 
 func _on_battle_ended(player_won: bool) -> void:
+	# Capture the exact finished fight before synergies, units and counters reset.
+	_telemetry_battle_ended(player_won)
 	# Strip the battle-only synergy bonuses first so between-round stats/displays
 	# show base values (they recompute fresh next fight).
 	_revert_team_synergies()
@@ -1822,6 +2051,7 @@ func _on_battle_ended(player_won: bool) -> void:
 			Progression.add_crystals(game_state.crystals)
 			RunSave.clear()
 			var total_dmg := _last_battle_damage()
+			var telemetry_summary := _telemetry_run_ended(true)
 			RunHistory.record(true, game_state.battle_round, _run_kills, total_dmg,
 					game_state.crystals, _run_start_nodes, _run_start_spent,
 					_run_difficulty_choices, _run_team_fielded, _run_team_fielded_levels,
@@ -1829,7 +2059,7 @@ func _on_battle_ended(player_won: bool) -> void:
 					_run_equipment_summary(),
 					_equipment_inventory.fusion_log if _equipment_inventory else [],
 					_run_last_death,
-					Progression.nodes_owned(), Progression.total_spent())
+					Progression.nodes_owned(), Progression.total_spent(), telemetry_summary)
 			_game_over_screen.show_victory(
 				game_state.crystals, game_state.battle_round, total_dmg, _run_kills,
 				_build_after_action_verdict())
@@ -1892,6 +2122,7 @@ func _on_battle_ended(player_won: bool) -> void:
 		RunSave.clear()
 
 		var total_dmg := _last_battle_damage()
+		var telemetry_summary := _telemetry_run_ended(false)
 
 		RunHistory.record(false, game_state.battle_round, _run_kills, total_dmg,
 				game_state.crystals, _run_start_nodes, _run_start_spent,
@@ -1900,7 +2131,7 @@ func _on_battle_ended(player_won: bool) -> void:
 				_run_equipment_summary(),
 				_equipment_inventory.fusion_log if _equipment_inventory else [],
 				_run_last_death,
-				Progression.nodes_owned(), Progression.total_spent())
+				Progression.nodes_owned(), Progression.total_spent(), telemetry_summary)
 		_game_over_screen.show_defeat(
 			game_state.crystals,       # earned this run
 			game_state.battle_round,
@@ -2320,6 +2551,8 @@ func _on_unit_placed(placed_unit, grid_pos: Vector2i) -> void:
 func _on_shop_reroll() -> void:
 	if game_state.spend_gold(Balance.REROLL_COST):
 		_hero_shop.reroll(game_state.gold)
+		_telemetry_decision("hero_offers_rerolled", {
+			"cost": Balance.REROLL_COST, "offers": _telemetry_hero_offers()})
 		update_ui()
 	else:
 		info_label.text = "Not enough gold to reroll."
@@ -2346,6 +2579,9 @@ func _on_shop_buy_hero(idx: int, cls: int, element: int, rolls: Dictionary) -> v
 		info_label.text = "No room — field and bench are full!"
 		return
 	_shop_screen.mark_sold(idx)
+	_telemetry_decision("merchant_purchase", {
+		"kind": "hero", "slot": idx, "price": price,
+		"class": int(cls), "element": int(element), "rolls": rolls.duplicate(true)})
 	_shop_screen.refresh(game_state.gold)
 	update_ui()
 	save_run()
@@ -2368,6 +2604,8 @@ func _on_shop_buy_stat(idx: int, perk: Dictionary) -> void:
 	# shop). The perk is already fully rolled, so there's only the unit to choose.
 	_round_reward_screen.present({"type": RoundReward.Type.STAT_BONUS, "perk": perk}, alive_units)
 	await _round_reward_screen.done
+	_telemetry_decision("merchant_purchase", {
+		"kind": "stat", "slot": idx, "price": price, "perk": perk.duplicate(true)})
 	update_ui()
 	save_run()
 
@@ -2380,6 +2618,9 @@ func _on_shop_buy_item(idx: int, item: EquipmentItem) -> void:
 		return
 	_equipment_inventory.add_item(item)
 	_shop_screen.mark_sold(idx)
+	_telemetry_decision("merchant_purchase", {
+		"kind": "item", "slot": idx, "price": price, "item_id": item.id,
+		"item_name": item.name, "rarity": int(item.rarity)})
 	_shop_screen.refresh(game_state.gold)
 	info_label.text = "Bought %s — equip it from the Equipment panel." % item.name
 	update_ui()
@@ -2393,6 +2634,9 @@ func _on_shop_buy_relic(idx: int, relic: Dictionary) -> void:
 		info_label.text = "Not enough gold!"
 		return
 	_on_relic_chosen(relic)   # stores + applies retroactively (also saves/updates UI)
+	_telemetry_decision("merchant_purchase", {
+		"kind": "relic", "slot": idx, "price": price,
+		"relic_id": String(relic.get("id", relic.get("name", "")))})
 	_shop_screen.mark_sold(idx)
 	_shop_screen.refresh(game_state.gold)
 
@@ -2402,6 +2646,8 @@ func _on_shop_screen_reroll() -> void:
 		info_label.text = "Not enough gold to reroll."
 		return
 	_shop_stock = ShopGenerator.roll_stock(game_state.battle_round, _relic_inventory.owned_ids())
+	_telemetry_decision("merchant_stock_rerolled", {
+		"cost": cost, "stock_size": _shop_stock.size()})
 	_shop_screen.set_stock(game_state.gold, _shop_stock)
 	update_ui()
 
@@ -2482,9 +2728,16 @@ const _ELEMENT_KEY: Dictionary = {
 }
 
 func _on_hero_chosen(unit_class: UnitBase.UnitClass, element: UnitBase.Element, rolls: Dictionary) -> void:
+	var hero_decision := {
+		"chosen": {"class": int(unit_class), "element": int(element),
+			"rolls": rolls.duplicate(true)},
+		"offers": _telemetry_hero_offers(),
+		"free_starting_pick": _awaiting_call_to_arms_pick,
+	}
 	if _awaiting_call_to_arms_pick:
 		_awaiting_call_to_arms_pick = false
 		_recruit_hero(unit_class, element, rolls)   # free — field is guaranteed empty at run start
+		_telemetry_decision("hero_chosen", hero_decision)
 		update_ui()
 		# Under the map, the run's opening beat is relic → starting hero → map.
 		# The map is deliberately held back until here so it can't be clicked
@@ -2502,6 +2755,7 @@ func _on_hero_chosen(unit_class: UnitBase.UnitClass, element: UnitBase.Element, 
 		info_label.text = "Field AND bench are full!"
 		game_state.add_gold(HeroShop.HERO_COST)   # refund the roll — no hero was actually gained
 		return
+	_telemetry_decision("hero_chosen", hero_decision)
 	update_ui()
 	save_run()   # checkpoint: keep prep purchases if the player quits/crashes
 
@@ -2683,7 +2937,14 @@ func _on_event_choice_made(choice_index: int) -> void:
 	var event: EventBlessing = _event_panel._current_event
 	if not event:
 		return
+	if choice_index < 0 or choice_index >= event.choices.size():
+		return
 	var choice = event.choices[choice_index]
+	var offered: Array = []
+	for event_choice in event.choices:
+		offered.append({"text": event_choice.text, "preview": event_choice.button_line(),
+			"band": event_choice.band, "kind": event_choice.kind})
+	var resources_before := {"gold": game_state.gold, "crystals": game_state.crystals}
 	# ── Graded resolution (2026-09-19) ────────────────────────────────────────
 	# A catalog choice carries a BAND, not a payout. The grade is rolled here,
 	# the catalog turns (choice, ctx, grade) into concrete effects, and the panel
@@ -2698,6 +2959,18 @@ func _on_event_choice_made(choice_index: int) -> void:
 		choice.effects = resolved.get("effects", {})
 		choice.description = String(resolved.get("outcome", ""))
 	var gamble_txt: String = _apply_event_effects(choice.effects)
+	_telemetry_decision("event_choice_made", {
+		"event_id": event.def_id,
+		"event_title": event.title,
+		"choice_index": choice_index,
+		"choice_text": choice.text,
+		"offered": offered,
+		"grade": grade,
+		"band": band,
+		"effects": choice.effects.duplicate(true),
+		"resources_before": resources_before,
+		"resources_after": {"gold": game_state.gold, "crystals": game_state.crystals},
+	})
 	update_ui()
 	# Show the outcome in the panel for a beat, then it fires `resolved` →
 	# _on_event_resolved starts the battle. Gambles show their rolled result;
@@ -2813,10 +3086,17 @@ func _on_map_node_chosen(node: Dictionary) -> void:
 	# a node just launched is exactly how the Call to Arms soft-lock happened.
 	if _run_map_screen:
 		_run_map_screen.visible = false
+	var offered: Array = []
+	for option in _run_map.available_next():
+		offered.append(_telemetry_node(option))
 	var entered: Dictionary = _run_map.advance_to(String(node["id"]))
 	if entered.is_empty():
 		return   # not reachable from here; the screen shouldn't have offered it
 	_map_node = entered
+	_telemetry_decision("map_node_chosen", {
+		"chosen": _telemetry_node(entered),
+		"offered": offered,
+	})
 	save_run()
 
 	if RunMap.is_battle_node(entered):
@@ -2839,6 +3119,7 @@ func _on_map_node_chosen(node: Dictionary) -> void:
 				return
 			_relic_screen_wave = maxi(1, game_state.battle_round)
 			_relic_rerolls_left = Progression.get_bonus("+1 Reroll")
+			_telemetry_relic_offers = _telemetry_relic_ids(offers)
 			_relic_screen.present(offers, _relic_screen_wave, _relic_rerolls_left)
 		RunMap.NodeType.EVENT:
 			# Utility stages still have a scaler position even though they do not
@@ -3240,6 +3521,11 @@ func _on_ready_pressed() -> void:
 
 	# Lock in the currently selected difficulty and generate+instantiate the final wave roster
 	_locked_difficulty = current_difficulty
+	_telemetry_decision("difficulty_committed", {
+		"difficulty": _locked_difficulty,
+		"difficulty_name": WaveScaler.Difficulty.keys()[_locked_difficulty].capitalize(),
+		"player": _telemetry_units(player_units),
+	})
 	# Readable label, not the raw enum int (2026-08-07). The first tester export
 	# came back as 117 zeros, which nobody could interpret without the source —
 	# it turned out to mean "played every round on Easy", a fact that changed how

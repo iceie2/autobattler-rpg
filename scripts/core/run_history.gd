@@ -39,7 +39,8 @@ static func record(won: bool, wave: int, kills: int, damage: int, crystals: int,
 		nodes: int = -1, spent: int = -1,
 		difficulties: Array = [], team: Array = [], team_levels: Array = [],
 		relics: Array = [], equipment: Dictionary = {}, fusion_log: Array = [],
-		death: Dictionary = {}, nodes_end: int = -1, spent_end: int = -1) -> void:
+		death: Dictionary = {}, nodes_end: int = -1, spent_end: int = -1,
+		telemetry: Dictionary = {}) -> void:
 	var all := entries()
 	all.push_front({
 		"won": won, "wave": wave, "kills": kills, "damage": damage,
@@ -49,6 +50,7 @@ static func record(won: bool, wave: int, kills: int, damage: int, crystals: int,
 		"relics": relics, "equipment": equipment, "fusion_log": fusion_log,
 		"death": death,
 		"nodes_end": nodes_end, "spent_end": spent_end,
+		"telemetry": telemetry.duplicate(true),
 	})
 	if all.size() > MAX_ENTRIES:
 		all = all.slice(0, MAX_ENTRIES)

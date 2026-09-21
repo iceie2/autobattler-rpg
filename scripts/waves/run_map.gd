@@ -75,6 +75,7 @@ var biome: int = 0                  # 0-based decade index
 var rows: Array = []                # Array[Array[Dictionary]] — nodes per row
 var current_id: String = ""         # node the player is standing on ("" = not started)
 var cleared: Dictionary = {}        # {node_id: true}
+var generation_seed: int = 0        # persisted so telemetry can reproduce the layout
 
 var _rng := RandomNumberGenerator.new()
 # Budget for optional utility replacements on narrower rows. Four-wide rows
@@ -88,7 +89,8 @@ var _utility_budget: int = MAX_UTILITY_NODES_PER_BIOME
 static func generate(biome_index: int, rng_seed: int = 0, roll_rewards: bool = true) -> RunMap:
 	var map := RunMap.new()
 	map.biome = maxi(0, biome_index)
-	map._rng.seed = rng_seed if rng_seed != 0 else randi()
+	map.generation_seed = rng_seed if rng_seed != 0 else randi()
+	map._rng.seed = map.generation_seed
 	map._build(roll_rewards)
 	return map
 
@@ -461,13 +463,14 @@ func to_dict() -> Dictionary:
 			r.append(c)
 		plain.append(r)
 	return {
-		"biome": biome, "rows": plain,
+		"biome": biome, "seed": generation_seed, "rows": plain,
 		"current": current_id, "cleared": cleared.duplicate(),
 	}
 
 static func from_dict(d: Dictionary) -> RunMap:
 	var map := RunMap.new()
 	map.biome = int(d.get("biome", 0))
+	map.generation_seed = int(d.get("seed", 0))
 	map.rows = d.get("rows", [])
 	map.current_id = String(d.get("current", ""))
 	map.cleared = d.get("cleared", {})

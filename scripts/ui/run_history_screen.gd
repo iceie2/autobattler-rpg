@@ -61,9 +61,9 @@ func _build_ui() -> void:
 	# Export (2026-08-04): external testers can't be asked to dig a JSON out of
 	# %APPDATA%, so this drops a dated copy on their Desktop and opens the folder.
 	var export_btn := Button.new()
-	export_btn.text = "⇩  Export Runs"; export_btn.position = Vector2(150, 566); export_btn.size = Vector2(220, 40)
+	export_btn.text = "⇩  Export Run Data"; export_btn.position = Vector2(150, 566); export_btn.size = Vector2(220, 40)
 	UITheme.apply_font(export_btn, UITheme.FONT_HEADER)
-	export_btn.tooltip_text = "Save this run history to your Desktop as a .json file."
+	export_btn.tooltip_text = "Save run summaries and detailed decision telemetry to your Desktop."
 	UITheme.style_button(export_btn)
 	export_btn.pressed.connect(_on_export)
 	_panel.add_child(export_btn)
@@ -88,12 +88,14 @@ func _on_export() -> void:
 		"crystals": Progression.crystals,
 		"crystals_spent": Progression.total_spent(),
 	})
+	var telemetry_path := RunTelemetry.export_to_desktop()
 	if path == "":
 		_export_lbl.add_theme_color_override("font_color", Color(0.95, 0.5, 0.5))
 		_export_lbl.text = "Export failed — couldn't write the file."
 		return
 	_export_lbl.add_theme_color_override("font_color", Color(0.6, 0.85, 0.65))
-	_export_lbl.text = "Saved to %s" % path.get_file()
+	_export_lbl.text = "Saved %s%s" % [path.get_file(),
+		(" + " + telemetry_path.get_file()) if telemetry_path != "" else ""]
 	OS.shell_show_in_file_manager(path)
 
 func _refresh() -> void:
