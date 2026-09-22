@@ -192,7 +192,7 @@ patch. The ordered dependency is now:
 
 ---
 
-## VD-04 - Threat score is unreliable - status: OPEN
+## VD-04 - Threat score is unreliable - status: GATE LANDED, METRIC OPEN
 
 **Finding.** `WaveDirector.score_spec` is the only threat number and it is not
 trustworthy. Pastor averages 21.82s against Veteran but only 16.98s against
@@ -215,6 +215,68 @@ replacement input and VD-01 telemetry makes it verifiable against real runs.
 
 **Done when.** Threat for a wave is derived from something that stays true when
 a new enemy, resistance or boss phase is added, and waves 5-10 no longer invert.
+
+### Implemented 2026-09-21 - `--mode=threatcheck` calibration gate
+
+**Design decision.** A simulation cannot replace `score_spec`. The prep-screen
+threat readout and the filler budget both need an answer in microseconds; a
+battle sim takes seconds. So the fast heuristic stays, and what gets added is a
+gate that notices when it stops describing the game - which is precisely how it
+rotted the first time, silently, across the resistance pass, the 30-to-100
+expansion and the hero-kit work.
+
+This is the direct answer to the owner's condition, *"just need a way of doing
+it that we don't run into this issue again"*: `score_spec` is allowed to be
+approximate. It is not allowed to be **backwards**, and now it cannot become
+backwards without a gate going red.
+
+An **inversion** is a pair of waves where score ordering contradicts measured
+ordering. Hardness = `(1 - win_rate) * 2 + (1 - ending_hp)`; the ending-HP term
+is a tie-break, without which every saturated cell would compare equal.
+Near-ties on both axes are ignored (5% of score, 0.15 hardness) so noise cannot
+fail a build. The team at each round is the **cohort** team, derived with the
+same math as `--mode=xpcurve`, so a wave is measured against the roster a player
+walking that lane would actually hold. `--xpbonus/--slots/--events` select the
+cohort.
+
+### Measured result - `score_spec` is backwards in 9-10 places per tier
+
+| Tier | Cohort | Inversions |
+|---|---|---:|
+| Normal | fresh | **9** |
+| Veteran | fresh | **10** |
+| Brutal | fresh | 1 *(saturated - see below)* |
+| Brutal | invested (xpbonus 150, slots 3) | **4** |
+
+Worst offenders: score calls round 10 harder than rounds 4, 5 and 6 on Veteran
+while the fight calls it far easier; on Normal, score calls round 9 harder than
+rounds 5 and 6 while round 9 wins 80% and both of those win 0%.
+
+**The Brutal fresh number is a trap, and the tool says so.** One inversion is
+not health - waves 5-10 all read 0%, so hardness ties at 3.00 and the ordering
+check has nothing to compare. Saturation must be broken with the cohort dials
+before the number means anything. This is documented in CONVENTIONS.md next to
+the command, because a future reader will otherwise see "1 inversion" and
+conclude Brutal is fine.
+
+### What the measurement exposed beyond the metric
+
+- **Normal waves 5, 6 and 10 are 0% for a bare fresh cohort.** No filler is
+  involved at any of them - this is the authored base curve, and it is
+  independent of VD-06 and VD-10. Sims carry no equipment or relics, so this is
+  a floor, but three zeroes in ten waves on the *easiest* lane is worth a look.
+- **Wave 7 is a wall for everyone.** 5% even for an invested 7-hero L4 cohort.
+  Composition is `{BN:2, LZN:5}` - five far-range burst snipers. `score_spec`
+  prices a lizard at 40 and cannot see that five of them delete a team before it
+  closes the distance. This is the cleanest single example of why VD-04 needed a
+  measured gate rather than a recalibration.
+- **Wave 9 Brutal is 0% even for the invested cohort** (8 heroes at L5). Bears
+  on VD-08: Brutal may be doing too much rather than not enough at the top of
+  biome 1.
+
+**Remains.** The gate reports the disagreement; it does not fix it. Deciding
+what `score_spec` should become - or what constraint the budget gets (VD-10) -
+is the open design work, and it is now evidence-backed rather than guessed.
 
 ---
 

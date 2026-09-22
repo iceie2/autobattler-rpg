@@ -95,6 +95,34 @@ GODOT="/c/anything coding/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mon
 ```
 
 ```sh
+# 4b. Threat calibration gate (after touching wave composition, enemy stats,
+#     resistances, the filler budget or score_unit/score_spec):
+"$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn --   --mode=threatcheck --from=1 --to=10 --difficulty=brutal --runs=20
+#    → "pass": true, "inversions": 0.
+#      An inversion is a pair of waves where score_spec's ORDERING contradicts
+#      measured difficulty — score says one is harder, the fight says the other
+#      is. score_spec is a fast heuristic and is ALLOWED to be approximate; it is
+#      not allowed to be backwards. A battle sim can never replace it (the prep
+#      readout and the filler budget both need an answer in microseconds), so
+#      this gate exists instead: the heuristic cannot rot silently the way it did
+#      across the resistance pass and the 30→100 expansion. Measured 2026-09-21
+#      before the gate existed: round 7 Brutal scored 6898, BELOW round 6's 7538,
+#      and won 0% against round 6's 60%.
+#
+#      SATURATION WARNING — a low inversion count is not automatically good. If
+#      most cells read 0% (or 100%) then hardness ties and the check has nothing
+#      to compare. Biome 1 Brutal reports just 1 inversion against a FRESH cohort
+#      purely because everything from wave 5 on is unwinnable for it. Land the
+#      cohort mid-range before trusting the number:
+#        --xpbonus=150 --slots=3 --hero-cap=20      (an invested account)
+#      Same waves, invested cohort: 4 real inversions.
+#
+#      The team is derived from the same xpcurve math as --mode=xpcurve, so
+#      "wave 9 Brutal" is measured against the roster a player walking that lane
+#      would actually hold, not an arbitrary fixture.
+```
+
+```sh
 # 5. Ability numbers + description lint (after touching AbilityFormulas or any hero kit):
 "$GODOT" --headless --path . res://scenes/formula_dump.tscn -- --level=10
 #    → every hero's 3 abilities with resolved numbers; "0 slots with no terms"

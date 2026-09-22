@@ -227,6 +227,8 @@ func _ready() -> void:
 			result = _run_power(args)
 		"xpcurve":
 			result = _run_xpcurve(args)
+		"threatcheck":
+			result = await _run_threatcheck(args)
 		"goldcurve":
 			result = _run_goldcurve(args)
 		"events":
@@ -702,6 +704,196 @@ func _run_power(args: Dictionary) -> Dictionary:
 					profile["melee"], profile["ranged"], profile["support"], profile["large"]],
 		})
 	return {"mode": "power", "difficulty": difficulty, "rows": rows}
+
+# ── THREATCHECK MODE ──────────────────────────────────────────────────────────
+# VD-04. `score_spec` is the only threat number the game has, and it is not
+# truthful: it sums per-unit scores and is blind to mechanics, to boss phases and
+# to body count relative to team size. Measured 2026-09-21, biome 1: round 7
+# Brutal scores 6898 — BELOW round 6's 7538 — yet wins 0% where round 6 wins 60%.
+#
+# The fix is NOT "replace score_spec with a simulation". A battle sim takes
+# seconds; the prep-screen threat readout and the filler budget both need an
+# answer in microseconds, so a fast heuristic has to stay. What was missing is a
+# way to notice when that heuristic stops describing the game — which is exactly
+# how it rotted the first time, silently, across the resistance pass, the 30→100
+# expansion and the hero-kit work.
+#
+# So this mode is a CALIBRATION GATE, not a replacement metric. It measures what
+# actually happens, compares the ORDERING against score_spec, and fails when the
+# two disagree. The heuristic is then free to be approximate — it is not free to
+# be backwards, and it can no longer rot without something going red.
+#
+# Usage:
+#   -- --mode=threatcheck --from=1 --to=10 --difficulty=brutal --runs=20
+#   optional: --roster=NEMI,BLOODHOUND,SHAUNA,HEADHUNTER  --seed=1337
+#             --xpbonus=/--slots=/--events=  (cohort dials, same as xpcurve)
+#             --max-inversions=N  (gate threshold; default 0)
+#
+# The team at each round is the COHORT team — size and level derived with the
+# same math as _run_xpcurve, so "round 9 Brutal" is measured against the roster a
+# player walking that lane would actually hold, not an arbitrary fixture. Pass
+# --xpbonus/--slots to measure an invested cohort instead of a fresh one.
+func _run_threatcheck(args: Dictionary) -> Dictionary:
+	var difficulty: int = _difficulty_from_args(args, "normal")
+	var lo: int = int(args.get("from", "1"))
+	var hi: int = int(args.get("to", "10"))
+	var runs: int = int(args.get("runs", "20"))
+	var base_seed: int = int(args.get("seed", "1337"))
+	var max_sim: float = float(args.get("max-sim-seconds", "120"))
+	var max_inversions: int = int(args.get("max-inversions", "0"))
+	var roster: Array = String(args.get("roster",
+			"NEMI,BLOODHOUND,SHAUNA,HEADHUNTER")).to_upper().split(",", false)
+
+	# Cohort progression — same constants and same loop as _run_xpcurve, so the
+	# two modes cannot drift apart in what "a fresh account at round N" means.
+	var base_xp: float = float(args.get("base", str(Balance.PLAYER_XP_BASE)))
+	var growth: float = float(args.get("growth", str(Balance.PLAYER_XP_GROWTH)))
+	var share: float = float(args.get("share", str(Balance.PLAYER_XP_SHARE)))
+	var xpbonus: float = float(args.get("xpbonus", "0"))
+	var slots: int = int(args.get("slots", "0"))
+	var events: int = int(args.get("events", "0"))
+
+	var director := WaveDirector.new()
+	var xp: float = 0.0
+	var to_level: float = base_xp
+	var level: int = 1
+	var rows: Array = []
+
+	for r in range(lo, hi + 1):
+		var spec: Array = director.generate_wave_spec(r, difficulty, 9)
+		# Score and XP in one walk — create_enemy_for_entry is the expensive part.
+		var power: float = 0.0
+		var bodies: int = 0
+		var wave_xp: float = 0.0
+		for entry: Dictionary in spec:
+			var u: VisualUnit = director.create_enemy_for_entry(entry, r)
+			if u:
+				power += WaveScaler.score_unit(u)
+				wave_xp += float(u.xp_reward)
+				bodies += 1
+				u.free()
+
+		var team_size: int = mini(level + slots + events, Balance.MAX_TEAM_SIZE)
+		var parts: Array[String] = []
+		for i in range(mini(team_size, roster.size())):
+			parts.append("%s:%d" % [String(roster[i]).strip_edges(), level])
+		var team_spec: String = ",".join(parts)
+
+		var wins := 0
+		var stalls := 0
+		var secs: float = 0.0
+		var hp_sum: float = 0.0
+		var hp_n: int = 0
+		for i in range(runs):
+			seed(base_seed + i)
+			_build_env()
+			var team: Array = _spawn_team(team_spec, -1)
+			var enemies: Array = _spawn_enemies("wave:%d" % r, difficulty)
+			if team.is_empty() or enemies.is_empty():
+				await _teardown_env()
+				_had_failures = true
+				return {"error": "round %d: empty team or enemy list" % r}
+			for u in team:
+				_wire_unit(u)
+			_place_team(team, "default")
+			var unplaced: Array = []
+			for u in enemies:
+				_wire_unit(u)
+				if not _place_enemy(u):
+					unplaced.append(u.unit_name)
+			if not unplaced.is_empty():
+				# Same rule as sim mode: an unplaced enemy scores a free win, so
+				# it is a harness failure, never a result.
+				_had_failures = true
+				push_error("round %d: no room for %s" % [r, ", ".join(unplaced)])
+			mgr.start_battle()
+			_sim_elapsed = 0.0
+			while mgr.battle_active and _sim_elapsed < max_sim:
+				await get_tree().process_frame
+				_sim_elapsed += get_process_delta_time() * mgr.time_scale
+			var stalled: bool = mgr.battle_active
+			if stalled:
+				stalls += 1
+			elif mgr.enemy_units.is_empty() and not mgr.player_units.is_empty():
+				wins += 1
+				# Ending HP is only meaningful on a win; a loss is always 0 and
+				# would drag the average into saying nothing.
+				for u in team:
+					if u and is_instance_valid(u) and u.current_hp > 0:
+						hp_sum += float(u.current_hp) / maxf(float(u.max_hp), 1.0)
+				hp_n += team.size()
+			secs += _sim_elapsed
+			await _teardown_env()
+
+		var win_rate: float = float(wins) / float(runs)
+		var end_hp: float = (hp_sum / float(hp_n)) if hp_n > 0 else 0.0
+		# Hardness: win rate leads, ending HP breaks ties. Without the tie-break
+		# every saturated cell (0% or 100%) would compare equal and the ordering
+		# check would have almost nothing to say about biome 1.
+		var hardness: float = (1.0 - win_rate) * 2.0 + (1.0 - end_hp)
+
+		rows.append({
+			"round": r, "power": int(snappedf(power, 1.0)), "bodies": bodies,
+			"team": team_spec, "team_size": team_size, "level": level,
+			"runs": runs, "wins": wins, "stalls": stalls,
+			"win_rate": snappedf(win_rate, 0.01),
+			"end_hp": snappedf(end_hp, 0.01),
+			"hardness": snappedf(hardness, 0.001),
+			"avg_seconds": snappedf(secs / float(runs), 0.1),
+		})
+		if stalls > 0:
+			_had_failures = true
+
+		# Advance the cohort AFTER the fight, assuming a full clear.
+		xp += wave_xp * share * (1.0 + xpbonus / 100.0)
+		while xp >= to_level:
+			xp -= to_level
+			level += 1
+			to_level *= growth
+
+	# ── The gate ──────────────────────────────────────────────────────────────
+	# Every ordered pair: score says one wave is harder, measurement says the
+	# other is. Near-ties are ignored on both axes so ordinary noise cannot fail
+	# the build — only a real, confident disagreement counts.
+	const POWER_TOL := 0.05      # 5% of the larger score
+	const HARDNESS_TOL := 0.15   # ~7.5 percentage points of win rate
+	var inversions: Array = []
+	for a in range(rows.size()):
+		for b in range(a + 1, rows.size()):
+			var ra: Dictionary = rows[a]
+			var rb: Dictionary = rows[b]
+			var dp: float = float(rb["power"]) - float(ra["power"])
+			var dh: float = float(rb["hardness"]) - float(ra["hardness"])
+			if absf(dp) <= float(maxi(int(ra["power"]), int(rb["power"]))) * POWER_TOL:
+				continue
+			if absf(dh) <= HARDNESS_TOL:
+				continue
+			if signf(dp) == signf(dh):
+				continue
+			inversions.append({
+				"rounds": [ra["round"], rb["round"]],
+				"power": [ra["power"], rb["power"]],
+				"win_rate": [ra["win_rate"], rb["win_rate"]],
+				"detail": "score calls round %d %s than round %d, measurement calls it %s" % [
+						rb["round"], "harder" if dp > 0.0 else "easier",
+						ra["round"], "easier" if dh < 0.0 else "harder"],
+			})
+	inversions.sort_custom(func(x, y):
+			return absf(float(x["win_rate"][0]) - float(x["win_rate"][1])) \
+				> absf(float(y["win_rate"][0]) - float(y["win_rate"][1])))
+	if inversions.size() > max_inversions:
+		_had_failures = true
+
+	return {
+		"mode": "threatcheck", "difficulty": difficulty,
+		"from": lo, "to": hi, "runs": runs, "roster": roster,
+		"cohort": {"xpbonus": xpbonus, "slots": slots, "events": events},
+		"inversions": inversions.size(),
+		"max_inversions": max_inversions,
+		"pass": inversions.size() <= max_inversions,
+		"worst": inversions.slice(0, mini(8, inversions.size())),
+		"rows": rows,
+	}
 
 # ── XPCURVE MODE ──────────────────────────────────────────────────────────────
 # Battle-free player-progression dump (2026-08-07). Board size IS player level
