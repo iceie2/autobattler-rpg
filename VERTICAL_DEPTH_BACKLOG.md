@@ -179,6 +179,58 @@ biome 1 are hard *because* of premature debuts.
 **Finding E - wave 5 Brutal has no name at all** (`"name": ""`), a stronger form
 of VD-05 than "the name is inaccurate".
 
+### Finding F - Veteran and Brutal wave 1 are the SAME fight (2026-09-22)
+
+Owner spotted it in-game: the wave-1 Brutal prep screen reads THREAT 735 over
+two goblins. Confirmed from `--mode=power`:
+
+```
+normal  w1: power 367 | {'M': 1}
+veteran w1: power 735 | {'M': 2}
+brutal  w1: power 735 | {'M': 2}
+```
+
+**Veteran and Brutal wave 1 are byte-identical encounters.** Since Brutal pays
+the richer reward table for the same fight, **Brutal strictly dominates Veteran
+at wave 1** - there is no reason to ever pick the middle lane. That is a
+dominance bug, not just a flatness problem.
+
+**Root cause: budget granularity.** `fill_to_score` can only spend in whole
+bodies, and at round 1 the cheapest body the scorer will price is the goblin at
+**367 - exactly the entire Normal wave**. So the tier ladder's resolution at
+wave 1 is 100% of the wave. Veteran wants +50% and Brutal wants +100%; both
+round to "+1 goblin".
+
+`fill_to_score` already has an explicit fallback for this, and its comment names
+the exact case ("wave 1 is ONE goblin, so Veteran's half-a-goblin of headroom
+buys nothing... take the cheapest body available and overshoot rather than sell
+a difficulty tier for nothing"). The fallback fires correctly - it just has
+nothing cheap to reach for, so overshooting lands Veteran precisely on Brutal.
+
+**The Rat is the body that should have filled this gap and does not.** `R` is in
+`FILLER_POOL`, is mapped in `CODE_TO_TYPE` to a real spawnable `rat`, and is
+priced 15 in `UNIT_POWER` - the cheapest in the game. Measured head to head at
+wave 1 against a level-1 Nemi: rat dies in 3.7s dealing 25, goblin takes 8.7s
+dealing 43. The rat genuinely fights like half a goblin.
+
+But the fallback picks the **minimum-cost** entry by construction, and it picked
+the goblin - so `score_code("R", 1) >= 367`. The rat is priced at or above a
+goblin while fighting like half of one. Whether that is a `score_unit`
+mispricing or a stat-block problem is not yet determined, but it is the same
+class of defect as VD-04 (score not describing the fight), showing up in
+composition instead of ordering.
+
+**Candidate fixes, not decided.**
+- Diagnose the rat's score. If it is mispriced, fixing it restores granularity
+  at the bottom of the curve for free and may affect other cheap bodies too.
+- Give wave 1's Normal comp a second body so the tiers have something to
+  differentiate with. Changes the first fight of the game - a feel decision.
+- An additive floor on the low-wave tier budget instead of a pure multiplier.
+
+**Note.** No harness mode currently prints the price of every body legal at a
+round, which is why this took a fallback-behaviour inference to pin down.
+`--mode=power` prints prices only for codes already in the roster. Worth adding.
+
 **Consequence for the roadmap.** VD-03 cannot be delivered as a wave-1 tuning
 patch. The ordered dependency is now:
 
