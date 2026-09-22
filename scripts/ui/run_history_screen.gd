@@ -89,13 +89,20 @@ func _on_export() -> void:
 		"crystals_spent": Progression.total_spent(),
 	})
 	var telemetry_path := RunTelemetry.export_to_desktop()
+	var report_paths := RunTelemetryReport.export_to_desktop(RunTelemetry.read_events())
 	if path == "":
 		_export_lbl.add_theme_color_override("font_color", Color(0.95, 0.5, 0.5))
 		_export_lbl.text = "Export failed — couldn't write the file."
 		return
 	_export_lbl.add_theme_color_override("font_color", Color(0.6, 0.85, 0.65))
+	var extras: Array[String] = []
+	if telemetry_path != "":
+		extras.append(telemetry_path.get_file())
+	if not report_paths.is_empty():
+		extras.append(String(report_paths.get("markdown", "")).get_file())
+		extras.append(String(report_paths.get("json", "")).get_file())
 	_export_lbl.text = "Saved %s%s" % [path.get_file(),
-		(" + " + telemetry_path.get_file()) if telemetry_path != "" else ""]
+		(" + " + ", ".join(extras)) if not extras.is_empty() else ""]
 	OS.shell_show_in_file_manager(path)
 
 func _refresh() -> void:
