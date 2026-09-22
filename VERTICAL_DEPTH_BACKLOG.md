@@ -488,6 +488,67 @@ designed with it.
 
 ---
 
+## VD-11 - Biome element identity dissolves on harder tiers - status: OPEN
+
+**Owner question 2026-09-22:** *"do we ever get around to making it so enemies
+follow the biome's element more"*. Answer: **no, and VD-06 does not do it.**
+VD-06's debut gate is a one-way ratchet - it stops early waves receiving later
+creatures, but places no constraint on later waves fielding earlier ones. So a
+Fire-decade wave may legally field the entire Normal/Air/Water/Earth roster.
+
+**Measured 2026-09-22** (`--mode=power --from=1 --to=60`, off-element body share
+per biome, boss/elite bodies excluded):
+
+| Biome | Normal tier | Brutal tier |
+|---|---:|---:|
+| 1 Normal | 5% | 2% |
+| 2 Air | 14% | **29%** |
+| 3 Water | 14% | **46%** |
+| 4 Earth | 5% | **48%** |
+| 5 Fire | 0% | **44%** |
+| 6 Lightning | 2% | **38%** |
+
+**The authored waves are fine.** The 2026-08-02 retint did its job - Normal tier
+is 0-14% off-element. It is the *difficulty filler* that dissolves the theme,
+and filler is most of what a harder tier is made of. The harder you play, the
+less the biome means. On Brutal, roughly half the board in the Water, Earth and
+Fire decades is the wrong element.
+
+Concrete examples: `LZA` (Air lizard) appears in **every** Fire wave 41-49.
+Wave 42 Brutal fields `TH` (the Water anchor) and `GSE` (Earth shaman) inside
+the Fire decade. Wave 49 is an eleven-code rainbow.
+
+**Second, separate cause - boss honour guards are hardcoded Normal.**
+`WaveScaler.build_boss_formation` builds its guard from `M`, `B`, `BRN`, `TLN`,
+`GSN`, `LZN` - all Normal-element codes - at every tier and in every decade. So
+wave 50, the *Fire* boss, fields `M:7, BN:2, BRN:2, GSN:2, LZN:2, TLN:2, SK:1`
+around Emberhollow. Every decade boss fights with a Normal-element escort.
+
+**Why the fix is cheap: it is power-neutral by construction.** Every mob family
+carries six element variants that share one stat block (WaveData's retint note
+says so explicitly, and it is why the 2026-08-02 retint preserved the power
+curve without re-tuning). Swapping filler and guards to the on-element variant
+of the same family therefore changes theme without changing balance. This can
+ship without disturbing VD-03/VD-04/VD-10.
+
+**Scope note.** The owner's VD-06 decision stands: *"once we get to biome 6 or 7
+we will go multi element."* So biomes 1-5 should read pure and deliberate
+mixing starts later - which makes the current 44-48% accidental mixing in
+biomes 3-5 the opposite of the intent.
+
+**Candidate fix, not decided.**
+- Filler prefers the decade's element variant when the family has one; falls
+  back to Normal when it does not (goblins have no Water variant - wave 24's
+  authored comment already documents that exact hole).
+- `build_boss_formation` derives its guard's element from the decade.
+- A purity check in the harness alongside the premature-debut check.
+
+**Ordering caution.** Doing this before VD-10 changes the cast VD-10 measures.
+Power is preserved, so the body-count finding holds either way, but the sweep
+would need re-running.
+
+---
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
