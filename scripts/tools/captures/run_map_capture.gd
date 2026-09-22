@@ -69,6 +69,12 @@ func _ready() -> void:
 	await _shot("run_map_start")
 
 	# Walk partway so cleared nodes, the lit path and the new frontier all show.
+	# The MAP is seeded, but the walk up it was not, so two runs of this harness
+	# with identical arguments stood on different nodes and hovered different
+	# forks. That makes the captures useless for the one thing a capture harness
+	# is for — putting two renders of the SAME frame side by side and seeing
+	# what a change did. Seed the walk from the same number that seeds the map.
+	seed(map_seed)
 	for _i in range(steps):
 		var options: Array = map.available_next()
 		if options.is_empty():
@@ -111,14 +117,14 @@ func _ready() -> void:
 		screen._hover_armed = true
 		for opt in map.available_next():
 			if RunMap.is_battle_node(opt):
-				# The card follows the MOUSE (see _process), so a hover driven by
-				# code alone parks it wherever the cursor happens to be —
-				# off-screen in a capture. Put the cursor on the node first.
+				# The card is CLICK-driven now (hover only lights the cone), so
+				# the harness opens it directly. The cursor still gets parked on
+				# the node so the cone in the shot matches the card.
 				var btn: Button = screen._buttons.get(String(opt["id"]))
 				if btn:
 					Input.warp_mouse(btn.get_global_rect().get_center())
 				await get_tree().process_frame
-				screen._on_node_hover(opt, true)
+				screen.open_dossier(opt)
 				break
 		for _i in range(20):
 			await get_tree().process_frame
@@ -166,7 +172,7 @@ func _capture_opening() -> void:
 	for first_opt in mg._run_map.available_next():
 		if RunMap.is_battle_node(first_opt):
 			previewed_first = first_opt
-			screen2._on_node_hover(first_opt, true)
+			screen2.open_dossier(first_opt)
 			# The dossier performs a two-frame container settle on first use; audit
 			# the stable presentation, not its transient construction rectangle.
 			for _settle in range(4):
@@ -197,14 +203,14 @@ func _capture_opening() -> void:
 			if btn2:
 				Input.warp_mouse(btn2.get_global_rect().get_center())
 			await get_tree().process_frame
-			screen2._on_node_hover(opt, true)
+			screen2.open_dossier(opt)
 			# Re-assert the hover on the frame before the shot: warping the
 			# cursor makes the button emit its own enter/exit a frame later, and
 			# a stray exit hides the card again — which is why the first two
 			# attempts at this capture came back with no card at all.
 			for _i in range(30):
 				await get_tree().process_frame
-			screen2._on_node_hover(opt, true)
+			screen2.open_dossier(opt)
 			await get_tree().process_frame
 			break
 	await _shot("opening_5_future_boss_card")

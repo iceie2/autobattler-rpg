@@ -162,6 +162,67 @@ var _hover_id: String = ""
 const HOVER_ARM_DISTANCE := 10.0
 var _hover_armed: bool = false
 var _hover_origin: Vector2 = Vector2.ZERO
+
+# ── THE COMMITMENT PREVIEW ────────────────────────────────────────────────────
+# Hovering a node dims everything that node CANNOT reach. Owner call
+# (2026-09-22), and it is the legibility half of the mercy-edge rule in
+# RunMap._grant_relief_edges: that rule gives a stranded node a way out whenever
+# the no-crossing geometry allows, but in roughly 0.4 maps per biome it can't,
+# and the map stays pointed. A trap you can SEE is a choice; the same trap
+# discovered two rows later is just a lost run.
+#
+# It is also what makes a lane commitment fair at the moment it's made. Slay the
+# Spire's whole act is readable from floor 1, which is why walking into two
+# elites there is something a player did on purpose. This map is fully drawn
+# too, but nobody traces four rows of hairlines with their eyes — so the cone
+# gets traced for them.
+#
+# Hovering ANY node works, not just the fork in front of you: scouting the route
+# is already the reason the dossier shows fights anywhere on the map.
+# While a cone is up these are ABSOLUTE, not multipliers on the depth fade.
+# Owner call (2026-09-22): stacking the two made the reachable path read at
+# ~70% and the rest at ~5%, so the cone looked washed out and the map looked
+# empty. Depth dimming answers "how far ahead is this", which is the resting
+# question; the moment a cone is up the only question is "can I get there",
+# and that answer is not more or less true further along the route.
+const CONE_LIT := 1.0           # anything the hovered node can reach
+const CONE_DIM := 0.25          # …and everything it cannot
+var _cone_id: String = ""       # which node _cone was computed for
+var _cone: Dictionary = {}      # {node_id: true} — focused node plus all descendants
+
+# ── HOVER LOOKS, CLICK ASKS ───────────────────────────────────────────────────
+# Owner call (2026-09-22). The dossier is a big centred card, so opening it on
+# hover covered the very paths the cone had just lit — the two features fought
+# each other and the card won. Now hover does nothing but light the cone, and
+# the fight preview costs a CLICK.
+#
+# Clicking a node you can step onto a SECOND time enters it, and the card
+# carries a BEGIN button that does the same thing, so nothing can start a fight
+# without the preview having been on screen first. Clicking anywhere that is not
+# a node and not the card puts it away.
+#
+# Any node can be clicked, not just the fork in front of you — scouting the
+# route is the reason the card shows fights from anywhere on the map, and with
+# hover no longer opening it, a click is the only way left to look ahead.
+#
+# ── AND RESTING ON A NODE ASKS FOR YOU ────────────────────────────────────────
+# Keep the cursor still on one node for a second and its dossier opens by
+# itself. The common case — sweep the forks, settle on one, go — is then ONE
+# click, while sweeping still costs nothing but the cone. A card that opened
+# this way is NOT pinned: arriving at another node puts it away again, so the
+# map never accumulates a card you didn't ask for.
+const DOSSIER_DWELL := 1.0      # seconds of stillness on a node
+
+var _selected_id: String = ""   # the node whose dossier is open ("" = none)
+var _dossier_pinned: bool = false   # opened by a click (stays) vs. by dwell (transient)
+var _dwell: float = 0.0         # seconds the cursor has rested on _hover_id
+var _tip_action: Button         # BEGIN — only shown on a node you may enter
+
+# What the cone is drawn from: the open dossier if there is one, otherwise
+# whatever the cursor is over. A pinned cone means the card you are reading and
+# the paths lit behind it always describe the same node.
+func _focus_id() -> String:
+	return _selected_id if _selected_id != "" else _hover_id
 var _tip:       PanelContainer
 var _tip_box:   VBoxContainer
 var _tip_title: Label
@@ -214,8 +275,7 @@ func present(map: RunMap, biome_name: String) -> void:
 	_hover_armed = false
 	_hover_origin = get_viewport().get_mouse_position()
 	_hover_id = ""
-	if _tip:
-		_tip.visible = false
+	_clear_selection()
 	visible = true
 	# A previous VIEW BOARD could have left the panel hidden.
 	_panel.visible = true
@@ -231,26 +291,44 @@ func present(map: RunMap, biome_name: String) -> void:
 	_center_panel()
 
 func _input(event: InputEvent) -> void:
+	if visible and event is InputEventMouseButton and event.pressed 			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		_maybe_dismiss_dossier((event as InputEventMouseButton).position)
+		return
 	if not visible or _hover_armed or not (event is InputEventMouseMotion):
 		return
 	var mouse_event := event as InputEventMouseMotion
 	if mouse_event.position.distance_to(_hover_origin) < HOVER_ARM_DISTANCE:
 		return
 	_hover_armed = true
-	# mouse_entered may already have fired while previews were gated. Resolve the
-	# node currently beneath the newly intentional cursor so it appears on this
-	# movement, without requiring the player to leave and re-enter the circle.
+	# mouse_entered may already have fired while the cone was gated. Light the
+	# node currently beneath the newly intentional cursor on this movement,
+	# without requiring the player to leave and re-enter the circle.
 	for id in _buttons:
 		var btn: Button = _buttons[id]
 		if is_instance_valid(btn) and btn.get_global_rect().has_point(mouse_event.position):
 			var node: Dictionary = _map.node_by_id(String(id))
 			if not node.is_empty():
-				_on_node_hover(node, not btn.disabled)
+				_on_node_hover(node)
 			return
 
 # Size the panel to the viewport and derive node spacing from it. Everything
 # here is a function of the real window, so the map fills an ultrawide screen
 # and still fits a small one.
+# A click that lands on neither a node nor the card closes the dossier.
+#
+# Hit-tested against the rects rather than leaning on which control consumed
+# the event: the node buttons are MOUSE_FILTER_PASS, so their clicks reach this
+# handler too, and "was it handled" cannot tell the two cases apart.
+func _maybe_dismiss_dossier(at: Vector2) -> void:
+	if _selected_id == "":
+		return
+	if _tip and _tip.visible and _tip.get_global_rect().has_point(at):
+		return
+	for btn in _buttons.values():
+		if (btn as Button).get_global_rect().has_point(at):
+			return
+	_clear_selection()
+
 func _layout() -> void:
 	var vp: Vector2 = get_viewport().get_visible_rect().size if get_viewport() 		else Vector2(PANEL_W, PANEL_H)
 	if vp.x < 100.0 or vp.y < 100.0:
@@ -378,9 +456,11 @@ func _build_ui() -> void:
 	tip_style.content_margin_bottom = 12
 	_tip.add_theme_stylebox_override("panel", tip_style)
 	_tip.visible = false
-	_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Every child too — see _make_tip_click_through. Called again in
-	# _show_tip because the card's rows are rebuilt as content changes.
+	# Click-through, except BEGIN — see _make_tip_click_through. A dwell card
+	# opens centred, which can be directly under the cursor that summoned it,
+	# and the single click that follows has to reach the NODE beneath the card.
+	# Clicks on the card are kept from dismissing it by a rect test instead
+	# (_maybe_dismiss_dossier).
 	var box := VBoxContainer.new()
 	_tip_box = box
 	box.custom_minimum_size.x = BOARD_W
@@ -490,6 +570,24 @@ func _build_ui() -> void:
 	_tip_board.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tip_board.draw.connect(_draw_mini_board)
 	box.add_child(_tip_board)
+
+	# The commit, spelled out on the card. Clicking the node again does the same
+	# thing; this is the half of it that is visible to someone who has just
+	# opened their first dossier and does not yet know that.
+	_tip_action = Button.new()
+	_tip_action.text = "BEGIN"
+	_tip_action.focus_mode = Control.FOCUS_NONE
+	var action_boxes: Dictionary = UITheme.button_boxes()
+	for state in ["normal", "hover", "pressed"]:
+		_tip_action.add_theme_stylebox_override(state, action_boxes[state])
+	UITheme.apply_font(_tip_action, UITheme.FONT_BODY)
+	_tip_action.add_theme_color_override("font_color", UITheme.TEXT_BTN)
+	_tip_action.custom_minimum_size = Vector2(0, 40)
+	_tip_action.pressed.connect(func():
+		var node: Dictionary = _map.node_by_id(_selected_id) if _map else {}
+		if not node.is_empty():
+			_enter_node(node))
+	box.add_child(_tip_action)
 	add_child(_tip)
 
 func _fact_box(caption: String) -> PanelContainer:
@@ -532,7 +630,17 @@ func _accent_box(panel: PanelContainer, fill: Color, edge: Color) -> void:
 	style.content_margin_bottom = 8
 	panel.add_theme_stylebox_override("panel", style)
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	# Rest on a node and it opens itself. Only while nothing is already open,
+	# so the timer can never fight a card that is up.
+	if visible and _hover_id != "" and _selected_id == "":
+		_dwell += delta
+		if _dwell >= DOSSIER_DWELL and _map != null:
+			var dwelt: Dictionary = _map.node_by_id(_hover_id)
+			if not dwelt.is_empty():
+				open_dossier(dwelt, false)
+	else:
+		_dwell = 0.0
 	# The card is CENTRED, not stuck to the cursor (owner call). It carries a
 	# board preview now, which makes it far too big to trail a mouse — it ended
 	# up half off-screen, and a panel you have to chase is worse than one that
@@ -583,8 +691,11 @@ func _rebuild() -> void:
 		b.queue_free()
 	_buttons.clear()
 	# The buttons that would have fired mouse_exited are gone, so a hover that
-	# survived a rebuild would leave one fork glowing with no cursor on it.
+	# survived a rebuild would leave one fork glowing with no cursor on it. The
+	# open dossier goes with them — it describes a node on the map we just
+	# replaced.
 	_hover_id = ""
+	_clear_selection()
 	if _map == null:
 		return
 
@@ -607,14 +718,13 @@ func _rebuild() -> void:
 			btn.modulate = Color(1, 1, 1, 0)      # invisible, still hit-tests
 			btn.size = Vector2(_node_r * 2.2, _node_r * 2.2)
 			btn.position = _node_pos(node) - Vector2(_node_r * 1.1, _node_r * 1.1)
-			var is_next: bool = reachable.has(id)
-			btn.disabled = not is_next
+			# NOT disabled on unreachable nodes any more. A click is now the only
+			# way to read a fight, so a disabled button would make the whole
+			# map beyond the next fork unscoutable.
 			btn.mouse_filter = Control.MOUSE_FILTER_PASS
-			if is_next:
-				btn.pressed.connect(_on_node_pressed.bind(node))
-			btn.mouse_entered.connect(_on_node_hover.bind(node, is_next))
+			btn.pressed.connect(_on_node_pressed.bind(node))
+			btn.mouse_entered.connect(_on_node_hover.bind(node))
 			btn.mouse_exited.connect(func():
-				_tip.visible = false
 				if _hover_id == id:
 					_hover_id = "")
 			_canvas.add_child(btn)
@@ -624,6 +734,7 @@ func _rebuild() -> void:
 func _draw_map() -> void:
 	if _map == null:
 		return
+	_refresh_cone()
 	var reachable: Dictionary = {}
 	for n in _map.available_next():
 		reachable[String(n["id"])] = true
@@ -659,8 +770,12 @@ func _draw_map() -> void:
 				var lit: bool = walked and (_map.cleared.has(String(cid))
 					or String(cid) == _map.current_id)
 				var live: bool = (here and reachable.has(String(cid))
-					and String(cid) == _hover_id)
-				var depth_alpha: float = _stage_visibility(child, reachable)
+					and String(cid) == _focus_id())
+				# An edge is only as bright as its dimmer end, so a fork leading
+				# out of the hovered cone fades with the node it leads to
+				# instead of staying lit from a bright parent.
+				var depth_alpha: float = minf(_stage_visibility(node, reachable),
+					_stage_visibility(child, reachable))
 				_canvas.draw_line(from, to, Color(0, 0, 0, 0.9 * depth_alpha), (6.0 if (lit or live) else 3.0))
 				# Slightly stronger than it needs to be on a flat panel: these
 				# now run over a painted biome plate, and a hairline at 0.28
@@ -738,17 +853,23 @@ func _draw_map() -> void:
 					# Grassland's (85,125,59), so one hand-picked multiplier
 					# leaves half the biomes as black discs.
 					var boost: float = _plate_boost(plate)
-					_draw_disc_texture(pos, r, plate,
-						Color(boost, boost, boost) if (is_next or is_here)
-						else Color(boost * 0.4, boost * 0.4, boost * 0.42))
+					var plate_col: Color = Color(boost, boost, boost) 						if (is_next or is_here) 						else Color(boost * 0.4, boost * 0.4, boost * 0.42)
+					plate_col.a = visibility
+					_draw_disc_texture(pos, r, plate, plate_col)
 				else:
 					_canvas.draw_circle(pos, r, fill)
 
 			# Ring: grade colour, thick and pulsing on the frontier.
 			if is_next:
+				# The frontier ring carries visibility too. Without it, a sibling
+				# fork outside the hovered cone keeps a full-bright pulsing ring
+				# on a disc that has already faded, which reads as a rendering
+				# fault rather than as "you can't get there from here".
 				_canvas.draw_arc(pos, r + 6.0 + pulse * 3.0, 0.0, TAU, 32,
-					Color(1, 1, 1, 0.9), 2.0)
-				_canvas.draw_arc(pos, r, 0.0, TAU, 32, grade_col, 3.5)
+					Color(1, 1, 1, 0.9 * visibility), 2.0)
+				var next_ring: Color = grade_col
+				next_ring.a *= visibility
+				_canvas.draw_arc(pos, r, 0.0, TAU, 32, next_ring, 3.5)
 			else:
 				var ring_col: Color = grade_col.darkened(0.45 if not (is_here or is_done) else 0.2)
 				ring_col.a *= visibility
@@ -824,13 +945,41 @@ func _draw_map() -> void:
 					_canvas.draw_circle(badge, 8.5, badge_col)
 					_canvas.draw_texture_rect(rtex,
 						Rect2(badge - Vector2(7, 7), Vector2(14, 14)), false,
-						Color(1, 1, 1, 1) if (is_next or is_here) else Color(0.7, 0.7, 0.75, visibility))
+						Color(1, 1, 1, visibility) if (is_next or is_here)
+						else Color(0.7, 0.7, 0.75, visibility))
 
 
 func _on_node_pressed(node: Dictionary) -> void:
-	_tip.visible = false
+	var id: String = String(node["id"])
+	var enterable: bool = _map != null and _map.can_enter(id)
+	# Second click on the node whose card is already open is the commit. The
+	# first click can never start a fight, which is the whole point of moving
+	# the preview off hover.
+	if enterable and _selected_id == id and _tip.visible:
+		_enter_node(node)
+		return
+	open_dossier(node)
+
+# Open a node's dossier WITHOUT the second-click commit. Harnesses drive this:
+# calling the press handler twice on the same node would enter the fight, which
+# is correct for a player and wrong for a capture that just wants the card up.
+func open_dossier(node: Dictionary, pinned: bool = true) -> void:
+	_selected_id = String(node["id"])
+	_dossier_pinned = pinned
+	_dwell = 0.0
+	_show_dossier(node, _map != null and _map.can_enter(_selected_id))
+
+func _enter_node(node: Dictionary) -> void:
+	_clear_selection()
 	visible = false
 	node_chosen.emit(node)
+
+func _clear_selection() -> void:
+	_selected_id = ""
+	_dossier_pinned = false
+	_dwell = 0.0
+	if _tip:
+		_tip.visible = false
 
 # The information rule lives here: `full` is true only for nodes you can step
 # onto right now.
@@ -900,24 +1049,48 @@ func _draw_mini_board() -> void:
 # is the reason the map exists. Being told "step closer to see what it holds"
 # about a fight three rows up is precisely the information you need to decide
 # whether to head that way at all.
-# Make the whole dossier transparent to the mouse, every descendant of it.
+# Make the dossier's PASSIVE parts transparent to the mouse, every descendant
+# of it except the card itself and its BEGIN button.
 #
-# THE BUG THIS FIXES: the card is centred and big, so it lies under the cursor
-# while you hover a node beneath it. `_tip` itself was IGNORE, but Godot's
-# containers default to STOP — so the fact boxes and rows caught the pointer,
-# the node under them fired mouse_exited, the card hid, the node immediately
-# fired mouse_entered again, and the card flickered on every pixel of movement.
-# Setting the ROOT alone is not enough; it has to be the subtree.
+# THE BUG THIS FIXED: the card is centred and big, so it lay under the cursor
+# while you hovered a node beneath it. `_tip` was IGNORE, but Godot's containers
+# default to STOP — so the fact boxes and rows caught the pointer, the node
+# under them fired mouse_exited, the card hid, the node immediately fired
+# mouse_entered again, and the card flickered on every pixel of movement.
+# Setting the ROOT alone was not enough; it had to be the subtree.
+#
+# That loop still cannot close — the card no longer hides on mouse_exited — but
+# the pass is doing MORE work now, not less: a dwell card opens under the very
+# cursor that summoned it, so a STOP row anywhere in it would swallow the single
+# click meant for the node underneath, which is the whole point of the dwell.
 func _make_tip_click_through(n: Node) -> void:
+	if n == _tip_action:
+		return                      # the one child that MUST take the mouse
 	if n is Control:
 		(n as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for child in n.get_children():
 		_make_tip_click_through(child)
 
-func _on_node_hover(node: Dictionary, _full: bool = true) -> void:
+# Hover LOOKS. It lights the cone (see _refresh_cone) and nothing else — no
+# card, so the paths it just lit stay visible.
+func _on_node_hover(node: Dictionary) -> void:
 	if not _hover_armed:
 		return
-	_hover_id = String(node["id"])
+	var id: String = String(node["id"])
+	if id == _hover_id:
+		return
+	_hover_id = id
+	_dwell = 0.0
+	# Arriving at a DIFFERENT node puts away a card that opened by itself. One
+	# you clicked open stays put: every route across the map to its BEGIN button
+	# passes over other nodes, and closing on arrival would make that button
+	# impossible to reach.
+	if not _dossier_pinned and _selected_id != "" and _selected_id != id:
+		_clear_selection()
+
+# Click ASKS. Opens the dossier for any node and pins the cone to it; `can_enter`
+# decides whether BEGIN is offered.
+func _show_dossier(node: Dictionary, can_enter: bool) -> void:
 	_tip_title.text = _node_headline(node).to_upper()
 	_tip_title.add_theme_color_override("font_color", Color(1.0, 0.92, 0.84))
 
@@ -980,6 +1153,10 @@ func _on_node_hover(node: Dictionary, _full: bool = true) -> void:
 		_tip_ground = String(pv.get("ground", ""))
 	_tip_board.visible = not _tip_formation.is_empty()
 	_tip_board.queue_redraw()
+	# BEGIN only exists on a node you may actually step onto. On a scouted node
+	# further up the map the card is pure information, and offering a button
+	# that would be refused is worse than offering none.
+	_tip_action.visible = can_enter
 	# Re-applied on every show, not just at build: the card's rows are rebuilt as
 	# its content changes, and one freshly-created row defaulting to STOP is
 	# enough to bring the flicker back.
@@ -1237,7 +1414,46 @@ func _is_silhouette(node: Dictionary) -> bool:
 # What colour to draw a node's emblem in. Every FIGHT — skirmish, elite, boss —
 # is tinted by its tier, so "how hard" reads identically everywhere on the map.
 # Everything else stays neutral; its type is carried by the emblem itself.
+# Forward closure from the hovered node, recomputed only when the hover moves.
+# Thirty-one nodes at most, but _draw_map runs every frame for the frontier
+# pulse, so it is not walked every frame.
+func _refresh_cone() -> void:
+	var focus: String = _focus_id()
+	if _cone_id == focus:
+		return
+	_cone_id = focus
+	_cone.clear()
+	if focus == "" or _map == null:
+		return
+	var frontier: Array = [focus]
+	_cone[focus] = true
+	while not frontier.is_empty():
+		var id: String = String(frontier.pop_back())
+		for cid in _map.node_by_id(id).get("children", []):
+			if not _cone.has(String(cid)):
+				_cone[String(cid)] = true
+				frontier.append(String(cid))
+
+func _cone_factor(id: String) -> float:
+	if _cone.is_empty():
+		return 1.0
+	if _cone.has(id):
+		return 1.0
+	# The road behind you stays lit. It is where you have been, not a claim
+	# about where this fork goes, and fading it would make the map look like it
+	# had forgotten the run.
+	if _map != null and (id == _map.current_id or _map.cleared.has(id)):
+		return 1.0
+	return CONE_DIM
+
+# How visible a node is: how far ahead it lies, times whether the node under the
+# cursor can get there at all.
 func _stage_visibility(node: Dictionary, reachable: Dictionary) -> float:
+	if _cone.is_empty():
+		return _depth_visibility(node, reachable)
+	return CONE_LIT if _cone_factor(String(node.get("id", ""))) >= 1.0 else CONE_DIM
+
+func _depth_visibility(node: Dictionary, reachable: Dictionary) -> float:
 	var id := String(node.get("id", ""))
 	if reachable.has(id) or id == _map.current_id or _map.cleared.has(id):
 		return 1.0

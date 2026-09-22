@@ -118,6 +118,7 @@ func _build(roll_rewards: bool) -> void:
 				rows.append(_build_tiered_row(r, int(plan["wave"]), NodeType.BOSS, roll_rewards))
 	_assign_layout()
 	_wire_edges()
+	_grant_relief_edges()
 
 # Give each generated map its own silhouette. Rows remain ordered and readable,
 # but they no longer sit on the same perfectly centred 2/3/4-lane stencil.
@@ -364,6 +365,157 @@ func _wire_edges() -> void:
 			var cid := String(children[ci]["id"])
 			if not cid in parents[pi]["children"]:
 				parents[pi]["children"].append(cid)
+
+# ── THE MERCY EDGE: the hard lane is a decision, not a one-way door ───────────
+# The monotone walk above produces a LEGAL graph, and a legal graph can still
+# hand a node exactly one child that is a HARDER fight than the node itself.
+# That is the failure the owner hit (2026-09-21): drift into the brutal lane on
+# wave 2, discover on wave 4 that the team can't carry it, and there is no move
+# left on the board — the run is decided several rows before it ends.
+#
+# So after wiring, every node that CAN be given a way out is given one. An "out"
+# is any child that is not a harder fight than where the player is standing:
+# an equal tier, an easier tier, or a side node, which is no fight at all.
+# Choosing hard still costs you — you get the Brutal reward table and the easy
+# lane's rewards are gone — but it never removes the steering wheel.
+#
+# The no-crossing rule still wins every argument. An out is only added when the
+# geometry allows it, and when it doesn't, the node keeps its hard-only children
+# and the map is simply pointed there. `validate()` re-derives this on the
+# finished graph, so the harness catches it if the two ever disagree.
+func _grant_relief_edges() -> void:
+	for r in range(rows.size() - 1):
+		# Each fix strictly moves one parent's block leftward, so the pass can
+		# only run as many times as there are lanes to give away; the guard is
+		# belt-and-braces against a future edit breaking that.
+		var guard: int = 0
+		while guard < 32:
+			guard += 1
+			var plan: Array = _relief_fixes(r)
+			if plan.is_empty():
+				break
+			_apply_relief_fix(r, plan[0])
+
+# Every parent in row r that has no out AND could legally be handed one.
+# Shared by the repair pass and by validate() so they can never drift apart.
+func _relief_fixes(r: int) -> Array:
+	var parents: Array = rows[r]
+	var children: Array = rows[r + 1]
+	var demands: Array = _row_demands(parents)
+	var kid_index: Dictionary = {}
+	for c in range(children.size()):
+		kid_index[String(children[c]["id"])] = c
+
+	var fixes: Array = []
+	for i in range(parents.size()):
+		var block: Array = _child_cols(parents[i], kid_index)
+		if block.is_empty():
+			continue
+		var demand: int = int(demands[i])
+		var has_out: bool = false
+		for ci in block:
+			if _is_relief(children[ci], demand):
+				has_out = true
+				break
+		if has_out:
+			continue
+		# Everything inside the block is harder, so the nearest out is left of
+		# it. Take the CLOSEST one: it adds the fewest lines to the screen.
+		var target: int = -1
+		for c in range(int(block[0]) - 1, -1, -1):
+			if _is_relief(children[c], demand):
+				target = c
+				break
+		if target < 0:
+			continue                      # no easier node exists on that row at all
+		if i > 0:
+			# Reaching left means the neighbour releases the lanes above `target`.
+			# It may not release its own first child — a parent with no children
+			# is a dead end, which is the one thing worse than a hard-only fork.
+			var left: Array = _child_cols(parents[i - 1], kid_index)
+			if left.is_empty() or int(left[0]) > target:
+				continue
+		fixes.append({"parent": i, "target": target})
+	return fixes
+
+# Hand parent `fix.parent` every lane from `fix.target` up to the hardest child
+# it already had, and pull the neighbour to its left back to `target`.
+#
+# Nothing is orphaned: every child the neighbour gives up sits inside the block
+# the parent just took. Nothing crosses: blocks stay contiguous and stay in
+# column order. And the neighbour keeps its OWN out, because parents are ordered
+# easy-to-hard across a row, so anything that was an out for the neighbour is
+# also an out for this parent — and would therefore have been picked as
+# `target` or better.
+func _apply_relief_fix(r: int, fix: Dictionary) -> void:
+	var parents: Array = rows[r]
+	var children: Array = rows[r + 1]
+	var kid_index: Dictionary = {}
+	for c in range(children.size()):
+		kid_index[String(children[c]["id"])] = c
+	var i: int = int(fix["parent"])
+	var target: int = int(fix["target"])
+	var block: Array = _child_cols(parents[i], kid_index)
+	if i > 0:
+		var left: Array = _child_cols(parents[i - 1], kid_index)
+		_set_child_block(parents[i - 1], children, int(left[0]),
+				mini(int(left[left.size() - 1]), target))
+	_set_child_block(parents[i], children, target, int(block[block.size() - 1]))
+
+# Which columns of the next row a node currently points at, in order.
+func _child_cols(parent: Dictionary, kid_index: Dictionary) -> Array:
+	var cols: Array = []
+	for cid in parent["children"]:
+		if kid_index.has(String(cid)):
+			cols.append(int(kid_index[String(cid)]))
+	cols.sort()
+	return cols
+
+func _set_child_block(parent: Dictionary, children: Array, lo: int, hi: int) -> void:
+	var ids: Array = []
+	for c in range(lo, hi + 1):
+		ids.append(String(children[c]["id"]))
+	parent["children"] = ids
+
+# How much difficulty a player standing on each node of a row has already taken
+# on. A fight reports its own tier. A side node reports the lane it sits in —
+# the tier of the fight to its left — because stepping onto an event doesn't
+# move you out of the brutal lane, it just doesn't fight you there. Columns run
+# easy to hard, so this is non-decreasing across a row, which is what makes the
+# neighbour-keeps-its-own-out argument above hold.
+static func _row_demands(row: Array) -> Array:
+	var out: Array = []
+	var last: int = 0
+	for n in row:
+		if is_battle_node(n):
+			last = int(n["difficulty"])
+		out.append(last)
+	return out
+
+# Is this child a way out for someone carrying `demand` worth of difficulty?
+static func _is_relief(child: Dictionary, demand: int) -> bool:
+	return not is_battle_node(child) or int(child["difficulty"]) <= demand
+
+# How many nodes STILL have nothing but harder fights ahead of them after the
+# relief pass — the ones where the geometry genuinely had no answer. validate()
+# proves none of these were fixable; this reports how pointed the map is anyway,
+# so the number can be watched in the harness instead of guessed at.
+func hard_only_nodes() -> int:
+	var count: int = 0
+	for r in range(rows.size() - 1):
+		var demands: Array = _row_demands(rows[r])
+		var kid_index: Dictionary = {}
+		for c in range(rows[r + 1].size()):
+			kid_index[String(rows[r + 1][c]["id"])] = c
+		for i in range(rows[r].size()):
+			var stranded: bool = true
+			for ci in _child_cols(rows[r][i], kid_index):
+				if _is_relief(rows[r + 1][ci], int(demands[i])):
+					stranded = false
+					break
+			if stranded:
+				count += 1
+	return count
 
 # ── Walking the map ───────────────────────────────────────────────────────────
 func node_by_id(id: String) -> Dictionary:
@@ -622,4 +774,16 @@ func validate() -> Array:
 						if int(col_of[String(ea)]) > int(col_of[String(eb)]):
 							bad.append("edges cross between rows %d and %d (%s→%s vs %s→%s)"
 								% [r, r + 1, a["id"], ea, b["id"], eb])
+
+	# THE MERCY EDGE (see _grant_relief_edges). A node whose every child is a
+	# harder fight is a one-way door into the brutal lane; it is allowed only
+	# when no-crossing geometry leaves no alternative, never by accident. This
+	# re-derives the repair on the FINISHED graph, so a map that still has a fix
+	# available is a map the pass failed to converge on.
+	for r in range(rows.size() - 1):
+		for fix in _relief_fixes(r):
+			var stranded: Dictionary = rows[r][int(fix["parent"])]
+			var reachable: Dictionary = rows[r + 1][int(fix["target"])]
+			bad.append("%s has only harder children though %s was reachable"
+				% [stranded["id"], reachable["id"]])
 	return bad

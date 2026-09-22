@@ -17,6 +17,10 @@ extends Node
 # Exit code 0 = pass, 1 = fail.
 # ══════════════════════════════════════════════════════════════════════════════
 
+# Read off the screen itself rather than restated, so retuning the dwell there
+# cannot leave this test asserting a boundary the game no longer has.
+const DOSSIER_DWELL_S := RunMapScreen.DOSSIER_DWELL
+
 var _fails: Array = []
 var _checked: int = 0
 
@@ -98,12 +102,12 @@ func _ready() -> void:
 			_fails.append("a node dossier opened from the inherited hero-card cursor")
 		_checked += 11
 
-	# ── The dossier must be transparent to the mouse ─────────────────────────
-	# The card is centred and large, so it lies over the very nodes you hover.
-	# If ANY Control in it stops the pointer, the node beneath fires
-	# mouse_exited, the card hides, the node re-enters, and the card flickers on
-	# every pixel of movement. That's invisible in a screenshot, so it's checked
-	# here: after a hover, every Control in the card must be MOUSE_FILTER_IGNORE.
+	# ── Hover LOOKS, click ASKS ──────────────────────────────────────────────
+	# The dossier is a big centred card, so opening it on hover covered the very
+	# paths the cone had just lit. Hover now lights the cone and nothing else,
+	# and the fight preview costs a click. Both halves are asserted below,
+	# because "no card appeared" is exactly the kind of thing that silently
+	# regresses the moment someone reconnects a signal.
 	var hover_node: Dictionary = {}
 	for row in map.rows:
 		for n in row:
@@ -113,15 +117,192 @@ func _ready() -> void:
 		if not hover_node.is_empty():
 			break
 	if not hover_node.is_empty():
-		mg._run_map_screen._hover_armed = true
-		mg._run_map_screen._on_node_hover(hover_node, true)
+		var screen: RunMapScreen = mg._run_map_screen
+		screen._hover_armed = true
+		screen._on_node_hover(hover_node)
 		await get_tree().process_frame
-		var blockers: Array[String] = []
-		_collect_mouse_blockers(mg._run_map_screen._tip, blockers)
-		if not blockers.is_empty():
-			_fails.append("dossier catches the mouse (hover flicker): %s"
-				% ", ".join(blockers))
+		if screen._tip.visible:
+			_fails.append("hovering %s opened the dossier — it must only light the cone"
+				% hover_node["id"])
+		if screen._selected_id != "":
+			_fails.append("hovering %s selected it; only a click may do that"
+				% hover_node["id"])
+		# …but RESTING on it opens the card by itself. Driven by feeding _process
+		# directly rather than waiting out real frames: a second of wall clock in
+		# a smoke test is a second nobody gets back, and the boundary is the
+		# thing under test, not the frame rate.
+		screen._dwell = 0.0
+		screen._process(DOSSIER_DWELL_S * 0.5)
+		if screen._tip.visible:
+			_fails.append("half the dwell opened the dossier on %s" % hover_node["id"])
+		screen._process(DOSSIER_DWELL_S * 0.6)
+		if not screen._tip.visible:
+			_fails.append("resting on %s for the full dwell opened nothing"
+				% hover_node["id"])
+		if screen._dossier_pinned:
+			_fails.append("a dwell-opened dossier was pinned; moving off will never clear it")
+		# Moving to another node retires it again — a card you did not ask for
+		# must not outlive the cursor that summoned it.
+		var other: Dictionary = {}
+		for opt_h in map.available_next():
+			if String(opt_h["id"]) != String(hover_node["id"]):
+				other = opt_h
+				break
+		if not other.is_empty():
+			screen._on_node_hover(other)
+			if screen._tip.visible or screen._selected_id != "":
+				_fails.append("the dwell dossier survived moving to %s" % other["id"])
+		screen._clear_selection()
+		screen._on_node_hover(hover_node)
+		screen._dwell = 0.0
 		_checked += 1
+
+		# ── The commitment preview dims exactly what the fork cannot reach ────
+		# Hovering a node fades everything downstream of it that it cannot get
+		# to, so a lane you can't climb out of is visible BEFORE you click into
+		# it rather than two rows later. That's a claim about a set, which a
+		# screenshot cannot check: the cone is compared against a closure walked
+		# independently here, so an off-by-one in the traversal fails the smoke
+		# instead of quietly under-dimming the map.
+		screen._refresh_cone()
+		var expected: Dictionary = {}
+		var frontier: Array = [String(hover_node["id"])]
+		expected[String(hover_node["id"])] = true
+		while not frontier.is_empty():
+			var at: String = String(frontier.pop_back())
+			for cid in map.node_by_id(at).get("children", []):
+				if not expected.has(String(cid)):
+					expected[String(cid)] = true
+					frontier.append(String(cid))
+		var cone_ids: Array = screen._cone.keys()
+		cone_ids.sort()
+		var want_ids: Array = expected.keys()
+		want_ids.sort()
+		if cone_ids != want_ids:
+			_fails.append("hover cone is %d nodes, the real closure is %d"
+				% [cone_ids.size(), want_ids.size()])
+		# …and the dimming has to actually reach the map. A cone that covers
+		# everything would pass the comparison above and dim nothing at all.
+		var dimmed: int = 0
+		for row_c in map.rows:
+			for n_c in row_c:
+				var id_c: String = String(n_c["id"])
+				var factor: float = screen._cone_factor(id_c)
+				var walked: bool = id_c == map.current_id or map.cleared.has(id_c)
+				if expected.has(id_c) or walked:
+					if factor < 1.0:
+						_fails.append("%s is reachable (or already walked) but dimmed" % id_c)
+				elif factor < 1.0:
+					dimmed += 1
+				else:
+					_fails.append("%s is unreachable from the hovered fork but stayed lit" % id_c)
+		if dimmed == 0:
+			_fails.append("hovering %s dimmed nothing — the preview says nothing"
+				% hover_node["id"])
+		_checked += 1
+
+		# ── …and a CLICK opens it, without committing to anything ────────────
+		# The first click on a node must never start a fight. That is the whole
+		# safety property of moving the preview off hover, so it is counted
+		# rather than trusted: node_chosen has to stay silent.
+		var chosen: Array = []
+		screen.node_chosen.connect(func(n): chosen.append(n))
+		var pick: Dictionary = {}
+		for opt in map.available_next():
+			if RunMap.is_battle_node(opt):
+				pick = opt
+				break
+		if pick.is_empty():
+			_fails.append("no reachable fight to open a dossier on")
+		else:
+			screen._on_node_pressed(pick)
+			await get_tree().process_frame
+			if not screen._tip.visible:
+				_fails.append("clicking %s opened no dossier" % pick["id"])
+			if screen._selected_id != String(pick["id"]):
+				_fails.append("clicking %s did not select it" % pick["id"])
+			if not chosen.is_empty():
+				_fails.append("the FIRST click on %s entered the node" % pick["id"])
+			if not screen._tip_action.visible:
+				_fails.append("no BEGIN button on a node the player may enter")
+			# A dwell card opens under the cursor that summoned it, so the card
+			# must let the single click that follows reach the node beneath it —
+			# every part of it except BEGIN.
+			if screen._tip.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+				_fails.append("the dossier blocks the click meant for the node under it")
+			if screen._tip_action.mouse_filter == Control.MOUSE_FILTER_IGNORE:
+				_fails.append("BEGIN was made click-through — it can never be pressed")
+			# Clicking neither a node nor the card puts it away.
+			screen._maybe_dismiss_dossier(Vector2(4, 4))
+			if screen._tip.visible or screen._selected_id != "":
+				_fails.append("clicking off the map did not dismiss the dossier")
+		screen._clear_selection()
+		_checked += 1
+
+	# ── The SECOND click commits ─────────────────────────────────────────────
+	# Driven on a throwaway screen rather than the live one: entering a node on
+	# main_game's map would start a real battle and desync the walk below, so
+	# this would otherwise be the one half of the interaction nobody checks.
+	var solo := RunMapScreen.new()
+	add_child(solo)
+	var solo_map := RunMap.generate(0, 4242, false)
+	solo.present(solo_map, "Commit check")
+	await get_tree().process_frame
+	var entered: Array = []
+	solo.node_chosen.connect(func(n): entered.append(n))
+	var solo_pick: Dictionary = solo_map.available_next()[0]
+	solo._on_node_pressed(solo_pick)          # opens the dossier
+	await get_tree().process_frame
+	solo._on_node_pressed(solo_pick)          # …and commits
+	await get_tree().process_frame
+	if entered.size() != 1:
+		_fails.append("second click on %s emitted node_chosen %d times, expected 1"
+			% [solo_pick["id"], entered.size()])
+	elif String(entered[0]["id"]) != String(solo_pick["id"]):
+		_fails.append("second click entered %s, not the selected %s"
+			% [entered[0]["id"], solo_pick["id"]])
+	if solo.visible or solo._tip.visible:
+		_fails.append("the map stayed up after committing to a node")
+	# A node you cannot step onto is scoutable but never enterable, however many
+	# times it is clicked.
+	var far: Dictionary = solo_map.rows[solo_map.rows.size() - 1][0]
+	entered.clear()
+	solo._on_node_pressed(far)
+	solo._on_node_pressed(far)
+	await get_tree().process_frame
+	if not entered.is_empty():
+		_fails.append("clicking the unreachable %s twice entered it" % far["id"])
+	if not solo._tip.visible:
+		_fails.append("the unreachable %s could not be scouted" % far["id"])
+	if solo._tip_action.visible:
+		_fails.append("BEGIN offered on the unreachable %s" % far["id"])
+
+	# ── Dwell, then ONE click ────────────────────────────────────────────────
+	# The whole reason the dwell exists: rest on a node, read the card that
+	# opens itself, and go — a single click, not two. Asserted on its own fresh
+	# screen because the one above has already been committed on.
+	var solo2 := RunMapScreen.new()
+	add_child(solo2)
+	var solo2_map := RunMap.generate(0, 777, false)
+	solo2.present(solo2_map, "Dwell check")
+	await get_tree().process_frame
+	var one_click: Array = []
+	solo2.node_chosen.connect(func(n): one_click.append(n))
+	solo2._hover_armed = true
+	var dwell_pick: Dictionary = solo2_map.available_next()[0]
+	solo2._on_node_hover(dwell_pick)
+	solo2._dwell = 0.0
+	solo2._process(DOSSIER_DWELL_S + 0.1)
+	if not solo2._tip.visible:
+		_fails.append("dwelling on %s opened nothing" % dwell_pick["id"])
+	solo2._on_node_pressed(dwell_pick)
+	await get_tree().process_frame
+	if one_click.size() != 1:
+		_fails.append("dwell then ONE click entered %d times, expected 1"
+			% one_click.size())
+	solo2.queue_free()
+	solo.queue_free()
+	_checked += 1
 
 	var waves_seen: Array[int] = []
 	var guard: int = 0
@@ -299,10 +480,3 @@ func _roster(mg, node: Dictionary) -> Dictionary:
 		var c: String = String(e.get("code", e.get("type", "?")))
 		bag[c] = int(bag.get(c, 0)) + 1
 	return bag
-
-# Every Control in the subtree that would swallow a mouse event.
-func _collect_mouse_blockers(n: Node, out: Array[String]) -> void:
-	if n is Control and (n as Control).mouse_filter != Control.MOUSE_FILTER_IGNORE:
-		out.append("%s(%s)" % [n.name, n.get_class()])
-	for child in n.get_children():
-		_collect_mouse_blockers(child, out)

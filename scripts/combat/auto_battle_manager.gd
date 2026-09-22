@@ -4040,7 +4040,7 @@ func _tick_nemi_tide_seqs(dt: float) -> void:
 		if seq["phase_t"] > 0.0:
 			alive.append(seq)
 			continue
-
+	
 		var current_v = seq["current"]
 		var current: UnitBase = current_v if is_instance_valid(current_v) else null
 		match seq["phase"]:

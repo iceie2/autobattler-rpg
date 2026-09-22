@@ -1033,6 +1033,10 @@ func _run_map(args: Dictionary) -> Dictionary:
 
 	var violations: Array = []
 	var generated: int = 0
+	# Nodes whose only way forward is a HARDER fight. RunMap._grant_relief_edges
+	# removes every one the no-crossing geometry allows it to; this is what's
+	# left, and it should stay near zero.
+	var hard_only: int = 0
 	var type_counts: Dictionary = {}
 	var tier_counts: Dictionary = {0: 0, 1: 0, 2: 0}
 	var walk_lengths: Dictionary = {}
@@ -1045,6 +1049,7 @@ func _run_map(args: Dictionary) -> Dictionary:
 			for v in map.validate():
 				if violations.size() < 40:
 					violations.append("biome %d seed %d: %s" % [b, i + 1, v])
+			hard_only += map.hard_only_nodes()
 			for row in map.rows:
 				for n in row:
 					var tn: String = RunMap.type_name(int(n["type"]))
@@ -1089,6 +1094,7 @@ func _run_map(args: Dictionary) -> Dictionary:
 		"maps_generated": generated,
 		"biomes": biomes.size(),
 		"violations": violations,
+		"hard_only_nodes": hard_only,
 		"nodes_by_type": type_counts,
 		"battle_nodes_by_tier": {"normal": tier_counts[0], "veteran": tier_counts[1],
 			"brutal": tier_counts[2]},
