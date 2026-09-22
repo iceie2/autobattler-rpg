@@ -98,7 +98,22 @@ GODOT="/c/anything coding/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mon
 # 4b. Threat calibration gate (after touching wave composition, enemy stats,
 #     resistances, the filler budget or score_unit/score_spec):
 "$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn --   --mode=threatcheck --from=1 --to=10 --difficulty=brutal --runs=20
-#    → "pass": true, "inversions": 0.
+#    → read "inversion_rate", NOT "inversions".
+#
+#      READ THE RATE, NOT THE COUNT. A raw inversion count is not comparable
+#      between two runs: pairs that are near-ties on either axis are skipped, so
+#      how many pairs are eligible depends on how saturated the measurement is.
+#      A change that UNSATURATES the curve makes more pairs comparable and can
+#      raise the count while the ordering genuinely improved. Measured
+#      2026-09-22 on the effective-power rewrite: Normal went from 12 to 10
+#      inversions while comparable pairs went 42 -> 39 — the count moved little,
+#      the rate fell. The output carries `comparable_pairs` and
+#      `saturated_cells` so this is visible rather than inferred.
+#
+#      RUN-TO-RUN VARIANCE IS REAL. Repeat every measurement at least twice.
+#      Measured on the same seed and the same code: Normal reproduced exactly
+#      (12/42 both passes) while Veteran gave 12/41 then 10/38. A difference of
+#      one or two inversions is noise, not signal.
 #      An inversion is a pair of waves where score_spec's ORDERING contradicts
 #      measured difficulty — score says one is harder, the fight says the other
 #      is. score_spec is a fast heuristic and is ALLOWED to be approximate; it is

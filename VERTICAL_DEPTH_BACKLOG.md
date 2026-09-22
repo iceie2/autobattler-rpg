@@ -271,7 +271,58 @@ prices 367-705, a 1.9x spread, while `UNIT_POWER` spreads them 6.7x.
 **Granularity consequence.** Cheapest legal body at round 1 is 367 = **100% of
 the Normal wave**, so no tier step below +100% is expressible. That is Finding F.
 
-**Proposed fix, NOT decided - owner call.** Move `score_unit` toward an
+### IMPLEMENTED 2026-09-22 - and the headline goal was NOT met
+
+Owner approved the rewrite. `score_unit` is now
+`sqrt((attack_damage + magic_power) * attack_speed * max_hp * (100+resistance)/100) * K`,
+with `K = 6.55` fitted so a level-1 goblin still scores 367 and every earlier
+measurement stays comparable. Range and cell-size multipliers are unchanged.
+
+`magic_power` is inside the throughput term deliberately: a pure attack-DPS form
+prices the Goblin Shaman (dps 5.9, magic 19) as the cheapest body on the board,
+and the budget would have bought nothing but healers. The sqrt keeps the result
+linear in level, as the old sum was, so wave magnitudes and the elite-vs-fodder
+relationship inside a round are preserved.
+
+**What it fixed - all verified:**
+
+| | before | after |
+|---|---|---|
+| rat vs goblin price | 387 vs 367 (wrong) | **321 vs 367** |
+| round-1 price spread | 1.92x | **2.98x** |
+| wave-1 granularity | 100% of the wave | **88%** |
+| Veteran wave 1 | `{M:2}` = Brutal | **`{M:1, R:1}`** |
+| ordering vs hand-authored UNIT_POWER | contradicts it | near-identical |
+| tier ratios, waves 3-10 | - | **1.00 / 1.50 / 2.01** |
+
+Finding F is closed: Veteran and Brutal wave 1 are now different fights.
+
+**What it did NOT fix - the reason it was undertaken.** Inversion rate, two
+repeats per tier, old against new:
+
+| tier | OLD | NEW | change |
+|---|---:|---:|---:|
+| Normal | 0.286, 0.286 | 0.256, 0.256 | -10% |
+| Veteran | 0.293, 0.263 | 0.306, 0.306 | **+10%** |
+| Brutal | 0.216, 0.194 | 0.229, 0.107 | -18%, but the two passes disagree by 2x |
+
+**Wave-to-wave threat ordering did not measurably improve.** Normal is a little
+better, Veteran is a little worse, Brutal is too noisy to call. This is a
+negative result and is recorded as one.
+
+**Why, and what it means for VD-04.** Per-unit pricing was never the main driver
+of ordering error. The inversions that remain are caused by what NEITHER formula
+can see: abilities and boss phases (wave 10's Khagan), and body count relative
+to team size (VD-10). Wave 7 is still the clearest case - five far-range burst
+snipers that no per-unit price can describe as a wall.
+
+So VD-04's remaining work is not a better per-unit formula. It is either
+(a) pricing mechanics explicitly, or (b) accepting `score_spec` as a rough
+number and leaning on `--mode=threatcheck` as the gate that keeps it honest.
+The rewrite was still worth doing - it fixed two provable bugs - but it should
+not be recorded as having solved VD-04.
+
+**Superseded proposal, kept for the record.** Move `score_unit` toward an
 effective-power shape, roughly `(damage x speed) x effective_hp`, normalised so
 existing waves land near their current numbers. This changes wave composition
 across all 100 rounds, so it must be gated: `--mode=threatcheck` exists

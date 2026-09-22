@@ -395,12 +395,56 @@ static func threat_profile(spec: Array) -> Dictionary:
 	return out
 
 # ── Live unit scoring (for reward calculation and power display) ───────────────
+# ── EFFECTIVE POWER (VD-03 Finding G, 2026-09-22) ────────────────────────────
+# This was a weighted SUM:
+#   max_hp*0.15 + attack_damage*10 + attack_speed*60 + magic_power*8 + resistance*5
+# Two structural faults, both measured:
+#
+#   1. It ADDED attack damage and attack speed. The game MULTIPLIES them, so a
+#      fast/weak body and a slow/strong body priced alike while dealing very
+#      different damage.
+#   2. HP was weighted 0.15 against damage's 10 — one point of attack damage was
+#      worth ~67 points of HP. In a fight, HP buys the uptime that decides how
+#      much of that damage ever lands.
+#
+# Together they overpriced glass cannons. The Rat priced 387 against the
+# Goblin's 367 despite half the HP and a measured 3.7s life to the Goblin's 8.7s
+# — so the cheapest body at round 1 was the Goblin at 367, which IS the entire
+# round-1 wave. With no body cheaper than the wave itself, no tier step below
+# +100% was expressible, and Veteran wave 1 overshot onto Brutal's exact roster.
+#
+# Now: sqrt(throughput * effective_hp), the standard effective-power shape.
+#   throughput   = (attack_damage + magic_power) * attack_speed
+#                  magic_power is IN on purpose. A pure attack-DPS form prices
+#                  the Goblin Shaman (dps 5.9, magic 19) as the cheapest body on
+#                  the board and the budget would buy nothing but healers.
+#   effective_hp = max_hp * (100 + resistance)/100
+#                  matches take_damage's own League-style curve exactly:
+#                  damage * (100 / (100 + armor)).
+#
+# sqrt keeps the result LINEAR in level (both factors scale with level, so the
+# product is quadratic and the root brings it back), which is what the old sum
+# did — so wave totals across 100 rounds stay in the same magnitude and the
+# elite-vs-fodder price relationship inside a round is preserved.
+#
+# Validation: the new ordering of the round-1 bodies is
+#   R < M < SK < GSN < BRN < TLN
+# against the hand-authored UNIT_POWER tags' R < SK < M < GSN < TLN < BRN —
+# near-identical, differing only where those tags are themselves stale. The old
+# formula matched neither. K is a pure normalisation constant, fitted so a
+# level-1 Goblin still scores ~367 and every recorded measurement in
+# VERTICAL_DEPTH_BASELINE.md stays comparable.
+const EFFECTIVE_POWER_K := 6.55
+
 static func score_unit(unit: UnitBase) -> float:
-	var s: float = (float(unit.max_hp)         * 0.15
-				  + float(unit.attack_damage)  * 10.0
-				  + float(unit.attack_speed)   * 60.0
-				  + float(unit.magic_power)    * 8.0
-				  + float(unit.resistance)     * 5.0)
+	var throughput: float = (float(unit.attack_damage) + float(unit.magic_power)) \
+			* unit.attack_speed
+	var effective_hp: float = float(unit.max_hp) \
+			* (100.0 + float(unit.resistance)) / 100.0
+	# Floors keep a stat-less or not-yet-initialised unit from pricing at zero,
+	# which would make it free to the budget rather than merely cheap.
+	var s: float = sqrt(maxf(throughput, 0.1) * maxf(effective_hp, 1.0)) \
+			* EFFECTIVE_POWER_K
 	if unit.attack_range > 1:
 		s *= 1.25
 	# Large bodies carry disproportionate power (they soak a whole block and can't

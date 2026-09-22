@@ -735,11 +735,29 @@ func _run_prices(args: Dictionary) -> Dictionary:
 		for code: String in legal:
 			var s: float = float(director.score_code(code, r))
 			if s > 0.0:
-				priced.append({
+				var row: Dictionary = {
 					"code": code,
 					"score": int(snappedf(s, 1.0)),
 					"unit_power": int(WaveScaler.UNIT_POWER.get(code, -1)),
-				})
+				}
+				# The stats the scorer actually saw, AFTER level scaling — source
+				# stat blocks are level-1 and would misdescribe any later round.
+				var u: VisualUnit = director.create_enemy_for_entry(
+						{"type": EnemyFactory.CODE_TO_TYPE.get(code, ""), "code": code}, r)
+				if u:
+					var armor: int = u.resistance
+					row["hp"] = u.max_hp
+					row["dmg"] = u.attack_damage
+					row["spd"] = snappedf(u.attack_speed, 0.01)
+					row["mag"] = u.magic_power
+					row["res"] = armor
+					row["range"] = u.attack_range
+					row["cell"] = u.cell_size
+					# The two quantities a fight actually turns on.
+					row["dps"] = snappedf(float(u.attack_damage) * u.attack_speed, 0.1)
+					row["ehp"] = int(float(u.max_hp) * (100.0 + float(armor)) / 100.0)
+					u.free()
+				priced.append(row)
 			else:
 				# Priced at 0 means score_code could not build the unit. Such a
 				# code is silently dropped from the budget pool, so it must be
@@ -919,6 +937,14 @@ func _run_threatcheck(args: Dictionary) -> Dictionary:
 	# the build — only a real, confident disagreement counts.
 	const POWER_TOL := 0.05      # 5% of the larger score
 	const HARDNESS_TOL := 0.15   # ~7.5 percentage points of win rate
+	# A raw inversion COUNT is not comparable between two runs, because the pairs
+	# skipped as near-ties depend on how saturated the measurement is. A change
+	# that unsaturates the curve (more cells off 0%/100%) makes more pairs
+	# eligible and can raise the count while improving the ordering. Measured
+	# 2026-09-22: the effective-power rewrite moved Normal from 9 to 10
+	# inversions while raising comparable pairs from 21 to 36 — the count rose,
+	# the RATE fell. Always read inversion_rate, never inversions alone.
+	var comparable: int = 0
 	var inversions: Array = []
 	for a in range(rows.size()):
 		for b in range(a + 1, rows.size()):
@@ -930,6 +956,7 @@ func _run_threatcheck(args: Dictionary) -> Dictionary:
 				continue
 			if absf(dh) <= HARDNESS_TOL:
 				continue
+			comparable += 1
 			if signf(dp) == signf(dh):
 				continue
 			inversions.append({
@@ -951,6 +978,11 @@ func _run_threatcheck(args: Dictionary) -> Dictionary:
 		"from": lo, "to": hi, "runs": runs, "roster": roster,
 		"cohort": {"xpbonus": xpbonus, "slots": slots, "events": events},
 		"inversions": inversions.size(),
+		"comparable_pairs": comparable,
+		"inversion_rate": snappedf(
+				float(inversions.size()) / maxf(float(comparable), 1.0), 0.001),
+		"saturated_cells": rows.filter(func(r):
+				return float(r["win_rate"]) <= 0.0 or float(r["win_rate"]) >= 1.0).size(),
 		"max_inversions": max_inversions,
 		"pass": inversions.size() <= max_inversions,
 		"worst": inversions.slice(0, mini(8, inversions.size())),
