@@ -264,6 +264,79 @@ const DEBUT_ROUND: Dictionary = {
 	"BRL": 54, "SLL": 56, "TLL": 57,
 }
 
+# ── BIOME ELEMENT IDENTITY (VD-11) ───────────────────────────────────────────
+# DEBUT_ROUND above is a one-way ratchet: it stops an early wave receiving a
+# later creature, but places no constraint the other way, so a Fire-decade wave
+# could legally field the whole Normal/Air/Water/Earth roster. Measured
+# 2026-09-22 before this pass, off-element body share on Brutal: Air 29%, Water
+# 46%, Earth 48%, Fire 44%, Lightning 38%. The AUTHORED waves were fine (0-14%
+# on Normal tier — the 2026-08-02 retint did its job); it was the difficulty
+# FILLER that dissolved the theme, and filler is most of what a hard tier is.
+# So the harder you played, the less the biome meant. `LZA` (the Air lizard)
+# appeared in every Fire wave 41-49.
+#
+# This is power-neutral by construction and that is the whole reason it is safe:
+# every family's six element variants SHARE ONE STAT BLOCK. That is why the
+# 2026-08-02 authored retint preserved the power curve without re-tuning, and it
+# is why swapping a filler body for its on-element sibling changes theme and
+# nothing else. Verify it stayed that way with --mode=power before and after.
+#
+# Rounds 61-100 are deliberately excluded: WaveData Act 7 is the mixed-element
+# endgame ("mixed elements, about being difficult"), so purity there would fight
+# the design. Matches the owner's VD-06 call — biomes 1-5 read pure, deliberate
+# mixing starts later.
+const DECADE_ELEMENTS: Array[String] = ["N", "A", "W", "E", "F", "L"]
+
+# family -> element -> code. Written out rather than derived by prefix, because
+# the codes are NOT regular: the Water slime is "SL" (not SLW), the Fire shaman
+# is "S", the Earth orc is "B", and a "B" prefix would also swallow the Bear
+# family. Prefix matching here would silently mis-tint three families.
+const ELEMENT_VARIANTS: Dictionary = {
+	"slime":  {"N": "SLN", "F": "SLF", "W": "SL",  "E": "SLE", "A": "SLA", "L": "SLL"},
+	"shaman": {"N": "GSN", "F": "S",   "W": "GSW", "E": "GSE", "A": "GSA", "L": "GSL"},
+	"lizard": {"N": "LZN", "F": "LZF", "W": "LZW", "E": "LZE", "A": "LZA", "L": "LZL"},
+	"troll":  {"N": "TLN", "F": "TLF", "W": "TLW", "E": "TLE", "A": "TLA", "L": "TLL"},
+	"bear":   {"N": "BRN", "F": "BRF", "W": "BRW", "E": "BRE", "A": "BRA", "L": "BRL"},
+	"windup": {"N": "WUN", "F": "WUF", "W": "WUW", "E": "WUE", "A": "WUA", "L": "WUL"},
+	"orc":    {"N": "BN",  "F": "BF",  "W": "BW",  "E": "B",   "A": "BA",  "L": "BL"},
+}
+# Reverse lookup, flat and explicit for the same collision reason.
+const CODE_FAMILY: Dictionary = {
+	"SLN": "slime", "SLF": "slime", "SL": "slime", "SLE": "slime", "SLA": "slime", "SLL": "slime",
+	"GSN": "shaman", "S": "shaman", "GSW": "shaman", "GSE": "shaman", "GSA": "shaman", "GSL": "shaman",
+	"LZN": "lizard", "LZF": "lizard", "LZW": "lizard", "LZE": "lizard", "LZA": "lizard", "LZL": "lizard",
+	"TLN": "troll", "TLF": "troll", "TLW": "troll", "TLE": "troll", "TLA": "troll", "TLL": "troll",
+	"BRN": "bear", "BRF": "bear", "BRW": "bear", "BRE": "bear", "BRA": "bear", "BRL": "bear",
+	"WUN": "windup", "WUF": "windup", "WUW": "windup", "WUE": "windup", "WUA": "windup", "WUL": "windup",
+	"BN": "orc", "BF": "orc", "BW": "orc", "B": "orc", "BA": "orc", "BL": "orc",
+}
+
+# The element a round's decade is built on, or "" where no constraint applies
+# (rounds 61+, the mixed endgame).
+static func decade_element(round: int) -> String:
+	if round < 1 or round > 60:
+		return ""
+	return DECADE_ELEMENTS[(round - 1) / 10]
+
+# Swap every variant-family body in `counts` for its on-element sibling.
+# Bodies outside the seven variant families are returned untouched: goblins
+# (M/A) have no variants at all — WaveData's wave-24 note already documents that
+# hole — and anchors, elites, bosses and the beast tier each own their element.
+static func retint_counts(counts: Dictionary, round: int) -> Dictionary:
+	var elem: String = decade_element(round)
+	if elem == "":
+		return counts.duplicate()
+	var out: Dictionary = {}
+	for code: String in counts:
+		var swapped: String = code
+		var family: String = String(CODE_FAMILY.get(code, ""))
+		if family != "":
+			swapped = String(ELEMENT_VARIANTS[family].get(elem, code))
+		# Two codes can collapse onto one (LZA and LZN both become LZF in the
+		# Fire decade), so accumulate rather than assign.
+		out[swapped] = int(out.get(swapped, 0)) + int(counts[code])
+	return out
+
 # Filler codes legal at `round`: everything whose authored debut has passed.
 # A code missing from DEBUT_ROUND is treated as round-1 legal rather than being
 # silently dropped, because dropping it would shrink the budget pool without
@@ -404,8 +477,12 @@ static func build_formation(round: int, difficulty: int, grid_width: int = 9,
 static func _topped_up(base_counts: Dictionary, difficulty: int, round: int,
 		wave_seed: int, score_fn: Callable, preplaced: Dictionary = {}) -> Dictionary:
 	var counts: Dictionary = base_counts.duplicate()
-	for code: String in preplaced:
-		counts[code] = counts.get(code, 0) + int(preplaced[code])
+	# VD-11: the boss honour guard is retinted to the decade's element. It was
+	# hardcoded Normal (M/B/BRN/TLN/GSN/LZN) at every tier in every decade, so
+	# wave 50 — the FIRE boss — fought behind seven goblins and a skeleton.
+	var guard: Dictionary = retint_counts(preplaced, round)
+	for code: String in guard:
+		counts[code] = counts.get(code, 0) + int(guard[code])
 	var filler: Dictionary
 	if score_fn.is_valid():
 		filler = fill_to_score(base_counts, difficulty, round, wave_seed, score_fn, preplaced)
@@ -413,6 +490,12 @@ static func _topped_up(base_counts: Dictionary, difficulty: int, round: int,
 		var base_power: int = _count_power(base_counts)
 		var remaining: int = int(float(base_power) * DIFFICULTY_MULT[difficulty]) - base_power
 		filler = _fill_budget(remaining, round, _filler_rng(round, difficulty, wave_seed))
+	# VD-11: retint the FILLER only. base_counts is the authored wave and is left
+	# exactly as written — those comps already went through the 2026-08-02 retint
+	# and their remaining off-element bodies are deliberate (wave 12 keeps SLN×3
+	# and wave 24 keeps four "A" archers as neutral filler, both documented in
+	# WaveData). Retinting them here would silently overrule the author.
+	filler = retint_counts(filler, round)
 	for code: String in filler:
 		counts[code] = counts.get(code, 0) + int(filler[code])
 	return counts

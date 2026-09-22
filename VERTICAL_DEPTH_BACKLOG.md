@@ -488,7 +488,7 @@ designed with it.
 
 ---
 
-## VD-11 - Biome element identity dissolves on harder tiers - status: OPEN
+## VD-11 - Biome element identity dissolves on harder tiers - status: LANDED, RESIDUAL OPEN
 
 **Owner question 2026-09-22:** *"do we ever get around to making it so enemies
 follow the biome's element more"*. Answer: **no, and VD-06 does not do it.**
@@ -543,9 +543,65 @@ biomes 3-5 the opposite of the intent.
 - `build_boss_formation` derives its guard's element from the decade.
 - A purity check in the harness alongside the premature-debut check.
 
-**Ordering caution.** Doing this before VD-10 changes the cast VD-10 measures.
-Power is preserved, so the body-count finding holds either way, but the sweep
-would need re-running.
+### Implemented 2026-09-22 - `retint_counts()` + decade-aware boss guards
+
+`WaveScaler.ELEMENT_VARIANTS` / `CODE_FAMILY` / `decade_element()` /
+`retint_counts()`. Applied in `_topped_up` to **the filler and the boss honour
+guard only**. `base_counts` - the authored wave - is deliberately left alone:
+those comps already went through the 2026-08-02 retint and their remaining
+off-element bodies are intentional (wave 12 keeps `SLN` x3, wave 24 keeps four
+`A` archers, both documented in WaveData). Retinting them would overrule the
+author silently.
+
+The family tables are written out rather than derived by prefix, because the
+codes are not regular - Water slime is `SL` not `SLW`, Fire shaman is `S`, Earth
+orc is `B`, and a `B` prefix would also swallow the Bear family. Prefix matching
+would have mis-tinted three families.
+
+**Measured result - off-element body share, Brutal:**
+
+| Biome | Before | After |
+|---|---:|---:|
+| 2 Air | 29% | **15%** |
+| 3 Water | 46% | **19%** |
+| 4 Earth | 48% | **15%** |
+| 5 Fire | 44% | **15%** |
+| 6 Lightning | 38% | **20%** |
+
+Normal tier unchanged (0-14%), as intended - authored waves were never the
+problem.
+
+**Power neutrality verified, not assumed.** Measured with the change reverted
+and re-applied: decade power totals moved by -0.33%, -0.25%, -0.02%, +0.83%,
++0.01%, +0.10%. All inside the fill tolerance, which is the trim pass landing on
+a different combination, not variants pricing differently.
+
+Wave 50's guard went from `M:7, BN:2, BRN:2, GSN:2, LZN:2, TLN:2` to
+`BF:2, BRF:2, LZF:5, TLF:3, S:2` - Emberhollow is finally escorted by fire.
+
+Biome 1 win rates are unchanged within noise; its only movement is wave 10's
+guard, which contained `B`, the EARTH orc, and is now `BN`.
+
+### Residual - the remaining 15-20% is bodies with no element variant
+
+Three groups, in descending visibility:
+
+1. **Cross-decade 2x2 anchors.** Filler can still buy another decade's anchor:
+   `TH` (Water) appears in Fire waves 42 and 47, `G` (Earth) in 45 and 50.
+   These are large, centred and the most visible bodies on the board, so this is
+   the residual worth fixing first.
+2. **Beast tier** - `OG`, `MT`, `GY`, `SG`, `CC`, `RW` each own one element and
+   have no siblings.
+3. **Goblins, rat, skeleton** - `M`, `A`, `R`, `SK` have no variants at all.
+   WaveData's wave-24 note already documents this hole ("goblins have no Water
+   variant").
+
+Group 1 is a filler rule (do not buy an anchor belonging to a different
+decade). Groups 2 and 3 need new art/bodies, so they are a content question,
+not a code one.
+
+**Ordering note.** This landed before VD-10. Power is preserved, so VD-10's
+body-count finding holds; its sweep was re-run and biome 1 is unchanged.
 
 ---
 
