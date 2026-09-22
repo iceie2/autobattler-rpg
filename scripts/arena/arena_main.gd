@@ -229,6 +229,8 @@ func _ready() -> void:
 			result = _run_xpcurve(args)
 		"threatcheck":
 			result = await _run_threatcheck(args)
+		"prices":
+			result = _run_prices(args)
 		"goldcurve":
 			result = _run_goldcurve(args)
 		"events":
@@ -704,6 +706,66 @@ func _run_power(args: Dictionary) -> Dictionary:
 					profile["melee"], profile["ranged"], profile["support"], profile["large"]],
 		})
 	return {"mode": "power", "difficulty": difficulty, "rows": rows}
+
+# ── PRICES MODE ───────────────────────────────────────────────────────────────
+# What every body LEGAL at a round costs in the currency the filler budget
+# actually spends (WaveDirector.score_code), next to its flat UNIT_POWER tag.
+#
+# Added 2026-09-22 because nothing could answer "what could this wave have
+# bought, and for how much". `--mode=power` prints prices only for codes already
+# in the roster, so a body the budget never picks is invisible — which is
+# exactly the body you need to see when the budget is behaving oddly. Pinning
+# down VD-03 Finding F (Veteran and Brutal wave 1 being the same fight) required
+# inferring the cheapest price from fallback behaviour instead of reading it.
+#
+# `cheapest` is the number that governs tier granularity: the budget spends in
+# whole bodies, so a tier step smaller than the cheapest legal body cannot be
+# expressed and the fill must overshoot.
+#
+# Usage: -- --mode=prices --from=1 --to=1 [--difficulty=normal|veteran|brutal]
+func _run_prices(args: Dictionary) -> Dictionary:
+	var lo: int = int(args.get("from", "1"))
+	var hi: int = int(args.get("to", str(lo)))
+	var director := WaveDirector.new()
+	var rows: Array = []
+	for r in range(lo, hi + 1):
+		var legal: Array[String] = WaveScaler.legal_filler(r)
+		var priced: Array = []
+		var unpriced: Array = []
+		for code: String in legal:
+			var s: float = float(director.score_code(code, r))
+			if s > 0.0:
+				priced.append({
+					"code": code,
+					"score": int(snappedf(s, 1.0)),
+					"unit_power": int(WaveScaler.UNIT_POWER.get(code, -1)),
+				})
+			else:
+				# Priced at 0 means score_code could not build the unit. Such a
+				# code is silently dropped from the budget pool, so it must be
+				# reported rather than omitted.
+				unpriced.append(code)
+		priced.sort_custom(func(a, b): return int(a["score"]) < int(b["score"]))
+		# The Normal-tier wave is the reference every tier multiplies, so the
+		# cheapest body expressed as a fraction of it IS the granularity.
+		var base_spec: Array = director.generate_wave_spec(r, 0, 9)
+		var base_score: float = 0.0
+		for entry: Dictionary in base_spec:
+			base_score += float(director.score_code(
+					String(entry.get("code", entry.get("type", ""))), r))
+		var cheapest: int = int(priced[0]["score"]) if not priced.is_empty() else 0
+		rows.append({
+			"round": r,
+			"legal_codes": legal.size(),
+			"normal_wave_score": int(snappedf(base_score, 1.0)),
+			"cheapest": cheapest,
+			"cheapest_code": String(priced[0]["code"]) if not priced.is_empty() else "",
+			"granularity_pct": int(snappedf(
+					100.0 * float(cheapest) / maxf(base_score, 1.0), 1.0)),
+			"unpriced": unpriced,
+			"prices": priced,
+		})
+	return {"mode": "prices", "rows": rows}
 
 # ── THREATCHECK MODE ──────────────────────────────────────────────────────────
 # VD-04. `score_spec` is the only threat number the game has, and it is not

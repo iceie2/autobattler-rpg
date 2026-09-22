@@ -227,9 +227,56 @@ composition instead of ordering.
   differentiate with. Changes the first fight of the game - a feel decision.
 - An additive floor on the low-wave tier budget instead of a pure multiplier.
 
-**Note.** No harness mode currently prints the price of every body legal at a
-round, which is why this took a fallback-behaviour inference to pin down.
-`--mode=power` prints prices only for codes already in the roster. Worth adding.
+**Tooling added 2026-09-22:** `--mode=prices --from=N` lists every body legal at
+a round with its `score_code` price and its `UNIT_POWER` tag, flags codes that
+price at 0 (silently dropped from the budget), and reports `granularity_pct` -
+the cheapest body as a share of the Normal wave.
+
+### Finding G - `score_unit` is additive where the game is multiplicative
+
+Measured with the new mode, round 1:
+
+| code | score | UNIT_POWER | hp | dmg | spd | DPS | DPS x HP |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| M goblin | **367** | 30 | 150 | 21 | 0.68 | 14.3 | 2142 |
+| R rat | **387** | 15 | 75 | 24 | 1.06 | 25.4 | 1908 |
+| SK skeleton | 450 | 25 | 110 | 28 | 0.74 | 20.7 | 2279 |
+
+True fighting power (DPS x HP) orders these **R < M < SK**, which matches the
+measured fight exactly - against a level-1 Nemi the rat dies in 3.7s dealing 25,
+the goblin takes 8.7s dealing 43. `score_unit` orders them **M < R < SK**. The
+rat and the goblin are inverted.
+
+`score_unit` is a weighted sum:
+
+```
+s = max_hp*0.15 + attack_damage*10 + attack_speed*60 + magic_power*8 + resistance*5
+```
+
+Two structural problems:
+
+1. **Damage and attack speed are ADDED; the game MULTIPLIES them.** Output is
+   `damage x speed`, so a fast/weak body and a slow/strong body price alike
+   while dealing very different DPS.
+2. **HP is weighted 0.15 against damage's 10**, so one point of attack damage is
+   worth ~67 points of HP. In a real fight HP buys uptime - it is the term that
+   decides how much of that DPS ever lands. The rat's half-HP costs it only 11
+   points while its +3 damage earns +30, so the glass cannon prices *above* the
+   body that actually beats it.
+
+This is the root cause behind VD-04 (ordering) and plausibly behind VD-10
+(swarm vs anchor), and it is why wave 1 has no cheap body: every round-1 body
+prices 367-705, a 1.9x spread, while `UNIT_POWER` spreads them 6.7x.
+
+**Granularity consequence.** Cheapest legal body at round 1 is 367 = **100% of
+the Normal wave**, so no tier step below +100% is expressible. That is Finding F.
+
+**Proposed fix, NOT decided - owner call.** Move `score_unit` toward an
+effective-power shape, roughly `(damage x speed) x effective_hp`, normalised so
+existing waves land near their current numbers. This changes wave composition
+across all 100 rounds, so it must be gated: `--mode=threatcheck` exists
+precisely to prove the new metric orders waves correctly where the old one does
+not, and `--mode=power` can confirm decade totals do not move.
 
 **Consequence for the roadmap.** VD-03 cannot be delivered as a wave-1 tuning
 patch. The ordered dependency is now:
