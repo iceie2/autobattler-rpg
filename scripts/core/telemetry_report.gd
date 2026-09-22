@@ -56,6 +56,7 @@ static func build(events: Array) -> Dictionary:
 	var bands: Dictionary = {}
 	var loadouts: Dictionary = {}
 	var difficulties: Dictionary = {}
+	var battle_cohorts: Dictionary = {}
 	var route_choices: Dictionary = {}
 	var hero_choices: Dictionary = {}
 	var event_choices: Dictionary = {}
@@ -87,6 +88,13 @@ static func build(events: Array) -> Dictionary:
 					var diff_name := _difficulty_name(int(payload.get("difficulty", -1)))
 					_add_outcome(difficulties, diff_name, bool(payload.get("won", false)),
 							float(payload.get("duration_sim_s", 0.0)))
+					var wave := int(payload.get("round",
+							Dictionary(event.get("context", {})).get("round", 0)))
+					var team_size := Array(payload.get("after_action", [])).size()
+					var cohort_key := "%s / %s / wave %d / team %d" % [
+							_investment_band(nodes), diff_name, wave, team_size]
+					_add_outcome(battle_cohorts, cohort_key,
+							bool(payload.get("won", false)), float(payload.get("duration_sim_s", 0.0)))
 				"map_node_chosen":
 					var chosen: Dictionary = payload.get("chosen", {})
 					var node_type := int(chosen.get("type", -1))
@@ -114,6 +122,7 @@ static func build(events: Array) -> Dictionary:
 		"investment_bands": _finalize_groups(bands),
 		"exact_loadouts": _finalize_groups(loadouts),
 		"difficulty": _finalize_outcomes(difficulties),
+		"battle_cohorts": _finalize_outcomes(battle_cohorts),
 		"route_choices": _count_rows(route_choices),
 		"hero_choices": _count_rows(hero_choices),
 		"event_choices": _count_rows(event_choices),
@@ -134,6 +143,8 @@ static func to_markdown(report: Dictionary) -> String:
 	out += _group_table("Investment cohorts", report.get("investment_bands", []))
 	out += _group_table("Exact crystal-tree loadouts", report.get("exact_loadouts", []))
 	out += _outcome_table("Difficulty results", report.get("difficulty", []))
+	out += _outcome_table("Battle cohorts (investment / difficulty / wave / team size)",
+			report.get("battle_cohorts", []))
 	out += _count_table("Route choices", report.get("route_choices", []))
 	out += _count_table("Hero choices", report.get("hero_choices", []))
 	out += _count_table("Event choices", report.get("event_choices", []))

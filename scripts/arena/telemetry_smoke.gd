@@ -31,6 +31,7 @@ func _initialize() -> void:
 			and int(overview.get("complete_runs", 0)) == 1 \
 			and int(overview.get("battles", 0)) == 1 \
 			and report.get("investment_bands", []).size() == 1 \
+			and report.get("battle_cohorts", []).size() == 1 \
 			and markdown.contains("Brutal")
 	RunTelemetry.clear(TEST_PATH)
 	if ok:
