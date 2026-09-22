@@ -44,7 +44,16 @@ const TEAM_SIZE_BASE := 1          # team size at player level 1 (field cap IS y
 # whole ladder above ~level 8 was unreachable and XP nodes/difficulty barely
 # moved it. Retuned so the tiers above are actually hit; verified by xpcurve.
 const PLAYER_XP_SHARE := 0.5
-const PLAYER_XP_BASE := 300.0
+# 300 -> 180 (2026-09-22): the second hero was not landing reliably before the
+# Hill Giant at wave 5. The full-clear curve was never the problem — it reaches
+# level 2 at wave 4 on Normal. The MAP is: MAX_UTILITY_NODES_PER_BIOME is 4, the
+# elite is protected but waves 1-4 are not, so a player can reach wave 5 having
+# fought as few as one battle. At 300, a Normal player who skipped any single
+# fight in 1-4 arrived with 190-255 XP and stayed level 1.
+# Cumulative Normal player XP is 25 / 80 / 190 / 335 across waves 1-4, so the
+# binding path is "fought 1,2,3, skipped 4" = 190. 180 clears it with slack;
+# 190 exactly would be brittle now that VD-06/VD-11 shift wave composition.
+const PLAYER_XP_BASE := 180.0
 # 3.2 -> 1.9, FITTED (not guessed) with --mode=xpcurve over real wave specs,
 # full clears, 100 waves. Measured landing spots, TEAM SIZE:
 #   fresh account, no tree   Normal 8 / Veteran 8 / Brutal 9   <- spec: "team size 8"
@@ -57,7 +66,17 @@ const PLAYER_XP_BASE := 300.0
 # tier then called "normal" — which the 2026-08-07 rename turned into VETERAN.
 # Re-fitted against the true baseline tier; check which tier a target refers to
 # before trusting any pre-rename measurement.
-const PLAYER_XP_GROWTH := 1.9
+# 1.9 -> 2.0 (2026-09-22), REQUIRED by the base cut above, not a free choice.
+# Lowering base alone gives a fresh account team 9/9/10 at wave 100 against a
+# spec of 8. Re-fitted with --mode=xpcurve to 100 waves; 180/2.0 reproduces
+# EVERY landing spot the 1.9 fit was chosen for, exactly:
+#   fresh, no tree            Normal 8 / Veteran 9 / Brutal 9
+#   full tree (+500%, +6)     Normal 17
+#   ... plus 3 event pickups  Normal 20
+# Read off tier 0 (the true baseline). The note above about 2.0 being rejected
+# refers to a fit taken from the tier that the 2026-08-07 rename turned into
+# VETERAN; this one is not that measurement.
+const PLAYER_XP_GROWTH := 2.0
 
 const HERO_COST := 10              # hero shop recruit price
 const REROLL_COST := 2             # gold to refresh the hero shop offers (2026-07-17)

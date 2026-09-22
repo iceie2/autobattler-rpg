@@ -434,6 +434,46 @@ and 10+ heroes. This is the item that most needs real data before any decision.
 **Done when.** Measured roster-size-by-wave-10 per cohort exists, and there is a
 decision on whether the tier ladder needs a fourth rung or a different axis.
 
+### Related change 2026-09-22 - player XP retune (owner request)
+
+Owner: *"bring our required player xp down a bit so we hit our second hero
+consistently on the hill giant wave"*, asking whether Brutal fights should grant
+more player XP.
+
+**Brutal already does.** Player XP is summed enemy `xp_reward`, and harder tiers
+field more bodies, so wave 1 pays 25 on Normal and 50 on Brutal. No new
+mechanism was needed.
+
+**The XP curve was not the problem either.** On a full-clear path level 2
+already landed at wave 4 (Normal) / wave 3 (Brutal) - before the Hill Giant.
+The cause is the **map**: `MAX_UTILITY_NODES_PER_BIOME` is 4 and the elite is
+protected but waves 1-4 are not, so a player can reach wave 5 having fought as
+few as one battle. Cumulative Normal player XP is 25 / 80 / 190 / 335 across
+waves 1-4, so at `PLAYER_XP_BASE = 300` any single skipped fight in 1-4 left the
+player at 190-255 and still level 1.
+
+**Changed:** `PLAYER_XP_BASE` 300 -> 180, `PLAYER_XP_GROWTH` 1.9 -> 2.0.
+
+The growth change is **required, not optional** - lowering base alone gives a
+fresh account team 9/9/10 at wave 100 against a spec of 8. Re-fitted with
+`--mode=xpcurve` over 100 waves; every landing spot the old fit was chosen for
+is reproduced exactly: fresh 8/9/9, full tree 17, full tree + 3 events 20.
+Measured on tier 0, the true post-rename baseline - `balance.gd`'s own note
+warns that an earlier 2.0 fit was invalidated by reading the wrong tier.
+
+Level 2 now lands at **wave 3 on all three tiers**.
+
+**Knock-on, and it lands on this item (VD-08).** Wave-10 team size rises by one:
+Normal 3 -> 4, Brutal 4 -> 5. Reaching level 2 a wave earlier keeps the player a
+level ahead through the early-mid run; the curves reconverge by wave 100. Any
+VD-08 measurement taken before 2026-09-22 is stale by one hero at wave 10.
+
+**Not done:** the underlying variance. A player who skips two of waves 1-4 can
+still arrive at the Hill Giant under-levelled, because the binding factor is how
+many battles the map offered, not the cost curve. Granting player XP at
+non-combat nodes would fix it at the source, but that is a mechanic change and
+was not requested.
+
 ---
 
 ## VD-09 - Combat attribution is invisible - status: OPEN
