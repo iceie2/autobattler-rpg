@@ -219,6 +219,62 @@ const FILLER_POOL: Array[String] = [
 	"R",
 ]
 
+# ── BIOME CONTAINMENT: the earliest round a filler body may appear ────────────
+# Added 2026-09-21 (VD-06). _fill_budget/fill_to_score used to draw from the
+# WHOLE pool at every round, and both prefer the strongest affordable body — so
+# a Veteran/Brutal node in the first ten waves happily bought the 2×2 decade
+# anchors. Measured on biome 1 before this gate: round 6 Brutal led with WY
+# (Sky Wyvern, the AIR anchor) and round 7 Brutal led with FG (Fire Giant, the
+# FIRE anchor). Those were the two hardest non-boss waves in the biome, and both
+# were hard because of a creature the biome had not taught. Harder is supposed
+# to mean more of what you have been shown, not a preview of decade five.
+#
+# The numbers are NOT hand-authored difficulty knobs. Every entry below is the
+# first round that code appears in WaveData.get_wave() — the authored table IS
+# the debut schedule, so this is derived from it and stays honest as long as the
+# two agree (arena `--mode=debut` re-derives and diffs them; see arena_main).
+#
+# Eight pool codes never appear in an authored wave and are assigned by family:
+#   R/SK/BRN/GSN/TLN  → 1   normal-element basics, the biome-1 family whose
+#                           siblings M/A/S/WUN/BN/LZN all debut in rounds 1-7.
+#   SG/RW/GY          → 31  beast tier. WaveData's Act-4 header names Ogre/
+#                           Stone Golem/Crystal Crab/Root Walker as the EARTH
+#                           decade's new bodies; Gargoyle is the same stone band.
+# These eight are marked with a trailing comment so a future reader can see at a
+# glance which rows are derived and which are assigned.
+const DEBUT_ROUND: Dictionary = {
+	# Biome 1 — Normal (rounds 1-10)
+	"M": 1, "A": 2, "S": 4, "WUN": 6, "BN": 7, "LZN": 7,
+	"R": 1, "SK": 1, "BRN": 1, "GSN": 1, "TLN": 1,          # assigned: normal basics
+	# Biome 2 — Air (11-20)
+	"WY": 11, "BRA": 11, "TLA": 11, "GSA": 12, "SLA": 12, "SLN": 12,
+	"LZA": 13, "BA": 14, "HRP": 14, "WUA": 17,
+	# Biome 3 — Water (21-30)
+	"TH": 21, "B": 21, "BW": 21, "CH": 21, "LZW": 21, "TLW": 21,
+	"GSW": 22, "SL": 22, "WUW": 22, "BRW": 24, "OG": 26,
+	# Biome 4 — Earth (31-40)
+	"G": 31, "BRE": 31, "GSE": 31, "CC": 32, "SLE": 32, "LZE": 33,
+	"TLE": 33, "WUE": 34,
+	"SG": 31, "RW": 31, "GY": 31,                           # assigned: beast tier
+	# Biome 5 — Fire (41-50)
+	"FG": 41, "BF": 41, "HH": 41, "EP": 43, "LZF": 43, "BRF": 44,
+	"MT": 44, "WUF": 44, "SLF": 46, "TLF": 47,
+	# Biome 6 — Lightning (51-60)
+	"STG": 51, "GSL": 51, "WUL": 51, "SC": 52, "BL": 53, "LZL": 53,
+	"BRL": 54, "SLL": 56, "TLL": 57,
+}
+
+# Filler codes legal at `round`: everything whose authored debut has passed.
+# A code missing from DEBUT_ROUND is treated as round-1 legal rather than being
+# silently dropped, because dropping it would shrink the budget pool without
+# anyone noticing. `--mode=debut` fails loudly on a missing entry instead.
+static func legal_filler(round: int) -> Array[String]:
+	var out: Array[String] = []
+	for code: String in FILLER_POOL:
+		if int(DEBUT_ROUND.get(code, 1)) <= round:
+			out.append(code)
+	return out
+
 # Row fill priority per role (row 0 = farthest back, row 3 = frontline)
 const ROLE_ROWS: Dictionary = {
 	Role.FRONT: [3, 2, 1, 0],
@@ -356,7 +412,7 @@ static func _topped_up(base_counts: Dictionary, difficulty: int, round: int,
 	else:
 		var base_power: int = _count_power(base_counts)
 		var remaining: int = int(float(base_power) * DIFFICULTY_MULT[difficulty]) - base_power
-		filler = _fill_budget(remaining, _filler_rng(round, difficulty, wave_seed))
+		filler = _fill_budget(remaining, round, _filler_rng(round, difficulty, wave_seed))
 	for code: String in filler:
 		counts[code] = counts.get(code, 0) + int(filler[code])
 	return counts
@@ -401,7 +457,7 @@ static func fill_to_score(reference_counts: Dictionary, difficulty: int, round: 
 	# Price every candidate once. A code with no sprite/type prices at 0 and is
 	# dropped rather than being treated as free.
 	var cost: Dictionary = {}
-	for code: String in FILLER_POOL:
+	for code: String in legal_filler(round):
 		var s: float = float(score_fn.call(code, round))
 		if s > 0.0:
 			cost[code] = s
@@ -530,14 +586,15 @@ static func _count_power(counts: Dictionary) -> int:
 # 70% chance: pick the strongest affordable unit from FILLER_POOL.
 # 30% chance: pick any affordable unit at random.
 # Returns a counts dictionary.
-static func _fill_budget(budget: int, rng: RandomNumberGenerator) -> Dictionary:
+static func _fill_budget(budget: int, round: int, rng: RandomNumberGenerator) -> Dictionary:
 	var result: Dictionary = {}
+	var pool: Array[String] = legal_filler(round)   # VD-06 biome containment
 	var safety := 0
 	while budget > 0 and safety < 50:
 		safety += 1
 		# Build list of affordable units
 		var affordable: Array[String] = []
-		for code: String in FILLER_POOL:
+		for code: String in pool:
 			if UNIT_POWER.get(code, 9999) <= budget:
 				affordable.append(code)
 		if affordable.is_empty():

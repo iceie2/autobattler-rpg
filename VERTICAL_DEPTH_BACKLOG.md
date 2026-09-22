@@ -234,7 +234,7 @@ board.
 
 ---
 
-## VD-06 - Difficulty filler pulls enemies from later biomes - status: OPEN
+## VD-06 - Difficulty filler pulls enemies from later biomes - status: LANDED, NOT SHIPPABLE ALONE
 
 > **Un-deferred 2026-09-21.** VD-03's measured sweep (Finding D) showed the two
 > hardest non-elite waves in biome 1 are hard *because* of premature debuts:
@@ -258,6 +258,67 @@ mixing remains deferred to biome 6-7 per the owner's decision.
 
 **Done when.** A premature-debut check (already listed as locked regression
 scenario 7 in the baseline) passes for waves 1-10 at all tiers.
+
+### Implemented 2026-09-21 - `WaveScaler.DEBUT_ROUND` + `legal_filler(round)`
+
+`_fill_budget` and `fill_to_score` both drew from the whole `FILLER_POOL` at
+every round, and both prefer the strongest affordable body, so early Veteran/
+Brutal nodes bought the 2x2 decade anchors. Both now draw from
+`legal_filler(round)`.
+
+`DEBUT_ROUND` is **derived, not authored**: every entry is the first round that
+code appears in `WaveData.get_wave()`. Eight pool codes never appear in an
+authored wave and are assigned by family - `R/SK/BRN/GSN/TLN` to round 1 (the
+biome-1 normal-element family, whose siblings `M/A/S/WUN/BN/LZN` debut rounds
+1-7) and `SG/RW/GY` to round 31 (beast tier; WaveData's Act-4 header names Stone
+Golem and Root Walker as Earth-decade bodies).
+
+**Measured effect on composition (biome 1, Brutal).**
+
+| Wave | Lead before | Lead after |
+|---:|---|---|
+| 5 | `{G: 2}` - two Hill Giants | `{G:1, BRN:1, GSN:1, TLN:5}` |
+| 6 | `WY` Sky Wyvern (Air anchor) | `WUN` wind-up bots |
+| 7 | `FG` Fire Giant (Fire anchor) | `LZN`/`BN` |
+
+Zero premature debuts in waves 1-10 at any tier. Scored power held within ~2%
+at every wave, so the budget still hits its target - the *cast* changed, not the
+amount. **Finding B (wave 5 buying a second Hill Giant) is fixed as a side
+effect**: `G`'s derived debut is 31, so filler can no longer buy one. The elite
+path still places the first.
+
+### BLOCKER - the gate alone makes the game harder
+
+Re-running the VD-03 sweep after the gate:
+
+| Wave | Normal | Veteran | Brutal |
+|---:|---:|---:|---:|
+| 2 | 100% | 100% | 15% -> **45%** |
+| 3 | 65% | 100% | 65% -> **80%** |
+| 4 | 100% | 100% | 5% -> **30%** |
+| 6 | 0% | 40% -> **25%** | 60% -> **0%** |
+| 8 | 100% | 5% -> **25%** | 40% -> **0%** |
+| 9 | 80% | 60% -> **5%** | 10% -> **0%** |
+| 10 | 0% | 90% -> **85%** | 70% -> **10%** |
+
+Early waves got easier (the gate removed bodies the budget could not otherwise
+afford). Late biome-1 waves got **much harder**. Cause: with the anchors gone,
+the scored budget converts into **body count**. Wave 9 Brutal is now 18 bodies,
+10 of them ranged, against a 4-hero team; before the gate it was 6-7 bodies
+around one big premature heavy.
+
+**This is VD-04 restated with evidence.** `score_spec` sums per-unit scores and
+is blind to body count relative to team size. Eighteen small bodies and one
+giant can price identically and play nothing alike. The budget will keep finding
+the cheapest-per-point body unless something constrains shape, not just total.
+
+**Therefore.** The gate is correct and stays - it delivers exactly what VD-06
+asked for. It must NOT ship as a standalone difficulty change, because measured
+Brutal win rate in waves 6-10 drops to ~0% for a bare fresh team. It ships
+together with the VD-04 work that gives the budget a shape constraint.
+
+**New open item, VD-10** (below): the budget needs a body-count / composition
+constraint, not only a power target.
 
 ---
 
@@ -337,6 +398,31 @@ timing, HP, winner and rewards.
 
 **Done when.** A player can watch one wave-1 fight and correctly name what
 killed what, which support contributed, and which relic/synergy fired.
+
+---
+
+## VD-10 - The scored budget buys body count - status: OPEN
+
+**Discovered 2026-09-21 while implementing VD-06.** `fill_to_score` hits its
+power target by adding bodies, and nothing bounds how many. Once VD-06 stops it
+buying 2x2 anchors early, it spends the same budget on a swarm: wave 9 Brutal
+goes from 6-7 bodies to 18, at the same score.
+
+Against a 3-4 hero fresh team, body count is worth far more than score credits
+it - every extra attacker adds damage while the player's action economy is
+fixed. This is the same blindness as VD-04 (score ignores mechanics) on a
+different axis (score ignores shape).
+
+**Candidate directions - NOT decided, owner call.**
+- A body-count ceiling per wave, scaled to expected team size.
+- A minimum spend-per-body, so the budget cannot buy only fodder.
+- Composition targets (melee/ranged/support ratios) as a budget constraint.
+
+WaveData's authored comments already talk about capping swarms ("swarm spike,
+capped"), so the concept exists in the authored table but not in the filler.
+
+**Blocked on.** Nothing, but it is the same conversation as VD-04 and should be
+designed with it.
 
 ---
 
