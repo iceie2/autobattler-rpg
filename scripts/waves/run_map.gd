@@ -12,7 +12,9 @@ extends RefCounted
 # What the player chooses is:
 # A row is 2–4 choices wide. Combat difficulties never repeat within a row.
 # Four-wide rows are Easy / Normal / Hard plus one utility node; narrower rows
-# show a distinct subset, possibly with one combat slot replaced by utility.
+# show a distinct subset, possibly with one combat slot replaced by utility —
+# and that subset ALWAYS includes Normal (VD-12): a utility replaces a harder
+# fight, never the one a fresh account can take.
 #
 # Interstitial nodes must never call GameState.start_battle_round(). That single
 # fact is the whole model; it's also the thing a later refactor is most likely
@@ -191,13 +193,18 @@ func _pick_width() -> int:
 			return w
 	return 3
 
+# Which fight tiers a row offers. NORMAL IS ALWAYS ONE OF THEM (VD-12, owner
+# 2026-09-23): a fresh account's whole run is Normal, so a row without a Normal
+# fight is the map itself killing new accounts. The old version rolled a
+# one-fight row's tier at random, and a third of those rows came out Brutal-only
+# — the owner's "wave 3 event or hard fight". A side node therefore replaces a
+# HARDER tier, never Normal: that is the order the draws below keep.
 func _distinct_tiers(count: int) -> Array:
 	if count >= 3:
 		return [0, 1, 2]
 	if count == 2:
-		var pairs: Array = [[0, 1], [1, 2], [0, 2]]
-		return pairs[_rng.randi() % pairs.size()]
-	return [_rng.randi_range(0, 2)]
+		return [0, 1] if _rng.randf() < 0.5 else [0, 2]
+	return [0]
 
 # Pick an ordinary utility. The one merchant is assigned separately so random
 # utility rolls can never create duplicates.
@@ -334,9 +341,9 @@ static func grade_for_reward(reward: Dictionary) -> String:
 # slice of the next row, and the walk steps whichever index's slice ends first —
 # so no parent is left with one child while its neighbour hoards four, which is
 # the "every parent" half of the owner's rule. Where two slices end on the same
-# boundary, a coin decides which side shares the corner node; and near a
-# boundary WIRE_JITTER sometimes lets the lane drift one step, so two maps with
-# the same row widths still don't wire identically.
+# boundary the corner node goes to the HARDER lane (VD-12: always a way down),
+# and near a boundary WIRE_JITTER sometimes shifts a lane one step — only ever
+# downhill — so two maps with the same row widths still don't wire identically.
 const WIRE_JITTER := 0.25
 
 func _wire_edges() -> void:
@@ -363,13 +370,18 @@ func _wire_edges() -> void:
 				# (ci+1)/n of the row.
 				var parent_end: int = (pi + 1) * n
 				var child_end: int = (ci + 1) * m
+				# Stepping the PARENT first hands the node both lanes could
+				# reach to the harder lane — as its way down (VD-12). Stepping
+				# the child first would hand it to the easier lane as a way UP,
+				# which the crossing rule then pays for by taking the harder
+				# lane's way down. So ties, and the jitter, only lean downhill.
 				if parent_end == child_end:
-					step_parent = _rng.randf() < 0.5
+					step_parent = true
 				else:
 					step_parent = parent_end < child_end
-					if absi(parent_end - child_end) < mini(m, n) \
+					if not step_parent and absi(parent_end - child_end) < mini(m, n) \
 							and _rng.randf() < WIRE_JITTER:
-						step_parent = not step_parent
+						step_parent = true
 			if step_parent:
 				pi += 1
 			else:
@@ -386,10 +398,13 @@ func _wire_edges() -> void:
 # left on the board — the run is decided several rows before it ends.
 #
 # So after wiring, every node that CAN be given a way out is given one. An "out"
-# is any child that is not a harder fight than where the player is standing:
-# an equal tier, an easier tier, or a side node, which is no fight at all.
-# Choosing hard still costs you — you get the Brutal reward table and the easy
-# lane's rewards are gone — but it never removes the steering wheel.
+# is a way DOWN (_is_way_down): a fight strictly easier than the lane you're in,
+# or a side node, which is no fight at all; the Normal lane can't go lower, so
+# for it a Normal fight counts. VD-12 (2026-09-23) tightened this from "not
+# harder" — an equal-tier child only lets you hold, and "normal -> normal" was
+# exactly what the owner flagged. Choosing hard still costs you — you get the
+# Brutal reward table and the easy lane's rewards are gone — but it never
+# removes the steering wheel.
 #
 # The no-crossing rule still wins every argument. An out is only added when the
 # geometry allows it, and when it doesn't, the node keeps its hard-only children
@@ -426,16 +441,16 @@ func _relief_fixes(r: int) -> Array:
 		var demand: int = int(demands[i])
 		var has_out: bool = false
 		for ci in block:
-			if _is_relief(children[ci], demand):
+			if _is_way_down(children[ci], demand):
 				has_out = true
 				break
 		if has_out:
 			continue
-		# Everything inside the block is harder, so the nearest out is left of
-		# it. Take the CLOSEST one: it adds the fewest lines to the screen.
+		# No way down inside the block, and columns run easy to hard, so the
+		# nearest one is left of it. Take the CLOSEST: it adds the fewest lines.
 		var target: int = -1
 		for c in range(int(block[0]) - 1, -1, -1):
-			if _is_relief(children[c], demand):
+			if _is_way_down(children[c], demand):
 				target = c
 				break
 		if target < 0:
@@ -504,10 +519,6 @@ static func _row_demands(row: Array) -> Array:
 		out.append(last)
 	return out
 
-# Is this child a way out for someone carrying `demand` worth of difficulty?
-static func _is_relief(child: Dictionary, demand: int) -> bool:
-	return not is_battle_node(child) or int(child["difficulty"]) <= demand
-
 # Every (parent, child) pair between rows r and r+1 that is NOT an edge but
 # could be one without crossing anything already there. This is the owner's rule
 # (2026-09-23) stated directly — "parents should have as many of the next row's
@@ -540,6 +551,60 @@ func _addable_edges(r: int) -> Array:
 				out.append(Vector2i(i, j))
 	return out
 
+# VD-12 (owner, 2026-09-23): "we want the player to always have ways to go
+# easier in difficulty." A way DOWN is a side node or a fight strictly easier
+# than the lane you're in; the Normal lane can't go lower, so for it a Normal
+# fight counts. Strict on purpose — an equal-tier child is a way to hold, not a
+# way down, which is exactly the "normal -> normal" the owner flagged.
+static func _is_way_down(child: Dictionary, demand: int) -> bool:
+	return not is_battle_node(child) or int(child["difficulty"]) < maxi(demand, 1)
+
+# Nodes whose every child is a fight at least as hard as their own lane.
+func no_way_down_nodes() -> int:
+	return _count_nodes_where(func(kids: Array, demand: int) -> bool:
+		for k in kids:
+			if _is_way_down(k, demand):
+				return false
+		return true)
+
+# Nodes with at least one strictly HARDER fight ahead — the climbing VD-12's
+# downhill rule trades away, kept as a number so the trade stays visible.
+func can_climb_nodes() -> int:
+	return _count_nodes_where(func(kids: Array, demand: int) -> bool:
+		for k in kids:
+			if is_battle_node(k) and int(k["difficulty"]) > demand:
+				return true
+		return false)
+
+# Battle rows with no Normal fight in them — the owner's wave-3 screenshot.
+func rows_without_normal() -> int:
+	var count: int = 0
+	for r in range(rows.size()):
+		if String(ROW_PLAN[r]["kind"]) != "battle":
+			continue
+		var has_normal: bool = false
+		for n in rows[r]:
+			if is_battle_node(n) and int(n["difficulty"]) == 0:
+				has_normal = true
+		if not has_normal:
+			count += 1
+	return count
+
+func _count_nodes_where(test: Callable) -> int:
+	var count: int = 0
+	for r in range(rows.size() - 1):
+		var demands: Array = _row_demands(rows[r])
+		var kid_index: Dictionary = {}
+		for c in range(rows[r + 1].size()):
+			kid_index[String(rows[r + 1][c]["id"])] = c
+		for i in range(rows[r].size()):
+			var kids: Array = []
+			for ci in _child_cols(rows[r][i], kid_index):
+				kids.append(rows[r + 1][ci])
+			if bool(test.call(kids, int(demands[i]))):
+				count += 1
+	return count
+
 # How many paths the map is leaving out — see _addable_edges.
 func missing_paths() -> int:
 	var total: int = 0
@@ -553,27 +618,6 @@ func edge_count() -> int:
 		for n in rows[r]:
 			total += (n["children"] as Array).size()
 	return total
-
-# How many nodes STILL have nothing but harder fights ahead of them after the
-# relief pass — the ones where the geometry genuinely had no answer. validate()
-# proves none of these were fixable; this reports how pointed the map is anyway,
-# so the number can be watched in the harness instead of guessed at.
-func hard_only_nodes() -> int:
-	var count: int = 0
-	for r in range(rows.size() - 1):
-		var demands: Array = _row_demands(rows[r])
-		var kid_index: Dictionary = {}
-		for c in range(rows[r + 1].size()):
-			kid_index[String(rows[r + 1][c]["id"])] = c
-		for i in range(rows[r].size()):
-			var stranded: bool = true
-			for ci in _child_cols(rows[r][i], kid_index):
-				if _is_relief(rows[r + 1][ci], int(demands[i])):
-					stranded = false
-					break
-			if stranded:
-				count += 1
-	return count
 
 # ── Walking the map ───────────────────────────────────────────────────────────
 func node_by_id(id: String) -> Dictionary:
@@ -775,6 +819,10 @@ func validate() -> Array:
 						bad.append("utility %s lost its stage number" % n["id"])
 			if fights == 0:
 				bad.append("wave row %d has no fight in it at all" % r)
+			# VD-12: a fresh account's whole run is Normal, so every wave row
+			# must offer one — a side node replaces a harder tier, never Normal.
+			if not tiers_seen.has(0):
+				bad.append("wave row %d offers no Normal fight" % r)
 			if row.size() == 4 and utilities != 1:
 				bad.append("four-wide wave row %d has %d utility nodes, expected 1" % [r, utilities])
 			if int(ROW_PLAN[r]["wave"]) == 1:
@@ -842,7 +890,7 @@ func validate() -> Array:
 		for fix in _relief_fixes(r):
 			var stranded: Dictionary = rows[r][int(fix["parent"])]
 			var reachable: Dictionary = rows[r + 1][int(fix["target"])]
-			bad.append("%s has only harder children though %s was reachable"
+			bad.append("%s has no way down though %s was reachable without a crossing"
 				% [stranded["id"], reachable["id"]])
 
 	# AS MANY PATHS AS THE CROSSING RULE ALLOWS (owner rule, 2026-09-23). Any

@@ -809,7 +809,7 @@ body-count finding holds; its sweep was re-run and biome 1 is unchanged.
 
 ---
 
-## VD-12 - The map can deal a row with no fight a fresh account can take - status: ACTIVE
+## VD-12 - The map can deal a row with no fight a fresh account can take - status: DONE
 
 **Finding (2026-09-23, owner screenshot).** A 2-wide battle row that receives a
 side node has exactly one fight, and that fight's tier is rolled at random
@@ -857,6 +857,24 @@ is left so it stays a number.
 **Done when.** `RunMap.validate()` enforces both rules and `--mode=map` passes
 2000 maps with 0 violations; the harness reports nodes with no way down (strict)
 and nodes that can still step up, before and after.
+
+**Landed 2026-09-23.** `_distinct_tiers` always includes Normal; the mercy pass
+uses a strict `_is_way_down` (an easier fight or a side node; Normal for the
+Normal lane) instead of "not harder"; wiring ties and jitter lean downhill.
+`validate()` fails a battle row with no Normal fight and any node that could be
+given a way down without a crossing. Measured, `--mode=map`, 2000 maps:
+
+| | before | after |
+|---|---:|---:|
+| battle rows with no Normal fight | 1.49/map | **0** |
+| nodes with no strictly easier way forward | 7.07/map | **0** |
+| nodes that can still step up | 9.46/map | 4.36/map |
+| paths drawn / paths missing | 47.2 / 0 | 47.1 / 0 |
+| violations | 0 | 0 |
+
+The old metric reported 0.97/map "hard only" because it counted an equal-tier
+child as an escape - it was hiding most of the problem. Climbing roughly halved,
+which is the accepted consequence above, now visible as `can_climb_nodes`.
 
 ---
 
@@ -961,7 +979,7 @@ Steps 2, 3, 4 and 7 are independent of telemetry and of each other.
 
 **Map track (added 2026-09-23)** - independent of the balance chain above; its
 files don't overlap it.
-- **VD-12** a Normal fight in every row, and always a way down. *Now.*
+- **VD-12** a Normal fight in every row, and always a way down. *DONE 2026-09-23.*
 - **VD-14** rows up to 5 wide, nodes ~85%. *After VD-12 (same file).*
 - **VD-13** the player-priced Nemesis tier. *After VD-04 and a crystal-loadout
   arena injection; re-spacing the three wave tiers belongs to VD-03.*

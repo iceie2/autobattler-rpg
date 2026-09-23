@@ -1127,14 +1127,14 @@ func _run_map(args: Dictionary) -> Dictionary:
 
 	var violations: Array = []
 	var generated: int = 0
-	# Nodes whose only way forward is a HARDER fight. RunMap._grant_relief_edges
-	# removes every one the no-crossing geometry allows it to; this is what's
-	# left, and it should stay near zero.
-	var hard_only: int = 0
 	# Paths the map could draw without a crossing but doesn't (owner rule,
 	# 2026-09-23: as many paths as the crossing rule allows), and how many it
 	# does draw — so a wiring change shows up as a number, not an impression.
 	var missing_paths: int = 0
+	# VD-12: strict way-down, how much climbing is left, rows with no Normal fight.
+	var no_way_down: int = 0
+	var can_climb: int = 0
+	var no_normal_rows: int = 0
 	var edges_drawn: int = 0
 	var type_counts: Dictionary = {}
 	var tier_counts: Dictionary = {0: 0, 1: 0, 2: 0}
@@ -1148,8 +1148,10 @@ func _run_map(args: Dictionary) -> Dictionary:
 			for v in map.validate():
 				if violations.size() < 40:
 					violations.append("biome %d seed %d: %s" % [b, i + 1, v])
-			hard_only += map.hard_only_nodes()
 			missing_paths += map.missing_paths()
+			no_way_down += map.no_way_down_nodes()
+			can_climb += map.can_climb_nodes()
+			no_normal_rows += map.rows_without_normal()
 			edges_drawn += map.edge_count()
 			for row in map.rows:
 				for n in row:
@@ -1195,8 +1197,10 @@ func _run_map(args: Dictionary) -> Dictionary:
 		"maps_generated": generated,
 		"biomes": biomes.size(),
 		"violations": violations,
-		"hard_only_nodes": hard_only,
 		"missing_paths": missing_paths,
+		"no_way_down_nodes": no_way_down,
+		"can_climb_nodes": can_climb,
+		"battle_rows_without_normal": no_normal_rows,
 		"edges_per_map": snappedf(float(edges_drawn) / maxf(1.0, float(generated)), 0.01),
 		"nodes_by_type": type_counts,
 		"battle_nodes_by_tier": {"normal": tier_counts[0], "veteran": tier_counts[1],
