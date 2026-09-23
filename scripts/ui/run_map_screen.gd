@@ -107,6 +107,9 @@ const COIN_ICON := "res://assets/UI/Vector_UI_Pack_dobo_ui/Icons/64px/coin_icon_
 # 10px-rim / 14px-icon size. Owner call (2026-09-22): "+150%" — the badge was
 # the one piece of information on the node you still had to lean in to read.
 const REWARD_BADGE_SCALE := 2.5
+# Node size on maps with a 5-wide row (VD-14). The badge scales with it, since
+# it is part of the node — see _layout().
+const NODE_SCALE_WIDE := 0.85
 # …and where it sits: pinned to the node's rim at the top-right, hanging mostly
 # OUTSIDE the disc so it stops covering the creature. OUTSET is how far past the
 # rim the badge's centre sits, in badge radii — 0 would straddle the rim half
@@ -195,6 +198,7 @@ var _panel_size: Vector2 = Vector2(PANEL_W, PANEL_H)
 var _stage_gap: float = STAGE_GAP
 var _lane_gap:  float = LANE_GAP
 var _node_r:  float = NODE_R
+var _node_scale: float = 1.0      # NODE_SCALE_WIDE on maps with a 5-wide row
 var _title:     Label
 var _sub:       Label
 var _canvas:    Control              # edges are drawn here, nodes are its children
@@ -434,7 +438,14 @@ func _layout() -> void:
 	if _map:
 		for row in _map.rows:
 			widest = maxi(widest, row.size())
-	_node_r = clampf(_stage_gap * 0.34, 22.0, 52.0)
+	# VD-14: a map with a 5-wide row draws its nodes at NODE_SCALE_WIDE. Lane
+	# spacing is set by the WIDEST row on the map, so one 5-wide row tightens
+	# every lane in the biome; shrinking the nodes buys that room back (owner:
+	# "im okay with making the nodes like 80-90% size so 5 can fit better").
+	# Maps without one keep full-size nodes — big discs are what make the
+	# silhouettes readable, so they're only given up where the room is needed.
+	_node_scale = NODE_SCALE_WIDE if widest >= 5 else 1.0
+	_node_r = clampf(_stage_gap * 0.34, 22.0, 52.0) * _node_scale
 	# Reserve the node's own radius at BOTH ends before dividing, plus a little
 	# over for the pips that hang below a fight disc. Dividing the raw height (as
 	# the vertical version did) put the top lane of a four-wide stage three
@@ -1110,7 +1121,7 @@ func _draw_map() -> void:
 				# player had to hover every node in a row to tell them apart,
 				# which is not a choice, it's an inspection round.
 				var rtex: Texture2D = _reward_icon(node.get("reward", {}))
-				var k: float = REWARD_BADGE_SCALE * pop_scale
+				var k: float = REWARD_BADGE_SCALE * pop_scale * _node_scale
 				var badge_r: float = 10.0 * k
 				# Pinned to the rim, measured from the badge's OWN size: its
 				# centre sits REWARD_BADGE_OUTSET of its radius outside this

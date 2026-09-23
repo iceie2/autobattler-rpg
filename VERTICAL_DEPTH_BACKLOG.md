@@ -926,7 +926,7 @@ payout is sized against the termination ladder.
 
 ---
 
-## VD-14 - Map rows up to 5 wide - status: ACTIVE
+## VD-14 - Map rows up to 5 wide - status: DONE
 
 **Owner decision.**
 
@@ -954,6 +954,25 @@ after VD-12 (same file).
 **Done when.** 5-wide rows generate and pass `validate()` (including VD-12's
 rules); 1080p and 1366x768 renders show no node, badge or pip collisions.
 
+**Landed 2026-09-23.** `MAX_WIDTH` 5, `WIDTH_WEIGHTS` {2:22, 3:34, 4:26, 5:18};
+a row owes `utilities_for_width` side nodes (4-wide: 1, 5-wide: 2, preferring
+two different offers); `validate()` checks the owed count. Maps containing a
+5-wide row draw nodes, badges included, at `NODE_SCALE_WIDE` 0.85; other maps
+keep full size. Measured, `--mode=map`, 2000 maps:
+
+| | before | after |
+|---|---:|---:|
+| side nodes per map | 4.06 (2.40 event, 0.66 camp, 1 shop) | **5.95** (3.40 event, 1.55 camp, 1 shop) |
+| paths per map | 47.1 | 53.3 |
+| no-Normal rows / nodes with no way down | 0 / 0 | 0 / 0 |
+| violations | 0 | 0 |
+
+**Zoom/scroll: not needed - checked, not assumed.** Seed 23 (three 5-wide rows)
+rendered at 1920x1080 and 1366x768, at 100% and 85%: no collisions in any of
+the four; 85% adds breathing room. `run_map_capture` gained `--size=WxH` and
+prints the map's row widths, so a layout check can't pass by omission (the
+first render tried, seed 12345, had no 5-wide row at all).
+
 ---
 
 ## Sequence
@@ -980,6 +999,6 @@ Steps 2, 3, 4 and 7 are independent of telemetry and of each other.
 **Map track (added 2026-09-23)** - independent of the balance chain above; its
 files don't overlap it.
 - **VD-12** a Normal fight in every row, and always a way down. *DONE 2026-09-23.*
-- **VD-14** rows up to 5 wide, nodes ~85%. *After VD-12 (same file).*
+- **VD-14** rows up to 5 wide, nodes ~85%. *DONE 2026-09-23.*
 - **VD-13** the player-priced Nemesis tier. *After VD-04 and a crystal-loadout
   arena injection; re-spacing the three wave tiers belongs to VD-03.*

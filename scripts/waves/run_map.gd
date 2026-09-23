@@ -10,8 +10,9 @@ extends RefCounted
 # merchant REPLACE an option on that stage; they never create extra rows.
 #
 # What the player chooses is:
-# A row is 2–4 choices wide. Combat difficulties never repeat within a row.
-# Four-wide rows are Easy / Normal / Hard plus one utility node; narrower rows
+# A row is 2–5 choices wide. Combat difficulties never repeat within a row.
+# Four-wide rows are Easy / Normal / Hard plus one utility node, five-wide rows
+# plus two (VD-14); narrower rows
 # show a distinct subset, possibly with one combat slot replaced by utility —
 # and that subset ALWAYS includes Normal (VD-12): a utility replaces a harder
 # fight, never the one a fresh account can take.
@@ -30,14 +31,18 @@ enum NodeType { RELIC, BATTLE, ELITE, BOSS, EVENT, MERCHANT, CAMP }
 
 const WAVES_PER_BIOME := 10
 
-# Rows are 2 to 4 nodes wide and the width VARIES per row (owner call,
+# Rows are 2 to 5 nodes wide and the width VARIES per row (owner call,
 # 2026-09-19). A grid of identical 3-wide rows read as a corridor: every row
 # asked the same question, so by the third one the player was clicking, not
 # choosing. A 2-wide row is a genuine fork; a 4-wide row is a spread worth
 # studying; alternating them is what makes it read as a map.
 const MIN_WIDTH := 2
-const MAX_WIDTH := 4
-const WIDTH_WEIGHTS := {2: 30, 3: 42, 4: 28}
+# 5 since VD-14 (2026-09-23, owner: "changing the max row witdth to 5. so we
+# can fit more events/rest/shop on our map"). A 5-wide row is the three fight
+# tiers plus two side nodes. Its weight is taken from the other widths roughly
+# evenly, so the map keeps its mix of forks and spreads.
+const MAX_WIDTH := 5
+const WIDTH_WEIGHTS := {2: 22, 3: 34, 4: 26, 5: 18}
 
 # Camp is wired into path generation now; its actual interaction is the next
 # feature pass. It never appears on wave 1 or on the protected elite/boss rows.
@@ -80,8 +85,9 @@ var cleared: Dictionary = {}        # {node_id: true}
 var generation_seed: int = 0        # persisted so telemetry can reproduce the layout
 
 var _rng := RandomNumberGenerator.new()
-# Budget for optional utility replacements on narrower rows. Four-wide rows
-# always receive utility even after this budget is spent.
+# Budget for optional utility replacements on narrower rows. Rows wider than
+# the three fight tiers always receive their utility (utilities_for_width) even
+# after this budget is spent.
 var _utility_budget: int = MAX_UTILITY_NODES_PER_BIOME
 
 # ── Generation ────────────────────────────────────────────────────────────────
@@ -142,7 +148,7 @@ func _assign_layout() -> void:
 			row[i]["layout_lane"] = centred * spacing + row_shift + local_jitter
 			row[i]["layout_stage"] = x_shift
 
-# A stage row: distinct combat tiers, with at most one utility replacement.
+# A stage row: distinct combat tiers, with side nodes replacing harder ones.
 # Every row keeps at least one fight for players who want the scaler encounter.
 func _build_battle_row(r: int, wave: int, roll_rewards: bool,
 		force_merchant: bool = false) -> Array:
@@ -153,33 +159,59 @@ func _build_battle_row(r: int, wave: int, roll_rewards: bool,
 	# real choice of lane without the start looking like a starburst.
 	if r == 1:
 		width = mini(width, 3)
-	var utility_type: int = -1
-	if force_merchant:
-		utility_type = NodeType.MERCHANT
-	elif width == 4 or (_utility_budget > 0 and _rng.randf() < UTILITY_CHANCE):
-		utility_type = _pick_utility_type(wave)
-	if utility_type >= 0:
-		_utility_budget = maxi(0, _utility_budget - 1)
-	var fight_count: int = width - (1 if utility_type >= 0 else 0)
-	var tiers: Array = _distinct_tiers(fight_count)
+	# How many side nodes this row carries. Rows wider than the three fight
+	# tiers MUST spend the extra width on side nodes — that is what width is for
+	# (VD-14, owner: "so we can fit more events/rest/shop on our map") — and
+	# narrower rows may still roll one against the biome's budget.
+	var n_util: int = utilities_for_width(width)
+	if n_util == 0 and (force_merchant
+			or (_utility_budget > 0 and _rng.randf() < UTILITY_CHANCE)):
+		n_util = 1
+	elif force_merchant:
+		n_util = maxi(n_util, 1)
+	var util_types: Array = []
+	for u in range(n_util):
+		if u == 0 and force_merchant:
+			util_types.append(NodeType.MERCHANT)
+			continue
+		var t: int = _pick_utility_type(wave)
+		# Two side nodes in one row should be two different offers when the
+		# wave allows it, or the pair reads as a duplicate rather than a choice.
+		if t in util_types and wave >= 3:
+			t = NodeType.EVENT if t == NodeType.CAMP else NodeType.CAMP
+		util_types.append(t)
+	_utility_budget = maxi(0, _utility_budget - n_util)
+	var tiers: Array = _distinct_tiers(width - n_util)
 	# Battles stay in ascending difficulty by COLUMN INDEX — col 0 is the mildest.
 	# Which direction that points on screen is the map screen's business (it
 	# currently draws col 0 as the topmost lane); nothing here should care. The
-	# utility slot moves between runs, replacing one conceptual lane rather than
-	# changing the order.
-	var utility_slot: int = _rng.randi_range(0, width - 1) if utility_type >= 0 else -1
+	# utility slots move between runs, each replacing one conceptual lane rather
+	# than changing the order.
+	var slots: Array = range(width)
+	var util_slots: Array = []
+	for _u in range(n_util):
+		util_slots.append(slots.pop_at(_rng.randi_range(0, slots.size() - 1)))
+	util_slots.sort()
 	var out: Array = []
 	var tier_i: int = 0
+	var util_i: int = 0
 	for c in range(width):
-		if c == utility_slot:
-			var node := _make_node(r, c, utility_type, 0, 0, roll_rewards)
+		if c in util_slots:
+			var node := _make_node(r, c, int(util_types[util_i]), 0, 0, roll_rewards)
 			node["slot_wave"] = wave
 			node["round"] = absolute_round(wave)
 			out.append(node)
+			util_i += 1
 		else:
 			out.append(_make_node(r, c, NodeType.BATTLE, int(tiers[tier_i]), wave, roll_rewards))
 			tier_i += 1
 	return out
+
+# Side nodes a row of this width must carry: whatever doesn't fit three fight
+# tiers. A 4-wide row is Normal / Veteran / Brutal plus one; a 5-wide row plus
+# two (VD-14). Narrower rows owe none, but may roll one.
+static func utilities_for_width(width: int) -> int:
+	return maxi(0, width - 3)
 
 func _pick_width() -> int:
 	var total: int = 0
@@ -823,8 +855,10 @@ func validate() -> Array:
 			# must offer one — a side node replaces a harder tier, never Normal.
 			if not tiers_seen.has(0):
 				bad.append("wave row %d offers no Normal fight" % r)
-			if row.size() == 4 and utilities != 1:
-				bad.append("four-wide wave row %d has %d utility nodes, expected 1" % [r, utilities])
+			var owed: int = utilities_for_width(row.size())
+			if owed > 0 and utilities != owed:
+				bad.append("%d-wide wave row %d has %d utility nodes, expected %d"
+					% [row.size(), r, utilities, owed])
 			if int(ROW_PLAN[r]["wave"]) == 1:
 				for n in row:
 					if int(n["type"]) == NodeType.MERCHANT or int(n["type"]) == NodeType.CAMP:

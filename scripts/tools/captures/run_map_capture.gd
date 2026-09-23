@@ -32,7 +32,17 @@ func _ready() -> void:
 		await _capture_opening()
 		return
 
-	get_window().size = Vector2i(1920, 1080)
+	# --size=WxH renders at another resolution. The map derives node size and
+	# lane spacing from the viewport (RunMapScreen._layout), so a layout that is
+	# comfortable at 1080p can still collide on a 1366x768 laptop — VD-14's
+	# five-wide rows are checked at both, not assumed from one.
+	var win := Vector2i(1920, 1080)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--size="):
+			var wh: PackedStringArray = a.substr("--size=".length()).split("x")
+			if wh.size() == 2:
+				win = Vector2i(int(wh[0]), int(wh[1]))
+	get_window().size = win
 
 	# Seed the GLOBAL rng before generating, not just the map's own. The layout
 	# comes from the map's rng, but every node's reward is rolled by RoundReward
@@ -150,8 +160,14 @@ func _ready() -> void:
 			await get_tree().process_frame
 		await _shot("run_map_hover")
 
-	print("CAPTURED biome %d seed %d — %d rows, walked %d, at %s"
-		% [biome, map_seed, map.rows.size(), steps, map.current_id])
+	# Row widths too: a layout check is only a check if the capture actually
+	# contains the width being checked — the first VD-14 render of seed 12345
+	# had no 5-wide row at all and would have "passed" by omission.
+	var widths: Array = []
+	for row in map.rows:
+		widths.append(row.size())
+	print("CAPTURED biome %d seed %d — %d rows, walked %d, at %s, widths %s"
+		% [biome, map_seed, map.rows.size(), steps, map.current_id, str(widths)])
 	get_tree().quit()
 
 func _capture_opening() -> void:
