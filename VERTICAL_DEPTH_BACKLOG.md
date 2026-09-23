@@ -911,6 +911,21 @@ multipliers of the WAVE's budget (1.0/1.5/2.0). A near-maxed account flattens
   1-4 as the non-colour fallback. A swatch sheet at node size goes to the owner
   before anything is committed.
 
+**Colour swatch produced 2026-09-23 - awaiting owner pick.** Rendered at real
+node size (1080p, 85%) with a goblin silhouette against the C / B / S grade
+rings. It confirms the collision: in today's palette the green Normal creature
+merges with a C ring and the blue Veteran with a B ring. Candidates (RGB 0-1):
+
+| | Normal | Veteran | Brutal | Nemesis |
+|---|---|---|---|---|
+| A heat, crimson Nemesis | 0.93,0.89,0.80 | 0.98,0.62,0.22 | 0.92,0.27,0.24 | 0.80,0.16,0.45 |
+| B heat, cold Nemesis | 0.93,0.89,0.80 | 0.98,0.62,0.22 | 0.92,0.27,0.24 | 0.25,0.85,0.90 |
+| C heat, deeper steps | 0.96,0.93,0.86 | 0.99,0.72,0.30 | 0.95,0.40,0.16 | 0.72,0.10,0.20 |
+
+Measurable notes for the pick: Veteran orange sits nearest the S (gold) ring in
+all three, closest in C; C's Nemesis is the least separated from its Brutal.
+The recolour is independent of Nemesis's pricing and can land before it.
+
 **Pitfalls to design against.** A mispriced Nemesis is either trivial or
 impossible, so pricing is only as good as the power metric across the WHOLE
 fresh-to-god range. Crystal payouts must be sized against the locked
