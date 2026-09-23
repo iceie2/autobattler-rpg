@@ -1131,6 +1131,11 @@ func _run_map(args: Dictionary) -> Dictionary:
 	# removes every one the no-crossing geometry allows it to; this is what's
 	# left, and it should stay near zero.
 	var hard_only: int = 0
+	# Paths the map could draw without a crossing but doesn't (owner rule,
+	# 2026-09-23: as many paths as the crossing rule allows), and how many it
+	# does draw — so a wiring change shows up as a number, not an impression.
+	var missing_paths: int = 0
+	var edges_drawn: int = 0
 	var type_counts: Dictionary = {}
 	var tier_counts: Dictionary = {0: 0, 1: 0, 2: 0}
 	var walk_lengths: Dictionary = {}
@@ -1144,6 +1149,8 @@ func _run_map(args: Dictionary) -> Dictionary:
 				if violations.size() < 40:
 					violations.append("biome %d seed %d: %s" % [b, i + 1, v])
 			hard_only += map.hard_only_nodes()
+			missing_paths += map.missing_paths()
+			edges_drawn += map.edge_count()
 			for row in map.rows:
 				for n in row:
 					var tn: String = RunMap.type_name(int(n["type"]))
@@ -1189,6 +1196,8 @@ func _run_map(args: Dictionary) -> Dictionary:
 		"biomes": biomes.size(),
 		"violations": violations,
 		"hard_only_nodes": hard_only,
+		"missing_paths": missing_paths,
+		"edges_per_map": snappedf(float(edges_drawn) / maxf(1.0, float(generated)), 0.01),
 		"nodes_by_type": type_counts,
 		"battle_nodes_by_tier": {"normal": tier_counts[0], "veteran": tier_counts[1],
 			"brutal": tier_counts[2]},

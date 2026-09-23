@@ -93,6 +93,49 @@ func _ready() -> void:
 	await mg._play_round_start_ceremony()
 	_check(not mg._ceremony_active, "empty ceremony is a no-op")
 
+	# ── MAP MODE: level-ups are settled BEFORE the map opens ─────────────────
+	# Owner call (2026-09-22): "if we level up we should do our level up screen
+	# before we go to the map screen." The claim is about ORDER, so this drives
+	# the REAL post-battle path — _on_battle_ended(true) — and records which of
+	# the two modals comes up first. That path re-measures the row bonuses
+	# itself, so the hero is handed a fight's worth of damage rather than a
+	# hand-staged payout: the XP has to travel the same road it does in a run.
+	if mg.MAP_MODE:
+		mg._ensure_map_for_biome(0)
+		var starts: Array = mg._run_map.available_next()
+		if not starts.is_empty():
+			mg._map_node = mg._run_map.advance_to(String(starts[0]["id"]))
+		var fighter = mg.player_units.filter(
+			func(u): return u and is_instance_valid(u))[0]
+		fighter.damage_dealt = 100000     # far past one level's worth of XP
+		mg._run_map_screen.visible = false
+		mg._level_up_screen.visible = false
+		var lu_seen := false
+		var map_before_lu := false
+		var overlap := false
+		# Not awaited: stepped frame by frame so both modals can be watched.
+		mg._on_battle_ended(true)
+		for _f in range(900):
+			await get_tree().process_frame
+			var lu_up: bool = mg._level_up_screen.visible
+			var map_up: bool = mg._run_map_screen.visible
+			if lu_up and map_up:
+				overlap = true
+			if lu_up:
+				lu_seen = true
+				mg._level_up_screen._apply_perk(LevelUpScreen.PERKS[0])
+			if map_up:
+				map_before_lu = not lu_seen
+				break
+		_check(lu_seen, "the levelled hero's perk screen came up after the fight")
+		_check(not map_before_lu, "the map did NOT open before the level-up screen")
+		_check(not overlap, "the level-up screen and the map were never up together")
+		_check(mg._run_map_screen.visible, "the map opened once the perk was picked")
+		_check(mg._pending_row_bonuses.is_empty(), "the fight was paid out before the map")
+		# The next round's own ceremony now has nothing left to pay.
+		await mg._play_round_start_ceremony()
+		_check(not mg._ceremony_active, "round-start ceremony is a no-op after a map payout")
+
 	if _fails.is_empty():
 		print("CEREMONY_SMOKE: ALL PASS")
 		get_tree().quit(0)

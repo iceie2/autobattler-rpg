@@ -94,6 +94,13 @@ func _ready() -> void:
 		# …and once a hero exists, the map comes back on its own.
 		if not mg._run_map_screen.visible:
 			_fails.append("the map did not re-open after the starting hero was picked")
+		# …and the run's FIRST biome inks itself in. main_game consumes the
+		# start landmark before the map is ever shown, which silently disabled
+		# the reveal on the one biome every player sees. The standalone motion
+		# checks further down could never catch that — a standalone map starts
+		# with nothing consumed — so it is asserted here, in the real flow.
+		elif mg._run_map_screen._reveal_start < 0.0:
+			_fails.append("the run's first biome opened without its reveal")
 		# The cursor is inherited from the hero card that just closed. Merely
 		# appearing over a node must not count as an intentional hover.
 		if mg._run_map_screen._hover_armed:
@@ -302,6 +309,116 @@ func _ready() -> void:
 			% one_click.size())
 	solo2.queue_free()
 	solo.queue_free()
+	_checked += 1
+
+	# ── Motion ───────────────────────────────────────────────────────────────
+	# Everything below steps the screen's own clock through _process directly,
+	# the same way the dwell check does: the boundaries are what's under test,
+	# not the frame rate, and no awaits sit between steps so the engine's own
+	# frames can't add time behind the test's back.
+	var mo := RunMapScreen.new()
+	add_child(mo)
+	await get_tree().process_frame
+
+	# CURVED PATHS STILL CAN'T CROSS. The screen's comment argues it from the
+	# layout (one x per row, so every curve between two rows is the same blend
+	# of its endpoints at the same step). This checks the argument on real maps:
+	# every pair of edges between two rows, sampled along their length, must
+	# share x at every sample and never swap vertical order.
+	var crossings: int = 0
+	var x_drift: int = 0
+	for b_i in range(4):
+		for s_i in range(12):
+			var gm := RunMap.generate(b_i, 9000 + b_i * 100 + s_i, false)
+			mo.present(gm, "geometry")
+			for r_i in range(gm.rows.size() - 1):
+				var parents: Array = gm.rows[r_i]
+				for pa in range(parents.size()):
+					for pb in range(pa + 1, parents.size()):
+						for ca in parents[pa]["children"]:
+							for cb in parents[pb]["children"]:
+								var ea: PackedVector2Array = RunMapScreen._edge_points(
+									mo._node_pos(parents[pa]),
+									mo._node_pos(gm.node_by_id(String(ca))))
+								var eb: PackedVector2Array = RunMapScreen._edge_points(
+									mo._node_pos(parents[pb]),
+									mo._node_pos(gm.node_by_id(String(cb))))
+								for k_i in range(ea.size()):
+									if absf(ea[k_i].x - eb[k_i].x) > 0.01:
+										x_drift += 1
+									if ea[k_i].y > eb[k_i].y + 0.01:
+										crossings += 1
+	if x_drift > 0:
+		_fails.append("curved edges between one pair of rows disagree on x at %d samples "
+			% x_drift + "— the no-crossing argument's premise is gone")
+	if crossings > 0:
+		_fails.append("curved edges cross at %d samples across 48 maps" % crossings)
+
+	# THE REVEAL PLAYS ONCE PER BIOME. present() runs after every fight, so a
+	# reveal keyed on anything looser would replay on every single visit.
+	var rv_map := RunMap.generate(0, 31337, false)
+	mo.present(rv_map, "reveal")
+	if mo._reveal_start < 0.0:
+		_fails.append("a fresh biome did not start its reveal")
+	elif mo._reveal_row(rv_map.rows.size() - 1) > 0.0:
+		_fails.append("the boss row was visible on the reveal's first frame")
+	mo._process(mo._reveal_duration() + 0.1)
+	if mo._reveal_start >= 0.0:
+		_fails.append("the reveal never finished")
+	mo.present(rv_map, "reveal again")
+	if mo._reveal_start >= 0.0:
+		_fails.append("re-opening the SAME biome replayed its reveal")
+	var rv_next := RunMap.generate(1, 31338, false)
+	mo.present(rv_next, "next biome")
+	if mo._reveal_start < 0.0:
+		_fails.append("the next biome did not reveal")
+	mo._process(mo._reveal_duration() + 0.1)
+
+	# HOVER LIFT eases in under the cursor and back out when it leaves.
+	mo._hover_armed = true
+	var lift_a: Dictionary = rv_next.rows[0][0]
+	var lift_b: Dictionary = rv_next.rows[1][0]
+	mo._on_node_hover(lift_a)
+	mo._process(0.5)
+	if float(mo._lift.get(String(lift_a["id"]), 0.0)) < 0.9:
+		_fails.append("the hovered node did not lift")
+	mo._on_node_hover(lift_b)
+	mo._process(0.5)
+	if mo._lift.has(String(lift_a["id"])):
+		_fails.append("a node kept its lift after the cursor left it")
+	mo._clear_selection()
+	mo._hover_id = ""
+
+	# THE TRAVEL BEAT. Stand on the relic, commit to a fight: the marker walks
+	# first and node_chosen fires ONCE, on arrival — and a click mid-walk can't
+	# start a second one.
+	var tv_map := RunMap.generate(2, 4040, false)
+	mo.present(tv_map, "travel")
+	mo._process(mo._reveal_duration() + 0.1)
+	tv_map.advance_to(String(tv_map.rows[0][0]["id"]))
+	mo.present(tv_map, "travel")
+	var walked_to: Array = []
+	mo.node_chosen.connect(func(n): walked_to.append(n))
+	var tv_pick: Dictionary = tv_map.available_next()[0]
+	mo._on_node_pressed(tv_pick)            # open the dossier
+	mo._on_node_pressed(tv_pick)            # commit — the walk begins
+	if not walked_to.is_empty():
+		_fails.append("committing fired node_chosen before the marker walked the path")
+	if mo._travel.is_empty():
+		_fails.append("committing along a real path started no travel beat")
+	mo._process(RunMapScreen.TRAVEL_SECONDS * 0.5)
+	mo._on_node_pressed(tv_pick)            # a click mid-walk
+	if not walked_to.is_empty():
+		_fails.append("node_chosen fired halfway along the path")
+	if mo._tip.visible or mo._selected_id != "":
+		_fails.append("a click mid-walk opened a dossier over the traveller")
+	mo._process(RunMapScreen.TRAVEL_SECONDS)
+	if walked_to.size() != 1:
+		_fails.append("the walk ended with node_chosen fired %d times, expected 1"
+			% walked_to.size())
+	if mo.visible:
+		_fails.append("the map stayed up after the traveller arrived")
+	mo.queue_free()
 	_checked += 1
 
 	var waves_seen: Array[int] = []

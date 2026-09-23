@@ -2146,10 +2146,30 @@ func _on_battle_ended(player_won: bool) -> void:
 	await _grant_round_reward()
 	# NOTE: level-up perk choices used to be presented here. XP is no longer
 	# granted at round end — it's paid out by the round-start ceremony, so the
-	# perk screen follows it there (see _play_round_start_ceremony).
+	# perk screen follows it there (see _play_round_start_ceremony). In MAP MODE
+	# that ceremony now runs here instead — see below.
 	# Wave modifiers last exactly one fight, and this was it.
 	_next_wave_mods.clear()
 	if MAP_MODE:
+		# ── PAY THE FIGHT OUT BEFORE THE MAP (owner call, 2026-09-22) ─────────
+		# "If we level up we should do our level up screen before we go to the
+		# map screen." The row-bonus ceremony (revives, heals, XP bars, then the
+		# perk picks for anyone who levelled) was built to open the NEXT round,
+		# back when the next round followed at once. Under the map, "the next
+		# round" comes after the route choice — and after any event, shop or
+		# camp nodes on the way — so a hero who levelled in this fight didn't
+		# find out until a stop or three later. Worse, the player chose the
+		# route not knowing their own team's levels and HP, which is exactly
+		# the information a Normal-vs-Brutal fork is asking about.
+		#
+		# So under the map the payout runs HERE, and the round-start call
+		# becomes a no-op (it returns at once with nothing pending). It stays in
+		# place as the safety net for anything queued between fights.
+		#
+		# It also closes a save hole: _pending_row_bonuses is never persisted,
+		# and the save_run() below used to run BEFORE the payout — so quitting
+		# at the map after a fight silently lost that fight's heals and XP.
+		await _play_round_start_ceremony()
 		# A cleared fight returns you to the map to pick the next node, instead
 		# of the next round starting on its own.
 		_map_node = {}

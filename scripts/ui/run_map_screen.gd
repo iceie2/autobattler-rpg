@@ -103,6 +103,52 @@ const TIER_COLORS := [
 # level-up screen use tells the player it's the same thing; a bespoke glyph
 # would be a second vocabulary for no gain.
 const COIN_ICON := "res://assets/UI/Vector_UI_Pack_dobo_ui/Icons/64px/coin_icon_64px.png"
+# How big the reward badge on a fight node is, as a multiple of its original
+# 10px-rim / 14px-icon size. Owner call (2026-09-22): "+150%" — the badge was
+# the one piece of information on the node you still had to lean in to read.
+const REWARD_BADGE_SCALE := 2.5
+# …and where it sits: pinned to the node's rim at the top-right, hanging mostly
+# OUTSIDE the disc so it stops covering the creature. OUTSET is how far past the
+# rim the badge's centre sits, in badge radii — 0 would straddle the rim half
+# in / half out; 0.6 leaves only the inner fifth of it over the node.
+const REWARD_BADGE_OUTSET := 0.6
+const REWARD_BADGE_DIR := Vector2(0.6598, -0.7514)   # (0.72, -0.82) normalised
+
+# ── MOTION (owner call, 2026-09-22: "make it look more professional") ────────
+# Everything that moves on this screen runs off _clock, a screen-local time
+# advanced only by _process. Not Time.get_ticks_msec(): a harness can then step
+# the reveal, the flow and the travel beat frame by frame and get the same
+# picture every run, which is what lets motion be checked at all.
+#
+# CURVED PATHS. A straight line between two circles reads as a flowchart; an
+# S-curve reads as a trail. The curve is a cubic with horizontal tangents at
+# both ends, and that shape is chosen for a reason beyond looks: every node in a
+# row shares one x (layout_stage is per ROW), so every curve between the same two
+# rows walks the same x at the same parameter, and its y is always the same
+# weighted blend of its two endpoints. Two edges that don't cross as straight
+# lines therefore can't cross as curves either — RunMap's no-crossing guarantee
+# survives the redraw. map_smoke checks that on real layouts rather than trusting
+# this paragraph.
+const PATH_SEGMENTS := 18         # polyline resolution of one curved edge
+const HOVER_LIFT := 0.08          # the node under the cursor grows by 8%
+const LIFT_EASE := 14.0           # how fast a lift eases in and out, per second
+# Dashes drifting forward along the lit cone: the dimming says WHERE you can go,
+# the flow says which way the road runs.
+const FLOW_DASH := 9.0
+const FLOW_GAP := 13.0
+const FLOW_SPEED := 34.0          # px per second, parent -> child
+const FLOW_COLOR := Color(1.0, 0.97, 0.88, 0.8)   # owner: 0.55 -> 0.8 (2026-09-22)
+# The map inks itself in once per biome, row by row out from the start node.
+const REVEAL_ROW_DELAY := 0.07    # s between one row starting and the next
+const REVEAL_NODE_POP := 0.30     # s for a node to scale in (with a small overshoot)
+const REVEAL_EDGE_DRAW := 0.24    # s for an edge to draw itself to its child
+# Playback speed of the whole reveal. The three timings above are its SHAPE — how
+# rows stagger, pop and ink relative to each other — and this is its tempo, so
+# slowing it down keeps the choreography instead of stretching one part of it.
+# Owner call (2026-09-22): 1.0 read "a bit too fast", 0.7 is 30% slower.
+const REVEAL_RATE := 0.7
+# Choosing a node walks a marker along the path before the fight opens.
+const TRAVEL_SECONDS := 0.55
 
 # Fallback glyphs, used until the art above exists. Letterform placeholders on
 # purpose: honest about being placeholders in a way a borrowed icon isn't.
@@ -218,6 +264,12 @@ var _dossier_pinned: bool = false   # opened by a click (stays) vs. by dwell (tr
 var _dwell: float = 0.0         # seconds the cursor has rested on _hover_id
 var _tip_action: Button         # BEGIN — only shown on a node you may enter
 
+var _clock: float = 0.0         # screen-local seconds; see MOTION above
+var _lift: Dictionary = {}      # node_id -> eased lift 0..1 (absent = resting)
+var _reveal_key: String = ""    # "biome:seed" of the last map that inked itself in
+var _reveal_start: float = -1.0 # _clock when the reveal began; -1 = not revealing
+var _travel: Dictionary = {}    # {from, to, node, t} while the marker walks; {} otherwise
+
 # What the cone is drawn from: the open dossier if there is one, otherwise
 # whatever the cursor is over. A pinned cone means the card you are reading and
 # the paths lit behind it always describe the same node.
@@ -260,6 +312,7 @@ var _sprite_cache: Dictionary = {}
 # resource_path -> bool, "is this art a cut-out we can silhouette?" See _is_cutout.
 # Keyed by path rather than node, because several nodes share one creature.
 var _cutout_cache: Dictionary = {}
+var _mask_cache: Dictionary = {}      # sprite path -> white stamp of its shape
 # Probing builds a whole wave spec, so each node's answer is cached for the life
 # of the screen — hovering back and forth across a row shouldn't rebuild specs.
 var _preview_cache: Dictionary = {}
@@ -276,6 +329,23 @@ func present(map: RunMap, biome_name: String) -> void:
 	_hover_origin = get_viewport().get_mouse_position()
 	_hover_id = ""
 	_clear_selection()
+	_lift.clear()
+	_travel = {}
+	# INK THE MAP IN ONCE PER BIOME, NOT ONCE PER VISIT. present() runs every
+	# time the map opens — after every fight, event and shop — and a reveal
+	# replaying on each of those would turn a flourish into a toll. Keyed on
+	# biome AND seed so a new run's first biome reveals even if it shares an
+	# index with the last one. A save restored mid-biome sets the key without
+	# revealing: the player has seen this map, they just reloaded it.
+	#
+	# "Not started" means NO STAGE CROSSED, not current_id == "". The first
+	# version tested current_id, and main_game consumes biome 1's start landmark
+	# BEFORE the map is ever shown (relic -> hero -> map), so the first biome of
+	# every run — the reveal every player sees — silently never played.
+	var key: String = "%d:%d" % [map.biome, map.generation_seed]
+	if key != _reveal_key:
+		_reveal_key = key
+		_reveal_start = _clock if map.waves_cleared() == 0 else -1.0
 	visible = true
 	# A previous VIEW BOARD could have left the panel hidden.
 	_panel.visible = true
@@ -291,7 +361,8 @@ func present(map: RunMap, biome_name: String) -> void:
 	_center_panel()
 
 func _input(event: InputEvent) -> void:
-	if visible and event is InputEventMouseButton and event.pressed 			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+	if visible and event is InputEventMouseButton and event.pressed \
+			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		_maybe_dismiss_dossier((event as InputEventMouseButton).position)
 		return
 	if not visible or _hover_armed or not (event is InputEventMouseMotion):
@@ -631,6 +702,21 @@ func _accent_box(panel: PanelContainer, fill: Color, edge: Color) -> void:
 	panel.add_theme_stylebox_override("panel", style)
 
 func _process(delta: float) -> void:
+	_clock += delta
+	_ease_lifts(delta)
+	if _reveal_start >= 0.0 and _clock - _reveal_start > _reveal_duration():
+		_reveal_start = -1.0
+	# The travel beat owns the screen while it runs: it finishes by closing the
+	# map and emitting node_chosen, so nothing below may open a card under it.
+	if not _travel.is_empty():
+		_travel["t"] = float(_travel["t"]) + delta / TRAVEL_SECONDS
+		if float(_travel["t"]) >= 1.0:
+			var arrived: Dictionary = _travel["node"]
+			_travel = {}
+			_finish_enter(arrived)
+		elif visible:
+			_canvas.queue_redraw()
+		return
 	# Rest on a node and it opens itself. Only while nothing is already open,
 	# so the timer can never fight a card that is up.
 	if visible and _hover_id != "" and _selected_id == "":
@@ -776,7 +862,18 @@ func _draw_map() -> void:
 				# instead of staying lit from a bright parent.
 				var depth_alpha: float = minf(_stage_visibility(node, reachable),
 					_stage_visibility(child, reachable))
-				_canvas.draw_line(from, to, Color(0, 0, 0, 0.9 * depth_alpha), (6.0 if (lit or live) else 3.0))
+				# During the reveal an edge draws itself out of its parent once
+				# the parent has half-landed, so the ink visibly flows forward.
+				var drawn: float = _reveal_row(int(node["row"]),
+					REVEAL_NODE_POP * 0.5, REVEAL_EDGE_DRAW)
+				if drawn <= 0.0:
+					continue
+				# One polyline per stroke rather than a chain of segments: an
+				# antialiased strip has no overlapping joints, so a translucent
+				# curve doesn't pick up darker beads at every vertex.
+				var pts: PackedVector2Array = _edge_points(from, to, drawn)
+				_canvas.draw_polyline(pts, Color(0, 0, 0, 0.9 * depth_alpha),
+					(6.0 if (lit or live) else 3.0), true)
 				# Slightly stronger than it needs to be on a flat panel: these
 				# now run over a painted biome plate, and a hairline at 0.28
 				# disappeared into the rock. BACKDROP_DIM is the other half of
@@ -790,7 +887,40 @@ func _draw_map() -> void:
 					# pixel fatter, so "about to be road" and "is road" read as
 					# the same material rather than two different states.
 					col = ROAD_GOLD_HOVER; w = 4.0
-				_canvas.draw_line(from, to, col, w)
+				_canvas.draw_polyline(pts, col, w, true)
+				# Flow runs only INSIDE the lit cone and never over road already
+				# walked. The edge into the hovered node isn't in the cone (the
+				# cone starts AT that node), so the gold preview keeps that leg
+				# and the dashes carry on from there.
+				if not _cone.is_empty() and not lit and drawn >= 1.0 \
+						and _cone.has(String(node["id"])) and _cone.has(String(cid)):
+					_draw_flow(pts, _clock * FLOW_SPEED, FLOW_COLOR, 2.5)
+				# The road growing toward the node just chosen, behind the marker.
+				if not _travel.is_empty() and String(node["id"]) == String(_travel["from"]) \
+						and String(cid) == String(_travel["to"]):
+					_canvas.draw_polyline(_edge_points(from, to, _travel_progress()),
+						ROAD_GOLD, 3.5, true)
+
+	# ── The traveller: ON THE PATH, UNDER THE NODES ─────────────────────────
+	# A gold token walking the curve toward the node just chosen, at the tip of
+	# the road growing behind it. Same easing as the road, so the two never part.
+	#
+	# Drawn between the edges and the nodes, not after the nodes (owner call,
+	# 2026-09-22). It is a thing travelling ALONG the road, so it belongs to the
+	# road's layer: as it arrives it slides in under the destination disc rather
+	# than landing on top of the creature, and it passes beneath any node the
+	# curve happens to skim on the way.
+	if not _travel.is_empty():
+		var ta: Dictionary = _map.node_by_id(String(_travel["from"]))
+		var tb: Dictionary = _map.node_by_id(String(_travel["to"]))
+		if not ta.is_empty() and not tb.is_empty():
+			var tp: Vector2 = _edge_at(_node_pos(ta), _node_pos(tb), _travel_progress())
+			var mr: float = _node_r * 0.24
+			_canvas.draw_circle(tp, mr + 7.0,
+				Color(ROAD_GOLD.r, ROAD_GOLD.g, ROAD_GOLD.b, 0.22))
+			_canvas.draw_circle(tp, mr + 2.5, Color(0, 0, 0, 0.92))
+			_canvas.draw_circle(tp, mr, ROAD_GOLD_HOVER)
+			_canvas.draw_circle(tp, mr * 0.42, Color(1, 1, 1, 0.95))
 
 	# ── Nodes ────────────────────────────────────────────────────────────────
 	var font: Font = ThemeDB.fallback_font
@@ -816,6 +946,23 @@ func _draw_map() -> void:
 				# there, and so its biome art has room to be legible at all.
 				r = _node_r * 1.45
 
+			# ── Motion: pop in with the reveal, lift under the cursor ────────
+			var pop: float = _reveal_row(int(node["row"]))
+			if pop <= 0.0:
+				continue
+			var pop_scale: float = _back_out(pop) if pop < 1.0 else 1.0
+			var lift: float = float(_lift.get(id, 0.0))
+			r *= (1.0 + HOVER_LIFT * lift) * pop_scale
+			var appear: float = clampf(pop * 2.5, 0.0, 1.0)
+			# A lifted node casts a soft shadow a few pixels below it. _draw has
+			# no blur, so "soft" is three stacked discs of falling alpha — at
+			# this size that is indistinguishable from a real feathered shadow.
+			if lift > 0.01:
+				for i in range(3):
+					_canvas.draw_circle(pos + Vector2(0.0, 5.0 * lift),
+						r + 7.0 - float(i) * 2.5,
+						Color(0, 0, 0, 0.12 * lift * visibility * appear))
+
 			# Fill: bright grade colour where you may GO, muted where you've
 			# BEEN, near-black for the rest of the map.
 			var fill: Color = Color(0.09, 0.09, 0.12)
@@ -825,6 +972,9 @@ func _draw_map() -> void:
 				fill = grade_col.darkened(0.62)
 			elif visibility >= 0.6:
 				fill = grade_col.darkened(0.72)
+			# Applied after the fill is chosen, so a node mid-reveal fades in
+			# with its real colour instead of flashing the dim one first.
+			visibility *= appear
 			fill.a *= visibility
 			_canvas.draw_circle(pos, r + 3.0, Color(0, 0, 0, 0.95 * visibility))   # hard rim
 			if int(node["type"]) != RunMap.NodeType.RELIC:
@@ -853,7 +1003,9 @@ func _draw_map() -> void:
 					# Grassland's (85,125,59), so one hand-picked multiplier
 					# leaves half the biomes as black discs.
 					var boost: float = _plate_boost(plate)
-					var plate_col: Color = Color(boost, boost, boost) 						if (is_next or is_here) 						else Color(boost * 0.4, boost * 0.4, boost * 0.42)
+					var plate_col: Color = Color(boost, boost, boost) \
+						if (is_next or is_here) \
+						else Color(boost * 0.4, boost * 0.4, boost * 0.42)
 					plate_col.a = visibility
 					_draw_disc_texture(pos, r, plate, plate_col)
 				else:
@@ -888,9 +1040,18 @@ func _draw_map() -> void:
 			if icon:
 				if _is_silhouette(node):
 					# A creature sprite is a FILLED shape, so it can't be tinted
-					# like line art. Drawn near-black over a tier-coloured disc:
-					# the disc is the difficulty, the creature is the hole
-					# punched in it. Keeps the sprite's aspect — none are square.
+					# like line art — but it CAN be flooded with one. Owner call
+					# (2026-09-22): the CREATURE carries the tier colour and the
+					# disc behind it is black, not the other way round. The old
+					# way spent the node's whole area on the difficulty and left
+					# the creature as a hole punched in it, so a row of fights
+					# read as three fields of colour with animals cut out of
+					# them — and the silhouette is the thing you are actually
+					# trying to recognise. It also lines fights up with the
+					# event, shop and camp nodes, which were already a tinted
+					# mark on a dark disc.
+					#
+					# Keeps the sprite's aspect — none are square.
 					#
 					# CONTAINED BY BOTH AXES, not just height. Fitting by height
 					# alone (the original) let a wide plate spill straight out of
@@ -900,15 +1061,29 @@ func _draw_map() -> void:
 					# because the capture harness had no sprite probe and the
 					# nodes used to be smaller. The hover card's mini board
 					# already solved this — same formula, same reason.
-					_canvas.draw_circle(pos, r,
-						gcol if (is_next or is_here) else gcol.darkened(0.35))
+					# draw_texture_rect MULTIPLIES by the modulate, so handing it
+					# the painted sprite and a green tint returns sprite-colour
+					# x green — which is mud, and is exactly what the first
+					# attempt at this flip produced. The shape has to come from
+					# a WHITE mask of the sprite's alpha. If one can't be built,
+					# fall back to the old reading (black creature on a tier
+					# disc) rather than draw the muddy version.
+					var mask: Texture2D = _silhouette_mask(icon)
 					var aspect: float = icon.get_width() \
 						/ maxf(1.0, float(icon.get_height()))
 					var sh: float = minf(r * 1.7, (r * 1.8) / maxf(0.01, aspect))
 					var sw: float = sh * aspect
-					_canvas.draw_texture_rect(icon,
-						Rect2(pos - Vector2(sw, sh) * 0.5, Vector2(sw, sh)), false,
-						Color(0.05, 0.05, 0.07, 0.95 * visibility))
+					var body := Rect2(pos - Vector2(sw, sh) * 0.5, Vector2(sw, sh))
+					var tier: Color = gcol if (is_next or is_here) \
+						else gcol.darkened(0.35)
+					if mask:
+						_canvas.draw_circle(pos, r,
+							Color(0.05, 0.05, 0.07, 0.95 * visibility))
+						_canvas.draw_texture_rect(mask, body, false, tier)
+					else:
+						_canvas.draw_circle(pos, r, tier)
+						_canvas.draw_texture_rect(icon, body, false,
+							Color(0.05, 0.05, 0.07, 0.95 * visibility))
 				else:
 					var side: float = r * 1.45
 					_canvas.draw_texture_rect(icon,
@@ -935,21 +1110,41 @@ func _draw_map() -> void:
 				# player had to hover every node in a row to tell them apart,
 				# which is not a choice, it's an inspection round.
 				var rtex: Texture2D = _reward_icon(node.get("reward", {}))
-				var badge: Vector2 = pos + Vector2(r * 0.72, -r * 0.82)
+				var k: float = REWARD_BADGE_SCALE * pop_scale
+				var badge_r: float = 10.0 * k
+				# Pinned to the rim, measured from the badge's OWN size: its
+				# centre sits REWARD_BADGE_OUTSET of its radius outside this
+				# node's edge. The old fixed offset (0.72r, -0.82r) put the
+				# centre ON the rim whatever the badge's size, so growing it
+				# grew it inward over the creature; tied to badge_r, a bigger
+				# badge moves out instead. Uses this node's own r, so elite and
+				# boss discs keep theirs attached too.
+				var badge: Vector2 = pos + REWARD_BADGE_DIR * (r + badge_r * REWARD_BADGE_OUTSET)
 				if rtex:
 					# Grade-coloured disc behind it, so the badge reads against a
-					# dark node AND repeats the ring's grade colour.
-					_canvas.draw_circle(badge, 10.0, Color(0, 0, 0, 0.9 * visibility))
+					# dark node AND repeats the ring's grade colour. Every size
+					# here is a multiple of REWARD_BADGE_SCALE, so the rim, the
+					# disc and the icon grow together and it stays one knob.
+					_canvas.draw_circle(badge, badge_r, Color(0, 0, 0, 0.9 * visibility))
 					var badge_col: Color = grade_col.darkened(0.45 if (is_next or is_here) else 0.7)
 					badge_col.a *= visibility
-					_canvas.draw_circle(badge, 8.5, badge_col)
+					_canvas.draw_circle(badge, 8.5 * k, badge_col)
+					var half: float = 7.0 * k
 					_canvas.draw_texture_rect(rtex,
-						Rect2(badge - Vector2(7, 7), Vector2(14, 14)), false,
+						Rect2(badge - Vector2(half, half), Vector2(half, half) * 2.0), false,
 						Color(1, 1, 1, visibility) if (is_next or is_here)
 						else Color(0.7, 0.7, 0.75, visibility))
 
+# How far along the path the traveller is, eased in and out so it sets off and
+# arrives rather than sliding at one speed.
+func _travel_progress() -> float:
+	var t: float = clampf(float(_travel.get("t", 0.0)), 0.0, 1.0)
+	return t * t * (3.0 - 2.0 * t)
+
 
 func _on_node_pressed(node: Dictionary) -> void:
+	if not _travel.is_empty():
+		return                          # already walking; the choice is made
 	var id: String = String(node["id"])
 	var enterable: bool = _map != null and _map.can_enter(id)
 	# Second click on the node whose card is already open is the commit. The
@@ -969,8 +1164,27 @@ func open_dossier(node: Dictionary, pinned: bool = true) -> void:
 	_dwell = 0.0
 	_show_dossier(node, _map != null and _map.can_enter(_selected_id))
 
+# Commit to a node. If there is a path to walk — from the node you stand on to
+# this one — the marker walks it first (TRAVEL_SECONDS) and the fight opens when
+# it arrives; the biome's opening relic has no path into it and opens at once.
 func _enter_node(node: Dictionary) -> void:
+	if not _travel.is_empty():
+		return                          # a second commit can't stack a second walk
 	_clear_selection()
+	var from_id: String = _map.current_id if _map != null else ""
+	var to_id: String = String(node["id"])
+	var walkable: bool = from_id != "" and TRAVEL_SECONDS > 0.0 \
+		and to_id in _map.node_by_id(from_id).get("children", [])
+	if not walkable:
+		_finish_enter(node)
+		return
+	# The cone would otherwise keep describing whatever the cursor last touched
+	# while the road grows toward the node actually chosen.
+	_hover_id = ""
+	_travel = {"from": from_id, "to": to_id, "node": node, "t": 0.0}
+	_canvas.queue_redraw()
+
+func _finish_enter(node: Dictionary) -> void:
 	visible = false
 	node_chosen.emit(node)
 
@@ -1074,7 +1288,7 @@ func _make_tip_click_through(n: Node) -> void:
 # Hover LOOKS. It lights the cone (see _refresh_cone) and nothing else — no
 # card, so the paths it just lit stay visible.
 func _on_node_hover(node: Dictionary) -> void:
-	if not _hover_armed:
+	if not _hover_armed or not _travel.is_empty():
 		return
 	var id: String = String(node["id"])
 	if id == _hover_id:
@@ -1275,6 +1489,18 @@ func _node_icon(node: Dictionary) -> Texture2D:
 	# A hand-drawn icon wins if one has been dropped in; otherwise a fight node
 	# falls back to the silhouette of the creature it actually is.
 	var slug: String = String(ICON_SLUGS.get(int(node["type"]), ""))
+	# ── THE START NODE MAY BE PER-BIOME (owner call, 2026-09-22) ─────────────
+	# It is already the one node that changes with the decade — its backplate is
+	# that biome's own ground (see _start_backplate) — so the emblem standing on
+	# it gets the same treatment: node_start_<slug>.png wins if it exists, and
+	# the generic node_start.png is the fallback for every biome that hasn't had
+	# one drawn yet. Same "drop the art in and it lights up" contract the rest of
+	# this set uses, so the six can land one at a time.
+	if slug == "node_start" and _map != null:
+		var biome_slug: String = BACKDROP_ORDER[maxi(0, _map.biome) % BACKDROP_ORDER.size()]
+		var bespoke: Texture2D = _tex("%s%s_%s.png" % [ICON_DIR, slug, biome_slug])
+		if bespoke:
+			return bespoke
 	var drawn: Texture2D = _tex("%s%s.png" % [ICON_DIR, slug]) if slug != "" else null
 	if drawn:
 		return drawn
@@ -1365,6 +1591,45 @@ func _creature_silhouette(node: Dictionary) -> Texture2D:
 	_sprite_cache[key] = tex
 	return tex
 
+# A WHITE stamp of a sprite's shape, so modulate can flood it with a tier
+# colour instead of multiplying into the sprite's own paint.
+#
+# SHRUNK FIRST, and that is the whole reason this is affordable. Every boss
+# plate is 1408x768 — a million get_pixel/set_pixel calls in GDScript — to
+# produce something that is then drawn at about ninety pixels. Resizing to
+# MASK_MAX_PX first costs a native bilinear pass and leaves a few thousand
+# pixels for the loop, and the result is still drawn at or above 1:1.
+#
+# Cached by resource path like the cut-out test beside it, so a biome pays for
+# each distinct creature once.
+const MASK_MAX_PX := 128
+
+func _silhouette_mask(tex: Texture2D) -> Texture2D:
+	var key: String = tex.resource_path
+	if key != "" and _mask_cache.has(key):
+		return _mask_cache[key]
+	var out: Texture2D = null
+	var src: Image = tex.get_image()
+	if src != null:
+		# Never mutate the texture's own image — decompress and resize below
+		# would otherwise edit the sprite every other screen is drawing from.
+		var img := Image.new()
+		img.copy_from(src)
+		if not img.is_compressed() or img.decompress() == OK:
+			var longest: int = maxi(img.get_width(), img.get_height())
+			if longest > MASK_MAX_PX:
+				var k: float = float(MASK_MAX_PX) / float(longest)
+				img.resize(maxi(1, int(img.get_width() * k)),
+					maxi(1, int(img.get_height() * k)), Image.INTERPOLATE_BILINEAR)
+			img.convert(Image.FORMAT_RGBA8)
+			for y in range(img.get_height()):
+				for x in range(img.get_width()):
+					img.set_pixel(x, y, Color(1, 1, 1, img.get_pixel(x, y).a))
+			out = ImageTexture.create_from_image(img)
+	if key != "":
+		_mask_cache[key] = out
+	return out
+
 # Is this texture a cut-out creature, or a full-bleed painted plate?
 #
 # Tested rather than listed, so the answer stays true on its own: the moment a
@@ -1414,6 +1679,88 @@ func _is_silhouette(node: Dictionary) -> bool:
 # What colour to draw a node's emblem in. Every FIGHT — skirmish, elite, boss —
 # is tinted by its tier, so "how hard" reads identically everywhere on the map.
 # Everything else stays neutral; its type is carried by the emblem itself.
+# ── Motion helpers ────────────────────────────────────────────────────────────
+# A point on the curved edge from -> to at parameter t (see MOTION: horizontal
+# tangents at both ends, both control points on the vertical halfway between).
+static func _edge_at(from: Vector2, to: Vector2, t: float) -> Vector2:
+	var mid_x: float = (from.x + to.x) * 0.5
+	var u: float = 1.0 - t
+	return u * u * u * from \
+		+ 3.0 * u * u * t * Vector2(mid_x, from.y) \
+		+ 3.0 * u * t * t * Vector2(mid_x, to.y) \
+		+ t * t * t * to
+
+# The edge as a polyline, from its start up to parameter `upto` — the whole edge
+# by default, part of it while the reveal inks it in or the road grows along it.
+static func _edge_points(from: Vector2, to: Vector2, upto: float = 1.0) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	var steps: int = maxi(1, int(ceil(PATH_SEGMENTS * clampf(upto, 0.0, 1.0))))
+	for i in range(steps + 1):
+		pts.append(_edge_at(from, to, upto * float(i) / float(steps)))
+	return pts
+
+# Dashes marching along a polyline, measured by ARC LENGTH so their spacing is
+# even however the curve bends. `phase` slides the pattern forward from the
+# polyline's start toward its end.
+func _draw_flow(pts: PackedVector2Array, phase: float, col: Color, width: float) -> void:
+	var period: float = FLOW_DASH + FLOW_GAP
+	var s: float = 0.0
+	for i in range(pts.size() - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		var seg: float = a.distance_to(b)
+		if seg <= 0.001:
+			continue
+		var d: float = 0.0
+		while d < seg:
+			var local: float = fposmod(s + d - phase, period)
+			var dashing: bool = local < FLOW_DASH
+			var step: float = maxf(0.01, (FLOW_DASH - local) if dashing else (period - local))
+			var d2: float = minf(seg, d + step)
+			if dashing:
+				_canvas.draw_line(a.lerp(b, d / seg), a.lerp(b, d2 / seg), col, width, true)
+			d = d2
+		s += seg
+
+# Ease every lift toward its goal: up for the node under the cursor and the node
+# whose card is open, down for everything else. Exponential, so it is smooth at
+# any frame rate and never overshoots.
+func _ease_lifts(delta: float) -> void:
+	var k: float = 1.0 - exp(-LIFT_EASE * delta)
+	var ids: Array = _lift.keys()
+	for id in [_hover_id, _selected_id]:
+		if id != "" and not ids.has(id):
+			ids.append(id)
+	for id in ids:
+		var goal: float = 1.0 if (id == _hover_id or id == _selected_id) else 0.0
+		var v: float = lerpf(float(_lift.get(id, 0.0)), goal, k)
+		if goal == 0.0 and v < 0.002:
+			_lift.erase(id)
+		else:
+			_lift[id] = v
+
+func _reveal_duration() -> float:
+	var rows: int = _map.rows.size() if _map != null else 0
+	return (float(maxi(0, rows - 1)) * REVEAL_ROW_DELAY + REVEAL_NODE_POP
+		+ REVEAL_EDGE_DRAW) / REVEAL_RATE
+
+# How far through its entrance row r is: <0 not started, 0..1 popping in, 1 done.
+# Returns 1 when no reveal is running, so every caller can multiply by it freely.
+func _reveal_row(r: int, lag: float = 0.0, span: float = REVEAL_NODE_POP) -> float:
+	if _reveal_start < 0.0:
+		return 1.0
+	# Reveal-time, not wall time: scaled once here, so every row, pop and edge
+	# slows together and the three timings keep meaning what they say.
+	var elapsed: float = (_clock - _reveal_start) * REVEAL_RATE
+	return clampf((elapsed - float(r) * REVEAL_ROW_DELAY - lag) / span, 0.0, 1.0)
+
+# Ease-out with a small overshoot: a node lands a touch larger than its size and
+# settles, which is what makes a pop read as placed rather than faded in.
+static func _back_out(t: float) -> float:
+	var c1 := 1.70158
+	var c3 := c1 + 1.0
+	return 1.0 + c3 * pow(t - 1.0, 3.0) + c1 * pow(t - 1.0, 2.0)
+
 # Forward closure from the hovered node, recomputed only when the hover moves.
 # Thirty-one nodes at most, but _draw_map runs every frame for the frontier
 # pulse, so it is not walked every frame.

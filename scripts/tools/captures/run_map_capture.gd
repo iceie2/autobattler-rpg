@@ -16,11 +16,13 @@ func _ready() -> void:
 	var map_seed := 12345
 	var steps := 5
 	var opening := false
+	var motion_dir := ""
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--biome="): biome = int(a.split("=")[1])
 		if a.begins_with("--seed="):  map_seed = int(a.split("=")[1])
 		if a.begins_with("--steps="): steps = int(a.split("=")[1])
 		if a == "--opening": opening = true
+		if a.begins_with("--motion="): motion_dir = a.substr("--motion=".length())
 
 	# --opening drives the REAL main_game through a run's first two beats
 	# (map → relic node → relic pick → free starting hero) and captures each.
@@ -32,6 +34,12 @@ func _ready() -> void:
 
 	get_window().size = Vector2i(1920, 1080)
 
+	# Seed the GLOBAL rng before generating, not just the map's own. The layout
+	# comes from the map's rng, but every node's reward is rolled by RoundReward
+	# on the global one — so two captures with identical arguments drew the same
+	# map with different loot on it, and an A/B of the reward badge compared a
+	# coin against a sword on the same node.
+	seed(map_seed)
 	var map := RunMap.generate(biome, map_seed, true)
 	var bad: Array = map.validate()
 	if not bad.is_empty():
@@ -63,7 +71,19 @@ func _ready() -> void:
 		return RunMapScreen.sprite_path_for(round_no, node_type, -1, battle_code)
 	add_child(screen)
 	await get_tree().process_frame
+	if motion_dir != "":
+		await _capture_motion(screen, map, map_seed, motion_dir)
+		get_tree().quit()
+		return
 	screen.present(map, "Biome %d" % (biome + 1))
+	# Wait out the opening reveal, not a fixed frame count. A fresh biome inks
+	# itself in (~1.8s at REVEAL_RATE 0.7), and the old fixed 20 frames shot it
+	# mid-reveal — every run_map_start taken since the reveal landed showed the
+	# first few rows and an empty right half, which read as missing nodes.
+	var reveal_guard: int = 0
+	while screen._reveal_start >= 0.0 and reveal_guard < 600:
+		await get_tree().process_frame
+		reveal_guard += 1
 	for _i in range(20):
 		await get_tree().process_frame
 	await _shot("run_map_start")
@@ -233,6 +253,60 @@ func _capture_opening() -> void:
 		% [mg._hero_shop._card_btns.size(), str(mg._run_map_screen.visible),
 			screen2._tip_formation.size()])
 	get_tree().quit()
+
+# --motion=<dir>: the reveal, the hover lift + cone flow, and the travel beat,
+# saved frame by frame so they can be judged as MOTION. A still shows none of
+# the three.
+#
+# The screen's own _process is switched off and stepped by hand at exactly 1/30s
+# per saved frame, so the sequence is identical every run however long each PNG
+# takes to write — wall-clock frames would stutter wherever the disk did.
+# Frames go to the directory given, never into the project: they are throwaway.
+func _capture_motion(screen: RunMapScreen, map: RunMap, map_seed: int,
+		dir: String) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	Input.warp_mouse(Vector2(4, 4))     # park the real cursor away from every node
+	screen.set_process(false)
+	var dt := 1.0 / 30.0
+	# 1. The reveal, from the first frame of a fresh biome.
+	screen.present(map, "Biome")
+	var n_reveal: int = int(ceil(screen._reveal_duration() / dt)) + 8
+	for i in range(n_reveal):
+		screen._process(dt)
+		await _motion_frame(dir, "reveal", i)
+	# 2. Stand two nodes in, then rest on a fork: the lift eases up, the cone
+	#    lights and the dashes drift along it.
+	seed(map_seed)
+	for _s in range(2):
+		var opts: Array = map.available_next()
+		map.advance_to(String(opts[randi() % opts.size()]["id"]))
+	screen.present(map, "Biome")
+	var fork: Dictionary = map.available_next()[0]
+	screen._hover_armed = true
+	screen._on_node_hover(fork)
+	for i in range(40):
+		screen._process(dt)
+		# Hold the dwell back: this sequence is about the lift and the flow, and
+		# the card opening at the one-second mark would cover both.
+		screen._dwell = 0.0
+		await _motion_frame(dir, "hover", i)
+	# 3. Commit to that fork and follow the marker until it arrives.
+	screen.open_dossier(fork)
+	screen._on_node_pressed(fork)
+	var n_travel: int = int(ceil(RunMapScreen.TRAVEL_SECONDS / dt)) + 1
+	for i in range(n_travel):
+		screen._process(dt)
+		if not screen.visible:
+			break
+		await _motion_frame(dir, "travel", i)
+	print("MOTION frames -> %s  (reveal %d, hover 40, travel <=%d)"
+		% [dir, n_reveal, n_travel])
+
+func _motion_frame(dir: String, tag: String, i: int) -> void:
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	img.resize(img.get_width() / 2, img.get_height() / 2, Image.INTERPOLATE_BILINEAR)
+	img.save_png("%s/%s_%03d.png" % [dir, tag, i])
 
 func _shot(name: String) -> void:
 	await RenderingServer.frame_post_draw
