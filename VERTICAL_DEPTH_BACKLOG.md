@@ -126,6 +126,20 @@ curve must be expressed in *measured* terms (win rate and ending HP per cohort)
 and the measurement is the arena harness. **VD-03 and VD-04 are one piece of
 work**: the curve defines what to measure, the metric makes it measurable.
 
+**Owner framing added 2026-09-23 - what the higher tiers are FOR.**
+
+> "your 100% correct normal is the regular game. but with crystal upgrades and
+> our players going from weak to gods with a full crystal upgrade. we need ways
+> for the player to have fun/get value out of clearing waves 1 -50 when they are
+> pushing new high scores of wave 60-70 etc. thats the point of the higher
+> difficulties so trying to find a happy medium."
+
+Two consequences for this item. (1) The owner first floated a 4th tier *between*
+Normal and Veteran; that is replaced by **re-spacing the three wave tiers**
+(open question 2 above) - the Normal->Veteran step (+50%) is the steepest in the
+ladder. (2) A fixed multiplier cannot keep early waves meaningful across a
+fresh-to-god power range at all; that job moves to a player-priced tier, **VD-13**.
+
 **Done when.** A per-cohort, per-tier difficulty intent curve for waves 1-10 is
 written into this file, expressed in measured win rate / ending HP, and the
 arena harness confirms the live game matches it.
@@ -795,6 +809,135 @@ body-count finding holds; its sweep was re-run and biome 1 is unchanged.
 
 ---
 
+## VD-12 - The map can deal a row with no fight a fresh account can take - status: ACTIVE
+
+**Finding (2026-09-23, owner screenshot).** A 2-wide battle row that receives a
+side node has exactly one fight, and that fight's tier is rolled at random
+(`RunMap._distinct_tiers(1)`), so about a third of those rows offer Brutal and
+nothing else. The owner's map showed wave 3 as *side node or Brutal*.
+
+Separately, when two equal-width rows meet, `_wire_edges` picks one of several
+maximal wirings by coin flip, and the mercy pass (RUN_MAP_PLAN §19) accepts an
+*equal*-tier child as an escape. For 3 -> 3 (every elite and boss transition)
+only 1 wiring in 4 gives every lane a strictly easier option.
+
+**Owner decision.**
+
+> "first thing i notice i dont like is wave 3 event or hard fight. so my first
+> thought to say is it should always have a easy or medium fight aswell. but if
+> it chooses medium and its wave 5. i dont think anyteam can beat wave 5 medium
+> with no crystal shop updates. so since our game is a roguelite we either
+> always need the easy option for players that dont have crystal upgrades.
+> unless we did different map paths by crystals invested but that feels weird."
+
+> "it should be easy to easy. medium to easy and medium. hard to medium and
+> hard. remember we want the player to always have ways to go easier in
+> difficulty."
+
+**Decided.**
+1. **Every battle row contains a Normal fight.** A side node replaces a harder
+   tier, never Normal. No crystal-gated map paths - the map is the same for
+   every account; the account is what changes.
+2. **Every lane above Normal has a strictly easier way forward** (an easier
+   fight or a side node) wherever the no-crossing rule allows it; the Normal
+   lane needs a Normal fight or a side node. Wiring tie-breaks lean downhill:
+   a node shared by two lanes goes to the harder lane as its way down.
+
+**Consequence, accepted.** In equal-width row pairs nobody can step UP - an
+easy->medium path and a medium->easy path cross, so "always a way down" rules
+out climbing there. Climbing happens where rows widen and at the biome's
+opening fan, and the easy lane cannot reach the hard elite. This is the
+crossing rule, not a tuning choice; the map harness reports how much climbing
+is left so it stays a number.
+
+**Files.** `scripts/waves/run_map.gd`, map metrics in `scripts/arena/arena_main.gd`,
+`scripts/arena/map_smoke.gd`. No overlap with the VD-03/04/06/10 files
+(`wave_scaler.gd`, `wave_director.gd`).
+
+**Done when.** `RunMap.validate()` enforces both rules and `--mode=map` passes
+2000 maps with 0 violations; the harness reports nodes with no way down (strict)
+and nodes that can still step up, before and after.
+
+---
+
+## VD-13 - Nothing keeps waves 1-50 worth playing for a strong account - status: OPEN
+
+**Owner framing.** Quoted under VD-03 (2026-09-23): the higher difficulties
+exist so a player who has gone "from weak to gods" still gets fun and value
+from waves 1-50 while pushing records at 60-70. Direction approved 2026-09-23:
+*"sure i like your ideas you can proceed"*.
+
+**Why the current ladder can't do it.** Normal/Veteran/Brutal are flat
+multipliers of the WAVE's budget (1.0/1.5/2.0). A near-maxed account flattens
+2x of wave 10; no fixed multiplier spans a fresh-to-god power range.
+
+**Direction agreed.**
+- Normal / Veteran / Brutal stay anchored to the **wave** - same map, same
+  fights for every account; Normal is the regular game.
+- A 4th tier, working name **Nemesis**, is anchored to the **player**: priced at
+  roughly 1.1x the player's own team power, so it is a real fight for a fresh
+  account and for a god alike.
+- **It pays like the fight it is** - rewards scale with its actual price, most
+  naturally in crystals. Otherwise a god earns wave-5 loot for a god-sized fight.
+- **Priced once, when the biome's map is generated** (snapshot of team power at
+  biome start). The dossier's promise stays fixed and benching heroes or
+  unequipping before the node can't game it.
+- **Opt-in only** - one node among the fixed tiers, chosen for the payout. That
+  is what separates it from level-scaling treadmills.
+- **Elite and boss rows gain a Nemesis node.** Owner was 50/50 on four
+  elite/boss options; a boss scaled to your own team is the argument for.
+- **Colours.** Owner: *"the map has been planned since the start but no one has
+  played it"* - recolouring costs nothing learned. Today's green/blue tiers
+  collide with the C/B reward-grade rings drawn on the same node. Tiers move to
+  one warm ramp that avoids the loot-rarity palette the grade ring uses; pips
+  1-4 as the non-colour fallback. A swatch sheet at node size goes to the owner
+  before anything is committed.
+
+**Pitfalls to design against.** A mispriced Nemesis is either trivial or
+impossible, so pricing is only as good as the power metric across the WHOLE
+fresh-to-god range. Crystal payouts must be sized against the locked
+termination ladder and tree pricing (`BALANCE_PLAN.md`).
+
+**Blocked on.** VD-04 (a truthful power metric), and a crystal-loadout injection
+for the arena (`BALANCE_PLAN.md` Phase 0 `--meta=`; the existing `--xpbonus/
+--slots/--events` cohort dials cover XP and team size only, not the combat tree).
+
+**Done when.** A Nemesis node's measured win rate stays inside a stated band
+(e.g. 40-70%) for fresh, mid and high-investment cohorts at waves 1-50, and its
+payout is sized against the termination ladder.
+
+---
+
+## VD-14 - Map rows up to 5 wide - status: ACTIVE
+
+**Owner decision.**
+
+> "i also kinda think we should add a 4th difficulty between normal and vet.
+> and also thinking of changing the max row witdth to 5. so we can fit more
+> events/rest/shop on our map."
+
+> "im okay with making the nodes like 80-90% size so 5 can fit better. maybe we
+> need to add a scroll or zoom feature too"
+
+**Measured constraint (2026-09-23).** Lane spacing on the map screen is set by
+the WIDEST row on the whole map, so one 5-wide row tightens every lane in the
+biome. At today's node size the gap between node discs goes ~98px -> ~56px at
+1080p and ~52px -> ~25px at 1366x768. Node size itself comes from horizontal
+spacing and doesn't shrink on its own.
+
+**Decided.** `MAX_WIDTH` 5. Until VD-13 adds a 4th tier a 5-wide row is three
+fights plus two side nodes (then four fights plus one). Nodes drop to ~85% of
+today's size. Scroll/zoom only if the 1366x768 render is still cramped after
+that - checked, not assumed.
+
+**Files.** `scripts/waves/run_map.gd`, `scripts/ui/run_map_screen.gd`. Lands
+after VD-12 (same file).
+
+**Done when.** 5-wide rows generate and pass `validate()` (including VD-12's
+rules); 1080p and 1366x768 renders show no node, badge or pip collisions.
+
+---
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
@@ -815,3 +958,10 @@ its own chain, not the first - the sweep showed its inputs are broken.
 8. **VD-07** / **VD-08** - both want real telemetry data first.
 
 Steps 2, 3, 4 and 7 are independent of telemetry and of each other.
+
+**Map track (added 2026-09-23)** - independent of the balance chain above; its
+files don't overlap it.
+- **VD-12** a Normal fight in every row, and always a way down. *Now.*
+- **VD-14** rows up to 5 wide, nodes ~85%. *After VD-12 (same file).*
+- **VD-13** the player-priced Nemesis tier. *After VD-04 and a crystal-loadout
+  arena injection; re-spacing the three wave tiers belongs to VD-03.*
