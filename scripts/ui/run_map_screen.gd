@@ -968,7 +968,14 @@ func _draw_map() -> void:
 			# A lifted node casts a soft shadow a few pixels below it. _draw has
 			# no blur, so "soft" is three stacked discs of falling alpha — at
 			# this size that is indistinguishable from a real feathered shadow.
-			if lift > 0.01:
+			# EVENTS STAND BARE (owner, 2026-09-24: "for the events there should
+			# be no button and make them a bit larger"). The lantern is drawn on
+			# its own — no disc, no rim, no grade ring — at roughly the old disc's
+			# footprint. Only once real art exists; the glyph fallback still needs
+			# its disc to be legible.
+			var bare: bool = int(node["type"]) == RunMap.NodeType.EVENT \
+				and _node_icon(node) != null
+			if lift > 0.01 and not bare:
 				for i in range(3):
 					_canvas.draw_circle(pos + Vector2(0.0, 5.0 * lift),
 						r + 7.0 - float(i) * 2.5,
@@ -987,8 +994,11 @@ func _draw_map() -> void:
 			# with its real colour instead of flashing the dim one first.
 			visibility *= appear
 			fill.a *= visibility
-			_canvas.draw_circle(pos, r + 3.0, Color(0, 0, 0, 0.95 * visibility))   # hard rim
-			if int(node["type"]) != RunMap.NodeType.RELIC:
+			if not bare:
+				_canvas.draw_circle(pos, r + 3.0, Color(0, 0, 0, 0.95 * visibility))   # hard rim
+			if bare:
+				pass
+			elif int(node["type"]) != RunMap.NodeType.RELIC:
 				_canvas.draw_circle(pos, r, fill)
 			else:
 				# ── The start node is a WINDOW INTO THE BIOME ────────────────
@@ -1030,10 +1040,13 @@ func _draw_map() -> void:
 				# fault rather than as "you can't get there from here".
 				_canvas.draw_arc(pos, r + 6.0 + pulse * 3.0, 0.0, TAU, 32,
 					Color(1, 1, 1, 0.9 * visibility), 2.0)
-				var next_ring: Color = grade_col
-				next_ring.a *= visibility
-				_canvas.draw_arc(pos, r, 0.0, TAU, 32, next_ring, 3.5)
-			else:
+				# The white pulse stays on a bare event: it is the "you can go
+				# here" cue, not part of the button.
+				if not bare:
+					var next_ring: Color = grade_col
+					next_ring.a *= visibility
+					_canvas.draw_arc(pos, r, 0.0, TAU, 32, next_ring, 3.5)
+			elif not bare:
 				var ring_col: Color = grade_col.darkened(0.45 if not (is_here or is_done) else 0.2)
 				ring_col.a *= visibility
 				_canvas.draw_arc(pos, r, 0.0, TAU, 32, ring_col, 2.0)
@@ -1096,7 +1109,7 @@ func _draw_map() -> void:
 						_canvas.draw_texture_rect(icon, body, false,
 							Color(0.05, 0.05, 0.07, 0.95 * visibility))
 				else:
-					var side: float = r * 1.45
+					var side: float = r * (2.2 if bare else 1.45)
 					_canvas.draw_texture_rect(icon,
 						Rect2(pos - Vector2(side, side) * 0.5, Vector2(side, side)),
 						false, gcol)
