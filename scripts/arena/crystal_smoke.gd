@@ -15,6 +15,7 @@ extends Node
 var _fails: Array = []
 var _saved_levels: Dictionary = {}
 var _saved_crystals: int = 0
+var _saved_spent: int = 0
 
 func _check(cond: bool, label: String) -> void:
 	if cond:
@@ -29,8 +30,14 @@ func _eq(got, want, label: String) -> void:
 
 func _ready() -> void:
 	# Never clobber a real save: snapshot, mutate in memory, restore at the end.
+	# _test_purchase goes through the real buy(), which WRITES the save file, so
+	# a memory-only restore is not enough: restore every field buy() touches and
+	# write the save back. (2026-09-25: the memory-only restore left a real save
+	# at 99,850 crystals holding the test's Pastor unlock - twice, the first time
+	# preserved as progression.PRE-BASELINE-2026-08-03.bak.)
 	_saved_levels = Progression.upgrade_levels.duplicate(true)
 	_saved_crystals = Progression.crystals
+	_saved_spent = Progression.crystals_spent
 
 	_test_catalogue()
 	_test_feeders()
@@ -40,6 +47,8 @@ func _ready() -> void:
 
 	Progression.upgrade_levels = _saved_levels
 	Progression.crystals = _saved_crystals
+	Progression.crystals_spent = _saved_spent
+	Progression.save_data()
 
 	print("CRYSTAL_SMOKE: %s" % ("ALL PASS" if _fails.is_empty()
 		else "%d FAILED -> %s" % [_fails.size(), ", ".join(_fails)]))
