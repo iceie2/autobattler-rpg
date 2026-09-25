@@ -1,7 +1,8 @@
 # Build Archetypes - design worksheet
 
-Status: Burn pieces B1-B5 ACCEPTED 2026-09-25 under the loop rules below; verb
-tags and the tree synergy rule still open. Written 2026-09-25. Decisions live in
+Status: Burn pieces B1-B5 ACCEPTED 2026-09-25 under the loop rules below; tree
+synergy cut to +1 per element (freed nodes TBD); verb tags beyond Burn still
+proposals. Written 2026-09-25. Decisions live in
 `VERTICAL_DEPTH_BACKLOG.md` under **VD-16**. This worksheet proposes; it does not
 decide. Burn piece effects are moves, so the owner designs or approves them before
 any code (numbers are free to tune in the arena).
@@ -111,9 +112,13 @@ burn loop"*.
 So B4 cannot loop on its own: its worst case is a flat +25% ult rate for Burn
 heroes once something is always burning. Bounded.
 
-Side effect worth knowing: burning *enemies* do charge their own ults from burn
-ticks, because every unit charges from damage taken. A Burn team speeds up enemy
-ults, and B5's pulse adds to that.
+Enemy ults (corrected by the owner, 2026-09-25): every unit charges from the
+damage it takes, whatever the source, so a point of burn fills an enemy's ult
+bar exactly as much as a point from a hit. Burn fills it *"more consistently not
+more overall"*. What does change enemy ult timing is spread: damage spread over
+many living enemies (Sear's spread, Ashfall, any AoE comp) fills bars that
+survive to cast, while focused damage is wasted on enemies that die first. That
+is an AoE property, not a Burn one - no Burn-specific tuning concern.
 
 **The real runaway is B2 + Sear's ult, not B4.** Sear's ult copies "the worst
 burn on the board" onto every enemy. If B2 is built naively, that worst burn is
@@ -156,21 +161,25 @@ the target (today a unit holds one burn). B4 needs the verb tags as data.
 Once you field a hero whose verb has pieces, one of the three cards on each
 relic screen is a piece for that verb. Not a fourth card.
 
-## Element synergy vs the crystal tree (VD-16 item 2 - open)
+## Element synergy vs the crystal tree (VD-16 item 2 - DECIDED 2026-09-25)
 
-Each element has three tree nodes (`synergy_<element>_1..3`, +1 count each). They
-apply whenever you field at least one hero of that element. Thresholds are 2/3.
+Each element has three tree nodes (`synergy_<element>_1..3`, +1 count each,
+1200 crystals apiece). They apply whenever you field at least one hero of that
+element. Thresholds are 2/3.
 
 | Rule | Heroes to light all six elements at tier 2 | One hero per element gets |
 |---|---:|---|
 | Today: +3 if you field 1+ | **6** | tier 2 everywhere |
-| +1 per element instead of +3 | 12 | tier 1 everywhere |
-| **+3 only if you field 2+ (recommended)** | 12 | nothing from the tree |
+| **+1 per element (chosen)** | 12 | tier 1 everywhere |
+| +3 only if you field 2+ | 12 | nothing from the tree |
 | No tree nodes | 18 | nothing |
 
-Recommendation: the tree's count applies once you field 2+ heroes of that
-element. A committed element keeps the full value; a one-of-each team gets
-nothing from the tree. At 18+ heroes every element lights with no nodes at all,
+**Decided (owner):** *"i think the best route is still drop each element to +1
+at most those +2 can go to other things like relics or events."* Keep
+`synergy_<element>_1`; `_2` and `_3` (12 nodes) are freed. What they become is
+open, and the tree change waits for that answer so no purchasable node is left
+doing nothing. As today, the +1 only counts for an element you field at least
+one hero of. At 18+ heroes every element lights with no nodes at all,
 so big boards eventually need deeper thresholds - a synergy numbers pass in the
 arena, not part of the Burn slice. Duplicates also count toward synergy today
 (TFT counts each champion once); same pass.
@@ -192,7 +201,7 @@ arena, not part of the Burn slice. Duplicates also count toward synergy today
 
 ## Open questions
 
-1. VD-16 item 2 - which tree synergy rule.
+1. What the 12 freed tree nodes become (owner: "relics or events").
 2. Do verb tags show in the UI (a chip on the hero card), or only on the relic
    card ("Affects: Coal, Sear, Ember")?
 3. Does the merchant's relic slot follow the reserved-slot rule too?

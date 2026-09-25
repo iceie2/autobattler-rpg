@@ -990,7 +990,7 @@ first render tried, seed 12345, had no 5-wide row at all).
 
 ---
 
-## VD-16 - Runs have no build identity - status: OPEN (Burn pieces accepted; tree rule open)
+## VD-16 - Runs have no build identity - status: OPEN (Burn pieces accepted; tree synergy +1 decided)
 
 **Owner framing (2026-09-25).**
 
@@ -1039,7 +1039,8 @@ one right answer and every run plays alike.
    axis.** Build pieces amplify verbs heroes already have. They never grant a
    verb to a whole element - the 2026-08-02 scrap stands. Elements keep
    affinity, stat synergy and the enemy counter passives (`ELEMENT_COUNTERS.md`).
-2. **OPEN - element synergy must stop being free.** The owner suspects the
+2. **DECIDED later the same day (+1 per element - see "Item 2 decided"
+   below) - element synergy must stop being free.** The owner suspects the
    tree's +3 per element is too much and has not picked a fix. Recommendation
    on file: the tree's count applies only to elements fielded 2+ times (options
    table in `BUILD_ARCHETYPES.md`). Deeper thresholds for 16-20 hero boards
@@ -1072,10 +1073,31 @@ hero-type burn entries, spreads/leaps copy single-hero burns never totals,
 payoffs never create burn, total capped at 2x the strongest single burn - and a
 180 s arena loop gate that must pass before the slice ships.
 
-**Blocked on.** Owner pick on item 2 (tree synergy rule). Verb tags beyond
-Burn stay proposals. Code touches `auto_battle_manager.gd` and `unit_base.gd`,
-which carry another session's uncommitted gear-passive work (last edited
-2026-09-25 04:16) - commit or coordinate before editing them.
+**Item 2 decided (2026-09-25).** Asked whether the recommendation meant
+"we dont get bonus synergies unless we actually field them", the owner chose a
+different fix:
+
+> "yeah no i think the best route is still drop each element to +1 at most
+> those +2 can go to other things like relics or events."
+
+**DECIDED - the tree's element synergy bonus is +1 per element.** Keep
+`synergy_<element>_1`; nodes `_2` and `_3` (12 in all, 1200 crystals each) are
+freed for relic or event nodes - which ones is open. The tree change waits for
+that answer so no purchasable node is ever left doing nothing. The tree is
+generated (`tools/crystal_tree/gen_crystal_tree.py`), so the change goes
+through the generator, not hand-edited JSON.
+
+**Correction, same day.** The worksheet first said a Burn team speeds up
+enemy ults. The owner pushed back - *"i feel like burn teams would have the
+enmies ult bar go up more consistantly not more overall compared to other
+comps"* - and is right: victims charge 1:1 from any damage taken, so burn
+charges enemy ults exactly like hits per point of damage. Only damage *spread*
+changes enemy ult timing, and that is true of any AoE comp.
+
+**Blocked on.** What the 12 freed tree nodes become. Verb tags beyond Burn stay
+proposals. Code touches `auto_battle_manager.gd` and `unit_base.gd`, which
+carry another session's uncommitted gear-passive work (last edited 2026-09-25
+04:16) - commit or coordinate before editing them.
 
 **Done when.** The Burn slice ships - verb tags as data, a Burn seed at wave 1,
 Burn pieces reachable through the existing screens, the build named in the
