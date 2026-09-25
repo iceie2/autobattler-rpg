@@ -21,6 +21,12 @@ var _fuse_btn: Button
 # was an "n/3 selected" line.
 var _slot_boxes: Array[Panel] = []
 
+func _component_mode() -> bool:
+	return inventory is ComponentEquipmentInventory
+
+func _combine_width() -> int:
+	return 2 if _component_mode() else 3
+
 # Passive-pick overlay (2026-08-04). Fusions are now capped at 1/2/3/4 distinct
 # passives by rarity (EquipmentManager.PASSIVE_CAP_BY_RARITY), so when the inputs
 # offer more than the cap the PLAYER chooses which survive instead of the game
@@ -38,6 +44,13 @@ var _pick_cap: int = 0
 # manual Fuse button — routes Confirm/Cancel to EquipmentInventory's
 # resolve_auto_pick/cancel_auto_pick instead of the local _commit_fuse.
 var _pick_is_auto: bool = false
+var _pick_title: Label
+# Component merge menu (EQUIPMENT_GREEN_PAIRS.md): both inputs' passives are
+# pooled and the player removes levels until the pool fits the result's budget.
+var _rm_active: bool = false
+var _rm_pool: Dictionary = {}
+var _rm_removed: Dictionary = {}
+var _rm_need: int = 0
 
 const ICON_PX := 34
 
@@ -220,6 +233,8 @@ func _refresh_hero_equipment() -> void:
 # already-imported texture is cheap but not free.
 static var _icon_cache: Dictionary = {}
 static func _item_icon(item: EquipmentItem) -> Texture2D:
+	if item is ComponentEquipmentItem:
+		return GearIcons.icon_for(item)   # composite: emblem + tier frame + notches
 	if _icon_cache.has(item.name):
 		return _icon_cache[item.name]
 	var p: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
@@ -245,6 +260,14 @@ func _style_item_button(btn: Button, item: EquipmentItem) -> void:
 func _add_inventory_item_button(parent: VBoxContainer, item: EquipmentItem) -> void:
 	var btn = Button.new()
 	btn.text = "%s (%s)" % [item.name, item.get_rarity_name()]
+	if item is ComponentEquipmentItem:
+		var component := item as ComponentEquipmentItem
+		var top := ComponentEquipmentRules.dominant_passive(component.passive_levels)
+		if top != "":
+			btn.text = "%s %d (%s)" % [GearCatalog.display_name(top),
+				int(component.passive_levels[top]), item.get_rarity_name()]
+			if component.passive_levels.size() > 1:
+				btn.text += "  +%d" % (component.passive_levels.size() - 1)
 	_style_item_button(btn, item)
 	var selected: bool = _combine_mode and item in _combine_sel
 	if selected:
@@ -290,7 +313,7 @@ func _toggle_combine_mode() -> void:
 func _toggle_combine_selection(item: EquipmentItem) -> void:
 	if item in _combine_sel:
 		_combine_sel.erase(item)
-	elif _combine_sel.size() < 3:
+	elif _combine_sel.size() < _combine_width():
 		_combine_sel.append(item)
 	_refresh_inventory()
 	_update_combine_ui()
@@ -302,6 +325,9 @@ func _refresh_slots() -> void:
 		var box := _slot_boxes[i]
 		for c in box.get_children():
 			c.queue_free()
+		if i >= _combine_width():
+			box.visible = false
+			continue
 		if not _combine_mode:
 			box.visible = false
 			continue
@@ -346,8 +372,9 @@ func _refresh_slots() -> void:
 func _update_combine_ui() -> void:
 	_combine_toggle_btn.text = "⚗  Combine Mode: ON" if _combine_mode else "⚗  Combine Mode"
 	_refresh_slots()
+	var width := _combine_width()
 	if not _combine_mode:
-		_combine_status_lbl.text = "Fuse 3 same-rarity items → 1 upgraded"
+		_combine_status_lbl.text = "Fuse %d same-rarity items → 1 upgraded" % width
 		_fuse_btn.visible = false
 		return
 
@@ -355,18 +382,18 @@ func _update_combine_ui() -> void:
 	if ready_reason == "":
 		var r: int = _combine_sel[0].rarity
 		var next_name: String = EquipmentItem.new("x", r + 1).get_rarity_name()
-		_combine_status_lbl.text = "Ready: 3× %s → %s" % [_combine_sel[0].get_rarity_name(), next_name]
-		_fuse_btn.text = "Fuse ×3 → %s" % next_name
+		_combine_status_lbl.text = "Ready: %d× %s → %s" % [width, _combine_sel[0].get_rarity_name(), next_name]
+		_fuse_btn.text = "Fuse ×%d → %s" % [width, next_name]
 		_fuse_btn.visible = true
 		_fuse_btn.disabled = false
 	else:
-		_combine_status_lbl.text = "%d/3 selected — %s" % [_combine_sel.size(), ready_reason]
+		_combine_status_lbl.text = "%d/%d selected — %s" % [_combine_sel.size(), width, ready_reason]
 		_fuse_btn.visible = true
 		_fuse_btn.disabled = true
 
 # "" when the current selection can be fused, else a short reason.
 func _combine_ready() -> String:
-	if _combine_sel.size() < 3:
+	if _combine_sel.size() < _combine_width():
 		return "pick same-rarity items"
 	var r: int = _combine_sel[0].rarity
 	for it in _combine_sel:
@@ -374,12 +401,28 @@ func _combine_ready() -> String:
 			return "must all be same rarity"
 	if r >= EquipmentItem.Rarity.LEGENDARY:
 		return "Legendary is max tier"
+	if _component_mode():
+		if not (_combine_sel[0] is ComponentEquipmentItem) \
+				or not (_combine_sel[1] is ComponentEquipmentItem):
+			return "requires component items"
+		if not ComponentEquipmentRules.can_combine(
+				_combine_sel[0] as ComponentEquipmentItem,
+				_combine_sel[1] as ComponentEquipmentItem):
+			return "these two can't combine"
 	return ""
 
 func _fuse_selected() -> void:
 	if _combine_ready() != "":
 		return
 	var sources: Array[EquipmentItem] = _combine_sel.duplicate()
+	if _component_mode():
+		var a := sources[0] as ComponentEquipmentItem
+		var b := sources[1] as ComponentEquipmentItem
+		if ComponentEquipmentRules.levels_to_remove(a, b) > 0:
+			_open_level_removal(sources)   # the player picks which levels go
+		else:
+			_commit_fuse(sources, [])
+		return
 	# Passive cap (2026-08-04): if the inputs offer more distinct passives than
 	# the result tier can hold, the PLAYER picks which survive. Only ask when
 	# there's an actual decision — an over-cap prompt with no choice in it is
@@ -392,6 +435,15 @@ func _fuse_selected() -> void:
 	_commit_fuse(sources, [])
 
 func _commit_fuse(sources: Array[EquipmentItem], keep: Array) -> void:
+	if _component_mode():
+		var merged := (inventory as ComponentEquipmentInventory).combine_components(sources, _rm_removed.duplicate())
+		_rm_removed.clear()
+		if merged == null:
+			return
+		_combine_sel.clear()
+		_refresh_all()
+		_update_combine_ui()
+		return
 	var cap: int = EquipmentManager.passive_cap(sources[0].rarity + 1)
 	var candidates: Array = EquipmentManager.candidate_passives(sources)
 	var combined: EquipmentItem = EquipmentManager.combine_items(sources, keep)
@@ -436,7 +488,7 @@ func _build_pick_overlay() -> void:
 	backing.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_pick_panel.add_child(backing)
 
-	_lbl(_pick_panel, "CHOOSE PASSIVES TO KEEP", 20, Color(0.95, 0.82, 0.5),
+	_pick_title = _lbl(_pick_panel, "CHOOSE PASSIVES TO KEEP", 20, Color(0.95, 0.82, 0.5),
 		Vector2(0, 16), Vector2(460, 30), true)
 	_pick_hint = _lbl(_pick_panel, "", 13, Color(0.72, 0.78, 0.92),
 		Vector2(16, 50), Vector2(428, 20), true)
@@ -461,6 +513,7 @@ func _build_pick_overlay() -> void:
 func _close_pick() -> void:
 	_pick_panel.visible = false
 	_pick_scrim.visible = false
+	_rm_active = false
 	if _pick_is_auto and inventory:
 		# Cancelled without choosing — leave the triple untouched in the bag;
 		# Auto-Combine will offer it again on the next pickup.
@@ -491,6 +544,10 @@ func _open_passive_pick(sources: Array[EquipmentItem], candidates: Array, cap: i
 	_pick_panel.visible = true
 
 func _refresh_pick() -> void:
+	if _rm_active:
+		_refresh_level_removal()
+		return
+	_pick_title.text = "CHOOSE PASSIVES TO KEEP"
 	_pick_hint.text = "This fusion can carry %d of %d — pick %d." % [
 		_pick_cap, _pick_candidates.size(), _pick_cap]
 	for c in _pick_list.get_children():
@@ -527,6 +584,13 @@ func _toggle_pick(nm: String) -> void:
 	_refresh_pick()
 
 func _confirm_pick() -> void:
+	if _rm_active:
+		var rm_sources := _pick_sources.duplicate()
+		var picked := _rm_removed.duplicate()
+		_close_pick()   # also clears _rm_active; _rm_removed survives for the commit
+		_rm_removed = picked
+		_commit_fuse(rm_sources, [])
+		return
 	if _pick_chosen.size() != _pick_cap or _pick_sources.is_empty():
 		return
 	var sources := _pick_sources.duplicate()
@@ -539,6 +603,66 @@ func _confirm_pick() -> void:
 		_refresh_all()
 	else:
 		_commit_fuse(sources, keep)
+
+# ── Component merge menu: remove levels until the pool fits ──────────────────
+func _open_level_removal(sources: Array[EquipmentItem]) -> void:
+	var a := sources[0] as ComponentEquipmentItem
+	var b := sources[1] as ComponentEquipmentItem
+	_pick_sources = sources
+	_rm_pool = ComponentEquipmentRules.pooled_levels(a, b)
+	_rm_need = ComponentEquipmentRules.levels_to_remove(a, b)
+	_rm_removed.clear()
+	_rm_active = true
+	_refresh_pick()
+	_pick_scrim.visible = true
+	_pick_panel.visible = true
+
+func _rm_total() -> int:
+	var n := 0
+	for v in _rm_removed.values():
+		n += int(v)
+	return n
+
+func _refresh_level_removal() -> void:
+	_pick_title.text = "REMOVE %d LEVEL%s" % [_rm_need, "" if _rm_need == 1 else "S"]
+	_pick_hint.text = "Click a passive to drop one level. Click again once done to undo."
+	for c in _pick_list.get_children():
+		c.queue_free()
+	for key in _rm_pool:
+		var have := int(_rm_pool[key])
+		var gone := int(_rm_removed.get(key, 0))
+		var left := have - gone
+		var pips := "●".repeat(left) + "○".repeat(gone)
+		var b := Button.new()
+		b.icon = GearIcons.emblem(str(key))
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", 28)
+		var effect := GearCatalog.describe(str(key), left) if left > 0 else "removed"
+		b.text = "%s %s  %s" % [GearCatalog.display_name(str(key)), pips, effect]
+		b.tooltip_text = b.text
+		UITheme.apply_font(b, UITheme.body_font(13))
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.clip_text = true
+		b.custom_minimum_size = Vector2(410, 38)
+		var tint := Color(0.9, 0.55, 0.5) if gone > 0 else Color(0.8, 0.8, 0.9)
+		b.add_theme_color_override("font_color", tint)
+		b.add_theme_stylebox_override("normal", _flat(Color(0.1, 0.1, 0.16, 0.85), tint.darkened(0.45), 1, 4))
+		b.add_theme_stylebox_override("hover",  _flat(Color(0.16, 0.16, 0.24, 0.85), tint, 1, 4))
+		var k := str(key)
+		b.pressed.connect(func(): _toggle_level_removal(k))
+		_pick_list.add_child(b)
+	_pick_confirm.text = "Merge (%d/%d removed)" % [_rm_total(), _rm_need]
+	_pick_confirm.disabled = _rm_total() != _rm_need
+
+func _toggle_level_removal(key: String) -> void:
+	var gone := int(_rm_removed.get(key, 0))
+	if _rm_total() < _rm_need and gone < int(_rm_pool.get(key, 0)):
+		_rm_removed[key] = gone + 1
+	elif gone > 0:
+		_rm_removed[key] = gone - 1
+		if int(_rm_removed[key]) == 0:
+			_rm_removed.erase(key)
+	_refresh_level_removal()
 
 func _add_equipped_item_button(parent: VBoxContainer, item: EquipmentItem) -> void:
 	var btn = Button.new()

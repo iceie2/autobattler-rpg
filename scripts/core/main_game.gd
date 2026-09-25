@@ -256,6 +256,14 @@ var _sb_dm_list:      VBoxContainer
 
 # ── INITIALIZATION ─────────────────────────────────────────────────────────
 func _ready():
+	# The mode is a property of the run. Existing saves have no mode tag and
+	# therefore keep legacy equipment even after new runs are enabled later.
+	if RunSave.resume_on_start and RunSave.exists():
+		var saved_mode: Dictionary = RunSave.read_data()
+		ComponentEquipmentGateway.active_run = str(saved_mode.get("equipment_mode", "legacy")) \
+			== ComponentEquipmentRules.SAVE_SYSTEM
+	else:
+		ComponentEquipmentGateway.active_run = ComponentEquipmentGateway.ENABLE_FOR_NEW_RUNS
 	initialize_game_components()
 	# Details controller needs _dpanel_root (@onready) resolved — safe here.
 	_details = UnitDetailsController.new(self)
@@ -305,6 +313,8 @@ func save_run() -> void:
 	for it in _equipment_inventory.items:
 		bag.append(_item_to_dict(it))
 	RunSave.write_data({
+		"equipment_mode": ComponentEquipmentRules.SAVE_SYSTEM \
+			if ComponentEquipmentGateway.active_run else "legacy",
 		"round": game_state.battle_round,
 		"gold": game_state.gold,
 		"crystals": game_state.crystals,
@@ -402,6 +412,11 @@ func _resume_run() -> void:
 	# nodes (resume onto the map, where the player left off). Resuming the wrong
 	# one either skips a fight or replays it.
 	if MAP_MODE and _run_map != null and not RunMap.is_battle_node(_map_node):
+		# No start_battle_round() on this path to add the 1 back, so restore the
+		# saved round as-is. Leaving it at round-1 made a save on a biome's opening
+		# relic node (round 10 → 9) resolve the map to the PREVIOUS biome, which
+		# regenerated a fresh decade-1 map and dropped the player at wave 1.
+		game_state.battle_round = int(d.get("round", 1))
 		update_ui()
 		if _call_to_arms_pending:
 			_maybe_open_call_to_arms_picker()
@@ -511,6 +526,8 @@ func _restore_hero(d: Dictionary) -> void:
 	player_units.append(u)
 
 func _item_to_dict(it: EquipmentItem) -> Dictionary:
+	if it is ComponentEquipmentItem:
+		return ComponentEquipmentRules.to_dict(it as ComponentEquipmentItem)
 	return {
 		"id": it.id, "name": it.name, "description": it.description,
 		"rarity": int(it.rarity), "stat_bonus": it.stat_bonus.duplicate(),
@@ -519,6 +536,10 @@ func _item_to_dict(it: EquipmentItem) -> Dictionary:
 	}
 
 func _item_from_dict(d: Dictionary) -> EquipmentItem:
+	if str(d.get("system", "")) == ComponentEquipmentRules.SAVE_SYSTEM:
+		var component := ComponentEquipmentRules.from_dict(d)
+		if component != null:
+			return component
 	var it := EquipmentItem.new(str(d.get("name", "?")), int(d.get("rarity", 0)))
 	it.id = str(d.get("id", ""))
 	it.description = str(d.get("description", ""))
@@ -693,7 +714,8 @@ func connect_signals() -> void:
 	_round_reward_screen.layer = 3   # draws above the event shop (layer 2) for stat-buy picks
 	add_child(_round_reward_screen)
 
-	_equipment_inventory = EquipmentInventory.new()
+	_equipment_inventory = ComponentEquipmentInventory.new() \
+		if ComponentEquipmentGateway.active_run else EquipmentInventory.new()
 	_equipment_inventory.inventory_changed.connect(_rebuild_inventory_grid)
 	_equipment_inventory.hero_equipment_changed.connect(_on_hero_equipment_changed)
 	_equipment_panel = EquipmentPanel.new()
@@ -972,6 +994,9 @@ func start_new_game() -> void:
 	# _on_battle_round_started's relic block for the no-offers edge case).
 	_call_to_arms_pending = true
 	if MAP_MODE:
+		# The opening relic is shown before battle_round_started fires, so select
+		# wave 1's biome background explicitly for the opening screen.
+		background_layer.set_biome_from_round(1)
 		# Opening cadence: relic -> starting hero -> map. The old flow showed a
 		# one-choice map whose only purpose was to open this relic screen; that
 		# made the run begin with navigation before the player had anything to
@@ -1678,6 +1703,7 @@ func _map_node_sprite(round_no: int, node_type: int, difficulty: int = 0,
 # ranged behind — which is where they end up anyway.
 func _preview_formation(spec: Array) -> Array:
 	var out: Array = []
+	var display_names: Dictionary = {}
 	var next_front: int = 0
 	var next_back: int = 0
 	var w: int = battle_grid.grid_width
@@ -1701,8 +1727,16 @@ func _preview_formation(spec: Array) -> Array:
 		# boss fight.
 		var sprite: String = RunMapScreen.sprite_for_type(
 			String(entry.get("type", "")))
+		if not display_names.has(code):
+			var preview_unit: VisualUnit = EnemyFactory.create_by_code(code) if code != "" else null
+			if preview_unit:
+				display_names[code] = preview_unit.unit_name
+				preview_unit.free()
+			else:
+				display_names[code] = String(entry.get("type", "Enemy")).replace("_", " ").capitalize()
+		var display_name: String = String(display_names[code])
 		out.append({"x": cell.x, "y": cell.y, "role": role, "sprite": sprite,
-			"large": bool(WaveScaler.CODE_IS_LARGE.get(code, false))})
+			"large": bool(WaveScaler.CODE_IS_LARGE.get(code, false)), "name": display_name})
 	return out
 
 # Power for all 3 difficulties at once (dry-run — no units touch the battlefield)
@@ -2622,7 +2656,7 @@ func _on_shop_buy_stat(idx: int, perk: Dictionary) -> void:
 	_shop_screen.refresh(game_state.gold)
 	# Reuse the round-reward "pick which hero" screen (layer 3 → draws over the
 	# shop). The perk is already fully rolled, so there's only the unit to choose.
-	_round_reward_screen.present({"type": RoundReward.Type.STAT_BONUS, "perk": perk}, alive_units)
+	_round_reward_screen.present({"type": RoundReward.Type.STAT_BONUS, "perk": perk}, alive_units, "merchant")
 	await _round_reward_screen.done
 	_telemetry_decision("merchant_purchase", {
 		"kind": "stat", "slot": idx, "price": price, "perk": perk.duplicate(true)})
@@ -3132,12 +3166,15 @@ func _on_map_node_chosen(node: Dictionary) -> void:
 	# modal, then hand the player back to the next stage.
 	match int(entered["type"]):
 		RunMap.NodeType.RELIC:
-			var offers: Array = Relic.roll_offers(
-				maxi(1, game_state.battle_round), _relic_inventory.owned_ids())
+			# A biome's opening relic is entered before its first battle advances
+			# battle_round, so use the node's round to switch the scenery first.
+			var relic_round: int = maxi(1, int(entered.get("round", game_state.battle_round)))
+			background_layer.set_biome_from_round(relic_round)
+			var offers: Array = Relic.roll_offers(relic_round, _relic_inventory.owned_ids())
 			if offers.is_empty():
 				_open_run_map()
 				return
-			_relic_screen_wave = maxi(1, game_state.battle_round)
+			_relic_screen_wave = relic_round
 			_relic_rerolls_left = Progression.get_bonus("+1 Reroll")
 			_telemetry_relic_offers = _telemetry_relic_ids(offers)
 			_relic_screen.present(offers, _relic_screen_wave, _relic_rerolls_left)
@@ -3197,7 +3234,20 @@ func _event_context(round_override: int = -1) -> Dictionary:
 		"relics": _relic_inventory.owned.size() if _relic_inventory else 0,
 		"dominant_element": dominant,
 		"flags": _run_flags,
+		# Salvage value of each item, in the order a scrap event sells them
+		# (lowest rarity first) — lets the button quote the exact gold.
+		"scrap_values": _event_scrap_values(),
 	}
+
+func _event_scrap_values() -> Array:
+	var out: Array = []
+	if not _equipment_inventory:
+		return out
+	var sellable: Array = _equipment_inventory.items.duplicate()
+	sellable.sort_custom(func(a, b): return a.rarity < b.rarity)
+	for it in sellable:
+		out.append(float(ShopGenerator.item_price(it, game_state.battle_round)) * SALVAGE_RATIO)
+	return out
 
 func _choice_is_gain(effects: Dictionary) -> bool:
 	# Rough good/bad tint for the resolution beat on non-gamble choices.
@@ -3337,7 +3387,7 @@ func _apply_event_effects(effects: Dictionary) -> String:
 		var gi: Dictionary = effects["grant_item"]
 		var granted: Array[String] = []
 		for _i in range(int(gi.get("count", 1))):
-			var item: EquipmentItem = EquipmentManager.generate_item(
+			var item: EquipmentItem = ComponentEquipmentGateway.generate_item(
 					game_state.battle_round, int(gi.get("max_rarity", EquipmentItem.Rarity.RARE)))
 			if item and _equipment_inventory.add_item(item):
 				granted.append(item.name)
@@ -3355,7 +3405,8 @@ func _apply_event_effects(effects: Dictionary) -> String:
 	# the merchant charges for one.
 	if effects.has("destroy_items"):
 		var di: Dictionary = effects["destroy_items"]
-		var gm: float = clampf(float(di.get("grade_mult", 1.0)), 0.6, 1.4)
+		var gm: float = clampf(float(di.get("grade_mult", 1.0)),
+				EventCatalog.SCRAP_GRADE_MIN, EventCatalog.SCRAP_GRADE_MAX)
 		var sellable: Array = _equipment_inventory.items.duplicate()
 		sellable.sort_custom(func(a, b): return a.rarity < b.rarity)
 		var sold: int = 0
@@ -3963,17 +4014,15 @@ func _roll_held_item(unit: VisualUnit) -> void:
 		+ float(Progression.get_bonus("loot_drop_chance")) / 100.0
 	if randf() >= chance:
 		return
-	var item := EquipmentManager.generate_item(game_state.battle_round, EquipmentItem.Rarity.RARE)
-	EquipmentManager.apply_to_unit(unit, item)
+	var item := ComponentEquipmentGateway.generate_item(game_state.battle_round, EquipmentItem.Rarity.RARE)
+	ComponentEquipmentGateway.apply_to_unit(unit, item)
 	unit.held_items.append(item)
 	if unit.health_bar:
 		unit.health_bar.update_hp(unit.current_hp, unit.max_hp)
 		unit.health_bar.update_mp(unit.current_mana, unit.max_mana)
-	var icon_path: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
-	if icon_path != "":
-		var tex: Texture2D = load(icon_path)
-		if tex and unit is VisualUnit:
-			unit.show_held_item_icon(tex, item.icon_color)
+	var tex: Texture2D = GearIcons.icon_for(item)   # legacy art or component composite
+	if tex and unit is VisualUnit:
+		unit.show_held_item_icon(tex, item.icon_color)
 
 # Slot-fill for procedural rounds (keeps existing behaviour)
 func _place_enemy(unit: VisualUnit, roll_item: bool = true) -> void:
@@ -4574,8 +4623,7 @@ func _on_unit_died(unit) -> void:
 		# added to the bag only when a drop actually arrives.
 		if not unit.held_items.is_empty():
 			for held in unit.held_items:
-				var ipath: String = EquipmentManager.ITEM_ICONS.get(held.name, "")
-				var itex: Texture2D = (load(ipath) as Texture2D) if ipath != "" else null
+				var itex: Texture2D = GearIcons.icon_for(held)   # legacy art or component composite
 				if itex and _item_drop_system:
 					_item_drop_system.spawn(unit.position, held, itex, 0.3, held.icon_color)
 				else:
@@ -5528,12 +5576,10 @@ func _rebuild_inventory_grid() -> void:
 			btn.add_theme_stylebox_override("hover", hover_bg)
 
 			# Load icon texture
-			var icon_path: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
-			if icon_path != "":
-				var tex: Texture2D = load(icon_path)
-				if tex:
-					btn.icon = tex
-					btn.expand_icon = true
+			var tex: Texture2D = GearIcons.icon_for(item)   # legacy art or component composite
+			if tex:
+				btn.icon = tex
+				btn.expand_icon = true
 
 			# Passive indicator: tiny gold dot in corner
 			if item.passive_effect != "":
@@ -5835,17 +5881,15 @@ func _create_drag_preview(item: EquipmentItem) -> void:
 	s.corner_radius_bottom_left = 4; s.corner_radius_bottom_right = 4
 	_drag_panel.add_theme_stylebox_override("panel", s)
 
-	var icon_path: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
-	if icon_path != "":
-		var tex: Texture2D = load(icon_path)
-		if tex:
-			var tr := TextureRect.new()
-			tr.texture = tex
-			tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			tr.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			_drag_panel.add_child(tr)
+	var tex: Texture2D = GearIcons.icon_for(item)   # legacy art or component composite
+	if tex:
+		var tr := TextureRect.new()
+		tr.texture = tex
+		tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		tr.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_drag_panel.add_child(tr)
 
 	_drag_layer.add_child(_drag_panel)
 

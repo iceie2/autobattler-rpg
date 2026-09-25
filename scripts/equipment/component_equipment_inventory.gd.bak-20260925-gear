@@ -1,0 +1,77 @@
+extends EquipmentInventory
+class_name ComponentEquipmentInventory
+
+# New-system inventory. The production inventory remains available for old
+# saves and while the feature flag is off.
+const STAT_KEEP := 1.0  # Provisional until two-input arena tuning.
+
+func combine_components(sources: Array[EquipmentItem]) -> ComponentEquipmentItem:
+	if sources.size() != 2 or not (sources[0] is ComponentEquipmentItem) \
+			or not (sources[1] is ComponentEquipmentItem):
+		return null
+	if not items.has(sources[0]) or not items.has(sources[1]):
+		return null
+	var result := ComponentEquipmentRules.combine(
+		sources[0] as ComponentEquipmentItem,
+		sources[1] as ComponentEquipmentItem, STAT_KEEP)
+	if result == null:
+		return null
+	for item in sources:
+		items.erase(item)
+	items.append(result)
+	log_fusion(sources, result.passive_level_count(), result.passives, [])
+	inventory_changed.emit()
+	if auto_combine:
+		_auto_combine_sweep()
+	return result
+
+func _auto_combine_sweep() -> void:
+	while true:
+		var pair: Array[ComponentEquipmentItem] = []
+		for a_index in range(items.size()):
+			var a := items[a_index] as ComponentEquipmentItem
+			if a == null or a.rarity >= EquipmentItem.Rarity.LEGENDARY:
+				continue
+			for b_index in range(a_index + 1, items.size()):
+				var b := items[b_index] as ComponentEquipmentItem
+				if b == null or b.rarity != a.rarity:
+					continue
+				# Auto only joins identical builds. Mixed pairs are a deliberate
+				# manual choice, so an unattended sweep cannot consume them.
+				if a.composition != b.composition or a.passive_levels != b.passive_levels:
+					continue
+				if not ComponentEquipmentRules.can_combine(a, b):
+					continue
+				pair = [a, b]
+				break
+			if not pair.is_empty():
+				break
+		if pair.is_empty():
+			return
+		var result := ComponentEquipmentRules.combine(pair[0], pair[1], STAT_KEEP)
+		items.erase(pair[0])
+		items.erase(pair[1])
+		items.append(result)
+		var sources: Array[EquipmentItem] = [pair[0], pair[1]]
+		log_fusion(sources, result.passive_level_count(), result.passives, [])
+		inventory_changed.emit()
+
+func _apply_equipment_bonuses(unit: UnitBase, item: EquipmentItem) -> void:
+	super._apply_equipment_bonuses(unit, item)
+	unit.magic_resist += int(item.stat_bonus.get("magic_resist", 0))
+	_rebuild_passives(unit)
+
+func _remove_equipment_bonuses(unit: UnitBase, item: EquipmentItem) -> void:
+	super._remove_equipment_bonuses(unit, item)
+	unit.magic_resist -= int(item.stat_bonus.get("magic_resist", 0))
+
+func _rebuild_passives(unit: UnitBase) -> void:
+	unit.equipment_passives.clear()
+	var unit_id := unit.unit_name + "_" + str(unit.get_instance_id())
+	if not hero_equipment.has(unit_id):
+		return
+	for item in hero_equipment[unit_id]:
+		for passive in item.passives:
+			var name: String = str(passive["name"])
+			unit.equipment_passives[name] = float(unit.equipment_passives.get(name, 0.0)) \
+				+ float(passive["value"])

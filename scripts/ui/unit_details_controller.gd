@@ -602,12 +602,10 @@ func _update_bag(unit: UnitBase) -> void:
 			hover_bg.bg_color = item.icon_color.darkened(0.35)
 			btn.add_theme_stylebox_override("hover", hover_bg)
 
-			var icon_path: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
-			if icon_path != "":
-				var tex: Texture2D = load(icon_path)
-				if tex:
-					btn.icon = tex
-					btn.expand_icon = true
+			var tex: Texture2D = GearIcons.icon_for(item)   # legacy art or component composite
+			if tex:
+				btn.icon = tex
+				btn.expand_icon = true
 
 			var captured_item := item
 			# Click to unequip (2026-07-10 user request) — only meaningful for

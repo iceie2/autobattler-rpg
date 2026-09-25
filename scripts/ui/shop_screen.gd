@@ -160,8 +160,9 @@ func _build_ui() -> void:
 	_panel.add_child(scrim)
 
 	# ── Header ──────────────────────────────────────────────────────────────────
-	_title_lbl = _mk_label("THE TRAVELING MERCHANT", 30, Color(1.0, 0.86, 0.45),
-		Vector2(0, 18), Vector2(PANEL_W, 40), true)
+	UITheme.menu_header(_panel, Rect2(205, 10, PANEL_W - 410, 135))
+	_title_lbl = _mk_label("THE TRAVELING MERCHANT", 30, UITheme.menu_title_color(),
+		Vector2(205, 47), Vector2(PANEL_W - 410, 48), true)
 	_title_lbl.add_theme_constant_override("shadow_offset_x", 2)
 	_title_lbl.add_theme_constant_override("shadow_offset_y", 2)
 	_title_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
@@ -208,14 +209,34 @@ func _center_panel() -> void:
 
 # ── Cards ─────────────────────────────────────────────────────────────────────
 func _rebuild_cards() -> void:
-	for c in _card_nodes:
-		if is_instance_valid(c):
-			c.queue_free()
+	for c in _card_row.get_children():
+		c.queue_free()
 	_card_nodes.clear()
 
 	var n := _stock.size()
 	var total_w := n * CARD_W + (n - 1) * CARD_GAP
 	var start_x := (PANEL_W - total_w) / 2.0
+	var sections := [
+		["HEROES", 0, 2], ["STAT UPGRADES", 2, 2],
+		["EQUIPMENT", 4, 2], ["RELICS", 6, 1],
+	]
+	for section in sections:
+		var first: int = section[1]
+		var count: int = mini(section[2], n - first)
+		if count <= 0:
+			continue
+		var sx := start_x + first * (CARD_W + CARD_GAP)
+		var sw := count * CARD_W + (count - 1) * CARD_GAP
+		var heading := Label.new()
+		heading.text = section[0]
+		heading.position = Vector2(sx, -26)
+		heading.size = Vector2(sw, 24)
+		heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		heading.add_theme_font_size_override("font_size", 18)
+		heading.add_theme_color_override("font_color", Color(1.0, 0.88, 0.60))
+		heading.add_theme_color_override("font_shadow_color", Color.BLACK)
+		heading.add_theme_constant_override("shadow_offset_y", 2)
+		_card_row.add_child(heading)
 	for i in range(n):
 		var x := start_x + i * (CARD_W + CARD_GAP)
 		var card := _build_card(_stock[i], i, Vector2(x, 6))
@@ -598,25 +619,19 @@ func _slot_icon(slot: Dictionary) -> Texture2D:
 			if path != "":
 				return load(path) as Texture2D
 		"stat":
-			var key: String = _PERK_ICON.get(slot["perk"].get("id", ""), "")
-			if key != "" and UnitFactory.STAT_ICONS.has(key):
-				return load(UnitFactory.STAT_ICONS[key]) as Texture2D
+			var ptex := LevelUpScreen.perk_icon(str(slot["perk"].get("id", "")))
+			if ptex:
+				return ptex
 		"item":
 			var item: EquipmentItem = slot["item"]
-			var ipath: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
-			if ipath != "":
-				return load(ipath) as Texture2D
+			var itex: Texture2D = GearIcons.icon_for(item)   # legacy art or component composite
+			if itex:
+				return itex
 		"relic":
 			var rpath: String = Relic.icon_path(slot["relic"])
 			if rpath != "":
 				return load(rpath) as Texture2D
 	return null
-
-const _PERK_ICON := {
-	"atk": "atk", "aspd": "aspd", "magic": "magic", "hp": "hp",
-	"res": "res", "regen": "hpregen", "spd": "move",
-	"crit": "crit_chance", "critdmg": "crit_damage",
-}
 
 func _slot_grade_letter(slot: Dictionary) -> String:
 	match slot.get("kind", ""):

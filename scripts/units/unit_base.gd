@@ -219,6 +219,14 @@ var gold_reward: int = 0
 var crystal_reward: int = 0
 var xp_reward: int = 0
 var equipment_passives: Dictionary = {}  # {"PassiveName": effect_value} — built by EquipmentInventory
+# Component equipment (EQUIPMENT_GREEN_PAIRS.md). Only ever non-empty in a
+# ComponentEquipmentGateway run; every GearPassives hook bails on empty levels.
+var gear_levels: Dictionary = {}   # passive key -> summed level L (1..24)
+var gear_items: Array = []         # equipped ComponentEquipmentItems (persistent counters)
+var gear: Dictionary = {}          # per-fight passive state, reset by GearPassives.battle_start
+var gear_shield: int = 0           # item shields (#1/#3/#5): violet, absorbed before current_shield
+var gear_basic_hit: bool = false   # true only while this unit's basic attack resolves
+var ability_haste: int = 0         # League-style haste: skill cooldown x 100/(100+haste)
 
 # Multi-cell size (1 = normal 1×1, 2 = 2×2 boss)
 var cell_size: int = 1
@@ -367,6 +375,7 @@ var times_hit: int = 0
 # shared turn queue. These count DOWN by (delta * time_scale) each frame.
 var attack_cooldown: float = 0.0   # time until this unit's next basic attack
 var skill_cd_time: float = 0.0     # time until the active skill can fire again
+var action_time: float = 0.0       # remaining time in the current attack/skill/ultimate animation
 var stun_time: float = 0.0         # >0 = stunned, no actions
 var rapid_fire_time: float = 0.0   # Headhunter active: +range & double-shot while >0
 var overdrive_time: float = 0.0    # Shauna ultimate: extra attack per swing while >0
@@ -537,6 +546,9 @@ func speed_modifier() -> float:
 		m *= (1.0 - clampf(slow_pct, 0.0, 0.9))
 	if bonus_aspd_time > 0.0:
 		m *= (1.0 + bonus_aspd_pct)
+	if unit_class == UnitClass.BLOODHOUND and frenzy_active:
+		m *= (1.0 + AbilityFormulas.flat(UnitClass.BLOODHOUND,
+				AbilityFormulas.PASSIVE, "aspd"))
 	# Relic "Momentum": attack speed ramps up the longer this fight has gone.
 	if relic_momentum_pct_per_sec > 0.0:
 		m *= (1.0 + minf(relic_momentum_time * relic_momentum_pct_per_sec, 1.0))
@@ -600,6 +612,26 @@ signal attacked(target)
 signal mana_changed(current: int, maximum: int)
 signal took_damage(amount: int, attacker)   # fires only on damage (not heals) → hit reaction
 signal shield_changed(current: int)        # shield value changed (absorbed damage or granted)
+signal ward_changed(hits: int, maximum: int)  # hit-count ward changed (Gargoyle Stone Ward)
+
+# Hit-count ward: each hit is fully blocked and spends one charge, whatever its
+# damage. Separate from current_shield (an HP pool) on purpose.
+const STONE_WARD_HITS := 4
+# Element counters (ELEMENT_COUNTERS.md): which hit elements block a troll_regen
+# user's regen, keyed by ITS element. Never its own element; across the 6 Trolls
+# every element appears exactly twice. Update the doc's tally when editing.
+const REGEN_COUNTERS := {
+	Element.NORMAL:    [Element.FIRE, Element.LIGHTNING],
+	Element.AIR:       [Element.EARTH, Element.WATER],
+	Element.WATER:     [Element.LIGHTNING, Element.EARTH],
+	Element.EARTH:     [Element.WATER, Element.AIR],
+	Element.FIRE:      [Element.AIR, Element.NORMAL],
+	Element.LIGHTNING: [Element.NORMAL, Element.FIRE],
+}
+var ward_hits: int = 0
+var ward_max: int = 0
+# Phoenix Rebirth: >0 while rebuilding from the ashes — immune, can't act.
+var rebirth_time: float = 0.0
 
 func _ready():
 	update_visuals()
@@ -669,6 +701,9 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 	# unit) — skip entirely so we don't re-run die(), on-hit passives, etc. on a corpse.
 	if current_hp <= 0:
 		return
+	# Phoenix Rebirth: nothing lands while it is rebuilding.
+	if rebirth_time > 0.0:
+		return
 	# Evasion: chance to dodge the hit entirely (only applies to direct hits, not DoT/true damage)
 	if not true_damage and amount > 0:
 		var ev: float = equipment_passives.get("Evasion", 0.0)
@@ -680,6 +715,9 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 			return
 
 	var modified_damage := amount
+	# Component equipment: Empty Reservoir / Arcane Precision on skill damage.
+	if attacker is UnitBase and not attacker.gear_levels.is_empty():
+		modified_damage = GearPassives.skill_damage_mult(attacker, self, modified_damage, true_damage)
 	# Attacker's offensive affinity vs THIS unit's element — applied centrally
 	# (2026-07-17) so every non-true damage source scales the same way.
 	if not true_damage and attacker != null and attacker is UnitBase:
@@ -690,6 +728,7 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		# never reaches 100%. Armor vs magic armor picked by the damage type
 		# (2026-07-16 defense split).
 		var armor: int = magic_resist if is_magic else resistance
+		armor = GearPassives.effective_armor(self, armor)   # Spellguard / Sunder
 		modified_damage = int(modified_damage * (100.0 / (100.0 + float(armor))))
 		modified_damage = int(modified_damage * get_defense_multiplier(element))
 	# Relic: fragile-but-deadly picks (e.g. Glass Cannon) raise incoming damage.
@@ -721,6 +760,21 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		if enrage > 1.0:
 			modified_damage = int(modified_damage * enrage)
 
+	# Stone Ward: a whole hit is blocked and spends one charge, big or small.
+	if ward_hits > 0 and modified_damage > 0:
+		ward_hits -= 1
+		ward_changed.emit(ward_hits, ward_max)
+		spawn_damage_text(0, element)
+		times_hit += 1
+		if ward_hits == 0 and battle_manager and battle_manager.has_method("spawn_stone_ward_break"):
+			battle_manager.spawn_stone_ward_break(self)
+		return
+
+	# Component equipment: Bulwark block, then the violet item-shield pool.
+	if not gear.is_empty():
+		modified_damage = GearPassives.pre_shield(self, modified_damage, attacker, true_damage)
+		if modified_damage <= 0:
+			return
 	# Shield absorbs damage before HP
 	if current_shield > 0:
 		var absorbed: int = mini(current_shield, modified_damage)
@@ -731,15 +785,31 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 			spawn_damage_text(absorbed, element)
 			return   # fully blocked — no HP lost, no signals
 
+	if not gear_levels.is_empty():
+		modified_damage = GearPassives.post_shield(self, modified_damage, attacker, true_damage)
+		if modified_damage <= 0:
+			return
 	spawn_damage_text(modified_damage, element, is_crit)
 
+	var gear_pre_hp: int = current_hp
 	current_hp = max(0, current_hp - modified_damage)   # setter emits health_changed
-	# Troll "Regeneration" counterplay: a Fire or Lightning hit shuts its passive
+	# Troll "Regeneration" counterplay: a hit of one of its two REGEN_COUNTERS
+	# elements (per Troll element) shuts its passive
 	# regen off for a couple seconds (ticked down in AutoBattleManager). Element is
 	# only known here, so the flag is set at the damage site rather than in the tick.
-	if not true_damage and (element == Element.FIRE or element == Element.LIGHTNING) \
-			and has_meta("mob_passive") and str(get_meta("mob_passive")) == "troll_regen":
+	if not true_damage and has_meta("mob_passive") and str(get_meta("mob_passive")) == "troll_regen" \
+			and element in REGEN_COUNTERS.get(current_element, []):
 		set_meta("troll_regen_block_t", 2.0)
+	# Stone Ward trigger: the hit that crosses 50% still lands in full; the ward
+	# covers the NEXT hits. A hit that kills outright never raises it.
+	if current_hp > 0 and current_hp * 2 <= max_hp and not has_meta("ward_used") \
+			and has_meta("mob_passive") and str(get_meta("mob_passive")) == "gargoyle_ward":
+		set_meta("ward_used", true)
+		ward_max = STONE_WARD_HITS
+		ward_hits = STONE_WARD_HITS
+		ward_changed.emit(ward_hits, ward_max)
+		if battle_manager and battle_manager.has_method("spawn_stone_ward"):
+			battle_manager.spawn_stone_ward(self)
 	times_hit += 1
 	took_damage.emit(modified_damage, attacker)   # drives the hit reaction (flash + recoil)
 	_charge_ultimate(modified_damage)
@@ -757,7 +827,11 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		# main_game's death-cause tracker so the run export can say what ended it.
 		if attacker != null and attacker is UnitBase:
 			last_killed_by = str(attacker.unit_name)
+		GearPassives.on_death(self)
 		die()
+	if not gear.is_empty() or (attacker is UnitBase and is_instance_valid(attacker) 			and not attacker.gear.is_empty()):
+		GearPassives.after_hit(self, attacker, mini(modified_damage, gear_pre_hp),
+			modified_damage, gear_pre_hp, is_crit, true_damage)
 
 # (The old hardcoded 1.5x rock-paper-scissors matchup table lived here until
 # the 2026-07-16 affinity rework — elemental interaction is now entirely
@@ -775,6 +849,11 @@ func heal(amount: int, silent: bool = false) -> void:
 	# sustain route in the game instead of patching each heal source.
 	if heal_cut_time > 0.0:
 		amount = int(round(float(amount) * AutoBattleManager.DROWNED_HEAL_MULT))
+		if amount <= 0:
+			return
+	# Deep Wound (component equipment) cuts healing received.
+	if not gear.is_empty():
+		amount = GearPassives.heal_received(self, amount)
 		if amount <= 0:
 			return
 	var before: int = current_hp
@@ -849,7 +928,8 @@ func level_up(allow_past_cap: bool = false) -> void:
 		return
 	level += 1
 	apply_stat_growth()
-	current_hp = max_hp
+	# Leveling restores half of missing health instead of fully refilling it.
+	current_hp += int(ceil(float(max_hp - current_hp) * 0.5))
 	current_mana = max_mana
 	leveled_up.emit(level)
 
@@ -912,9 +992,13 @@ func attack(target) -> void:
 	# did_crit drives the gold/oversized/wobble crit floating text (DamageText).
 	# Both the generic crit stat and the Headhunter 7th-hit triple are "crits" visually.
 	var did_crit := false
-	if crit_chance > 0.0 and randf() < crit_chance:
-		damage = int(damage * crit_damage)
+	# Component equipment crit sources (Desperation, Critical Focus,
+	# Counterstrike) add here; both bonuses are 0 for a unit without gear.
+	var roll_chance: float = crit_chance + GearPassives.crit_bonus(self)
+	if roll_chance > 0.0 and randf() < roll_chance:
+		damage = int(damage * (crit_damage + GearPassives.crit_damage_bonus(self)))
 		did_crit = true
+	GearPassives.on_attack_roll(self)
 	# Relic "First Strike": the first attack each fight is a guaranteed crit.
 	if relic_first_strike_crit and not relic_first_strike_used:
 		relic_first_strike_used = true
@@ -962,6 +1046,15 @@ func attack(target) -> void:
 	# June's strike is a two-beat lash: her LEFT hand leads to peak reach at 23%
 	# of the clip and the right follows at 48% (measured on june_v002.glb with
 	# measure_june_contact.py). Damage resolves on the lead contact.
+	# Bouncer's rubber punch: the hit lands when the drawn glove reaches the
+	# target (RubberArm.contact_time(): 0.19 launch + 0.07 out), not at wind-up.
+	if unit_class == UnitClass.BOUNCER and battle_manager \
+			and battle_manager.has_method("begin_bouncer_auto"):
+		battle_manager.begin_bouncer_auto(self, target, damage, did_crit, is_true_dmg,
+			BOUNCER_PUNCH_CONTACT)
+		pending_attack_log_damage += damage
+		attacked.emit(target)
+		return
 	if unit_class == UnitClass.JUNE and battle_manager \
 			and battle_manager.has_method("begin_june_auto"):
 		battle_manager.begin_june_auto(self, target, damage, did_crit, is_true_dmg,
@@ -982,12 +1075,16 @@ func attack(target) -> void:
 
 	# Bouncer is a melee brawler despite having range 2 (grab/pull reach) — no projectile.
 	if attack_range > 1 and unit_class != UnitClass.BOUNCER:
+		gear_basic_hit = true   # stamps the projectile as a basic attack
 		spawn_projectile(target, damage, false, did_crit, is_seventh_shot, is_true_dmg)
+		gear_basic_hit = false
 		pending_attack_log_damage += damage   # intended damage (mitigated on hit)
 	else:
 		var pre_hp: int = target.current_hp
 		var was_alive: bool = pre_hp > 0
+		gear_basic_hit = true
 		target.take_damage(damage, current_element, self, is_true_dmg, ant_bonus_dmg, false, did_crit)
+		gear_basic_hit = false
 		var actual: int = max(0, pre_hp - target.current_hp)
 		damage_dealt += actual
 		pending_attack_log_damage += actual
@@ -1003,6 +1100,7 @@ func apply_relic_on_hit(target, actual: int, was_alive: bool) -> void:
 		return
 	if relic_lifesteal > 0.0:
 		heal(int(round(actual * relic_lifesteal)))
+	apply_bloodhound_frenzy_lifesteal(actual)
 	if relic_on_kill_atk > 0.0 and was_alive and target is UnitBase and target.current_hp <= 0:
 		attack_damage = maxi(1, int(round(attack_damage * (1.0 + relic_on_kill_atk))))
 	if relic_ult_refund_kill > 0.0 and was_alive and target is UnitBase and target.current_hp <= 0 \
@@ -1010,6 +1108,12 @@ func apply_relic_on_hit(target, actual: int, was_alive: bool) -> void:
 		ultimate_charge = mini(ultimate_charge_max, ultimate_charge + int(round(ultimate_charge_max * relic_ult_refund_kill)))
 		if ultimate_charge >= ultimate_charge_max:
 			ultimate_ready = true
+
+func apply_bloodhound_frenzy_lifesteal(actual: int) -> void:
+	if actual <= 0 or unit_class != UnitClass.BLOODHOUND or not frenzy_active:
+		return
+	heal(int(round(actual * AbilityFormulas.flat(UnitClass.BLOODHOUND,
+			AbilityFormulas.PASSIVE, "lifesteal"))))
 
 func _charge_ultimate(amount: int) -> void:
 	if ultimate_charge_max <= 0 or ultimate_ready or ult_active_time > 0.0:
@@ -1051,6 +1155,21 @@ func set_level(target_level: int) -> void:
 ## same number instead of two hand-tuned ones that drift apart.
 const SEAR_MUZZLE_FRAC := 0.30
 
+## Goblin Archer (goblin_v010.glb `attack_bow`): the string is released on
+## frame 10 of 20. The clip is played timed to one attack interval and the arrow
+## waits for that frame, so the shot and the arrow cannot drift apart. Both use
+## REAL seconds (the projectile's hold and the clip run on frame delta, while
+## combat runs at time_scale), hence goblin_shot_seconds() divides it out.
+const GOBLIN_ARROW_RELEASE_FRAC := 0.5
+
+## Battle seconds from Bouncer's attack to the glove landing — must equal
+## RubberArm launch_delay + out_time (0.19 + 0.07).
+const BOUNCER_PUNCH_CONTACT := 0.26
+
+func goblin_shot_seconds() -> float:
+	var ts: float = battle_manager.time_scale if battle_manager else 1.0
+	return (1.0 / maxf(attacks_per_second, 0.01)) / maxf(ts, 0.05)
+
 const PROJECTILE_MUZZLE_DELAY := {
 	UnitClass.HEADHUNTER: 0.83,   # attack.json: 12fps, flash starts ~frame 10
 }
@@ -1069,6 +1188,7 @@ func spawn_projectile(target, damage: int, is_magic: bool = false, is_crit: bool
 	projectile.is_seventh_shot = is_seventh_shot
 	projectile.is_true_damage = is_true_dmg
 	projectile.caster = self   # so on_reach_target can credit damage_dealt
+	projectile.is_basic_auto = gear_basic_hit
 	projectile.is_goblin_arrow = str(get_meta("sprite_folder", "")) == "goblin_archer"
 	projectile.is_goblin_shaman_orb = str(get_meta("sprite_folder", "")).begins_with("goblin_shaman_")
 	projectile.is_vail_gust = unit_class == UnitClass.VAIL
@@ -1084,6 +1204,8 @@ func spawn_projectile(target, damage: int, is_magic: bool = false, is_crit: bool
 			muzzle.setup_point(VailVFX.Mode.GUST_MUZZLE, global_position, 0.30, self)
 	projectile.focus_stacks = int(get_meta("ff_stacks", 0)) if projectile.is_goblin_arrow else 0
 	projectile.spawn_delay = PROJECTILE_MUZZLE_DELAY.get(unit_class, 0.0)
+	if projectile.is_goblin_arrow:
+		projectile.spawn_delay = goblin_shot_seconds() * GOBLIN_ARROW_RELEASE_FRAC
 	if unit_class == UnitClass.STATIC:
 		projectile.is_static_arc = true
 		projectile.speed = 900.0
@@ -1152,6 +1274,11 @@ func spawn_crippling_arrow(target, damage: int, slow_pct: float, slow_duration: 
 	projectile.slow_pct = slow_pct
 	projectile.slow_duration = slow_duration
 	projectile.speed = 720.0
+	# Same bow shot as his auto (it used to fire with no body motion at all):
+	# play the draw, release the arrow on the string frame.
+	if has_method("play_goblin_bow_shot"):
+		call("play_goblin_bow_shot", target)
+		projectile.spawn_delay = goblin_shot_seconds() * GOBLIN_ARROW_RELEASE_FRAC
 	battle_manager.add_projectile(projectile)
 
 func die() -> void:

@@ -1,0 +1,59 @@
+extends SceneTree
+
+func _initialize() -> void:
+	var rules := ComponentEquipmentRules
+	var greens: Array[ComponentEquipmentItem] = []
+	for i in range(8):
+		var atk := rules.create_common("atk", {"atk": 5})
+		var hp := rules.create_common("hp", {"hp": 50})
+		var green := rules.combine(atk, hp)
+		assert(green != null)
+		assert(green.passive_levels.get("Lifesteal") == 1)
+		assert(green.component_count() == 2)
+		greens.append(green)
+	var tier: Array[ComponentEquipmentItem] = greens
+	for expected_level in [2, 4, 8]:
+		var next_tier: Array[ComponentEquipmentItem] = []
+		for i in range(0, tier.size(), 2):
+			var result := rules.combine(tier[i], tier[i + 1])
+			assert(result != null)
+			assert(result.passive_levels.get("Lifesteal") == expected_level)
+			assert(result.passive_level_count() == expected_level)
+			assert(result.component_count() == expected_level * 2)
+			next_tier.append(result)
+		tier = next_tier
+	assert(tier.size() == 1)
+	assert(tier[0].rarity == EquipmentItem.Rarity.LEGENDARY)
+	assert(tier[0].stat_bonus["atk"] == 40)
+	assert(tier[0].stat_bonus["hp"] == 400)
+	assert(tier[0].passives.size() == 1)
+	assert(is_equal_approx(float(tier[0].passives[0]["value"]), 0.4))
+	assert("Lv.8" in str(tier[0].get_passive_lines()[0]))
+
+	var defense_a := rules.create_common("hp")
+	var defense_b := rules.create_common("res")
+	var thorns := rules.combine(defense_a, defense_b)
+	var lifesteal := rules.combine(rules.create_common("atk"), rules.create_common("hp"))
+	var mixed := rules.combine(thorns, lifesteal)
+	assert(mixed != null)
+	assert(mixed.passive_levels.get("Thorns") == 1)
+	assert(mixed.passive_levels.get("Lifesteal") == 1)
+	assert(mixed.passive_level_count() == 2)
+	var regen := rules.combine(rules.create_common("magic"), rules.create_common("hp"))
+	assert(regen != null)
+	assert(regen.passive_levels.get("Regeneration") == 1)
+	assert(rules.combine(rules.create_common("atk"), rules.create_common("atk")) == null)
+	for rarity in range(5):
+		var drop := rules.generate_item(10, rarity)
+		assert(drop != null)
+		assert(drop.rarity == rarity)
+		assert(drop.component_count() == rules.COMPONENTS_BY_RARITY[rarity])
+		assert(drop.passive_level_count() == rules.PASSIVE_LEVELS_BY_RARITY[rarity])
+		var restored := rules.from_dict(rules.to_dict(drop))
+		assert(restored != null)
+		assert(restored.composition == drop.composition)
+		assert(restored.passive_levels == drop.passive_levels)
+		assert(restored.stat_bonus == drop.stat_bonus)
+		assert(restored.passives == drop.passives)
+	print("COMPONENT_EQUIPMENT_PROBE: PASSED")
+	quit()

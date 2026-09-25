@@ -85,7 +85,39 @@ var mp_max:         float = 1.0
 var ult_current:    float = 0.0
 var ult_max:        float = 1.0
 var shield_current: float = 0.0
+# Hit-count ward (Gargoyle Stone Ward): drawn as N pips over the HP bar, one
+# per hit it will still block. Hidden when ward_max is 0.
+var ward_hits: int = 0
+var ward_max: int = 0
+const WARD_FILL := Color(0.72, 0.95, 1.0, 0.85)   # GargoyleVFX SEAM — same cool stone
+const WARD_SPENT := Color(0.10, 0.12, 0.14, 0.55)
 var mp_is_skill_cooldown: bool = false
+# Component equipment (GearPassives): item shields draw as ONE violet segment
+# after the cyan skill shield; stack passives show up to 5 pips under the bar;
+# Battle Haste shows its persistent kill count as a small badge.
+const GEAR_SHIELD_COLOR := Color(0.69, 0.42, 1.0, 0.78)   # #B06CFF
+var gear_shield_current: float = 0.0
+var gear_pips: int = 0
+var gear_pip_max: int = 0
+var gear_pip_color: Color = Color.WHITE
+var gear_badge: String = ""
+
+func set_gear_shield(current: float) -> void:
+	if current != gear_shield_current:
+		gear_shield_current = current
+		queue_redraw()
+
+func set_gear_pips(n: int, maximum: int, color: Color) -> void:
+	if n != gear_pips or maximum != gear_pip_max or color != gear_pip_color:
+		gear_pips = n
+		gear_pip_max = maximum
+		gear_pip_color = color
+		queue_redraw()
+
+func set_gear_badge(text: String) -> void:
+	if text != gear_badge:
+		gear_badge = text
+		queue_redraw()
 
 # Same bars as the sidebar Team Status (2026-07-05, user request) — the
 # beveled strip fills and dark track come from UITheme.stat_bar_*, the single
@@ -167,6 +199,11 @@ func update_shield(current: float, hp_max_ref: float) -> void:
 		hp_max = hp_max_ref
 	queue_redraw()
 
+func update_ward(hits: int, maximum: int) -> void:
+	ward_hits = hits
+	ward_max = maximum if hits > 0 else 0   # broken ward disappears
+	queue_redraw()
+
 func _draw() -> void:
 	var hp_h: float = _hp_h()
 	var hp_width: float = _draw_hp_tiles(hp_h)
@@ -183,6 +220,16 @@ func _draw() -> void:
 	if shield_current > 0.0:
 		var sh_pct: float = clamp(shield_current / max(hp_max, 1.0), 0.0, 1.0)
 		draw_rect(Rect2(-hp_width / 2.0, 0.0, hp_width * sh_pct, hp_h), Color(0.20, 0.90, 1.0, 0.72))
+	if gear_shield_current > 0.0:
+		var used: float = clamp(shield_current / max(hp_max, 1.0), 0.0, 1.0) if shield_current > 0.0 else 0.0
+		var g_pct: float = clamp(gear_shield_current / max(hp_max, 1.0), 0.0, 1.0 - used)
+		draw_rect(Rect2(-hp_width / 2.0 + hp_width * used, 0.0, hp_width * g_pct, hp_h), GEAR_SHIELD_COLOR)
+	if ward_max > 0:
+		var pip_gap: float = 2.0
+		var pip_w: float = (hp_width - pip_gap * (ward_max - 1)) / float(ward_max)
+		for i in ward_max:
+			var px: float = -hp_width / 2.0 + i * (pip_w + pip_gap)
+			draw_rect(Rect2(px, 0.0, pip_w, hp_h), WARD_FILL if i < ward_hits else WARD_SPENT)
 	_draw_hp_number(hp_width, hp_h)
 
 	# MP/ult strips match the HP bar's drawn width (a fixed 70px used to stick
@@ -198,6 +245,17 @@ func _draw() -> void:
 		var ult_pct: float = clamp(ult_current / ult_max, 0.0, 1.0)
 		var ult_fill: StyleBoxTexture = _sb_ult_ready if ult_current >= ult_max else _sb_ult
 		_draw_bar(sub_x, sub_y, sub_height, ult_pct, ult_fill, hp_width)
+		sub_y += sub_height + gap
+	if gear_pip_max > 0:
+		var pgap: float = 2.0
+		var pw: float = minf(8.0, (hp_width - pgap * (gear_pip_max - 1)) / float(gear_pip_max))
+		for i in gear_pip_max:
+			var col: Color = gear_pip_color if i < gear_pips else Color(0.1, 0.1, 0.12, 0.6)
+			draw_rect(Rect2(sub_x + i * (pw + pgap), sub_y, pw, 3.0), col)
+	if gear_badge != "":
+		var bf := ThemeDB.fallback_font
+		draw_string_outline(bf, Vector2(hp_width / 2.0 + 3.0, hp_h), gear_badge, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color(0, 0, 0, 0.9))
+		draw_string(bf, Vector2(hp_width / 2.0 + 3.0, hp_h), gear_badge, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 0.78, 0.2))
 
 # Tiled HP bar: a fixed-width left/right cap sandwiching (hp_max / SEGMENT_HP)
 # repeating body segments (fractional segments render at partial width, e.g.

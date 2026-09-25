@@ -110,6 +110,9 @@ const REWARD_BADGE_SCALE := 2.5
 # Node size on maps with a 5-wide row (VD-14). The badge scales with it, since
 # it is part of the node — see _layout().
 const NODE_SCALE_WIDE := 0.85
+# Every node, on every map (owner, 2026-09-24: "turn all nodes size down to
+# .9x it just feels so cramped"). Stacks with NODE_SCALE_WIDE.
+const NODE_SCALE_ALL := 0.9
 # …and where it sits: pinned to the node's rim at the top-right, hanging mostly
 # OUTSIDE the disc so it stops covering the creature. OUTSET is how far past the
 # rim the badge's centre sits, in badge radii — 0 would straddle the rim half
@@ -192,6 +195,7 @@ const TIP_MUTED := Color(0.66, 0.64, 0.59)
 var _overlay:   ColorRect
 var _backdrop:  TextureRect          # the biome plate behind the path
 var _panel:     Panel
+var _header:    TextureRect
 var _panel_size: Vector2 = Vector2(PANEL_W, PANEL_H)
 # Live layout, recomputed per present() from the panel's real size. The map is
 # now viewport-sized and rows are 2-4 wide, so spacing can't be constant.
@@ -296,6 +300,8 @@ var _tip_board: Control              # mini enemy formation, see _draw_mini_boar
 var _tip_formation: Array = []       # what that control is currently drawing
 var _tip_grid_w: int = 9
 var _tip_ground: String = ""      # decade ground tile behind the mini board
+var _tip_unit_name: PanelContainer
+var _tip_unit_name_label: Label
 
 var _map: RunMap = null
 var _buttons: Dictionary = {}        # node_id -> Button
@@ -412,6 +418,9 @@ func _layout() -> void:
 	_panel.size = _panel_size
 	_backdrop.size = _panel_size
 	_backdrop.position = Vector2.ZERO
+	var header_w: float = minf(1100.0, maxf(500.0, _panel_size.x - 300.0))
+	_header.position.x = (_panel_size.x - header_w) * 0.5
+	_header.size.x = header_w
 	_title.size.x = _panel_size.x
 	_sub.size.x = _panel_size.x
 	_board_btn.position = Vector2(_panel_size.x - _board_btn.size.x - 24.0, 20.0)
@@ -444,7 +453,7 @@ func _layout() -> void:
 	# "im okay with making the nodes like 80-90% size so 5 can fit better").
 	# Maps without one keep full-size nodes — big discs are what make the
 	# silhouettes readable, so they're only given up where the room is needed.
-	_node_scale = NODE_SCALE_WIDE if widest >= 5 else 1.0
+	_node_scale = (NODE_SCALE_WIDE if widest >= 5 else 1.0) * NODE_SCALE_ALL
 	_node_r = clampf(_stage_gap * 0.34, 22.0, 52.0) * _node_scale
 	# Reserve the node's own radius at BOTH ends before dividing, plus a little
 	# over for the pips that hang below a fight disc. Dividing the raw height (as
@@ -470,7 +479,7 @@ func _build_ui() -> void:
 	add_child(_overlay)
 
 	_panel = Panel.new()
-	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+	_panel.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 	_panel.size = _panel_size
 	_overlay.add_child(_panel)
 
@@ -481,11 +490,12 @@ func _build_ui() -> void:
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_backdrop.modulate = BACKDROP_DIM
 	_panel.add_child(_backdrop)
+	_header = UITheme.menu_header(_panel, Rect2(150, 4, 580, 78))
 
-	_title = _lbl(_panel, "", UITheme.FONT_HEADER, UITheme.TEXT_HEADER,
-		Vector2(0, 18), Vector2(PANEL_W, 30))
-	_sub = _lbl(_panel, "", UITheme.FONT_BODY, UITheme.TEXT_BODY,
-		Vector2(0, 50), Vector2(PANEL_W, 24))
+	_title = _lbl(_panel, "", UITheme.FONT_HEADER + 8, UITheme.menu_title_color(),
+		Vector2(0, 11), Vector2(PANEL_W, 38))
+	_sub = _lbl(_panel, "", UITheme.FONT_BODY + 2, UITheme.menu_subtitle_color(),
+		Vector2(0, 47), Vector2(PANEL_W, 26))
 
 	# ── Step off the map to look at your own board ───────────────────────────
 	# The map now tells you what formation you'd be walking into, which is only
@@ -649,9 +659,29 @@ func _build_ui() -> void:
 	_tip_board = Control.new()
 	_tip_board.visible = false
 	_tip_board.custom_minimum_size = Vector2(BOARD_W, BOARD_H)
-	_tip_board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tip_board.mouse_filter = Control.MOUSE_FILTER_STOP
 	_tip_board.draw.connect(_draw_mini_board)
+	_tip_board.gui_input.connect(_on_mini_board_gui_input)
+	_tip_board.mouse_exited.connect(_clear_mini_board_hover)
 	box.add_child(_tip_board)
+	_tip_unit_name = PanelContainer.new()
+	_tip_unit_name.visible = false
+	_tip_unit_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var name_style := StyleBoxFlat.new()
+	name_style.bg_color = Color(0.08, 0.07, 0.10, 0.96)
+	name_style.border_color = Color(0.82, 0.69, 0.36, 0.95)
+	name_style.set_border_width_all(1)
+	name_style.set_corner_radius_all(3)
+	name_style.content_margin_left = 8
+	name_style.content_margin_right = 8
+	name_style.content_margin_top = 3
+	name_style.content_margin_bottom = 3
+	_tip_unit_name.add_theme_stylebox_override("panel", name_style)
+	_tip_board.add_child(_tip_unit_name)
+	_tip_unit_name_label = Label.new()
+	UITheme.apply_font(_tip_unit_name_label, UITheme.FONT_BODY)
+	_tip_unit_name_label.add_theme_color_override("font_color", TIP_TEXT)
+	_tip_unit_name.add_child(_tip_unit_name_label)
 
 	# The commit, spelled out on the card. Clicking the node again does the same
 	# thing; this is the half of it that is visible to someone who has just
@@ -968,13 +998,18 @@ func _draw_map() -> void:
 			# A lifted node casts a soft shadow a few pixels below it. _draw has
 			# no blur, so "soft" is three stacked discs of falling alpha — at
 			# this size that is indistinguishable from a real feathered shadow.
-			# EVENTS STAND BARE (owner, 2026-09-24: "for the events there should
-			# be no button and make them a bit larger"). The lantern is drawn on
-			# its own — no disc, no rim, no grade ring — at roughly the old disc's
-			# footprint. Only once real art exists; the glyph fallback still needs
-			# its disc to be legible.
-			var bare: bool = int(node["type"]) == RunMap.NodeType.EVENT \
-				and _node_icon(node) != null
+			# Event, merchant and camp art stands bare on the map — no disc, rim or
+			# grade ring. The glyph fallback keeps its disc so it stays legible.
+			var node_type: int = int(node["type"])
+			var utility_node: bool = node_type in [RunMap.NodeType.EVENT, \
+				RunMap.NodeType.MERCHANT, RunMap.NodeType.CAMP]
+			# Fight nodes stand bare too (owner, 2026-09-24: "get rid of the black
+			# background on the monster camps. just showing the icons like we do
+			# for events/camps/shop"). The creature keeps a thin dark outline
+			# instead of a disc so it still reads on the painted grass.
+			var fight_art: bool = RunMap.is_battle_node(node) \
+				and _node_icon(node) != null and _is_silhouette(node)
+			var bare: bool = (utility_node and _node_icon(node) != null) or fight_art
 			if lift > 0.01 and not bare:
 				for i in range(3):
 					_canvas.draw_circle(pos + Vector2(0.0, 5.0 * lift),
@@ -1095,12 +1130,21 @@ func _draw_map() -> void:
 					var mask: Texture2D = _silhouette_mask(icon)
 					var aspect: float = icon.get_width() \
 						/ maxf(1.0, float(icon.get_height()))
-					var sh: float = minf(r * 1.7, (r * 1.8) / maxf(0.01, aspect))
+					# Bare creatures fill the old disc's footprint, not its inside.
+					var fit_h: float = r * (2.1 if bare else 1.7)
+					var fit_w: float = r * (2.3 if bare else 1.8)
+					var sh: float = minf(fit_h, fit_w / maxf(0.01, aspect))
 					var sw: float = sh * aspect
 					var body := Rect2(pos - Vector2(sw, sh) * 0.5, Vector2(sw, sh))
 					var tier: Color = gcol if (is_next or is_here) \
 						else gcol.darkened(0.35)
-					if mask:
+					if mask and bare:
+						var ink := Color(0.03, 0.03, 0.05, 0.9 * visibility)
+						for o in [Vector2(2, 0), Vector2(-2, 0), Vector2(0, 2), Vector2(0, -2)]:
+							_canvas.draw_texture_rect(mask, Rect2(body.position + o, body.size),
+								false, ink)
+						_canvas.draw_texture_rect(mask, body, false, tier)
+					elif mask:
 						_canvas.draw_circle(pos, r,
 							Color(0.05, 0.05, 0.07, 0.95 * visibility))
 						_canvas.draw_texture_rect(mask, body, false, tier)
@@ -1109,13 +1153,18 @@ func _draw_map() -> void:
 						_canvas.draw_texture_rect(icon, body, false,
 							Color(0.05, 0.05, 0.07, 0.95 * visibility))
 				else:
-					var side: float = r * (2.2 if bare else 1.45)
+					var utility_icon_scale: float = 1.2 if node_type == RunMap.NodeType.EVENT \
+						else (1.3 if node_type in [RunMap.NodeType.MERCHANT, RunMap.NodeType.CAMP] else 1.0)
+					var side: float = r * (2.2 if bare else 1.45) * utility_icon_scale
 					_canvas.draw_texture_rect(icon,
 						Rect2(pos - Vector2(side, side) * 0.5, Vector2(side, side)),
 						false, gcol)
 			else:
 				var glyph: String = String(GLYPHS.get(int(node["type"]), "?"))
-				var gsize: int = UITheme.FONT_HEADER
+				var glyph_type: int = int(node["type"])
+				var utility_glyph_scale: float = 1.2 if glyph_type == RunMap.NodeType.EVENT \
+					else (1.3 if glyph_type in [RunMap.NodeType.MERCHANT, RunMap.NodeType.CAMP] else 1.0)
+				var gsize: int = roundi(UITheme.FONT_HEADER * utility_glyph_scale)
 				var gw: float = font.get_string_size(glyph, HORIZONTAL_ALIGNMENT_LEFT,
 					-1, gsize).x
 				_canvas.draw_string(font, pos + Vector2(-gw * 0.5, gsize * 0.36), glyph,
@@ -1253,13 +1302,10 @@ func _draw_mini_board() -> void:
 	# The units themselves, drawn at their cells. No health bars and no ENEMY
 	# ZONE label: this is a preview of the fight, not a copy of the HUD.
 	for e in _tip_formation:
-		var span: float = 2.0 if bool(e.get("large", false)) else 1.0
-		var gy2: int = clampi(int(e["y"]), 0, BOARD_ROWS - int(span))
-		var foot := origin + Vector2((float(e["x"]) + span * 0.5) * cell,
-			(float(gy2) + span) * cell)
 		var tex: Texture2D = _tex(String(e.get("sprite", "")))
+		var sprite_rect: Rect2 = _mini_unit_rect(e, cell, origin)
 		if tex == null:
-			_tip_board.draw_circle(foot - Vector2(0, cell * 0.3), cell * 0.26 * span,
+			_tip_board.draw_circle(sprite_rect.get_center(), sprite_rect.size.x * 0.5,
 				Color(0.72, 0.70, 0.66))
 			continue
 		# Sized by HEIGHT ONLY, exactly the way the real board does it
@@ -1273,11 +1319,47 @@ func _draw_mini_board() -> void:
 		# that disagrees with the board about how big things are is worse than no
 		# preview, so wide bodies are allowed to overlap their neighbours here
 		# exactly as they do in play; the cap below only stops something absurd.
-		var aspect: float = tex.get_width() / maxf(1.0, float(tex.get_height()))
-		var h: float = cell * span * 0.94
-		var w: float = minf(h * aspect, cell * span * 2.2)
-		_tip_board.draw_texture_rect(tex,
-			Rect2(foot - Vector2(w * 0.5, h), Vector2(w, h)), false)
+		_tip_board.draw_texture_rect(tex, sprite_rect, false)
+
+func _mini_unit_rect(e: Dictionary, cell: float, origin: Vector2) -> Rect2:
+	var span: float = 2.0 if bool(e.get("large", false)) else 1.0
+	var gy: int = clampi(int(e["y"]), 0, BOARD_ROWS - int(span))
+	var foot := origin + Vector2((float(e["x"]) + span * 0.5) * cell,
+		(float(gy) + span) * cell)
+	var tex: Texture2D = _tex(String(e.get("sprite", "")))
+	if tex == null:
+		var radius: float = cell * 0.26 * span
+		var fallback_center: Vector2 = foot - Vector2(0, cell * 0.3)
+		return Rect2(fallback_center - Vector2.ONE * radius, Vector2.ONE * radius * 2.0)
+	var aspect: float = tex.get_width() / maxf(1.0, float(tex.get_height()))
+	var height: float = cell * span * 0.94
+	var width: float = minf(height * aspect, cell * span * 2.2)
+	return Rect2(foot - Vector2(width * 0.5, height), Vector2(width, height))
+
+func _on_mini_board_gui_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseMotion):
+		return
+	var motion := event as InputEventMouseMotion
+	var cell: float = minf(_tip_board.size.x / float(maxi(1, _tip_grid_w)),
+		_tip_board.size.y / float(BOARD_ROWS))
+	var origin := Vector2((_tip_board.size.x - cell * _tip_grid_w) * 0.5, 2.0)
+	for i in range(_tip_formation.size() - 1, -1, -1):
+		var formation: Dictionary = _tip_formation[i]
+		if _mini_unit_rect(formation, cell, origin).has_point(motion.position):
+			_tip_unit_name_label.text = String(formation.get("name", "Enemy"))
+			_tip_unit_name.reset_size()
+			_tip_unit_name.size = _tip_unit_name.get_combined_minimum_size()
+			var tip_pos: Vector2 = motion.position + Vector2(10, -_tip_unit_name.size.y - 8)
+			tip_pos.x = clampf(tip_pos.x, 0.0, maxf(0.0, _tip_board.size.x - _tip_unit_name.size.x))
+			tip_pos.y = clampf(tip_pos.y, 0.0, maxf(0.0, _tip_board.size.y - _tip_unit_name.size.y))
+			_tip_unit_name.position = tip_pos
+			_tip_unit_name.visible = true
+			return
+	_clear_mini_board_hover()
+
+func _clear_mini_board_hover() -> void:
+	if _tip_unit_name:
+		_tip_unit_name.visible = false
 
 # `full` is kept in the signature for call sites but no longer gates anything:
 # EVERY node shows its whole card, from anywhere on the map (owner call).
@@ -1302,8 +1384,8 @@ func _draw_mini_board() -> void:
 # cursor that summoned it, so a STOP row anywhere in it would swallow the single
 # click meant for the node underneath, which is the whole point of the dwell.
 func _make_tip_click_through(n: Node) -> void:
-	if n == _tip_action:
-		return                      # the one child that MUST take the mouse
+	if n == _tip_action or n == _tip_board:
+		return                      # action button and mini-board hover MUST take input
 	if n is Control:
 		(n as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for child in n.get_children():
@@ -1860,7 +1942,7 @@ func _reward_icon(reward: Dictionary) -> Texture2D:
 			var item: EquipmentItem = reward.get("item")
 			if item == null:
 				return null
-			return _tex(String(EquipmentManager.ITEM_ICONS.get(item.name, "")))
+			return GearIcons.icon_for(item)   # legacy art or component composite
 		RoundReward.Type.STAT_BONUS:
 			var perk: Dictionary = reward.get("perk", {})
 			var key: String = String(LevelUpScreen.PERK_ICON_KEY.get(

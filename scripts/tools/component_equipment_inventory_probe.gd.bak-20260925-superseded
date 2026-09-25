@@ -1,0 +1,50 @@
+extends Node
+
+func _ready() -> void:
+	var inv := ComponentEquipmentInventory.new()
+	add_child(inv)
+	var atk := ComponentEquipmentRules.create_common("atk")
+	var hp := ComponentEquipmentRules.create_common("hp")
+	assert(inv.add_item(atk))
+	assert(inv.add_item(hp))
+	var selected: Array[EquipmentItem] = [atk, hp]
+	var green := inv.combine_components(selected)
+	assert(green != null)
+	assert(inv.items.size() == 1)
+	assert(inv.items[0] == green)
+	assert(green.passive_levels.get("Lifesteal") == 1)
+
+	var second := ComponentEquipmentRules.combine(
+		ComponentEquipmentRules.create_common("atk"),
+		ComponentEquipmentRules.create_common("hp"))
+	assert(inv.add_item(second))
+	inv.set_auto_combine(true)
+	assert(inv.items.size() == 1)
+	assert((inv.items[0] as ComponentEquipmentItem).passive_levels.get("Lifesteal") == 2)
+
+	var third := ComponentEquipmentRules.combine(
+		ComponentEquipmentRules.create_common("hp"),
+		ComponentEquipmentRules.create_common("res"))
+	assert(inv.add_item(third))
+	assert(inv.items.size() == 2)  # Different builds await a manual decision.
+	var mixed_sources: Array[EquipmentItem] = [inv.items[0], inv.items[1]]
+	assert(inv.combine_components(mixed_sources) == null)  # Different rarities.
+
+	var unit := UnitBase.new()
+	unit.unit_name = "Probe"
+	add_child(unit)
+	var unit_id := unit.unit_name + "_" + str(unit.get_instance_id())
+	inv.hero_equipment[unit_id] = [green, second]
+	inv._rebuild_passives(unit)
+	assert(is_equal_approx(float(unit.equipment_passives.get("Lifesteal", 0.0)), 0.1))
+	ComponentEquipmentGateway.active_run = true
+	assert(ComponentEquipmentGateway.generate_item(10) is ComponentEquipmentItem)
+	ComponentEquipmentGateway.active_run = false
+	assert(not (ComponentEquipmentGateway.generate_item(10) is ComponentEquipmentItem))
+
+	print("COMPONENT_EQUIPMENT_INVENTORY_PROBE: PASSED")
+	unit.queue_free()
+	inv.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	get_tree().quit()

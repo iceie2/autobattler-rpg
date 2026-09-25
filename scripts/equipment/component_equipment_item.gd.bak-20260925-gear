@@ -1,0 +1,64 @@
+extends EquipmentItem
+class_name ComponentEquipmentItem
+
+# New-system state. The production EquipmentItem class stays unchanged.
+# Composition counts grey ancestors; passive_levels counts green ancestors.
+var composition: Dictionary = {}
+var passive_levels: Dictionary = {}
+
+func get_passive_lines() -> Array:
+	var lines: Array = []
+	for p in passives:
+		var name: String = str(p.get("name", ""))
+		var level: int = int(passive_levels.get(name, 0))
+		var value: float = float(p.get("value", 0.0))
+		var effect := ""
+		match name:
+			"Lifesteal": effect = "heal for %d%% of attack damage" % roundi(value * 100.0)
+			"Thorns": effect = "reflect %d%% of damage taken" % roundi(value * 100.0)
+			"Haste": effect = "+%d%% attack speed" % roundi(value * 100.0)
+			"Spell Echo": effect = "%.1f%% chance to repeat a skill on the same target" % (value * 100.0)
+			"Regeneration": effect = "restore %.1f HP per second" % (value * 30.0)
+			_: effect = "%d%% effect" % roundi(value * 100.0)
+		lines.append("%s Lv.%d — %s" % [name, level, effect])
+	return lines
+
+func to_short_string() -> String:
+	var out := super.to_short_string()
+	var extra: Array[String] = []
+	if int(stat_bonus.get("magic_resist", 0)) > 0:
+		extra.append("+%d MARM" % int(stat_bonus["magic_resist"]))
+	if int(stat_bonus.get("ten", 0)) > 0:
+		extra.append("+%d Tenacity" % int(stat_bonus["ten"]))
+	if not extra.is_empty():
+		out += " | " + ", ".join(extra)
+	var families: Array[String] = []
+	for family in composition:
+		families.append(str(family))
+	families.sort_custom(func(a: String, b: String):
+		if int(composition[a]) == int(composition[b]):
+			return a < b
+		return int(composition[a]) > int(composition[b]))
+	var parts: Array[String] = []
+	for family in families:
+		parts.append("%s×%d" % [family.to_upper(), int(composition[family])])
+	if not parts.is_empty():
+		out += "\nComponents: " + ", ".join(parts)
+	return out
+
+func _init(p_name: String, p_rarity: EquipmentItem.Rarity = EquipmentItem.Rarity.COMMON) -> void:
+	super(p_name, p_rarity)
+	stat_bonus["magic_resist"] = 0
+	stat_bonus["ten"] = 0
+
+func component_count() -> int:
+	var total := 0
+	for count in composition.values():
+		total += int(count)
+	return total
+
+func passive_level_count() -> int:
+	var total := 0
+	for level in passive_levels.values():
+		total += int(level)
+	return total

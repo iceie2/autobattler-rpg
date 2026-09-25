@@ -1,0 +1,2042 @@
+extends CanvasLayer
+class_name RunMapScreen
+# ══════════════════════════════════════════════════════════════════════════════
+# RUN MAP SCREEN (2026-09-19) — the biome's branching path, and the one place
+# the player chooses where to go next. Design: RUN_MAP_PLAN.md §3.
+#
+# Modal, in the relic_screen / shop_screen family (CanvasLayer + present() + a
+# chosen signal), rather than drawn into the side rail: the rail strip is
+# ~180px wide and three columns of hoverable node cards don't fit there without
+# eating the board. The rail keeps showing WHERE YOU ARE; this screen is where
+# you decide where you're going.
+#
+# ── EVERY NODE SHOWS EVERYTHING ───────────────────────────────────────────────
+# Hover any node, anywhere on the map, and you get its whole card: the wave, its
+# power, what it fields and what it pays. An earlier version showed full detail
+# only for nodes you could step onto and a "step closer to see what it holds"
+# teaser beyond that — my invention, and backwards. Planning a ROUTE is what the
+# map is for, and you cannot plan toward a Brutal wave 8 you are not allowed to
+# look at.
+#
+# ── WHICH WAY IS FORWARD, AND WHY IT DISAGREES WITH THE RAILS ─────────────────
+# Stages read LEFT TO RIGHT here; lanes run top (easy) to bottom (brutal).
+# progression_rails reads bottom to top and will keep doing so — it lives in the
+# arena's 285px side strips, where a horizontal trail cannot fit at all.
+#
+# That looks like an inconsistency and isn't, because the two views answer
+# different questions. The rails are an ALTIMETER: one axis, no choices, how far
+# up the hundred rounds you have climbed. This screen is a ROUTE: it has to show
+# eleven stages AND up to four parallel lanes at once, and that graph only fits a
+# 16:9 frame lying down (see _layout for the measurements). Forcing them to share
+# an axis costs the map its legibility to buy a consistency the player never
+# looks at both halves of simultaneously.
+# ══════════════════════════════════════════════════════════════════════════════
+
+signal node_chosen(node: Dictionary)
+
+# The map fills the screen (owner call, 2026-09-19): it is the run's planning
+# view, not a dialog, and at 880px it read as a small box floating on the board.
+# Sizes are computed per present() from the viewport — PANEL_* are only the
+# fallbacks for a headless/zero-size viewport.
+const SCREEN_FILL := 1.0        # the map IS the screen — no framing border
+const PANEL_W := 880.0
+const PANEL_H := 940.0
+const NODE_R  := 26.0           # node radius
+# STAGE = along the direction of travel (X, left to right).
+# LANE  = across it (Y, easy lane on top). Both are recomputed per present().
+const STAGE_GAP := 170.0
+const LANE_GAP  := 232.0
+# Gutter reserved at the left and right ends of the trail, so the start disc and
+# the boss disc don't graze the panel edge.
+const STAGE_MARGIN := 110.0
+
+# ── Biome backdrop ────────────────────────────────────────────────────────────
+# Each decade already has a painted plate (the one the arena's side strips use).
+# Reusing it here means the map LOOKS like the place you're walking through, and
+# it changes as the run moves biome — for free, with art that already exists.
+# Dimmed hard behind the nodes: the plates are deliberately rich (see the biome
+# backdrop work), and an undimmed one would swallow a thin white trail.
+const BACKDROP_DIR := "res://assets/terrain/biomes/"
+const BACKDROP_ORDER := ["normal", "air", "water", "earth", "fire", "lightning"]
+const BACKDROP_DIM := Color(0.34, 0.34, 0.40)
+
+# ── Node art ──────────────────────────────────────────────────────────────────
+# Each node type looks for its icon at assets/icons/map_nodes/<slug>.png and
+# falls back to the letterform glyph below when the file isn't there — the same
+# "drop the art in and it lights up, no code change" contract the event panel
+# uses for its scenes. Prompts for the set live in
+# tools/sprite_pipeline/gemini_prompts/GEMINI_MAP_NODE_PROMPTS.md.
+const ICON_DIR := "res://assets/icons/map_nodes/"
+# ── FIGHT NODES HAVE NO ICON SLOT, ON PURPOSE (owner call, 2026-09-20) ────────
+# BATTLE, ELITE and BOSS are deliberately absent. A drawn icon WINS over the
+# creature silhouette in _node_icon, so a node_battle.png dropped into ICON_DIR
+# would silently mask every fight node's real creature — the thing those nodes
+# now exist to show. Two generations of a drawn "enemy line" (one emblem at three
+# stages of menace) were tried and dropped in favour of the actual monster, so
+# the slot is closed rather than left open for a file to fall into.
+const ICON_SLUGS := {
+	RunMap.NodeType.RELIC:    "node_start",
+	RunMap.NodeType.EVENT:    "node_event",
+	RunMap.NodeType.MERCHANT: "node_merchant",
+	RunMap.NodeType.CAMP:     "node_rest",
+}
+# Tier colour. Originally this tinted ONE drawn battle emblem three ways — three
+# separate drawings of "the same fight, harder" had made a row read as three
+# unrelated things. The drawn emblem is gone (fight nodes wear the real creature
+# now), but the colour axis survives it and does the same job: it is the DISC
+# behind the silhouette, so a row still reads as one question at three settings.
+#
+# That splits the row's two questions cleanly across two channels:
+#   ICON COLOUR = how hard  (tier — green / blue / red, the colours the
+#                            difficulty buttons already use)
+#   RING COLOUR = how rich  (the node's reward grade, D grey → S gold)
+# The intensity pips stay under the node as a non-colour fallback.
+const TIER_COLORS := [
+	Color(0.42, 0.85, 0.40),   # Normal  — green
+	Color(0.38, 0.62, 0.98),   # Veteran — blue
+	Color(0.94, 0.36, 0.32),   # Brutal  — red
+]
+
+# Reward marks reuse the icons the game ALREADY has — the item's own icon from
+# EquipmentManager.ITEM_ICONS, the stat's icon from UnitFactory.STAT_ICONS, the
+# coin from the drop system. A reward drawn with the same art the bag and the
+# level-up screen use tells the player it's the same thing; a bespoke glyph
+# would be a second vocabulary for no gain.
+const COIN_ICON := "res://assets/UI/Vector_UI_Pack_dobo_ui/Icons/64px/coin_icon_64px.png"
+# How big the reward badge on a fight node is, as a multiple of its original
+# 10px-rim / 14px-icon size. Owner call (2026-09-22): "+150%" — the badge was
+# the one piece of information on the node you still had to lean in to read.
+const REWARD_BADGE_SCALE := 2.5
+# Node size on maps with a 5-wide row (VD-14). The badge scales with it, since
+# it is part of the node — see _layout().
+const NODE_SCALE_WIDE := 0.85
+# Every node, on every map (owner, 2026-09-24: "turn all nodes size down to
+# .9x it just feels so cramped"). Stacks with NODE_SCALE_WIDE.
+const NODE_SCALE_ALL := 0.9
+# …and where it sits: pinned to the node's rim at the top-right, hanging mostly
+# OUTSIDE the disc so it stops covering the creature. OUTSET is how far past the
+# rim the badge's centre sits, in badge radii — 0 would straddle the rim half
+# in / half out; 0.6 leaves only the inner fifth of it over the node.
+const REWARD_BADGE_OUTSET := 0.6
+const REWARD_BADGE_DIR := Vector2(0.6598, -0.7514)   # (0.72, -0.82) normalised
+
+# ── MOTION (owner call, 2026-09-22: "make it look more professional") ────────
+# Everything that moves on this screen runs off _clock, a screen-local time
+# advanced only by _process. Not Time.get_ticks_msec(): a harness can then step
+# the reveal, the flow and the travel beat frame by frame and get the same
+# picture every run, which is what lets motion be checked at all.
+#
+# CURVED PATHS. A straight line between two circles reads as a flowchart; an
+# S-curve reads as a trail. The curve is a cubic with horizontal tangents at
+# both ends, and that shape is chosen for a reason beyond looks: every node in a
+# row shares one x (layout_stage is per ROW), so every curve between the same two
+# rows walks the same x at the same parameter, and its y is always the same
+# weighted blend of its two endpoints. Two edges that don't cross as straight
+# lines therefore can't cross as curves either — RunMap's no-crossing guarantee
+# survives the redraw. map_smoke checks that on real layouts rather than trusting
+# this paragraph.
+const PATH_SEGMENTS := 18         # polyline resolution of one curved edge
+const HOVER_LIFT := 0.08          # the node under the cursor grows by 8%
+const LIFT_EASE := 14.0           # how fast a lift eases in and out, per second
+# Dashes drifting forward along the lit cone: the dimming says WHERE you can go,
+# the flow says which way the road runs.
+const FLOW_DASH := 9.0
+const FLOW_GAP := 13.0
+const FLOW_SPEED := 34.0          # px per second, parent -> child
+const FLOW_COLOR := Color(1.0, 0.97, 0.88, 0.8)   # owner: 0.55 -> 0.8 (2026-09-22)
+# The map inks itself in once per biome, row by row out from the start node.
+const REVEAL_ROW_DELAY := 0.07    # s between one row starting and the next
+const REVEAL_NODE_POP := 0.30     # s for a node to scale in (with a small overshoot)
+const REVEAL_EDGE_DRAW := 0.24    # s for an edge to draw itself to its child
+# Playback speed of the whole reveal. The three timings above are its SHAPE — how
+# rows stagger, pop and ink relative to each other — and this is its tempo, so
+# slowing it down keeps the choreography instead of stretching one part of it.
+# Owner call (2026-09-22): 1.0 read "a bit too fast", 0.7 is 30% slower.
+const REVEAL_RATE := 0.7
+# Choosing a node walks a marker along the path before the fight opens.
+const TRAVEL_SECONDS := 0.55
+
+# Fallback glyphs, used until the art above exists. Letterform placeholders on
+# purpose: honest about being placeholders in a way a borrowed icon isn't.
+const GLYPHS := {
+	RunMap.NodeType.RELIC:    "◈",
+	RunMap.NodeType.BATTLE:   "⚔",
+	RunMap.NodeType.ELITE:    "☠",
+	RunMap.NodeType.BOSS:     "✹",
+	RunMap.NodeType.EVENT:    "?",
+	RunMap.NodeType.MERCHANT: "$",
+	RunMap.NodeType.CAMP:     "▲",
+}
+
+# Intensity is carried by the RING (how many marks), grade by its COLOUR, so
+# "how hard" and "how rich" never fight over the same cue.
+const TIER_NAMES := ["Skirmish", "Veteran", "Brutal"]
+
+# Mini-board geometry. Only the ENEMY half is drawn (rows 0-3): your own side is
+# yours to arrange and showing it empty would imply the preview knows where your
+# heroes will be.
+const BOARD_ROWS := 4
+const BOARD_W := 630.0
+const BOARD_H := 286.0
+# Role only tints the little shadow under each body now — the sprite itself
+# says what the unit is, which is the whole point of previewing the real art.
+# This popup currently resolves to the dark framed plate used by the map (the
+# rest of UITheme's text palette is brown-on-cream). Keep the dossier legible
+# and restrained: warm white for facts, old gold for emphasis, smoke for labels.
+# The road you have walked, and the one-edge preview of the road you are
+# about to walk. Same hue: the preview is the same material, not a new state.
+const ROAD_GOLD       := Color(1.0, 0.85, 0.35, 1.0)
+const ROAD_GOLD_HOVER := Color(1.0, 0.93, 0.62, 1.0)
+
+const TIP_TEXT := Color(0.93, 0.91, 0.84)
+const TIP_GOLD := Color(0.86, 0.63, 0.22)
+const TIP_MUTED := Color(0.66, 0.64, 0.59)
+
+var _overlay:   ColorRect
+var _backdrop:  TextureRect          # the biome plate behind the path
+var _panel:     Panel
+var _header:    TextureRect
+var _panel_size: Vector2 = Vector2(PANEL_W, PANEL_H)
+# Live layout, recomputed per present() from the panel's real size. The map is
+# now viewport-sized and rows are 2-4 wide, so spacing can't be constant.
+var _stage_gap: float = STAGE_GAP
+var _lane_gap:  float = LANE_GAP
+var _node_r:  float = NODE_R
+var _node_scale: float = 1.0      # NODE_SCALE_WIDE on maps with a 5-wide row
+var _title:     Label
+var _sub:       Label
+var _canvas:    Control              # edges are drawn here, nodes are its children
+# Node under the cursor, "" when none. Only the edge CURRENT -> _hover_id ever
+# lights from it, so hovering a far-off node previews nothing and can't be
+# mistaken for a legal move.
+var _hover_id: String = ""
+# A modal can disappear with the cursor already sitting over a map node (the
+# centre recruit card is the common case). That inherited position is not a
+# hover decision. Previews arm only after deliberate pointer movement.
+const HOVER_ARM_DISTANCE := 10.0
+var _hover_armed: bool = false
+var _hover_origin: Vector2 = Vector2.ZERO
+
+# ── THE COMMITMENT PREVIEW ────────────────────────────────────────────────────
+# Hovering a node dims everything that node CANNOT reach. Owner call
+# (2026-09-22), and it is the legibility half of the mercy-edge rule in
+# RunMap._grant_relief_edges: that rule gives a stranded node a way out whenever
+# the no-crossing geometry allows, but in roughly 0.4 maps per biome it can't,
+# and the map stays pointed. A trap you can SEE is a choice; the same trap
+# discovered two rows later is just a lost run.
+#
+# It is also what makes a lane commitment fair at the moment it's made. Slay the
+# Spire's whole act is readable from floor 1, which is why walking into two
+# elites there is something a player did on purpose. This map is fully drawn
+# too, but nobody traces four rows of hairlines with their eyes — so the cone
+# gets traced for them.
+#
+# Hovering ANY node works, not just the fork in front of you: scouting the route
+# is already the reason the dossier shows fights anywhere on the map.
+# While a cone is up these are ABSOLUTE, not multipliers on the depth fade.
+# Owner call (2026-09-22): stacking the two made the reachable path read at
+# ~70% and the rest at ~5%, so the cone looked washed out and the map looked
+# empty. Depth dimming answers "how far ahead is this", which is the resting
+# question; the moment a cone is up the only question is "can I get there",
+# and that answer is not more or less true further along the route.
+const CONE_LIT := 1.0           # anything the hovered node can reach
+const CONE_DIM := 0.25          # …and everything it cannot
+var _cone_id: String = ""       # which node _cone was computed for
+var _cone: Dictionary = {}      # {node_id: true} — focused node plus all descendants
+
+# ── HOVER LOOKS, CLICK ASKS ───────────────────────────────────────────────────
+# Owner call (2026-09-22). The dossier is a big centred card, so opening it on
+# hover covered the very paths the cone had just lit — the two features fought
+# each other and the card won. Now hover does nothing but light the cone, and
+# the fight preview costs a CLICK.
+#
+# Clicking a node you can step onto a SECOND time enters it, and the card
+# carries a BEGIN button that does the same thing, so nothing can start a fight
+# without the preview having been on screen first. Clicking anywhere that is not
+# a node and not the card puts it away.
+#
+# Any node can be clicked, not just the fork in front of you — scouting the
+# route is the reason the card shows fights from anywhere on the map, and with
+# hover no longer opening it, a click is the only way left to look ahead.
+#
+# ── AND RESTING ON A NODE ASKS FOR YOU ────────────────────────────────────────
+# Keep the cursor still on one node for a second and its dossier opens by
+# itself. The common case — sweep the forks, settle on one, go — is then ONE
+# click, while sweeping still costs nothing but the cone. A card that opened
+# this way is NOT pinned: arriving at another node puts it away again, so the
+# map never accumulates a card you didn't ask for.
+const DOSSIER_DWELL := 1.0      # seconds of stillness on a node
+
+var _selected_id: String = ""   # the node whose dossier is open ("" = none)
+var _dossier_pinned: bool = false   # opened by a click (stays) vs. by dwell (transient)
+var _dwell: float = 0.0         # seconds the cursor has rested on _hover_id
+var _tip_action: Button         # BEGIN — only shown on a node you may enter
+
+var _clock: float = 0.0         # screen-local seconds; see MOTION above
+var _lift: Dictionary = {}      # node_id -> eased lift 0..1 (absent = resting)
+var _reveal_key: String = ""    # "biome:seed" of the last map that inked itself in
+var _reveal_start: float = -1.0 # _clock when the reveal began; -1 = not revealing
+var _travel: Dictionary = {}    # {from, to, node, t} while the marker walks; {} otherwise
+
+# What the cone is drawn from: the open dossier if there is one, otherwise
+# whatever the cursor is over. A pinned cone means the card you are reading and
+# the paths lit behind it always describe the same node.
+func _focus_id() -> String:
+	return _selected_id if _selected_id != "" else _hover_id
+var _tip:       PanelContainer
+var _tip_box:   VBoxContainer
+var _tip_title: Label
+var _tip_difficulty_badge: PanelContainer
+var _tip_kicker: Label
+var _tip_wave: Label
+var _tip_body:  Label
+var _tip_facts: HBoxContainer
+var _tip_power: Label
+var _tip_formation_text: Label
+var _tip_reward: HBoxContainer
+var _tip_reward_icon: TextureRect
+var _tip_reward_name: Label
+var _tip_board: Control              # mini enemy formation, see _draw_mini_board
+var _tip_formation: Array = []       # what that control is currently drawing
+var _tip_grid_w: int = 9
+var _tip_ground: String = ""      # decade ground tile behind the mini board
+var _tip_unit_name: PanelContainer
+var _tip_unit_name_label: Label
+
+var _map: RunMap = null
+var _buttons: Dictionary = {}        # node_id -> Button
+var _board_btn:  Button              # step off the map to your formation
+var _return_btn: Button              # …and the way back
+
+# Callable(round:int, difficulty:int) -> {name, profile, power}, injected by
+# main_game. The screen must not know about WaveDirector: a map has to be
+# generatable with no scene at all (that's what --mode=map depends on), so the
+# one thing that needs the live game is passed IN rather than reached for.
+var preview_probe: Callable = Callable()
+# Callable(round:int, node_type:int) -> String sprite path, also from main_game.
+# Elite and boss nodes wear the ACTUAL creature that decade fields, drawn as a
+# silhouette (owner call, 2026-09-19) — that art already shipped, so the map can
+# say "a Gale Warden lives up there" with no icon generation at all.
+var sprite_probe: Callable = Callable()
+var _sprite_cache: Dictionary = {}
+# resource_path -> bool, "is this art a cut-out we can silhouette?" See _is_cutout.
+# Keyed by path rather than node, because several nodes share one creature.
+var _cutout_cache: Dictionary = {}
+var _mask_cache: Dictionary = {}      # sprite path -> white stamp of its shape
+# Probing builds a whole wave spec, so each node's answer is cached for the life
+# of the screen — hovering back and forth across a row shouldn't rebuild specs.
+var _preview_cache: Dictionary = {}
+
+func _ready() -> void:
+	_build_ui()
+	visible = false
+
+func present(map: RunMap, biome_name: String) -> void:
+	_map = map
+	_preview_cache.clear()
+	_sprite_cache.clear()
+	_hover_armed = false
+	_hover_origin = get_viewport().get_mouse_position()
+	_hover_id = ""
+	_clear_selection()
+	_lift.clear()
+	_travel = {}
+	# INK THE MAP IN ONCE PER BIOME, NOT ONCE PER VISIT. present() runs every
+	# time the map opens — after every fight, event and shop — and a reveal
+	# replaying on each of those would turn a flourish into a toll. Keyed on
+	# biome AND seed so a new run's first biome reveals even if it shares an
+	# index with the last one. A save restored mid-biome sets the key without
+	# revealing: the player has seen this map, they just reloaded it.
+	#
+	# "Not started" means NO STAGE CROSSED, not current_id == "". The first
+	# version tested current_id, and main_game consumes biome 1's start landmark
+	# BEFORE the map is ever shown (relic -> hero -> map), so the first biome of
+	# every run — the reveal every player sees — silently never played.
+	var key: String = "%d:%d" % [map.biome, map.generation_seed]
+	if key != _reveal_key:
+		_reveal_key = key
+		_reveal_start = _clock if map.waves_cleared() == 0 else -1.0
+	visible = true
+	# A previous VIEW BOARD could have left the panel hidden.
+	_panel.visible = true
+	_overlay.visible = true
+	_return_btn.visible = false
+	_title.text = biome_name.to_upper()
+	# Progress is the fixed path stage, whether that stage was combat or utility.
+	_sub.text = "%d of %d stages crossed  ·  choose your path" % [
+		map.waves_cleared(), RunMap.WAVES_PER_BIOME]
+	_layout()
+	_set_biome_backdrop(map.biome)
+	_rebuild()
+	_center_panel()
+
+func _input(event: InputEvent) -> void:
+	if visible and event is InputEventMouseButton and event.pressed \
+			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		_maybe_dismiss_dossier((event as InputEventMouseButton).position)
+		return
+	if not visible or _hover_armed or not (event is InputEventMouseMotion):
+		return
+	var mouse_event := event as InputEventMouseMotion
+	if mouse_event.position.distance_to(_hover_origin) < HOVER_ARM_DISTANCE:
+		return
+	_hover_armed = true
+	# mouse_entered may already have fired while the cone was gated. Light the
+	# node currently beneath the newly intentional cursor on this movement,
+	# without requiring the player to leave and re-enter the circle.
+	for id in _buttons:
+		var btn: Button = _buttons[id]
+		if is_instance_valid(btn) and btn.get_global_rect().has_point(mouse_event.position):
+			var node: Dictionary = _map.node_by_id(String(id))
+			if not node.is_empty():
+				_on_node_hover(node)
+			return
+
+# Size the panel to the viewport and derive node spacing from it. Everything
+# here is a function of the real window, so the map fills an ultrawide screen
+# and still fits a small one.
+# A click that lands on neither a node nor the card closes the dossier.
+#
+# Hit-tested against the rects rather than leaning on which control consumed
+# the event: the node buttons are MOUSE_FILTER_PASS, so their clicks reach this
+# handler too, and "was it handled" cannot tell the two cases apart.
+func _maybe_dismiss_dossier(at: Vector2) -> void:
+	if _selected_id == "":
+		return
+	if _tip and _tip.visible and _tip.get_global_rect().has_point(at):
+		return
+	for btn in _buttons.values():
+		if (btn as Button).get_global_rect().has_point(at):
+			return
+	_clear_selection()
+
+func _layout() -> void:
+	var vp: Vector2 = get_viewport().get_visible_rect().size if get_viewport() 		else Vector2(PANEL_W, PANEL_H)
+	if vp.x < 100.0 or vp.y < 100.0:
+		vp = Vector2(PANEL_W, PANEL_H)     # headless / zero-size viewport
+	_panel_size = (vp * SCREEN_FILL).floor()
+	_panel.size = _panel_size
+	_backdrop.size = _panel_size
+	_backdrop.position = Vector2.ZERO
+	var header_w: float = minf(1100.0, maxf(500.0, _panel_size.x - 300.0))
+	_header.position.x = (_panel_size.x - header_w) * 0.5
+	_header.size.x = header_w
+	_title.size.x = _panel_size.x
+	_sub.size.x = _panel_size.x
+	_board_btn.position = Vector2(_panel_size.x - _board_btn.size.x - 24.0, 20.0)
+	_canvas.size = Vector2(_panel_size.x, _panel_size.y - 100.0)
+
+	# ── WHY THE TRAIL RUNS ACROSS AND NOT UP ─────────────────────────────────
+	# A biome is ELEVEN stages deep and at most FOUR lanes wide. Stacked, that
+	# shape is tall and narrow (ratio ~1.1) inside a frame that is wide and short
+	# (16:9 → ~1.96), so the eleven stages had to share the 980px of height: an
+	# 88px pitch under 71px nodes, i.e. SEVENTEEN PIXELS of air between one stage
+	# and the next, while the lanes sat 259px apart and barely half the screen
+	# width was used at all. The travel axis was squeezed fifteen times harder
+	# than the axis across it, and no amount of shrinking nodes fixes that —
+	# eleven rows in 980px caps the pitch no matter what you draw in them.
+	#
+	# Turned on its side the same graph is ~1.93 — near enough the frame's own
+	# ratio that the numbers stop fighting: 170px per stage, 66px of air, and
+	# nodes half again as big. Nothing about the MAP changed; run_map.gd still
+	# emits the same rows, columns and edges. Only this screen reads them
+	# differently, which is why --mode=map is untouched by the switch.
+	var stages_n: int = maxi(2, _map.rows.size() if _map else 11)
+	_stage_gap = (_canvas.size.x - 2.0 * STAGE_MARGIN) / float(stages_n - 1)
+	var widest: int = 2
+	if _map:
+		for row in _map.rows:
+			widest = maxi(widest, row.size())
+	# VD-14: a map with a 5-wide row draws its nodes at NODE_SCALE_WIDE. Lane
+	# spacing is set by the WIDEST row on the map, so one 5-wide row tightens
+	# every lane in the biome; shrinking the nodes buys that room back (owner:
+	# "im okay with making the nodes like 80-90% size so 5 can fit better").
+	# Maps without one keep full-size nodes — big discs are what make the
+	# silhouettes readable, so they're only given up where the room is needed.
+	_node_scale = (NODE_SCALE_WIDE if widest >= 5 else 1.0) * NODE_SCALE_ALL
+	_node_r = clampf(_stage_gap * 0.34, 22.0, 52.0) * _node_scale
+	# Reserve the node's own radius at BOTH ends before dividing, plus a little
+	# over for the pips that hang below a fight disc. Dividing the raw height (as
+	# the vertical version did) put the top lane of a four-wide stage three
+	# pixels above the canvas, tucked under the title.
+	_lane_gap = minf(
+		# One additional virtual lane is deliberate breathing room for generated
+		# stage offsets. Without it, the old centred grid used every vertical pixel
+		# and any honest asymmetry pushed the outer nodes off-screen.
+		(_canvas.size.y - 2.0 * _node_r - 44.0) / float(maxi(1, widest)), 260.0)
+
+# The decade's own painted plate, the same one the arena's side strips use, so
+# the map looks like the place you are walking through and changes with it.
+func _set_biome_backdrop(biome_index: int) -> void:
+	var slug: String = BACKDROP_ORDER[maxi(0, biome_index) % BACKDROP_ORDER.size()]
+	_backdrop.texture = _tex("%s%s_backdrop.png" % [BACKDROP_DIR, slug])
+
+func _build_ui() -> void:
+	_overlay = ColorRect.new()
+	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_overlay.color = Color(0, 0, 0, 0.86)
+	_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_overlay)
+
+	_panel = Panel.new()
+	_panel.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
+	_panel.size = _panel_size
+	_overlay.add_child(_panel)
+
+	_backdrop = TextureRect.new()
+	_backdrop.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_backdrop.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_backdrop.clip_contents = true
+	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_backdrop.modulate = BACKDROP_DIM
+	_panel.add_child(_backdrop)
+	_header = UITheme.menu_header(_panel, Rect2(150, 4, 580, 78))
+
+	_title = _lbl(_panel, "", UITheme.FONT_HEADER + 8, UITheme.menu_title_color(),
+		Vector2(0, 11), Vector2(PANEL_W, 38))
+	_sub = _lbl(_panel, "", UITheme.FONT_BODY + 2, UITheme.menu_subtitle_color(),
+		Vector2(0, 47), Vector2(PANEL_W, 26))
+
+	# ── Step off the map to look at your own board ───────────────────────────
+	# The map now tells you what formation you'd be walking into, which is only
+	# useful if you can go and answer it. This hides the map (the live board is
+	# right underneath) and leaves one button to come back — no state changes,
+	# no round starts, nothing is committed until a node is actually chosen.
+	_board_btn = Button.new()
+	_board_btn.text = "VIEW BOARD"
+	_board_btn.focus_mode = Control.FOCUS_NONE
+	var boxes: Dictionary = UITheme.button_boxes()
+	for state in ["normal", "hover", "pressed"]:
+		_board_btn.add_theme_stylebox_override(state, boxes[state])
+	UITheme.apply_font(_board_btn, UITheme.FONT_BODY)
+	_board_btn.add_theme_color_override("font_color", UITheme.TEXT_BTN)
+	_board_btn.size = Vector2(190, 38)
+	_board_btn.position = Vector2(PANEL_W - 210, 20)
+	_board_btn.pressed.connect(_on_view_board)
+	_panel.add_child(_board_btn)
+
+	# The way back, floating where the map was. Lives on this layer so it can't
+	# be lost behind the board's own UI.
+	_return_btn = Button.new()
+	_return_btn.text = "◄ BACK TO MAP"
+	_return_btn.focus_mode = Control.FOCUS_NONE
+	for state2 in ["normal", "hover", "pressed"]:
+		_return_btn.add_theme_stylebox_override(state2, boxes[state2])
+	UITheme.apply_font(_return_btn, UITheme.FONT_BODY)
+	_return_btn.add_theme_color_override("font_color", UITheme.TEXT_BTN)
+	_return_btn.size = Vector2(210, 44)
+	_return_btn.visible = false
+	_return_btn.pressed.connect(_on_return_to_map)
+	add_child(_return_btn)
+
+	_canvas = Control.new()
+	_canvas.position = Vector2(0, 80)
+	_canvas.size = Vector2(PANEL_W, PANEL_H - 100)
+	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_canvas.draw.connect(_draw_map)
+	_panel.add_child(_canvas)
+
+	_tip = PanelContainer.new()
+	var tip_style := StyleBoxFlat.new()
+	tip_style.bg_color = Color(0.105, 0.10, 0.145, 0.98)
+	tip_style.border_color = Color(0.48, 0.39, 0.24, 0.9)
+	tip_style.set_border_width_all(2)
+	tip_style.set_corner_radius_all(4)
+	tip_style.content_margin_left = 14
+	tip_style.content_margin_right = 14
+	tip_style.content_margin_top = 14
+	tip_style.content_margin_bottom = 12
+	_tip.add_theme_stylebox_override("panel", tip_style)
+	_tip.visible = false
+	# Click-through, except BEGIN — see _make_tip_click_through. A dwell card
+	# opens centred, which can be directly under the cursor that summoned it,
+	# and the single click that follows has to reach the NODE beneath the card.
+	# Clicks on the card are kept from dismissing it by a rect test instead
+	# (_maybe_dismiss_dossier).
+	var box := VBoxContainer.new()
+	_tip_box = box
+	box.custom_minimum_size.x = BOARD_W
+	box.add_theme_constant_override("separation", 8)
+	_tip.add_child(box)
+
+	# Difficulty is a compact badge, not a generic full-width black header.
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 12)
+	box.add_child(header)
+	_tip_difficulty_badge = PanelContainer.new()
+	var badge_style := StyleBoxFlat.new()
+	badge_style.bg_color = Color(0.53, 0.10, 0.09)
+	badge_style.border_color = Color(0.94, 0.32, 0.24)
+	badge_style.set_border_width_all(1)
+	badge_style.set_corner_radius_all(3)
+	badge_style.content_margin_left = 12
+	badge_style.content_margin_right = 12
+	badge_style.content_margin_top = 4
+	badge_style.content_margin_bottom = 4
+	_tip_difficulty_badge.add_theme_stylebox_override("panel", badge_style)
+	header.add_child(_tip_difficulty_badge)
+	_tip_title = Label.new()
+	UITheme.apply_font(_tip_title, UITheme.FONT_HEADER)
+	_tip_title.add_theme_color_override("font_color", Color(1.0, 0.92, 0.84))
+	_tip_difficulty_badge.add_child(_tip_title)
+
+	_tip_kicker = Label.new()
+	_tip_kicker.visible = false
+	UITheme.apply_font(_tip_kicker, UITheme.FONT_CAPTION)
+	_tip_kicker.add_theme_color_override("font_color", TIP_MUTED)
+	box.add_child(_tip_kicker)
+	_tip_wave = Label.new()
+	_tip_wave.visible = false
+	_tip_wave.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UITheme.apply_font(_tip_wave, UITheme.FONT_BODY)
+	_tip_wave.add_theme_color_override("font_color", TIP_TEXT)
+	box.add_child(_tip_wave)
+
+	# Power and composition answer two different questions, so they get two
+	# deliberate columns instead of another sentence beginning with a label.
+	_tip_facts = HBoxContainer.new()
+	_tip_facts.visible = false
+	_tip_facts.add_theme_constant_override("separation", 10)
+	box.add_child(_tip_facts)
+	var power_box := _fact_box("THREAT")
+	_tip_power = power_box.get_meta("value") as Label
+	# The numeric threat is the one display figure in the dossier. League Gothic
+	# is strong here; running copy stays in the normal-width body face.
+	UITheme.apply_font(_tip_power, UITheme.FONT_DISPLAY)
+	_accent_box(power_box, Color(0.68, 0.12, 0.10), Color(0.96, 0.30, 0.22))
+	var threat_caption: Label = power_box.get_meta("caption") as Label
+	UITheme.apply_font(threat_caption, UITheme.FONT_CAPTION + 2)
+	threat_caption.add_theme_color_override("font_color", Color(1.0, 0.78, 0.72))
+	_tip_power.add_theme_color_override("font_color", Color(1.0, 0.93, 0.88))
+	_tip_facts.add_child(power_box)
+	var formation_box := _fact_box("ENEMY TYPES")
+	formation_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tip_formation_text = formation_box.get_meta("value") as Label
+	_tip_formation_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tip_facts.add_child(formation_box)
+
+	# Reward gets its real inventory icon and its own horizontal band. It should
+	# read like loot, not like the fifth line of a debug printout.
+	_tip_reward = HBoxContainer.new()
+	_tip_reward.add_theme_constant_override("separation", 12)
+	_tip_reward.alignment = BoxContainer.ALIGNMENT_BEGIN
+	var reward_panel := PanelContainer.new()
+	reward_panel.visible = false
+	_accent_box(reward_panel, Color(0.34, 0.25, 0.07), Color(0.88, 0.65, 0.18))
+	reward_panel.add_child(_tip_reward)
+	box.add_child(reward_panel)
+	_tip_reward_icon = TextureRect.new()
+	_tip_reward_icon.custom_minimum_size = Vector2(42, 42)
+	_tip_reward_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_tip_reward_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_tip_reward.add_child(_tip_reward_icon)
+	var reward_copy := VBoxContainer.new()
+	reward_copy.add_theme_constant_override("separation", 0)
+	reward_copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tip_reward.add_child(reward_copy)
+	var reward_label := Label.new()
+	reward_label.text = "VICTORY SPOILS"
+	UITheme.apply_font(reward_label, UITheme.FONT_CAPTION)
+	reward_label.add_theme_color_override("font_color", TIP_MUTED)
+	reward_copy.add_child(reward_label)
+	_tip_reward_name = Label.new()
+	UITheme.apply_font(_tip_reward_name, UITheme.FONT_VALUE)
+	_tip_reward_name.add_theme_color_override("font_color", TIP_TEXT)
+	reward_copy.add_child(_tip_reward_name)
+
+	_tip_body = Label.new()
+	_tip_body.visible = false
+	UITheme.apply_font(_tip_body, UITheme.FONT_BODY)
+	_tip_body.add_theme_color_override("font_color", TIP_TEXT)
+	_tip_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(_tip_body)
+
+	# ── Mini-board ────────────────────────────────────────────────────────────
+	# A count ("4 melee, 2 ranged") tells you WHAT is coming. Where they stand
+	# tells you how to answer it, and placement is the axis this game's own
+	# testing showed swings a fight from 0% to 100% on an identical team. So the
+	# hover card draws the enemy half of the board, in miniature.
+	_tip_board = Control.new()
+	_tip_board.visible = false
+	_tip_board.custom_minimum_size = Vector2(BOARD_W, BOARD_H)
+	_tip_board.mouse_filter = Control.MOUSE_FILTER_STOP
+	_tip_board.draw.connect(_draw_mini_board)
+	_tip_board.gui_input.connect(_on_mini_board_gui_input)
+	_tip_board.mouse_exited.connect(_clear_mini_board_hover)
+	box.add_child(_tip_board)
+	_tip_unit_name = PanelContainer.new()
+	_tip_unit_name.visible = false
+	_tip_unit_name.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var name_style := StyleBoxFlat.new()
+	name_style.bg_color = Color(0.08, 0.07, 0.10, 0.96)
+	name_style.border_color = Color(0.82, 0.69, 0.36, 0.95)
+	name_style.set_border_width_all(1)
+	name_style.set_corner_radius_all(3)
+	name_style.content_margin_left = 8
+	name_style.content_margin_right = 8
+	name_style.content_margin_top = 3
+	name_style.content_margin_bottom = 3
+	_tip_unit_name.add_theme_stylebox_override("panel", name_style)
+	_tip_board.add_child(_tip_unit_name)
+	_tip_unit_name_label = Label.new()
+	UITheme.apply_font(_tip_unit_name_label, UITheme.FONT_BODY)
+	_tip_unit_name_label.add_theme_color_override("font_color", TIP_TEXT)
+	_tip_unit_name.add_child(_tip_unit_name_label)
+
+	# The commit, spelled out on the card. Clicking the node again does the same
+	# thing; this is the half of it that is visible to someone who has just
+	# opened their first dossier and does not yet know that.
+	_tip_action = Button.new()
+	_tip_action.text = "BEGIN"
+	_tip_action.focus_mode = Control.FOCUS_NONE
+	var action_boxes: Dictionary = UITheme.button_boxes()
+	for state in ["normal", "hover", "pressed"]:
+		_tip_action.add_theme_stylebox_override(state, action_boxes[state])
+	UITheme.apply_font(_tip_action, UITheme.FONT_BODY)
+	_tip_action.add_theme_color_override("font_color", UITheme.TEXT_BTN)
+	_tip_action.custom_minimum_size = Vector2(0, 40)
+	_tip_action.pressed.connect(func():
+		var node: Dictionary = _map.node_by_id(_selected_id) if _map else {}
+		if not node.is_empty():
+			_enter_node(node))
+	box.add_child(_tip_action)
+	add_child(_tip)
+
+func _fact_box(caption: String) -> PanelContainer:
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.24, 0.17, 0.08, 0.08)
+	style.border_color = Color(0.42, 0.29, 0.12, 0.22)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(3)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 7
+	style.content_margin_bottom = 8
+	panel.add_theme_stylebox_override("panel", style)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 1)
+	panel.add_child(stack)
+	var cap := Label.new()
+	cap.text = caption
+	UITheme.apply_font(cap, UITheme.FONT_CAPTION)
+	cap.add_theme_color_override("font_color", TIP_MUTED)
+	stack.add_child(cap)
+	var value := Label.new()
+	UITheme.apply_font(value, UITheme.FONT_VALUE)
+	value.add_theme_color_override("font_color", TIP_TEXT)
+	stack.add_child(value)
+	panel.set_meta("caption", cap)
+	panel.set_meta("value", value)
+	return panel
+
+func _accent_box(panel: PanelContainer, fill: Color, edge: Color) -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	style.border_color = edge
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(3)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 7
+	style.content_margin_bottom = 8
+	panel.add_theme_stylebox_override("panel", style)
+
+func _process(delta: float) -> void:
+	_clock += delta
+	_ease_lifts(delta)
+	if _reveal_start >= 0.0 and _clock - _reveal_start > _reveal_duration():
+		_reveal_start = -1.0
+	# The travel beat owns the screen while it runs: it finishes by closing the
+	# map and emitting node_chosen, so nothing below may open a card under it.
+	if not _travel.is_empty():
+		_travel["t"] = float(_travel["t"]) + delta / TRAVEL_SECONDS
+		if float(_travel["t"]) >= 1.0:
+			var arrived: Dictionary = _travel["node"]
+			_travel = {}
+			_finish_enter(arrived)
+		elif visible:
+			_canvas.queue_redraw()
+		return
+	# Rest on a node and it opens itself. Only while nothing is already open,
+	# so the timer can never fight a card that is up.
+	if visible and _hover_id != "" and _selected_id == "":
+		_dwell += delta
+		if _dwell >= DOSSIER_DWELL and _map != null:
+			var dwelt: Dictionary = _map.node_by_id(_hover_id)
+			if not dwelt.is_empty():
+				open_dossier(dwelt, false)
+	else:
+		_dwell = 0.0
+	# The card is CENTRED, not stuck to the cursor (owner call). It carries a
+	# board preview now, which makes it far too big to trail a mouse — it ended
+	# up half off-screen, and a panel you have to chase is worse than one that
+	# always appears in the same place.
+	if _tip.visible:
+		var vp: Vector2 = get_viewport().get_visible_rect().size
+		_tip.global_position = ((vp - _tip.size) * 0.5).floor()
+	# The frontier ring pulses, so the canvas redraws while the screen is up.
+	if visible and _map != null:
+		_canvas.queue_redraw()
+
+# ── Layout ────────────────────────────────────────────────────────────────────
+# THE ONE FUNCTION THAT KNOWS WHICH WAY THE MAP FACES. Everything visual —
+# the edges, the discs, the invisible hit targets — is placed through here, so
+# the orientation is a property of these ten lines and nothing else.
+#
+# Stage 0 sits at the LEFT and the boss at the right: the run reads as a
+# distance travelled across the biome, which is also what the painted backdrop
+# behind it depicts.
+#
+# Lane 0 sits at the TOP (owner call). Difficulty ascends downward — the easy
+# road is the high road, the brutal one drops into the valley — and a stage's
+# lanes are centred on the canvas, so a 1-node start and a 3-node boss stage
+# share a centre line.
+func _node_pos(node: Dictionary) -> Vector2:
+	var r: int = int(node["row"])
+	var rows_total: int = _map.rows.size()
+	var x: float = STAGE_MARGIN + float(r) * _stage_gap
+	x += float(node.get("layout_stage", 0.0)) * _stage_gap
+	var row_nodes: Array = _map.nodes_in_row(r)
+	var idx: int = 0
+	for i in range(row_nodes.size()):
+		if String(row_nodes[i]["id"]) == String(node["id"]):
+			idx = i
+	var default_lane: float = float(idx) - float(row_nodes.size() - 1) * 0.5
+	var lane: float = float(node.get("layout_lane", default_lane))
+	var y: float = _canvas.size.y * 0.5 + lane * _lane_gap
+	# Pre-asymmetry saves do not carry layout_lane. Preserve their old gentle
+	# stage wobble rather than silently rearranging an in-progress run.
+	if not node.has("layout_lane"):
+		y += sin(float(r) * 1.3) * 16.0
+	var safe_y: float = _node_r * 1.65
+	y = clampf(y, safe_y, _canvas.size.y - safe_y)
+	return Vector2(x, y) if rows_total > 0 else Vector2.ZERO
+
+func _rebuild() -> void:
+	for b in _buttons.values():
+		b.queue_free()
+	_buttons.clear()
+	# The buttons that would have fired mouse_exited are gone, so a hover that
+	# survived a rebuild would leave one fork glowing with no cursor on it. The
+	# open dossier goes with them — it describes a node on the map we just
+	# replaced.
+	_hover_id = ""
+	_clear_selection()
+	if _map == null:
+		return
+
+	var reachable: Dictionary = {}
+	for n in _map.available_next():
+		reachable[String(n["id"])] = true
+
+	# Buttons are INVISIBLE hit targets; everything visual is drawn in one pass
+	# in _draw_map. Godot's Button theming can't express "dim disc, bright ring,
+	# pulsing frontier" without a stylebox per state per grade, and the first
+	# version that tried (flat buttons tinted by grade) came back unreadable —
+	# every node looked the same shade of grey and you could not tell which ones
+	# you were allowed to walk to, which is the only thing this screen must say.
+	for row in _map.rows:
+		for node in row:
+			var id: String = String(node["id"])
+			var btn := Button.new()
+			btn.flat = true
+			btn.focus_mode = Control.FOCUS_NONE
+			btn.modulate = Color(1, 1, 1, 0)      # invisible, still hit-tests
+			btn.size = Vector2(_node_r * 2.2, _node_r * 2.2)
+			btn.position = _node_pos(node) - Vector2(_node_r * 1.1, _node_r * 1.1)
+			# NOT disabled on unreachable nodes any more. A click is now the only
+			# way to read a fight, so a disabled button would make the whole
+			# map beyond the next fork unscoutable.
+			btn.mouse_filter = Control.MOUSE_FILTER_PASS
+			btn.pressed.connect(_on_node_pressed.bind(node))
+			btn.mouse_entered.connect(_on_node_hover.bind(node))
+			btn.mouse_exited.connect(func():
+				if _hover_id == id:
+					_hover_id = "")
+			_canvas.add_child(btn)
+			_buttons[id] = btn
+	_canvas.queue_redraw()
+
+func _draw_map() -> void:
+	if _map == null:
+		return
+	_refresh_cone()
+	var reachable: Dictionary = {}
+	for n in _map.available_next():
+		reachable[String(n["id"])] = true
+
+	# ── Edges first, so nodes sit on top of them ─────────────────────────────
+	for row in _map.rows:
+		for node in row:
+			var from: Vector2 = _node_pos(node)
+			var here: bool = String(node["id"]) == _map.current_id
+			var walked: bool = _map.cleared.has(String(node["id"]))
+			for cid in node["children"]:
+				var child: Dictionary = _map.node_by_id(String(cid))
+				if child.is_empty():
+					continue
+				var to: Vector2 = _node_pos(child)
+				# THE ROAD IS ONE UNBROKEN GOLD LINE THAT GROWS.
+				#
+				# Owner call, and it replaces the old three-weight encoding.
+				# Gold used to mean "a choice you may take", which put two
+				# bright forks in front of you and left the road BEHIND you
+				# white — so the eye read the map as a menu, not as a journey.
+				# Now gold means TRAVELLED: start -> ... -> the node you stand
+				# on, and nothing else. The forks ahead stay hairlines until
+				# you hover one, at which point that single edge lights as a
+				# preview of the road extending, and lands permanently when
+				# you take it.
+				#
+				# `walked` is `cleared`, and the node you are STANDING on is
+				# not cleared (RunMap.advance_to only clears the one you left),
+				# so the last leg — previous -> here — has to be spelled out or
+				# the gold stops one node short of the player. That gap is
+				# exactly what this was reported for.
+				var lit: bool = walked and (_map.cleared.has(String(cid))
+					or String(cid) == _map.current_id)
+				var live: bool = (here and reachable.has(String(cid))
+					and String(cid) == _focus_id())
+				# An edge is only as bright as its dimmer end, so a fork leading
+				# out of the hovered cone fades with the node it leads to
+				# instead of staying lit from a bright parent.
+				var depth_alpha: float = minf(_stage_visibility(node, reachable),
+					_stage_visibility(child, reachable))
+				# During the reveal an edge draws itself out of its parent once
+				# the parent has half-landed, so the ink visibly flows forward.
+				var drawn: float = _reveal_row(int(node["row"]),
+					REVEAL_NODE_POP * 0.5, REVEAL_EDGE_DRAW)
+				if drawn <= 0.0:
+					continue
+				# One polyline per stroke rather than a chain of segments: an
+				# antialiased strip has no overlapping joints, so a translucent
+				# curve doesn't pick up darker beads at every vertex.
+				var pts: PackedVector2Array = _edge_points(from, to, drawn)
+				_canvas.draw_polyline(pts, Color(0, 0, 0, 0.9 * depth_alpha),
+					(6.0 if (lit or live) else 3.0), true)
+				# Slightly stronger than it needs to be on a flat panel: these
+				# now run over a painted biome plate, and a hairline at 0.28
+				# disappeared into the rock. BACKDROP_DIM is the other half of
+				# this trade if the plates still read too busy.
+				var col := Color(1, 1, 1, 0.42 * depth_alpha)
+				var w := 2.0
+				if lit:
+					col = ROAD_GOLD; w = 3.0
+				elif live:
+					# The preview is the same gold one step brighter and one
+					# pixel fatter, so "about to be road" and "is road" read as
+					# the same material rather than two different states.
+					col = ROAD_GOLD_HOVER; w = 4.0
+				_canvas.draw_polyline(pts, col, w, true)
+				# Flow runs only INSIDE the lit cone and never over road already
+				# walked. The edge into the hovered node isn't in the cone (the
+				# cone starts AT that node), so the gold preview keeps that leg
+				# and the dashes carry on from there.
+				if not _cone.is_empty() and not lit and drawn >= 1.0 \
+						and _cone.has(String(node["id"])) and _cone.has(String(cid)):
+					_draw_flow(pts, _clock * FLOW_SPEED, FLOW_COLOR, 2.5)
+				# The road growing toward the node just chosen, behind the marker.
+				if not _travel.is_empty() and String(node["id"]) == String(_travel["from"]) \
+						and String(cid) == String(_travel["to"]):
+					_canvas.draw_polyline(_edge_points(from, to, _travel_progress()),
+						ROAD_GOLD, 3.5, true)
+
+	# ── The traveller: ON THE PATH, UNDER THE NODES ─────────────────────────
+	# A gold token walking the curve toward the node just chosen, at the tip of
+	# the road growing behind it. Same easing as the road, so the two never part.
+	#
+	# Drawn between the edges and the nodes, not after the nodes (owner call,
+	# 2026-09-22). It is a thing travelling ALONG the road, so it belongs to the
+	# road's layer: as it arrives it slides in under the destination disc rather
+	# than landing on top of the creature, and it passes beneath any node the
+	# curve happens to skim on the way.
+	if not _travel.is_empty():
+		var ta: Dictionary = _map.node_by_id(String(_travel["from"]))
+		var tb: Dictionary = _map.node_by_id(String(_travel["to"]))
+		if not ta.is_empty() and not tb.is_empty():
+			var tp: Vector2 = _edge_at(_node_pos(ta), _node_pos(tb), _travel_progress())
+			var mr: float = _node_r * 0.24
+			_canvas.draw_circle(tp, mr + 7.0,
+				Color(ROAD_GOLD.r, ROAD_GOLD.g, ROAD_GOLD.b, 0.22))
+			_canvas.draw_circle(tp, mr + 2.5, Color(0, 0, 0, 0.92))
+			_canvas.draw_circle(tp, mr, ROAD_GOLD_HOVER)
+			_canvas.draw_circle(tp, mr * 0.42, Color(1, 1, 1, 0.95))
+
+	# ── Nodes ────────────────────────────────────────────────────────────────
+	var font: Font = ThemeDB.fallback_font
+	var pulse: float = 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.005)
+	for row in _map.rows:
+		for node in row:
+			var id: String = String(node["id"])
+			var pos: Vector2 = _node_pos(node)
+			var grade_col: Color = UnitFactory.GRADE_COLORS.get(
+				String(node["grade"]), Color.WHITE)
+			var is_next: bool = reachable.has(id)
+			var is_here: bool = id == _map.current_id
+			var is_done: bool = _map.cleared.has(id)
+			var visibility: float = _stage_visibility(node, reachable)
+			var r: float = _node_r
+			if int(node["type"]) == RunMap.NodeType.BOSS:
+				r = _node_r * 1.25
+			elif int(node["type"]) == RunMap.NodeType.ELITE:
+				r = _node_r * 1.1
+			elif int(node["type"]) == RunMap.NodeType.RELIC:
+				# Where the biome BEGINS is a landmark, not another stop on the
+				# way — it gets the biggest disc on the map so the eye starts
+				# there, and so its biome art has room to be legible at all.
+				r = _node_r * 1.45
+
+			# ── Motion: pop in with the reveal, lift under the cursor ────────
+			var pop: float = _reveal_row(int(node["row"]))
+			if pop <= 0.0:
+				continue
+			var pop_scale: float = _back_out(pop) if pop < 1.0 else 1.0
+			var lift: float = float(_lift.get(id, 0.0))
+			r *= (1.0 + HOVER_LIFT * lift) * pop_scale
+			var appear: float = clampf(pop * 2.5, 0.0, 1.0)
+			# A lifted node casts a soft shadow a few pixels below it. _draw has
+			# no blur, so "soft" is three stacked discs of falling alpha — at
+			# this size that is indistinguishable from a real feathered shadow.
+			# Event, merchant and camp art stands bare on the map — no disc, rim or
+			# grade ring. The glyph fallback keeps its disc so it stays legible.
+			var node_type: int = int(node["type"])
+			var utility_node: bool = node_type in [RunMap.NodeType.EVENT, \
+				RunMap.NodeType.MERCHANT, RunMap.NodeType.CAMP]
+			# Fight nodes stand bare too (owner, 2026-09-24: "get rid of the black
+			# background on the monster camps. just showing the icons like we do
+			# for events/camps/shop"). The creature keeps a thin dark outline
+			# instead of a disc so it still reads on the painted grass.
+			var fight_art: bool = RunMap.is_battle_node(node) \
+				and _node_icon(node) != null and _is_silhouette(node)
+			var bare: bool = (utility_node and _node_icon(node) != null) or fight_art
+			if lift > 0.01 and not bare:
+				for i in range(3):
+					_canvas.draw_circle(pos + Vector2(0.0, 5.0 * lift),
+						r + 7.0 - float(i) * 2.5,
+						Color(0, 0, 0, 0.12 * lift * visibility * appear))
+
+			# Fill: bright grade colour where you may GO, muted where you've
+			# BEEN, near-black for the rest of the map.
+			var fill: Color = Color(0.09, 0.09, 0.12)
+			if is_next:
+				fill = grade_col.darkened(0.25)
+			elif is_here or is_done:
+				fill = grade_col.darkened(0.62)
+			elif visibility >= 0.6:
+				fill = grade_col.darkened(0.72)
+			# Applied after the fill is chosen, so a node mid-reveal fades in
+			# with its real colour instead of flashing the dim one first.
+			visibility *= appear
+			fill.a *= visibility
+			if not bare:
+				_canvas.draw_circle(pos, r + 3.0, Color(0, 0, 0, 0.95 * visibility))   # hard rim
+			if bare:
+				pass
+			elif int(node["type"]) != RunMap.NodeType.RELIC:
+				_canvas.draw_circle(pos, r, fill)
+			else:
+				# ── The start node is a WINDOW INTO THE BIOME ────────────────
+				# Owner call: a generic emblem in front, art behind it that
+				# changes every biome. The art is the decade's ground tile,
+				# brightened while the map behind it is dimmed — so the node
+				# that opens a biome is the one place you see that biome
+				# properly. Costs no new art, and bespoke per-biome start art
+				# drops into start_bg_<slug>.png and takes over.
+				#
+				# Drawn AFTER the rim disc, not before it. The rim is a filled
+				# black circle of radius r+3, so a porthole painted first was
+				# simply covered up — which read as "the texture isn't loading"
+				# and cost two rounds of brightness tuning before I looked at
+				# the draw order.
+				#
+				# A textured polygon rather than a texture rect because a square
+				# plate in a round node shows its corners and _draw has no clip.
+				var plate: Texture2D = _start_backplate()
+				if plate:
+					# The boost is MEASURED from the art, not a constant: the
+					# Fire decade's ground averages RGB(47,26,24) against
+					# Grassland's (85,125,59), so one hand-picked multiplier
+					# leaves half the biomes as black discs.
+					var boost: float = _plate_boost(plate)
+					var plate_col: Color = Color(boost, boost, boost) \
+						if (is_next or is_here) \
+						else Color(boost * 0.4, boost * 0.4, boost * 0.42)
+					plate_col.a = visibility
+					_draw_disc_texture(pos, r, plate, plate_col)
+				else:
+					_canvas.draw_circle(pos, r, fill)
+
+			# Ring: grade colour, thick and pulsing on the frontier.
+			if is_next:
+				# The frontier ring carries visibility too. Without it, a sibling
+				# fork outside the hovered cone keeps a full-bright pulsing ring
+				# on a disc that has already faded, which reads as a rendering
+				# fault rather than as "you can't get there from here".
+				_canvas.draw_arc(pos, r + 6.0 + pulse * 3.0, 0.0, TAU, 32,
+					Color(1, 1, 1, 0.9 * visibility), 2.0)
+				# The white pulse stays on a bare event: it is the "you can go
+				# here" cue, not part of the button.
+				if not bare:
+					var next_ring: Color = grade_col
+					next_ring.a *= visibility
+					_canvas.draw_arc(pos, r, 0.0, TAU, 32, next_ring, 3.5)
+			elif not bare:
+				var ring_col: Color = grade_col.darkened(0.45 if not (is_here or is_done) else 0.2)
+				ring_col.a *= visibility
+				_canvas.draw_arc(pos, r, 0.0, TAU, 32, ring_col, 2.0)
+
+			# Where you're standing gets its own marker so "here" never reads as
+			# "choosable".
+			if is_here:
+				_canvas.draw_arc(pos, r + 10.0, 0.0, TAU, 32, Color(1, 1, 1, 0.95), 3.0)
+
+			# Icon if the art exists, letterform glyph until it does. Both take
+			# the tier tint, so the three-colour read works before the art lands.
+			var gcol: Color = _icon_color(node, is_next or is_here)
+			gcol.a *= visibility
+			var icon: Texture2D = _node_icon(node)
+			if icon:
+				if _is_silhouette(node):
+					# A creature sprite is a FILLED shape, so it can't be tinted
+					# like line art — but it CAN be flooded with one. Owner call
+					# (2026-09-22): the CREATURE carries the tier colour and the
+					# disc behind it is black, not the other way round. The old
+					# way spent the node's whole area on the difficulty and left
+					# the creature as a hole punched in it, so a row of fights
+					# read as three fields of colour with animals cut out of
+					# them — and the silhouette is the thing you are actually
+					# trying to recognise. It also lines fights up with the
+					# event, shop and camp nodes, which were already a tinted
+					# mark on a dark disc.
+					#
+					# Keeps the sprite's aspect — none are square.
+					#
+					# CONTAINED BY BOTH AXES, not just height. Fitting by height
+					# alone (the original) let a wide plate spill straight out of
+					# its disc: every boss sprite is 1408x768, so a 130px boss
+					# node drew a 202px-wide creature lying across its neighbours
+					# and off the panel edge. It was invisible for a while
+					# because the capture harness had no sprite probe and the
+					# nodes used to be smaller. The hover card's mini board
+					# already solved this — same formula, same reason.
+					# draw_texture_rect MULTIPLIES by the modulate, so handing it
+					# the painted sprite and a green tint returns sprite-colour
+					# x green — which is mud, and is exactly what the first
+					# attempt at this flip produced. The shape has to come from
+					# a WHITE mask of the sprite's alpha. If one can't be built,
+					# fall back to the old reading (black creature on a tier
+					# disc) rather than draw the muddy version.
+					var mask: Texture2D = _silhouette_mask(icon)
+					var aspect: float = icon.get_width() \
+						/ maxf(1.0, float(icon.get_height()))
+					# Bare creatures fill the old disc's footprint, not its inside.
+					var fit_h: float = r * (2.1 if bare else 1.7)
+					var fit_w: float = r * (2.3 if bare else 1.8)
+					var sh: float = minf(fit_h, fit_w / maxf(0.01, aspect))
+					var sw: float = sh * aspect
+					var body := Rect2(pos - Vector2(sw, sh) * 0.5, Vector2(sw, sh))
+					var tier: Color = gcol if (is_next or is_here) \
+						else gcol.darkened(0.35)
+					if mask and bare:
+						var ink := Color(0.03, 0.03, 0.05, 0.9 * visibility)
+						for o in [Vector2(2, 0), Vector2(-2, 0), Vector2(0, 2), Vector2(0, -2)]:
+							_canvas.draw_texture_rect(mask, Rect2(body.position + o, body.size),
+								false, ink)
+						_canvas.draw_texture_rect(mask, body, false, tier)
+					elif mask:
+						_canvas.draw_circle(pos, r,
+							Color(0.05, 0.05, 0.07, 0.95 * visibility))
+						_canvas.draw_texture_rect(mask, body, false, tier)
+					else:
+						_canvas.draw_circle(pos, r, tier)
+						_canvas.draw_texture_rect(icon, body, false,
+							Color(0.05, 0.05, 0.07, 0.95 * visibility))
+				else:
+					var utility_icon_scale: float = 1.2 if node_type == RunMap.NodeType.EVENT \
+						else (1.3 if node_type in [RunMap.NodeType.MERCHANT, RunMap.NodeType.CAMP] else 1.0)
+					var side: float = r * (2.2 if bare else 1.45) * utility_icon_scale
+					_canvas.draw_texture_rect(icon,
+						Rect2(pos - Vector2(side, side) * 0.5, Vector2(side, side)),
+						false, gcol)
+			else:
+				var glyph: String = String(GLYPHS.get(int(node["type"]), "?"))
+				var glyph_type: int = int(node["type"])
+				var utility_glyph_scale: float = 1.2 if glyph_type == RunMap.NodeType.EVENT \
+					else (1.3 if glyph_type in [RunMap.NodeType.MERCHANT, RunMap.NodeType.CAMP] else 1.0)
+				var gsize: int = roundi(UITheme.FONT_HEADER * utility_glyph_scale)
+				var gw: float = font.get_string_size(glyph, HORIZONTAL_ALIGNMENT_LEFT,
+					-1, gsize).x
+				_canvas.draw_string(font, pos + Vector2(-gw * 0.5, gsize * 0.36), glyph,
+					HORIZONTAL_ALIGNMENT_LEFT, -1, gsize, gcol)
+
+			# Intensity as PIPS under a fight node: one/two/three marks. Kept off
+			# the colour channel, which already carries grade.
+			if RunMap.is_battle_node(node):
+				var pips: int = int(node["difficulty"]) + 1
+				for i in range(pips):
+					var px: float = pos.x - float(pips - 1) * 5.0 + float(i) * 10.0
+					_canvas.draw_circle(Vector2(px, pos.y + r + 9.0), 2.6,
+						gcol if is_next or is_here else Color(0.5, 0.5, 0.55, visibility))
+				# WHAT IT PAYS, on the node itself. The grade ring says how rich;
+				# this says what KIND — gold, gear, or a stat. Without it the
+				# player had to hover every node in a row to tell them apart,
+				# which is not a choice, it's an inspection round.
+				var rtex: Texture2D = _reward_icon(node.get("reward", {}))
+				var k: float = REWARD_BADGE_SCALE * pop_scale * _node_scale
+				var badge_r: float = 10.0 * k
+				# Pinned to the rim, measured from the badge's OWN size: its
+				# centre sits REWARD_BADGE_OUTSET of its radius outside this
+				# node's edge. The old fixed offset (0.72r, -0.82r) put the
+				# centre ON the rim whatever the badge's size, so growing it
+				# grew it inward over the creature; tied to badge_r, a bigger
+				# badge moves out instead. Uses this node's own r, so elite and
+				# boss discs keep theirs attached too.
+				var badge: Vector2 = pos + REWARD_BADGE_DIR * (r + badge_r * REWARD_BADGE_OUTSET)
+				if rtex:
+					# Grade-coloured disc behind it, so the badge reads against a
+					# dark node AND repeats the ring's grade colour. Every size
+					# here is a multiple of REWARD_BADGE_SCALE, so the rim, the
+					# disc and the icon grow together and it stays one knob.
+					_canvas.draw_circle(badge, badge_r, Color(0, 0, 0, 0.9 * visibility))
+					var badge_col: Color = grade_col.darkened(0.45 if (is_next or is_here) else 0.7)
+					badge_col.a *= visibility
+					_canvas.draw_circle(badge, 8.5 * k, badge_col)
+					var half: float = 7.0 * k
+					_canvas.draw_texture_rect(rtex,
+						Rect2(badge - Vector2(half, half), Vector2(half, half) * 2.0), false,
+						Color(1, 1, 1, visibility) if (is_next or is_here)
+						else Color(0.7, 0.7, 0.75, visibility))
+
+# How far along the path the traveller is, eased in and out so it sets off and
+# arrives rather than sliding at one speed.
+func _travel_progress() -> float:
+	var t: float = clampf(float(_travel.get("t", 0.0)), 0.0, 1.0)
+	return t * t * (3.0 - 2.0 * t)
+
+
+func _on_node_pressed(node: Dictionary) -> void:
+	if not _travel.is_empty():
+		return                          # already walking; the choice is made
+	var id: String = String(node["id"])
+	var enterable: bool = _map != null and _map.can_enter(id)
+	# Second click on the node whose card is already open is the commit. The
+	# first click can never start a fight, which is the whole point of moving
+	# the preview off hover.
+	if enterable and _selected_id == id and _tip.visible:
+		_enter_node(node)
+		return
+	open_dossier(node)
+
+# Open a node's dossier WITHOUT the second-click commit. Harnesses drive this:
+# calling the press handler twice on the same node would enter the fight, which
+# is correct for a player and wrong for a capture that just wants the card up.
+func open_dossier(node: Dictionary, pinned: bool = true) -> void:
+	_selected_id = String(node["id"])
+	_dossier_pinned = pinned
+	_dwell = 0.0
+	_show_dossier(node, _map != null and _map.can_enter(_selected_id))
+
+# Commit to a node. If there is a path to walk — from the node you stand on to
+# this one — the marker walks it first (TRAVEL_SECONDS) and the fight opens when
+# it arrives; the biome's opening relic has no path into it and opens at once.
+func _enter_node(node: Dictionary) -> void:
+	if not _travel.is_empty():
+		return                          # a second commit can't stack a second walk
+	_clear_selection()
+	var from_id: String = _map.current_id if _map != null else ""
+	var to_id: String = String(node["id"])
+	var walkable: bool = from_id != "" and TRAVEL_SECONDS > 0.0 \
+		and to_id in _map.node_by_id(from_id).get("children", [])
+	if not walkable:
+		_finish_enter(node)
+		return
+	# The cone would otherwise keep describing whatever the cursor last touched
+	# while the road grows toward the node actually chosen.
+	_hover_id = ""
+	_travel = {"from": from_id, "to": to_id, "node": node, "t": 0.0}
+	_canvas.queue_redraw()
+
+func _finish_enter(node: Dictionary) -> void:
+	visible = false
+	node_chosen.emit(node)
+
+func _clear_selection() -> void:
+	_selected_id = ""
+	_dossier_pinned = false
+	_dwell = 0.0
+	if _tip:
+		_tip.visible = false
+
+# The information rule lives here: `full` is true only for nodes you can step
+# onto right now.
+# The enemy half of the board, drawn small. Cells are grid positions; colour is
+# role (red melee / blue ranged / green support) and a large body draws double
+# size, because a 2x2 is the single biggest placement problem a wave can pose.
+func _draw_mini_board() -> void:
+	if _tip_formation.is_empty():
+		return
+	var cell: float = minf(_tip_board.size.x / float(maxi(1, _tip_grid_w)),
+		_tip_board.size.y / float(BOARD_ROWS))
+	var origin := Vector2((_tip_board.size.x - cell * _tip_grid_w) * 0.5, 2.0)
+	var board := Rect2(origin, Vector2(cell * _tip_grid_w, cell * BOARD_ROWS))
+
+	# The decade's real ground tile, repeated — the same texture the arena draws
+	# under the fight. Falls back to a flat field colour if that decade's art
+	# isn't in yet.
+	var ground: Texture2D = _tex(_tip_ground)
+	if ground:
+		_tip_board.draw_texture_rect(ground, board, true)
+	else:
+		_tip_board.draw_rect(board, Color(0.22, 0.30, 0.18), true)
+
+	# Cell lines, faint: enough to read position, not enough to fight the art.
+	for gx in range(1, _tip_grid_w):
+		_tip_board.draw_line(origin + Vector2(gx * cell, 0.0),
+			origin + Vector2(gx * cell, board.size.y), Color(0, 0, 0, 0.18), 1.0)
+	for gy in range(1, BOARD_ROWS):
+		_tip_board.draw_line(origin + Vector2(0.0, gy * cell),
+			origin + Vector2(board.size.x, gy * cell), Color(0, 0, 0, 0.18), 1.0)
+	_tip_board.draw_rect(board, Color(0, 0, 0, 0.85), false, 2.0)
+
+	# The units themselves, drawn at their cells. No health bars and no ENEMY
+	# ZONE label: this is a preview of the fight, not a copy of the HUD.
+	for e in _tip_formation:
+		var tex: Texture2D = _tex(String(e.get("sprite", "")))
+		var sprite_rect: Rect2 = _mini_unit_rect(e, cell, origin)
+		if tex == null:
+			_tip_board.draw_circle(sprite_rect.get_center(), sprite_rect.size.x * 0.5,
+				Color(0.72, 0.70, 0.66))
+			continue
+		# Sized by HEIGHT ONLY, exactly the way the real board does it
+		# (visual_unit._setup_plain_sprite: scale = render_h / texture_height).
+		#
+		# Constraining by WIDTH as well looked tidier and was wrong: it shrinks
+		# wide sprites in proportion to how wide they are. The rat's art is
+		# 1406x766, so a width cap of 0.9 cells drew it at 0.49 cells tall
+		# against the goblin's 0.87 — 57% the height, for no reason except its
+		# aspect ratio. In the actual fight they stand the same height. A preview
+		# that disagrees with the board about how big things are is worse than no
+		# preview, so wide bodies are allowed to overlap their neighbours here
+		# exactly as they do in play; the cap below only stops something absurd.
+		_tip_board.draw_texture_rect(tex, sprite_rect, false)
+
+func _mini_unit_rect(e: Dictionary, cell: float, origin: Vector2) -> Rect2:
+	var span: float = 2.0 if bool(e.get("large", false)) else 1.0
+	var gy: int = clampi(int(e["y"]), 0, BOARD_ROWS - int(span))
+	var foot := origin + Vector2((float(e["x"]) + span * 0.5) * cell,
+		(float(gy) + span) * cell)
+	var tex: Texture2D = _tex(String(e.get("sprite", "")))
+	if tex == null:
+		var radius: float = cell * 0.26 * span
+		var fallback_center: Vector2 = foot - Vector2(0, cell * 0.3)
+		return Rect2(fallback_center - Vector2.ONE * radius, Vector2.ONE * radius * 2.0)
+	var aspect: float = tex.get_width() / maxf(1.0, float(tex.get_height()))
+	var height: float = cell * span * 0.94
+	var width: float = minf(height * aspect, cell * span * 2.2)
+	return Rect2(foot - Vector2(width * 0.5, height), Vector2(width, height))
+
+func _on_mini_board_gui_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseMotion):
+		return
+	var motion := event as InputEventMouseMotion
+	var cell: float = minf(_tip_board.size.x / float(maxi(1, _tip_grid_w)),
+		_tip_board.size.y / float(BOARD_ROWS))
+	var origin := Vector2((_tip_board.size.x - cell * _tip_grid_w) * 0.5, 2.0)
+	for i in range(_tip_formation.size() - 1, -1, -1):
+		var formation: Dictionary = _tip_formation[i]
+		if _mini_unit_rect(formation, cell, origin).has_point(motion.position):
+			_tip_unit_name_label.text = String(formation.get("name", "Enemy"))
+			_tip_unit_name.reset_size()
+			_tip_unit_name.size = _tip_unit_name.get_combined_minimum_size()
+			var tip_pos: Vector2 = motion.position + Vector2(10, -_tip_unit_name.size.y - 8)
+			tip_pos.x = clampf(tip_pos.x, 0.0, maxf(0.0, _tip_board.size.x - _tip_unit_name.size.x))
+			tip_pos.y = clampf(tip_pos.y, 0.0, maxf(0.0, _tip_board.size.y - _tip_unit_name.size.y))
+			_tip_unit_name.position = tip_pos
+			_tip_unit_name.visible = true
+			return
+	_clear_mini_board_hover()
+
+func _clear_mini_board_hover() -> void:
+	if _tip_unit_name:
+		_tip_unit_name.visible = false
+
+# `full` is kept in the signature for call sites but no longer gates anything:
+# EVERY node shows its whole card, from anywhere on the map (owner call).
+#
+# The earlier adjacent-only rule was my idea, not a requirement — the stated
+# intent was always "hover a wave and see what you'll fight", and route planning
+# is the reason the map exists. Being told "step closer to see what it holds"
+# about a fight three rows up is precisely the information you need to decide
+# whether to head that way at all.
+# Make the dossier's PASSIVE parts transparent to the mouse, every descendant
+# of it except the card itself and its BEGIN button.
+#
+# THE BUG THIS FIXED: the card is centred and big, so it lay under the cursor
+# while you hovered a node beneath it. `_tip` was IGNORE, but Godot's containers
+# default to STOP — so the fact boxes and rows caught the pointer, the node
+# under them fired mouse_exited, the card hid, the node immediately fired
+# mouse_entered again, and the card flickered on every pixel of movement.
+# Setting the ROOT alone was not enough; it had to be the subtree.
+#
+# That loop still cannot close — the card no longer hides on mouse_exited — but
+# the pass is doing MORE work now, not less: a dwell card opens under the very
+# cursor that summoned it, so a STOP row anywhere in it would swallow the single
+# click meant for the node underneath, which is the whole point of the dwell.
+func _make_tip_click_through(n: Node) -> void:
+	if n == _tip_action or n == _tip_board:
+		return                      # action button and mini-board hover MUST take input
+	if n is Control:
+		(n as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for child in n.get_children():
+		_make_tip_click_through(child)
+
+# Hover LOOKS. It lights the cone (see _refresh_cone) and nothing else — no
+# card, so the paths it just lit stay visible.
+func _on_node_hover(node: Dictionary) -> void:
+	if not _hover_armed or not _travel.is_empty():
+		return
+	var id: String = String(node["id"])
+	if id == _hover_id:
+		return
+	_hover_id = id
+	_dwell = 0.0
+	# Arriving at a DIFFERENT node puts away a card that opened by itself. One
+	# you clicked open stays put: every route across the map to its BEGIN button
+	# passes over other nodes, and closing on arrival would make that button
+	# impossible to reach.
+	if not _dossier_pinned and _selected_id != "" and _selected_id != id:
+		_clear_selection()
+
+# Click ASKS. Opens the dossier for any node and pins the cone to it; `can_enter`
+# decides whether BEGIN is offered.
+func _show_dossier(node: Dictionary, can_enter: bool) -> void:
+	_tip_title.text = _node_headline(node).to_upper()
+	_tip_title.add_theme_color_override("font_color", Color(1.0, 0.92, 0.84))
+
+	var is_fight: bool = RunMap.is_battle_node(node)
+	var badge_col: Color
+	if RunMap.is_battle_node(node):
+		badge_col = TIER_COLORS[clampi(int(node.get("difficulty", 0)), 0, 2)]
+	else:
+		badge_col = {
+			RunMap.NodeType.EVENT: Color(0.62, 0.35, 0.84),
+			RunMap.NodeType.MERCHANT: Color(0.30, 0.70, 0.42),
+			RunMap.NodeType.CAMP: Color(0.32, 0.58, 0.82),
+		}.get(int(node["type"]), TIP_GOLD)
+	var badge := StyleBoxFlat.new()
+	badge.bg_color = badge_col.darkened(0.55)
+	badge.border_color = badge_col
+	badge.set_border_width_all(1)
+	badge.set_corner_radius_all(3)
+	badge.content_margin_left = 12
+	badge.content_margin_right = 12
+	badge.content_margin_top = 4
+	badge.content_margin_bottom = 4
+	_tip_difficulty_badge.add_theme_stylebox_override("panel", badge)
+	_tip_facts.visible = is_fight
+	_tip_reward.visible = is_fight
+	(_tip_reward.get_parent() as Control).visible = is_fight
+	_tip_kicker.visible = is_fight
+	_tip_wave.visible = is_fight
+	_tip_body.visible = not is_fight
+	if is_fight:
+		var pv: Dictionary = _node_preview(node)
+		_tip_kicker.visible = false
+		_tip_wave.visible = false
+		_tip_power.text = "%d" % int(round(float(pv.get("power", 0.0))))
+		var profile: Dictionary = pv.get("profile", {})
+		var ranks: Array[String] = []
+		var melee_count: int = int(profile.get("melee", 0))
+		var ranged_count: int = int(profile.get("ranged", 0)) + int(profile.get("support", 0))
+		if melee_count > 0:
+			ranks.append("%d Melee" % melee_count)
+		if ranged_count > 0:
+			ranks.append("%d Ranged" % ranged_count)
+		_tip_formation_text.text = "  •  ".join(ranks) if not ranks.is_empty() else "Unknown"
+		var reward: Dictionary = node.get("reward", {})
+		_tip_reward_icon.texture = _reward_icon(reward)
+		_tip_reward_icon.visible = _tip_reward_icon.texture != null
+		_tip_reward_name.text = RoundReward.describe(reward)
+		_tip_body.text = ""
+	else:
+		_tip_kicker.text = ""
+		_tip_wave.text = ""
+		_tip_body.text = _node_detail(node)
+	# The formation, for any fight anywhere on the map — scouting the route is
+	# the point.
+	_tip_formation = []
+	if RunMap.is_battle_node(node):
+		var pv: Dictionary = _node_preview(node)
+		_tip_formation = pv.get("formation", [])
+		_tip_grid_w = int(pv.get("grid_w", 9))
+		_tip_ground = String(pv.get("ground", ""))
+	_tip_board.visible = not _tip_formation.is_empty()
+	_tip_board.queue_redraw()
+	# BEGIN only exists on a node you may actually step onto. On a scouted node
+	# further up the map the card is pure information, and offering a button
+	# that would be refused is worse than offering none.
+	_tip_action.visible = can_enter
+	# Re-applied on every show, not just at build: the card's rows are rebuilt as
+	# its content changes, and one freshly-created row defaulting to STOP is
+	# enough to bring the flicker back.
+	_make_tip_click_through(_tip)
+	_tip.visible = true
+	# Visibility changes which VBox children contribute to minimum size. Reset
+	# AFTER showing it; doing this while hidden retained the previous large rect
+	# and left a blank block beneath an otherwise complete mini-board.
+	_tip.reset_size()
+	_settle_tip_size()
+
+func _settle_tip_size() -> void:
+	# Visibility changes are queued through Godot's container sort. Let that
+	# settle before measuring or the first dossier inherits the all-rows-visible
+	# construction height; subsequent dossiers happen to look correct only
+	# because the first pass has already completed.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not _tip or not _tip.visible:
+		return
+	# Containers happily expand their children into an old rect, but reset_size
+	# alone does not always reclaim that expansion on the first-ever show. Force
+	# the content back to its measured minimum, then fit the frame around it.
+	if _tip_box:
+		_tip_box.size = _tip_box.get_combined_minimum_size()
+	_tip.size = _tip.get_combined_minimum_size()
+
+# ── Texture loaders (cached; _draw runs every frame for the pulse) ───────────
+var _tex_cache: Dictionary = {}
+
+func _tex(path: String) -> Texture2D:
+	if path == "":
+		return null
+	if _tex_cache.has(path):
+		return _tex_cache[path]
+	var tex: Texture2D = null
+	if ResourceLoader.exists(path):
+		tex = load(path) as Texture2D
+	_tex_cache[path] = tex
+	return tex
+
+# The biome art behind the start node.
+#
+# NOT the painted backdrop, which was the first attempt: those are tall
+# atmospheric side-strips whose interesting half is sky, and cropping a 60px
+# disc out of one gave a near-black hole on the Fire biome (and mud elsewhere).
+# The decade's GROUND TILE is the better source — flat, bright, high-contrast,
+# designed to read at small size, and instantly identifiable as *that place*
+# (grass, lava rock, sand). It is the same texture the fight preview stands its
+# enemies on, so the start node and the preview agree about where you are.
+#
+# A bespoke start plate, if one is ever drawn, overrides both.
+func _start_backplate() -> Texture2D:
+	if _map == null:
+		return null
+	var slug: String = BACKDROP_ORDER[maxi(0, _map.biome) % BACKDROP_ORDER.size()]
+	var bespoke: Texture2D = _tex("%sstart_bg_%s.png" % [ICON_DIR, slug])
+	if bespoke:
+		return bespoke
+	var lo: int = maxi(0, _map.biome) * RunMap.WAVES_PER_BIOME + 1
+	var ground: Texture2D = _tex("res://assets/UI/arena/%d-%d/ready/tile.png"
+		% [lo, lo + RunMap.WAVES_PER_BIOME - 1])
+	return ground if ground else _tex("%s%s_backdrop.png" % [BACKDROP_DIR, slug])
+
+# How much to brighten a backing plate so every biome's start node reads about
+# equally. Samples the texture once (an 8x8 grid is plenty for an average) and
+# solves for the multiplier that lands its mean luminance on TARGET, clamped so
+# a bright biome is never dimmed and a black one never blows out to white.
+const START_PLATE_TARGET := 0.62
+var _boost_cache: Dictionary = {}
+
+func _plate_boost(tex: Texture2D) -> float:
+	var key: String = tex.resource_path
+	if _boost_cache.has(key):
+		return _boost_cache[key]
+	var boost := 1.0
+	var img: Image = tex.get_image()
+	if img:
+		var total := 0.0
+		var n := 0
+		for gy in range(8):
+			for gx in range(8):
+				var c: Color = img.get_pixel(
+					int(img.get_width() * (gx + 0.5) / 8.0),
+					int(img.get_height() * (gy + 0.5) / 8.0))
+				total += c.get_luminance()
+				n += 1
+		var mean: float = total / maxf(1.0, float(n))
+		boost = clampf(START_PLATE_TARGET / maxf(0.02, mean), 1.0, 4.0)
+	_boost_cache[key] = boost
+	return boost
+
+# Fill a circle with a texture. draw_circle can't take one and _draw has no
+# clipping, so the disc is a polygon with UVs — which also lets us pick WHICH
+# part of a tall backdrop shows (the middle band, where the art actually is,
+# rather than the sky).
+func _draw_disc_texture(centre: Vector2, radius: float, tex: Texture2D,
+		tint: Color) -> void:
+	var pts := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	var ts: Vector2 = tex.get_size()
+	# Square source window from the centre, as wide as the source is narrow so
+	# the art is never stretched. Ground tiles are uniform, so which part shows
+	# doesn't matter — what matters is that it isn't stretched.
+	var side: float = minf(ts.x, ts.y)
+	var src := Rect2(Vector2((ts.x - side) * 0.5, (ts.y - side) * 0.5),
+		Vector2(side, side))
+	for i in range(24):
+		var a: float = TAU * float(i) / 24.0
+		var dir := Vector2(cos(a), sin(a))
+		pts.append(centre + dir * radius)
+		uvs.append((src.position + (dir * 0.5 + Vector2(0.5, 0.5)) * src.size) / ts)
+	_canvas.draw_colored_polygon(pts, tint, uvs, tex)
+
+func _node_icon(node: Dictionary) -> Texture2D:
+	# A hand-drawn icon wins if one has been dropped in; otherwise a fight node
+	# falls back to the silhouette of the creature it actually is.
+	var slug: String = String(ICON_SLUGS.get(int(node["type"]), ""))
+	# ── THE START NODE MAY BE PER-BIOME (owner call, 2026-09-22) ─────────────
+	# It is already the one node that changes with the decade — its backplate is
+	# that biome's own ground (see _start_backplate) — so the emblem standing on
+	# it gets the same treatment: node_start_<slug>.png wins if it exists, and
+	# the generic node_start.png is the fallback for every biome that hasn't had
+	# one drawn yet. Same "drop the art in and it lights up" contract the rest of
+	# this set uses, so the six can land one at a time.
+	if slug == "node_start" and _map != null:
+		var biome_slug: String = BACKDROP_ORDER[maxi(0, _map.biome) % BACKDROP_ORDER.size()]
+		var bespoke: Texture2D = _tex("%s%s_%s.png" % [ICON_DIR, slug, biome_slug])
+		if bespoke:
+			return bespoke
+	var drawn: Texture2D = _tex("%s%s.png" % [ICON_DIR, slug]) if slug != "" else null
+	if drawn:
+		return drawn
+	return _creature_silhouette(node)
+
+# ── WHAT A MAP NODE IS A PICTURE OF ───────────────────────────────────────────
+# The sprite a node wears, for nodes that stand for one specific creature. The
+# map draws it as a black silhouette, so every decade's elite and boss node shows
+# the actual thing you'll fight there rather than a generic emblem — and it costs
+# no art at all, because that art already shipped.
+#
+# STATIC, and living here rather than in main_game, so the capture harness can
+# call it too. It used to be a private method on main_game; the standalone
+# harness therefore couldn't reach it, quietly fell through to the ⚔ glyph, and
+# produced screenshots that looked like the game and weren't.
+#
+# chosen_element is the Hydra's player-picked element, the one thing here that
+# depends on live run state; -1 (the default) means "not chosen yet", which is
+# what a harness or a pre-Hydra run wants anyway.
+static func sprite_path_for(round_no: int, node_type: int,
+		chosen_element: int = -1, battle_code: String = "") -> String:
+	if round_no <= 0:
+		return ""
+	var code: String = ""
+	match node_type:
+		RunMap.NodeType.ELITE:
+			code = WaveScaler.elite_code_for(round_no)
+		RunMap.NodeType.BOSS:
+			code = WaveScaler.boss_code_for(round_no, chosen_element)
+		RunMap.NodeType.BATTLE:
+			# The caller resolves this, because answering it means generating and
+			# PRICING the node's real wave — WaveDirector's job, not a UI static's
+			# (see WaveDirector.lead_code). An empty string means the caller had no
+			# director to ask, and the node falls back to its emblem rather than
+			# drawing a body that might not be in the fight.
+			code = battle_code
+		_:
+			return ""
+	return sprite_for_type(String(EnemyFactory.CODE_TO_TYPE.get(code, "")))
+
+# A unit type's sprite, with the MULTI-PHASE FALLBACK.
+#
+# Multi-phase bosses are keyed per PHASE, not by their base type: Khagan is
+# "khagan_phase1"/"khagan_phase2" and there is no plain "khagan" entry, so a
+# straight MONSTER_SPRITE_PATHS lookup returns "". Take the first phase — it's
+# the form you actually meet.
+#
+# EXTRACTED 2026-09-19 because the fallback existed here but NOT in
+# main_game._preview_formation, so the node silhouette drew Khagan correctly
+# while the hover card's mini-board drew him as a blank grey disc — the boss was
+# missing from the preview of his own boss fight. Anything resolving a unit
+# sprite by type name goes through this, so there is one place to fix next time.
+static func sprite_for_type(type_name: String) -> String:
+	if type_name == "":
+		return ""
+	var path: String = String(VisualUnit.MONSTER_SPRITE_PATHS.get(type_name, ""))
+	if path != "":
+		return path
+	for key in VisualUnit.MONSTER_SPRITE_PATHS:
+		if String(key).begins_with(type_name):
+			return String(VisualUnit.MONSTER_SPRITE_PATHS[key])
+	return ""
+
+# The real sprite behind a fight node.
+#
+# Cached per (round, type, DIFFICULTY, SEED): the last two are part of the answer
+# now, not decoration. A Veteran wave is the Normal one plus whatever the budget
+# bought, so its strongest body — the thing the silhouette draws — genuinely
+# differs from the Normal node beside it, and the seed decides what that body is.
+# Keying on round and type alone made the first node of a row answer for all
+# three tiers.
+func _creature_silhouette(node: Dictionary) -> Texture2D:
+	if not sprite_probe.is_valid() or not RunMap.is_battle_node(node):
+		return null
+	var key: String = "%d:%d:%d:%d" % [int(node.get("round", 0)), int(node["type"]),
+		int(node.get("difficulty", 0)), int(node.get("wave_seed", 0))]
+	if _sprite_cache.has(key):
+		return _sprite_cache[key]
+	var tex: Texture2D = _tex(String(sprite_probe.call(
+		int(node.get("round", 0)), int(node["type"]),
+		int(node.get("difficulty", 0)), int(node.get("wave_seed", 0)))))
+	# A sprite can only BE a silhouette if it's a cut-out. Seven of the eight
+	# boss plates are full-bleed paintings with no alpha at all, so drawing one
+	# near-black produced a solid dark bar across the node — which is what the
+	# Earth, Water, Fire, Lightning and endgame boss nodes had been doing.
+	if tex != null and not _is_cutout(tex):
+		tex = null
+	_sprite_cache[key] = tex
+	return tex
+
+# A WHITE stamp of a sprite's shape, so modulate can flood it with a tier
+# colour instead of multiplying into the sprite's own paint.
+#
+# SHRUNK FIRST, and that is the whole reason this is affordable. Every boss
+# plate is 1408x768 — a million get_pixel/set_pixel calls in GDScript — to
+# produce something that is then drawn at about ninety pixels. Resizing to
+# MASK_MAX_PX first costs a native bilinear pass and leaves a few thousand
+# pixels for the loop, and the result is still drawn at or above 1:1.
+#
+# Cached by resource path like the cut-out test beside it, so a biome pays for
+# each distinct creature once.
+const MASK_MAX_PX := 128
+
+func _silhouette_mask(tex: Texture2D) -> Texture2D:
+	var key: String = tex.resource_path
+	if key != "" and _mask_cache.has(key):
+		return _mask_cache[key]
+	var out: Texture2D = null
+	var src: Image = tex.get_image()
+	if src != null:
+		# Never mutate the texture's own image — decompress and resize below
+		# would otherwise edit the sprite every other screen is drawing from.
+		var img := Image.new()
+		img.copy_from(src)
+		if not img.is_compressed() or img.decompress() == OK:
+			var longest: int = maxi(img.get_width(), img.get_height())
+			if longest > MASK_MAX_PX:
+				var k: float = float(MASK_MAX_PX) / float(longest)
+				img.resize(maxi(1, int(img.get_width() * k)),
+					maxi(1, int(img.get_height() * k)), Image.INTERPOLATE_BILINEAR)
+			img.convert(Image.FORMAT_RGBA8)
+			for y in range(img.get_height()):
+				for x in range(img.get_width()):
+					img.set_pixel(x, y, Color(1, 1, 1, img.get_pixel(x, y).a))
+			out = ImageTexture.create_from_image(img)
+	if key != "":
+		_mask_cache[key] = out
+	return out
+
+# Is this texture a cut-out creature, or a full-bleed painted plate?
+#
+# Tested rather than listed, so the answer stays true on its own: the moment a
+# boss gets a cut-out version dropped in, its node starts wearing it with no code
+# change — the same "drop the art in and it lights up" contract the event panel
+# and the node icons already use. A hand-maintained denylist would have gone
+# stale the first time someone re-exported a plate.
+#
+# The test is the FOUR CORNERS. Every cut-out in the project reads alpha 0 at all
+# four (goblin, khagan, the elites); a full-bleed plate is opaque everywhere. A
+# creature would have to reach into all four corners at once to fool it, which
+# no sprite drawn on a transparent canvas does.
+func _is_cutout(tex: Texture2D) -> bool:
+	var key: String = tex.resource_path
+	if key != "" and _cutout_cache.has(key):
+		return bool(_cutout_cache[key])
+	var ok: bool = true
+	var img: Image = tex.get_image()
+	if img == null:
+		ok = false
+	else:
+		# Imported textures usually arrive VRAM-compressed, and get_pixel on a
+		# compressed Image is garbage. Decompress a copy or decline to guess.
+		if img.is_compressed() and img.decompress() != OK:
+			ok = false
+		else:
+			var w: int = img.get_width()
+			var h: int = img.get_height()
+			for p: Vector2i in [Vector2i(0, 0), Vector2i(w - 1, 0),
+					Vector2i(0, h - 1), Vector2i(w - 1, h - 1)]:
+				if img.get_pixelv(p).a > 0.06:
+					ok = false
+					break
+	if key != "":
+		_cutout_cache[key] = ok
+	return ok
+
+# Is this node drawing a creature sprite rather than an emblem? A silhouette is
+# a filled shape, so it's drawn dark on a lit disc rather than tinted like the
+# line-art emblems.
+func _is_silhouette(node: Dictionary) -> bool:
+	var slug2: String = String(ICON_SLUGS.get(int(node["type"]), ""))
+	if slug2 != "" and _tex("%s%s.png" % [ICON_DIR, slug2]):
+		return false
+	return _creature_silhouette(node) != null
+
+# What colour to draw a node's emblem in. Every FIGHT — skirmish, elite, boss —
+# is tinted by its tier, so "how hard" reads identically everywhere on the map.
+# Everything else stays neutral; its type is carried by the emblem itself.
+# ── Motion helpers ────────────────────────────────────────────────────────────
+# A point on the curved edge from -> to at parameter t (see MOTION: horizontal
+# tangents at both ends, both control points on the vertical halfway between).
+static func _edge_at(from: Vector2, to: Vector2, t: float) -> Vector2:
+	var mid_x: float = (from.x + to.x) * 0.5
+	var u: float = 1.0 - t
+	return u * u * u * from \
+		+ 3.0 * u * u * t * Vector2(mid_x, from.y) \
+		+ 3.0 * u * t * t * Vector2(mid_x, to.y) \
+		+ t * t * t * to
+
+# The edge as a polyline, from its start up to parameter `upto` — the whole edge
+# by default, part of it while the reveal inks it in or the road grows along it.
+static func _edge_points(from: Vector2, to: Vector2, upto: float = 1.0) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	var steps: int = maxi(1, int(ceil(PATH_SEGMENTS * clampf(upto, 0.0, 1.0))))
+	for i in range(steps + 1):
+		pts.append(_edge_at(from, to, upto * float(i) / float(steps)))
+	return pts
+
+# Dashes marching along a polyline, measured by ARC LENGTH so their spacing is
+# even however the curve bends. `phase` slides the pattern forward from the
+# polyline's start toward its end.
+func _draw_flow(pts: PackedVector2Array, phase: float, col: Color, width: float) -> void:
+	var period: float = FLOW_DASH + FLOW_GAP
+	var s: float = 0.0
+	for i in range(pts.size() - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		var seg: float = a.distance_to(b)
+		if seg <= 0.001:
+			continue
+		var d: float = 0.0
+		while d < seg:
+			var local: float = fposmod(s + d - phase, period)
+			var dashing: bool = local < FLOW_DASH
+			var step: float = maxf(0.01, (FLOW_DASH - local) if dashing else (period - local))
+			var d2: float = minf(seg, d + step)
+			if dashing:
+				_canvas.draw_line(a.lerp(b, d / seg), a.lerp(b, d2 / seg), col, width, true)
+			d = d2
+		s += seg
+
+# Ease every lift toward its goal: up for the node under the cursor and the node
+# whose card is open, down for everything else. Exponential, so it is smooth at
+# any frame rate and never overshoots.
+func _ease_lifts(delta: float) -> void:
+	var k: float = 1.0 - exp(-LIFT_EASE * delta)
+	var ids: Array = _lift.keys()
+	for id in [_hover_id, _selected_id]:
+		if id != "" and not ids.has(id):
+			ids.append(id)
+	for id in ids:
+		var goal: float = 1.0 if (id == _hover_id or id == _selected_id) else 0.0
+		var v: float = lerpf(float(_lift.get(id, 0.0)), goal, k)
+		if goal == 0.0 and v < 0.002:
+			_lift.erase(id)
+		else:
+			_lift[id] = v
+
+func _reveal_duration() -> float:
+	var rows: int = _map.rows.size() if _map != null else 0
+	return (float(maxi(0, rows - 1)) * REVEAL_ROW_DELAY + REVEAL_NODE_POP
+		+ REVEAL_EDGE_DRAW) / REVEAL_RATE
+
+# How far through its entrance row r is: <0 not started, 0..1 popping in, 1 done.
+# Returns 1 when no reveal is running, so every caller can multiply by it freely.
+func _reveal_row(r: int, lag: float = 0.0, span: float = REVEAL_NODE_POP) -> float:
+	if _reveal_start < 0.0:
+		return 1.0
+	# Reveal-time, not wall time: scaled once here, so every row, pop and edge
+	# slows together and the three timings keep meaning what they say.
+	var elapsed: float = (_clock - _reveal_start) * REVEAL_RATE
+	return clampf((elapsed - float(r) * REVEAL_ROW_DELAY - lag) / span, 0.0, 1.0)
+
+# Ease-out with a small overshoot: a node lands a touch larger than its size and
+# settles, which is what makes a pop read as placed rather than faded in.
+static func _back_out(t: float) -> float:
+	var c1 := 1.70158
+	var c3 := c1 + 1.0
+	return 1.0 + c3 * pow(t - 1.0, 3.0) + c1 * pow(t - 1.0, 2.0)
+
+# Forward closure from the hovered node, recomputed only when the hover moves.
+# Thirty-one nodes at most, but _draw_map runs every frame for the frontier
+# pulse, so it is not walked every frame.
+func _refresh_cone() -> void:
+	var focus: String = _focus_id()
+	if _cone_id == focus:
+		return
+	_cone_id = focus
+	_cone.clear()
+	if focus == "" or _map == null:
+		return
+	var frontier: Array = [focus]
+	_cone[focus] = true
+	while not frontier.is_empty():
+		var id: String = String(frontier.pop_back())
+		for cid in _map.node_by_id(id).get("children", []):
+			if not _cone.has(String(cid)):
+				_cone[String(cid)] = true
+				frontier.append(String(cid))
+
+func _cone_factor(id: String) -> float:
+	if _cone.is_empty():
+		return 1.0
+	if _cone.has(id):
+		return 1.0
+	# The road behind you stays lit. It is where you have been, not a claim
+	# about where this fork goes, and fading it would make the map look like it
+	# had forgotten the run.
+	if _map != null and (id == _map.current_id or _map.cleared.has(id)):
+		return 1.0
+	return CONE_DIM
+
+# How visible a node is: how far ahead it lies, times whether the node under the
+# cursor can get there at all.
+func _stage_visibility(node: Dictionary, reachable: Dictionary) -> float:
+	if _cone.is_empty():
+		return _depth_visibility(node, reachable)
+	return CONE_LIT if _cone_factor(String(node.get("id", ""))) >= 1.0 else CONE_DIM
+
+func _depth_visibility(node: Dictionary, reachable: Dictionary) -> float:
+	var id := String(node.get("id", ""))
+	if reachable.has(id) or id == _map.current_id or _map.cleared.has(id):
+		return 1.0
+	var current_row := -1
+	if _map.current_id != "":
+		current_row = int(_map.node_by_id(_map.current_id).get("row", -1))
+	var distance: int = int(node.get("row", 0)) - current_row
+	if distance <= 2:
+		return 0.65
+	# Landmarks remain identifiable without competing with the live decision.
+	if int(node.get("type", -1)) in [RunMap.NodeType.ELITE, RunMap.NodeType.MERCHANT, RunMap.NodeType.BOSS]:
+		return 0.52
+	return 0.36
+
+func _icon_color(node: Dictionary, lit: bool) -> Color:
+	# The start node is the one emblem drawn on BRIGHT ground (its biome-art
+	# porthole), so it reads as a dark silhouette — the same way the Slay the
+	# Spire start marker sits black on parchment. A pale emblem there washed
+	# straight out on the grass biome.
+	if int(node["type"]) == RunMap.NodeType.RELIC:
+		return Color(0.08, 0.07, 0.09) if lit else Color(0.20, 0.19, 0.22)
+	var col := Color(1, 1, 1, 1)
+	if RunMap.is_battle_node(node):
+		col = TIER_COLORS[clampi(int(node["difficulty"]), 0, 2)]
+	return col if lit else col.darkened(0.45)
+
+# The reward's OWN icon, from wherever the game already keeps it.
+func _reward_icon(reward: Dictionary) -> Texture2D:
+	match int(reward.get("type", RoundReward.Type.NOTHING)):
+		RoundReward.Type.GOLD:
+			return _tex(COIN_ICON)
+		RoundReward.Type.ITEM:
+			var item: EquipmentItem = reward.get("item")
+			if item == null:
+				return null
+			return _tex(String(EquipmentManager.ITEM_ICONS.get(item.name, "")))
+		RoundReward.Type.STAT_BONUS:
+			var perk: Dictionary = reward.get("perk", {})
+			var key: String = String(LevelUpScreen.PERK_ICON_KEY.get(
+				String(perk.get("id", "")), ""))
+			return _tex(String(UnitFactory.STAT_ICONS.get(key, "")))
+	return null
+
+func _node_headline(node: Dictionary) -> String:
+	var t: int = int(node["type"])
+	if t == RunMap.NodeType.BATTLE:
+		return TIER_NAMES[clampi(int(node["difficulty"]), 0, 2)]
+	if t == RunMap.NodeType.ELITE or t == RunMap.NodeType.BOSS:
+		return "%s — %s" % [RunMap.type_name(t), TIER_NAMES[clampi(int(node["difficulty"]), 0, 2)]]
+	return RunMap.type_name(t)
+
+func _node_preview(node: Dictionary) -> Dictionary:
+	var id: String = String(node["id"])
+	if _preview_cache.has(id):
+		return _preview_cache[id]
+	if not preview_probe.is_valid():
+		return {}
+	var data: Dictionary = preview_probe.call(
+		int(node.get("round", 0)), int(node.get("difficulty", 0)),
+		int(node.get("wave_seed", 0)))
+	_preview_cache[id] = data
+	return data
+
+func _node_detail(node: Dictionary) -> String:
+	var lines: Array[String] = []
+	match int(node["type"]):
+		RunMap.NodeType.BATTLE, RunMap.NodeType.ELITE, RunMap.NodeType.BOSS:
+			var pv: Dictionary = _node_preview(node)
+			var wave_name: String = String(pv.get("name", ""))
+			lines.append("Wave %d%s" % [int(node["round"]),
+				"  ·  %s" % wave_name if wave_name != "" else ""])
+			# What you would actually be placing against, and how heavy it is on
+			# the same power scale the difficulty panel prints.
+			var profile: Dictionary = pv.get("profile", {})
+			var parts: Array[String] = []
+			for key in ["melee", "ranged", "support", "large"]:
+				if int(profile.get(key, 0)) > 0:
+					parts.append("%d %s" % [int(profile[key]), key])
+			if not parts.is_empty():
+				lines.append("Facing: %s" % " · ".join(parts))
+			if pv.has("power"):
+				lines.append("Power %d" % int(round(float(pv["power"]))))
+			lines.append("Reward: %s" % RoundReward.describe(node.get("reward", {})))
+		RunMap.NodeType.EVENT:
+			lines.append("An encounter on the road. What's inside is worth about a %s."
+				% String(node["grade"]))
+		RunMap.NodeType.MERCHANT:
+			lines.append("The merchant. Spend gold on heroes, items, relics and upgrades.")
+		RunMap.NodeType.CAMP:
+			lines.append("Make camp: train a hero, work an item, or scout the road ahead.")
+		RunMap.NodeType.RELIC:
+			lines.append("Choose one relic. It lasts the rest of the run.")
+	if int(node.get("slot_wave", 0)) > 0 and not RunMap.is_battle_node(node):
+		lines.append("An alternate route for this stage; no battle reward.")
+	return "\n".join(lines)
+
+# Hide the map without closing it: the board is the live scene underneath, so
+# this is pure visibility. Nothing about the run's state moves.
+# True only when the MAP ITSELF is covering the board. VIEW BOARD leaves this
+# CanvasLayer visible (it still owns the BACK TO MAP button) while hiding the
+# panel, and in that state the board's own hover tooltips must keep working —
+# inspecting your formation is the entire point of being there.
+func is_covering_board() -> bool:
+	return visible and _panel != null and _panel.visible
+
+func _on_view_board() -> void:
+	_tip.visible = false
+	_panel.visible = false
+	_overlay.visible = false
+	_return_btn.visible = true
+	var vp: Vector2 = get_viewport().get_visible_rect().size if get_viewport() 		else Vector2(1920, 1080)
+	_return_btn.position = Vector2(vp.x * 0.5 - _return_btn.size.x * 0.5, 16)
+
+func _on_return_to_map() -> void:
+	_return_btn.visible = false
+	_panel.visible = true
+	_overlay.visible = true
+
+func _center_panel() -> void:
+	var vp: Vector2 = get_viewport().get_visible_rect().size if get_viewport() \
+		else Vector2(1920, 1080)
+	_panel.position = ((vp - _panel_size) / 2.0).floor()
+
+func _lbl(parent: Node, text: String, sz: int, col: Color, pos: Vector2, size: Vector2) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.position = pos
+	l.size = size
+	UITheme.apply_font(l, sz)
+	l.add_theme_color_override("font_color", col)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	parent.add_child(l)
+	return l

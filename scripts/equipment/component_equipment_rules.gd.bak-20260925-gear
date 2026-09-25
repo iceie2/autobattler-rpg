@@ -1,0 +1,239 @@
+extends RefCounted
+class_name ComponentEquipmentRules
+
+# Pure merge rules for the new equipment system. Nothing calls this from the
+# live game yet; the old generator, inventory, and item class remain in use.
+const FAMILY_GROUP := {
+	"atk": "Offense", "crit": "Offense", "critdmg": "Offense",
+	"magic": "Magic", "mana": "Magic",
+	"hp": "Defense", "res": "Defense", "magic_resist": "Defense",
+	"aspd": "Speed",
+}
+const GROUP_ORDER := ["Offense", "Magic", "Defense", "Speed"]
+const FAMILY_NAME := {
+	"hp": "Heart", "mana": "Flask", "atk": "Sword",
+	"magic": "Staff", "res": "Shield", "magic_resist": "Ward",
+	"aspd": "Gauntlet", "crit": "Dagger", "critdmg": "Axe",
+}
+
+# An empty name means the pairing still needs its ability designed. Until then,
+# the core refuses that grey->green merge rather than silently inventing one.
+const PAIR_PASSIVE := {
+	"Offense+Offense": "",
+	"Offense+Magic": "",
+	"Offense+Defense": "Lifesteal",
+	"Offense+Speed": "",
+	"Magic+Magic": "",
+	"Magic+Defense": "Regeneration",  # Provisional reuse of existing hook.
+	"Magic+Speed": "Spell Echo",
+	"Defense+Defense": "Thorns",
+	"Defense+Speed": "",
+	"Speed+Speed": "Haste",
+}
+
+const COMPONENTS_BY_RARITY := [1, 2, 4, 8, 16]
+const PASSIVE_LEVELS_BY_RARITY := [0, 1, 2, 4, 8]
+const FLOAT_STATS := ["aspd", "hpregen", "manaregen", "crit", "critdmg"]
+const SAVE_SYSTEM := "components_v1"
+# Provisional level-one magnitudes. These must be measured in the arena before
+# the component system can be enabled in normal play.
+const LEVEL_ONE_VALUE := {
+	"Lifesteal": 0.05,
+	"Thorns": 0.04,
+	"Haste": 0.05,
+	"Spell Echo": 0.025,
+	"Regeneration": 0.05,
+}
+
+static func create_common(family: String, stats: Dictionary = {}) -> ComponentEquipmentItem:
+	if not FAMILY_GROUP.has(family):
+		return null
+	var item := ComponentEquipmentItem.new(str(FAMILY_NAME[family]), EquipmentItem.Rarity.COMMON)
+	item.composition[family] = 1
+	for stat in stats:
+		if item.stat_bonus.has(stat):
+			item.stat_bonus[stat] = stats[stat]
+	return item
+
+static func _roll_common(family: String, round_number: int) -> ComponentEquipmentItem:
+	var stats: Dictionary = {}
+	for i in range(2):
+		var value: Variant
+		if family == "crit" or family == "critdmg":
+			value = snappedf(0.03 + randf() * 0.03, 0.01) if family == "crit" \
+				else snappedf(0.15 + randf() * 0.15, 0.01)
+		elif family == "aspd":
+			value = snappedf((0.05 + round_number * 0.005) * (0.8 + randf() * 0.4), 0.01)
+		else:
+			value = int((3.0 + round_number * 0.25) * (0.8 + randf() * 0.4))
+			if family == "hp" or family == "mana":
+				value = int(value) * 10
+		stats[family] = stats.get(family, 0) + value
+	return create_common(family, stats)
+
+static func _random_resolved_green(round_number: int, stat_keep: float) -> ComponentEquipmentItem:
+	var available: Array[String] = []
+	for key in PAIR_PASSIVE:
+		if not str(PAIR_PASSIVE[key]).is_empty():
+			available.append(str(key))
+	if available.is_empty():
+		return null
+	var groups: PackedStringArray = available.pick_random().split("+")
+	var families: Array[String] = []
+	for group in groups:
+		var choices: Array[String] = []
+		for family in FAMILY_GROUP:
+			if FAMILY_GROUP[family] == group:
+				choices.append(str(family))
+		families.append(choices.pick_random())
+	return combine(_roll_common(families[0], round_number),
+		_roll_common(families[1], round_number), stat_keep)
+
+# A direct higher-rarity drop is assembled from legal green ancestors. This
+# gives it the same composition and passive-level budget as a player-made item.
+static func generate_item(round_number: int = 1,
+		rarity: int = EquipmentItem.Rarity.COMMON,
+		stat_keep: float = 1.0) -> ComponentEquipmentItem:
+	if rarity < EquipmentItem.Rarity.COMMON or rarity > EquipmentItem.Rarity.LEGENDARY:
+		return null
+	if rarity == EquipmentItem.Rarity.COMMON:
+		var families: Array = FAMILY_GROUP.keys()
+		return _roll_common(str(families.pick_random()), round_number)
+	var tier: Array[ComponentEquipmentItem] = []
+	for i in range(1 << (rarity - 1)):
+		tier.append(_random_resolved_green(round_number, stat_keep))
+	while tier.size() > 1:
+		var next_tier: Array[ComponentEquipmentItem] = []
+		for i in range(0, tier.size(), 2):
+			next_tier.append(combine(tier[i], tier[i + 1], stat_keep))
+		tier = next_tier
+	return tier[0]
+
+static func pair_key(a: String, b: String) -> String:
+	if not FAMILY_GROUP.has(a) or not FAMILY_GROUP.has(b):
+		return ""
+	var first: String = str(FAMILY_GROUP[a])
+	var second: String = str(FAMILY_GROUP[b])
+	if GROUP_ORDER.find(first) > GROUP_ORDER.find(second):
+		return second + "+" + first
+	return first + "+" + second
+
+static func dominant_family(composition: Dictionary) -> String:
+	var families: Array[String] = []
+	for family in composition:
+		families.append(str(family))
+	families.sort()
+	var best := ""
+	var highest := -1
+	for family in families:
+		var count := int(composition[family])
+		if count > highest:
+			best = family
+			highest = count
+	return best
+
+static func to_dict(item: ComponentEquipmentItem) -> Dictionary:
+	return {
+		"system": SAVE_SYSTEM,
+		"id": item.id,
+		"name": item.name,
+		"description": item.description,
+		"rarity": int(item.rarity),
+		"stat_bonus": item.stat_bonus.duplicate(true),
+		"passives": item.passives.duplicate(true),
+		"icon_color": item.icon_color,
+		"composition": item.composition.duplicate(true),
+		"passive_levels": item.passive_levels.duplicate(true),
+	}
+
+static func from_dict(data: Dictionary) -> ComponentEquipmentItem:
+	if str(data.get("system", "")) != SAVE_SYSTEM:
+		return null
+	var rarity: int = int(data.get("rarity", -1))
+	if rarity < EquipmentItem.Rarity.COMMON or rarity > EquipmentItem.Rarity.LEGENDARY:
+		return null
+	var composition: Dictionary = data.get("composition", {})
+	var levels: Dictionary = data.get("passive_levels", {})
+	var stats: Dictionary = data.get("stat_bonus", {})
+	for family in composition:
+		if not FAMILY_GROUP.has(family) or int(composition[family]) <= 0:
+			return null
+	for name in levels:
+		if not LEVEL_ONE_VALUE.has(name) or int(levels[name]) <= 0:
+			return null
+	var item := ComponentEquipmentItem.new(
+		str(data.get("name", "?")), rarity)
+	item.id = str(data.get("id", item.id))
+	item.composition = composition.duplicate(true)
+	item.passive_levels = levels.duplicate(true)
+	if item.component_count() != COMPONENTS_BY_RARITY[rarity] \
+			or item.passive_level_count() != PASSIVE_LEVELS_BY_RARITY[rarity]:
+		return null
+	for stat in stats:
+		if item.stat_bonus.has(stat):
+			item.stat_bonus[stat] = stats[stat]
+	_refresh_passives(item)
+	return item
+
+static func _refresh_passives(item: ComponentEquipmentItem) -> void:
+	item.passives.clear()
+	var names: Array[String] = []
+	for name in item.passive_levels:
+		names.append(str(name))
+	names.sort()
+	for name in names:
+		item.passives.append({
+			"name": name,
+			"level": int(item.passive_levels[name]),
+			"value": float(item.passive_levels[name]) * float(LEVEL_ONE_VALUE.get(name, 0.0)),
+		})
+	item.description = "\n".join(item.get_passive_lines())
+
+static func can_combine(a: ComponentEquipmentItem, b: ComponentEquipmentItem) -> bool:
+	if a == null or b == null or a == b or a.rarity != b.rarity:
+		return false
+	if a.rarity >= EquipmentItem.Rarity.LEGENDARY:
+		return false
+	if a.component_count() != COMPONENTS_BY_RARITY[a.rarity] \
+			or b.component_count() != COMPONENTS_BY_RARITY[b.rarity]:
+		return false
+	if a.passive_level_count() != PASSIVE_LEVELS_BY_RARITY[a.rarity] \
+			or b.passive_level_count() != PASSIVE_LEVELS_BY_RARITY[b.rarity]:
+		return false
+	if a.rarity == EquipmentItem.Rarity.COMMON:
+		var first := dominant_family(a.composition)
+		var second := dominant_family(b.composition)
+		return not str(PAIR_PASSIVE.get(pair_key(first, second), "")).is_empty()
+	return true
+
+# stat_keep is explicit while the two-input fusion tax awaits arena tuning.
+# Passing 1.0 preserves raw values; callers can measure other values without
+# changing the deterministic composition and passive-level rules.
+static func combine(a: ComponentEquipmentItem, b: ComponentEquipmentItem,
+		stat_keep: float = 1.0) -> ComponentEquipmentItem:
+	if not can_combine(a, b):
+		return null
+
+	var passive := ""
+	if a.rarity == EquipmentItem.Rarity.COMMON:
+		var first := dominant_family(a.composition)
+		var second := dominant_family(b.composition)
+		passive = str(PAIR_PASSIVE.get(pair_key(first, second), ""))
+
+	var merged_composition: Dictionary = a.composition.duplicate()
+	for family in b.composition:
+		merged_composition[family] = int(merged_composition.get(family, 0)) + int(b.composition[family])
+	var family_name := dominant_family(merged_composition)
+	var result := ComponentEquipmentItem.new(str(FAMILY_NAME.get(family_name, family_name)), a.rarity + 1)
+	result.composition = merged_composition
+	for stat in result.stat_bonus:
+		var value := (float(a.stat_bonus.get(stat, 0)) + float(b.stat_bonus.get(stat, 0))) * stat_keep
+		result.stat_bonus[stat] = snappedf(value, 0.01) if stat in FLOAT_STATS else int(value)
+	if a.rarity == EquipmentItem.Rarity.COMMON:
+		result.passive_levels[passive] = 1
+	else:
+		result.passive_levels = a.passive_levels.duplicate()
+		for name in b.passive_levels:
+			result.passive_levels[name] = int(result.passive_levels.get(name, 0)) + int(b.passive_levels[name])
+	_refresh_passives(result)
+	return result

@@ -293,12 +293,10 @@ func _refresh_reward_display() -> void:
 			var item: EquipmentItem = reward.get("item")
 			if item:
 				_hovered_item = item
-				var icon_path: String = EquipmentManager.ITEM_ICONS.get(item.name, "")
-				if icon_path != "":
-					var tex: Texture2D = load(icon_path)
-					if tex:
-						_reward_icon.texture = tex
-						_reward_icon.modulate = item.icon_color
+				var tex: Texture2D = GearIcons.icon_for(item)   # legacy art or component composite
+				if tex:
+					_reward_icon.texture = tex
+					_reward_icon.modulate = item.icon_color
 				# Bag-slot look: rarity-tinted background + border, same as the
 				# inventory/bag slots elsewhere in the UI.
 				var slot_bg := StyleBoxFlat.new()
