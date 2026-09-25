@@ -1082,10 +1082,11 @@ different fix:
 
 **DECIDED - the tree's element synergy bonus is +1 per element.** Keep
 `synergy_<element>_1`; nodes `_2` and `_3` (12 in all, 1200 crystals each) are
-freed for relic or event nodes - which ones is open. The tree change waits for
-that answer so no purchasable node is ever left doing nothing. The tree is
-generated (`tools/crystal_tree/gen_crystal_tree.py`), so the change goes
-through the generator, not hand-edited JSON.
+freed (see "Freed nodes" below: deleted). The tree is generated
+(`tools/crystal_tree/gen_crystal_tree.py`), but the live `crystal_tree.json`
+also carries 46 relic-unlock nodes placed afterwards by `place_relic_nodes.py`,
+so regenerating and copying the mock over would drop them. Tree edits must be
+made in the generator AND surgically in the data files, so the two agree.
 
 **Correction, same day.** The worksheet first said a Burn team speeds up
 enemy ults. The owner pushed back - *"i feel like burn teams would have the
@@ -1094,8 +1095,19 @@ comps"* - and is right: victims charge 1:1 from any damage taken, so burn
 charges enemy ults exactly like hits per point of damage. Only damage *spread*
 changes enemy ult timing, and that is true of any AoE comp.
 
-**Blocked on.** What the 12 freed tree nodes become. Verb tags beyond Burn stay
-proposals. Code touches `auto_battle_manager.gd` and `unit_base.gd`, which
+**Freed nodes (2026-09-25).** Offered a relic reroll and an event-grade node
+per element, the owner declined:
+
+> "i think we just remove them we have SOOO many nodes. i view it as just
+> pushing from roguelite to roguelike and we agreed the game is much more
+> roguelite heavy."
+
+**DECIDED - `synergy_<element>_2` and `_3` are deleted, not repurposed.**
+Removed from the live tree, the generated catalogue, the generator's mock and
+the generator itself; `synergy_<element>_1` stays where it is. The owner's
+only save owned none of them (205 crystals, 63 spent), so no refund migration.
+
+**Blocked on.** Verb tags beyond Burn stay proposals. Code touches `auto_battle_manager.gd` and `unit_base.gd`, which
 carry another session's uncommitted gear-passive work (last edited 2026-09-25
 04:16) - commit or coordinate before editing them.
 

@@ -1,8 +1,8 @@
 # Build Archetypes - design worksheet
 
 Status: Burn pieces B1-B5 ACCEPTED 2026-09-25 under the loop rules below; tree
-synergy cut to +1 per element (freed nodes TBD); verb tags beyond Burn still
-proposals. Written 2026-09-25. Decisions live in
+synergy cut to +1 per element (the other 12 nodes removed); verb tags beyond
+Burn still proposals. Written 2026-09-25. Decisions live in
 `VERTICAL_DEPTH_BACKLOG.md` under **VD-16**. This worksheet proposes; it does not
 decide. Burn piece effects are moves, so the owner designs or approves them before
 any code (numbers are free to tune in the arena).
@@ -176,10 +176,11 @@ element. Thresholds are 2/3.
 
 **Decided (owner):** *"i think the best route is still drop each element to +1
 at most those +2 can go to other things like relics or events."* Keep
-`synergy_<element>_1`; `_2` and `_3` (12 nodes) are freed. What they become is
-open, and the tree change waits for that answer so no purchasable node is left
-doing nothing. As today, the +1 only counts for an element you field at least
-one hero of. At 18+ heroes every element lights with no nodes at all,
+`synergy_<element>_1`; `_2` and `_3` (12 nodes) are **removed, not
+repurposed** - owner, later the same day: *"i think we just remove them we have
+SOOO many nodes. i view it as just pushing from roguelite to roguelike and we
+agreed the game is much more roguelite heavy."* As today, the +1 only counts for
+an element you field at least one hero of. At 18+ heroes every element lights with no nodes at all,
 so big boards eventually need deeper thresholds - a synergy numbers pass in the
 arena, not part of the Burn slice. Duplicates also count toward synergy today
 (TFT counts each champion once); same pass.
@@ -201,7 +202,7 @@ arena, not part of the Burn slice. Duplicates also count toward synergy today
 
 ## Open questions
 
-1. What the 12 freed tree nodes become (owner: "relics or events").
+1. ~~What the 12 freed tree nodes become~~ - removed (owner, 2026-09-25).
 2. Do verb tags show in the UI (a chip on the hero card), or only on the relic
    card ("Affects: Coal, Sear, Ember")?
 3. Does the merchant's relic slot follow the reserved-slot rule too?
