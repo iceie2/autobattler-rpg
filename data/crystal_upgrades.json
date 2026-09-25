@@ -367,30 +367,6 @@
       "name": "Fire Synergy"
     },
     {
-      "cost": 1200,
-      "cost_mult": 120.0,
-      "desc": "+1 to your fire synergy count.",
-      "effect": "Fire Synergy +%d",
-      "effect_per_level": 1,
-      "family": "element_synergy",
-      "feeds": "synergy_fire",
-      "key": "synergy_fire_2",
-      "max_level": 1,
-      "name": "Fire Synergy"
-    },
-    {
-      "cost": 1200,
-      "cost_mult": 120.0,
-      "desc": "+1 to your fire synergy count.",
-      "effect": "Fire Synergy +%d",
-      "effect_per_level": 1,
-      "family": "element_synergy",
-      "feeds": "synergy_fire",
-      "key": "synergy_fire_3",
-      "max_level": 1,
-      "name": "Fire Synergy"
-    },
-    {
       "cost": 13,
       "cost_mult": 1.3,
       "desc": "+1 gold after every round per level.",
@@ -1052,30 +1028,6 @@
       "name": "Lightning Synergy"
     },
     {
-      "cost": 1200,
-      "cost_mult": 120.0,
-      "desc": "+1 to your lightning synergy count.",
-      "effect": "Lightning Synergy +%d",
-      "effect_per_level": 1,
-      "family": "element_synergy",
-      "feeds": "synergy_lightning",
-      "key": "synergy_lightning_2",
-      "max_level": 1,
-      "name": "Lightning Synergy"
-    },
-    {
-      "cost": 1200,
-      "cost_mult": 120.0,
-      "desc": "+1 to your lightning synergy count.",
-      "effect": "Lightning Synergy +%d",
-      "effect_per_level": 1,
-      "family": "element_synergy",
-      "feeds": "synergy_lightning",
-      "key": "synergy_lightning_3",
-      "max_level": 1,
-      "name": "Lightning Synergy"
-    },
-    {
       "cost": 100,
       "cost_mult": 10.0,
       "desc": "+1 crystal after every round per level.",
@@ -1679,30 +1631,6 @@
       "name": "Normal Synergy"
     },
     {
-      "cost": 1200,
-      "cost_mult": 120.0,
-      "desc": "+1 to your normal synergy count.",
-      "effect": "Normal Synergy +%d",
-      "effect_per_level": 1,
-      "family": "element_synergy",
-      "feeds": "synergy_normal",
-      "key": "synergy_normal_2",
-      "max_level": 1,
-      "name": "Normal Synergy"
-    },
-    {
-      "cost": 1200,
-      "cost_mult": 120.0,
-      "desc": "+1 to your normal synergy count.",
-      "effect": "Normal Synergy +%d",
-      "effect_per_level": 1,
-      "family": "element_synergy",
-      "feeds": "synergy_normal",
-      "key": "synergy_normal_3",
-      "max_level": 1,
-      "name": "Normal Synergy"
-    },
-    {
       "cost": 13,
       "cost_mult": 1.3,
       "desc": "+1 free reroll on relic pick screens.",
@@ -2218,30 +2146,6 @@
       "family": "element_synergy",
       "feeds": "synergy_earth",
       "key": "synergy_earth_1",
-      "max_level": 1,
-      "name": "Earth Synergy"
-    },
-    {
-      "cost": 1200,
-      "cost_mult": 120.0,
-      "desc": "+1 to your earth synergy count.",
-      "effect": "Earth Synergy +%d",
-      "effect_per_level": 1,
-      "family": "element_synergy",
-      "feeds": "synergy_earth",
-      "key": "synergy_earth_2",
-      "max_level": 1,
-      "name": "Earth Synergy"
-    },
-    {
-      "cost": 1200,
-      "cost_mult": 120.0,
-      "desc": "+1 to your earth synergy count.",
-      "effect": "Earth Synergy +%d",
-      "effect_per_level": 1,
-      "family": "element_synergy",
-      "feeds": "synergy_earth",
-      "key": "synergy_earth_3",
       "max_level": 1,
       "name": "Earth Synergy"
     },
@@ -3177,30 +3081,6 @@
       "name": "Air Synergy"
     },
     {
-      "cost": 1200,
-      "cost_mult": 120.0,
-      "desc": "+1 to your air synergy count.",
-      "effect": "Air Synergy +%d",
-      "effect_per_level": 1,
-      "family": "element_synergy",
-      "feeds": "synergy_air",
-      "key": "synergy_air_2",
-      "max_level": 1,
-      "name": "Air Synergy"
-    },
-    {
-      "cost": 1200,
-      "cost_mult": 120.0,
-      "desc": "+1 to your air synergy count.",
-      "effect": "Air Synergy +%d",
-      "effect_per_level": 1,
-      "family": "element_synergy",
-      "feeds": "synergy_air",
-      "key": "synergy_air_3",
-      "max_level": 1,
-      "name": "Air Synergy"
-    },
-    {
       "cost": 13,
       "cost_mult": 1.3,
       "desc": "+25%% battle XP for every hero per level.",
@@ -3935,30 +3815,6 @@
       "family": "element_synergy",
       "feeds": "synergy_water",
       "key": "synergy_water_1",
-      "max_level": 1,
-      "name": "Water Synergy"
-    },
-    {
-      "cost": 1200,
-      "cost_mult": 120.0,
-      "desc": "+1 to your water synergy count.",
-      "effect": "Water Synergy +%d",
-      "effect_per_level": 1,
-      "family": "element_synergy",
-      "feeds": "synergy_water",
-      "key": "synergy_water_2",
-      "max_level": 1,
-      "name": "Water Synergy"
-    },
-    {
-      "cost": 1200,
-      "cost_mult": 120.0,
-      "desc": "+1 to your water synergy count.",
-      "effect": "Water Synergy +%d",
-      "effect_per_level": 1,
-      "family": "element_synergy",
-      "feeds": "synergy_water",
-      "key": "synergy_water_3",
       "max_level": 1,
       "name": "Water Synergy"
     },

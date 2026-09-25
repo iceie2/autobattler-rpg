@@ -361,30 +361,6 @@
       "y": -2624.9
     },
     {
-      "icon": "+1_Fire.png",
-      "key": "synergy_fire_2",
-      "max_level": 1,
-      "parents": [
-        "def_affinity_fire_lv18",
-        "def_affinity_fire_lv19"
-      ],
-      "size": 132.0,
-      "x": -1056.2,
-      "y": -2549.9
-    },
-    {
-      "icon": "+1_Fire.png",
-      "key": "synergy_fire_3",
-      "max_level": 1,
-      "parents": [
-        "def_affinity_fire_lv19",
-        "def_affinity_fire_lv20"
-      ],
-      "size": 132.0,
-      "x": -1253.0,
-      "y": -2459.2
-    },
-    {
       "icon": "head_start.png",
       "key": "starting_gold_lv2",
       "max_level": 1,
@@ -1014,30 +990,6 @@
       "y": -2051.1
     },
     {
-      "icon": "+1_lightning.png",
-      "key": "synergy_lightning_2",
-      "max_level": 1,
-      "parents": [
-        "def_affinity_lightning_lv18",
-        "def_affinity_lightning_lv19"
-      ],
-      "size": 132.0,
-      "x": 1680.2,
-      "y": -2189.7
-    },
-    {
-      "icon": "+1_lightning.png",
-      "key": "synergy_lightning_3",
-      "max_level": 1,
-      "parents": [
-        "def_affinity_lightning_lv19",
-        "def_affinity_lightning_lv20"
-      ],
-      "size": 132.0,
-      "x": 1503.2,
-      "y": -2314.7
-    },
-    {
       "icon": "crystal_surge.png",
       "key": "crystal_per_round_lv2",
       "max_level": 1,
@@ -1613,30 +1565,6 @@
       "y": 573.8
     },
     {
-      "icon": "+1_normal.png",
-      "key": "synergy_normal_2",
-      "max_level": 1,
-      "parents": [
-        "def_affinity_normal_lv18",
-        "def_affinity_normal_lv19"
-      ],
-      "size": 132.0,
-      "x": 2736.4,
-      "y": 360.3
-    },
-    {
-      "icon": "+1_normal.png",
-      "key": "synergy_normal_3",
-      "max_level": 1,
-      "parents": [
-        "def_affinity_normal_lv19",
-        "def_affinity_normal_lv20"
-      ],
-      "size": 132.0,
-      "x": 2756.2,
-      "y": 144.4
-    },
-    {
       "icon": "hero_reroll_plus1.png",
       "key": "+1 Reroll_lv2",
       "max_level": 1,
@@ -2133,30 +2061,6 @@
       "size": 132.0,
       "x": 852.9,
       "y": 2624.9
-    },
-    {
-      "icon": "+1_Earth.png",
-      "key": "synergy_earth_2",
-      "max_level": 1,
-      "parents": [
-        "def_affinity_earth_lv18",
-        "def_affinity_earth_lv19"
-      ],
-      "size": 132.0,
-      "x": 1056.2,
-      "y": 2549.9
-    },
-    {
-      "icon": "+1_Earth.png",
-      "key": "synergy_earth_3",
-      "max_level": 1,
-      "parents": [
-        "def_affinity_earth_lv19",
-        "def_affinity_earth_lv20"
-      ],
-      "size": 132.0,
-      "x": 1253.0,
-      "y": 2459.2
     },
     {
       "icon": "equipment_plus1.png",
@@ -3031,30 +2935,6 @@
       "y": 2051.1
     },
     {
-      "icon": "+1_Air.png",
-      "key": "synergy_air_2",
-      "max_level": 1,
-      "parents": [
-        "def_affinity_air_lv18",
-        "def_affinity_air_lv19"
-      ],
-      "size": 132.0,
-      "x": -1680.2,
-      "y": 2189.7
-    },
-    {
-      "icon": "+1_Air.png",
-      "key": "synergy_air_3",
-      "max_level": 1,
-      "parents": [
-        "def_affinity_air_lv19",
-        "def_affinity_air_lv20"
-      ],
-      "size": 132.0,
-      "x": -1503.2,
-      "y": 2314.7
-    },
-    {
       "icon": "quick_learner.png",
       "key": "quick_learner_lv2",
       "max_level": 1,
@@ -3749,30 +3629,6 @@
       "size": 132.0,
       "x": -2699.7,
       "y": -573.8
-    },
-    {
-      "icon": "+1_Water.png",
-      "key": "synergy_water_2",
-      "max_level": 1,
-      "parents": [
-        "def_affinity_water_lv18",
-        "def_affinity_water_lv19"
-      ],
-      "size": 132.0,
-      "x": -2736.4,
-      "y": -360.3
-    },
-    {
-      "icon": "+1_Water.png",
-      "key": "synergy_water_3",
-      "max_level": 1,
-      "parents": [
-        "def_affinity_water_lv19",
-        "def_affinity_water_lv20"
-      ],
-      "size": 132.0,
-      "x": -2756.2,
-      "y": -144.4
     },
     {
       "icon": "player_exp.png",

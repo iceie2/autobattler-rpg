@@ -1106,6 +1106,13 @@ per element, the owner declined:
 Removed from the live tree, the generated catalogue, the generator's mock and
 the generator itself; `synergy_<element>_1` stays where it is. The owner's
 only save owned none of them (205 crystals, 63 spent), so no refund migration.
+Verified: the old generator reproduces the committed mock exactly and the new
+one reproduces the edited mock exactly; `verify_wiring.py` 0 problems;
+crystal smoke ALL PASS. **Pipeline hazard found:** `build_catalogue.py` no
+longer reproduces the live `crystal_upgrades.json` - 16 entries were edited by
+hand after generation (`+1 Equipment`, `+1 Reroll` x3, `crystal_per_round`
+lv2-10, `hero_unlock_cross/riot/stitch`), so re-running it would silently
+revert them. Edit the catalogue surgically too.
 
 **Blocked on.** Verb tags beyond Burn stay proposals. Code touches `auto_battle_manager.gd` and `unit_base.gd`, which
 carry another session's uncommitted gear-passive work (last edited 2026-09-25
