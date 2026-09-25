@@ -1,6 +1,8 @@
 # Build Archetypes - design worksheet
 
-Status: Burn pieces B1-B5 ACCEPTED 2026-09-25 under the loop rules below; tree
+Status: Burn pieces B1-B5 ACCEPTED and their mechanics BUILT 2026-09-25
+(commit 9130b5bd, `scenes/burn_smoke.tscn` 43/43); cues, build naming and relic
+art still to do; balance gates blocked on the action lane (see VD-16). Tree
 synergy cut to +1 per element (the other 12 nodes removed); verb tags beyond
 Burn still proposals. Written 2026-09-25. Decisions live in
 `VERTICAL_DEPTH_BACKLOG.md` under **VD-16**. This worksheet proposes; it does not

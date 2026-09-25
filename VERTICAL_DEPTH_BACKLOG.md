@@ -990,7 +990,7 @@ first render tried, seed 12345, had no 5-wide row at all).
 
 ---
 
-## VD-16 - Runs have no build identity - status: OPEN (Burn pieces accepted; tree synergy +1 decided)
+## VD-16 - Runs have no build identity - status: ACTIVE (Burn mechanics built; balance gates blocked on the action lane)
 
 **Owner framing (2026-09-25).**
 
@@ -1114,15 +1114,55 @@ hand after generation (`+1 Equipment`, `+1 Reroll` x3, `crystal_per_round`
 lv2-10, `hero_unlock_cross/riot/stitch`), so re-running it would silently
 revert them. Edit the catalogue surgically too.
 
-**Blocked on.** Verb tags beyond Burn stay proposals. Code touches `auto_battle_manager.gd` and `unit_base.gd`, which
-carry another session's uncommitted gear-passive work (last edited 2026-09-25
-04:16) - commit or coordinate before editing them.
+**Blocked on.** Verb tags beyond Burn stay proposals. The balance gates are
+blocked on the action lane (below).
 
 **Done when.** The Burn slice ships - verb tags as data, a Burn seed at wave 1,
 Burn pieces reachable through the existing screens, the build named in the
 synergy pop and run recap - and the arena shows each Burn piece worth at least
 2x more on a 3-burner team than on a 1-burner team, and better on-build than a
 generic relic one grade higher.
+
+### Implemented 2026-09-25 - mechanics (commit 9130b5bd)
+
+Built: `HeroVerbs` (Coal/Sear/Ember = BURN), the 25 archetype relics
+(`Relic.ARCHETYPE_PIECES`, kept out of `POOL`), the wave-1 seed (the run's first
+relic screen opens BEFORE the first hero pick, so the seed really is chosen
+first), one reserved card on later screens, the Kindling shop weighting
+(SEED_WEIGHT 3: Burn heroes 11.8% -> 28.9% of draws, measured), and the four
+loop rules. Arena gained `--relics=` and `--enemy-hp-mult=`.
+
+Verified: `scenes/burn_smoke.tscn` 43/43 (CONVENTIONS 3h) - includes ten real
+Sear Conflagrations never growing a burn under Kindling + Kindred Flames; ability
+probe 113 kits, 0 errors, 0 silent; boot 0 script errors; ui_smoke and map_smoke
+pass; player save byte-identical before/after. **Loop gate:** Sear + Ember +
+Pastor + Doc against a punching bag, all five pieces at S: burn flat at 38.6/s
+(cap 58.2) in every 30 s window; Burn ult casts track the no-relic run by a flat
+factor. The anti-stall enrage (`enrage_multiplier`) ends every fight by ~150 s,
+so the 180 s target is not reachable - 150 s is the whole fight.
+
+Found along the way, recorded for the owner:
+- **Arena runs are not repeatable right now.** Same code, same seed: identical in
+  one pair of runs, different in the next (one fight read 21.8 / 20.5 / 19.8 s).
+  Long 2D-only fights drift too, so it is not only the 3D models. Exact A/B
+  comparison is impossible until this is found; the classic-rule proof above is
+  from the deterministic smoke instead.
+- **BLOCKER for the balance gates - the uncommitted action lane (VD-15) freezes
+  four heroes.** `combat_action_duration` (working tree only, not in HEAD) locks
+  a unit for its clip length. Headless runs DO load the 3D models (VD-15 assumed
+  not), so the arena sees it. Wherever the skill lock is at least the skill
+  cooldown, the hero re-casts the moment the lock ends and never moves or
+  attacks. Measured: Coal (skill lock 6.0 s vs 5 s cooldown, attack lock 8.0 s),
+  June (6.0 vs 4), Rift (8.0 vs 4), Zolt (6.0 vs 4). Arena alone vs one goblin:
+  Coal and June stall 30-40 s without moving; Rift and Zolt never move and win
+  only with skills. Shauna sits exactly on the line (1.0 vs 1.0), consistent with
+  the kite loop another session is fixing. Coal is a Burn hero, so the value-ratio
+  and band gates wait for the lane decision.
+
+Not yet: per-piece cues (Kindling gold core, Kindred pips, Tinder bar flicker -
+all need `visual_unit.gd`/`health_bar.gd`; Ashfall and Inferno fire the generic
+burn puff as a stand-in), the build named in the synergy pop / run recap, relic
+card art (pieces render as text chips).
 
 ---
 
