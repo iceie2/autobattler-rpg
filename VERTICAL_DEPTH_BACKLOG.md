@@ -990,6 +990,83 @@ first render tried, seed 12345, had no 5-wide row at all).
 
 ---
 
+## VD-16 - Runs have no build identity - status: OPEN (direction decided, Burn slice in design)
+
+**Owner framing (2026-09-25).**
+
+> "we have rouguelite down pretty well. but not so much roguelike. some examples
+> that come to mind is slay the spire u build ur deck so u create a custom
+> loop/build. tft is items/team comp we now have both items i think decent but
+> team comp/elements not at all."
+
+> "how do we tackle this the right where a run feels like a certain path or
+> build u went where u want to do that again or try a different path"
+
+**Finding (read from code 2026-09-25).** Almost every in-run reward pays out
+the same way - a bigger number for the whole team - so each choice screen has
+one right answer and every run plays alike.
+
+- About 145 relics, nearly all team-wide % or effects that work for any team,
+  most as D-to-S ladders of one effect. Only 6 care which heroes you field, and
+  they still give everyone a share ("+6% HP for all, Water +20%"). Level-up
+  perks, round rewards and recruit rolls are also a stat with a grade.
+- Both element systems push toward one hero of each element. Synergy
+  thresholds are 2/3 and duplicates count; the tree's `synergy_<element>_1..3`
+  nodes add +3 whenever you field one hero of that element, so **six heroes
+  light every element at tier 2**. The Troll counters reward covering
+  elements. Nothing pays for going deep.
+- No early direction: the wave-1 relic is 80% D-grade.
+- No way to hunt for pieces: the hero shop draws uniformly from the unlocked
+  pool at a flat 10g, relics arrive on fixed waves, and the map sets
+  difficulty, not direction. A run to wave 30 sees ~12 relic cards, so 4 Burn
+  relics in a pool of ~150 would show up about once every three runs.
+- Burn specifically: `apply_burn` keeps the stronger burn and the longer
+  duration, so a second burner on the same enemy adds nothing, and burn damage
+  is credited to whoever applied a burn last. The Coal -> Sear -> Ember combo
+  (Coal's big burn, Sear's ult copies it to every enemy, Ember's ult detonates
+  every burning enemy) already exists in the kits; nothing announces it.
+
+**Owner decisions (2026-09-25).** Reply to the four proposals, verbatim:
+
+> "i agree with 2 3 and 4 oh and 1 forsure too okay u got me all of them haha
+> 1 sure?
+> 2 maybe +3 for each element in crystal tree is too much idk
+> 3 i worry its just more upgrades but yeah im okay with a good start to set
+> the round direction
+> 4 sure."
+
+1. **DECIDED - hero verbs are the archetype layer; elements are the coverage
+   axis.** Build pieces amplify verbs heroes already have. They never grant a
+   verb to a whole element - the 2026-08-02 scrap stands. Elements keep
+   affinity, stat synergy and the enemy counter passives (`ELEMENT_COUNTERS.md`).
+2. **OPEN - element synergy must stop being free.** The owner suspects the
+   tree's +3 per element is too much and has not picked a fix. Recommendation
+   on file: the tree's count applies only to elements fielded 2+ times (options
+   table in `BUILD_ARCHETYPES.md`). Deeper thresholds for 16-20 hero boards
+   belong to a later synergy numbers pass.
+3. **DECIDED - a wave-1 seed pick sets the run's direction.** The owner's
+   concern ("just more upgrades") is recorded as two constraints: **no new
+   reward screens** (seeds replace the wave-1 relic screen's contents; later
+   build pieces take one of the existing three cards), and **the direction
+   test** - a build piece must change which heroes or items you want next, or
+   it is an upgrade and stays in the generic pool.
+4. **DECIDED - Burn is the first slice.**
+
+**Worksheet.** `BUILD_ARCHETYPES.md`: verb tags for all 26 heroes, how burn
+works today, five Burn pieces (B1-B5) for review, seed and reserved-slot rules,
+gates. Burn piece effects are moves - the owner keeps, changes or cuts each
+before code.
+
+**Blocked on.** Owner review of B1-B5 and the verb tags; owner pick on item 2.
+
+**Done when.** The Burn slice ships - verb tags as data, a Burn seed at wave 1,
+Burn pieces reachable through the existing screens, the build named in the
+synergy pop and run recap - and the arena shows each Burn piece worth at least
+2x more on a 3-burner team than on a 1-burner team, and better on-build than a
+generic relic one grade higher.
+
+---
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
@@ -1017,3 +1094,11 @@ files don't overlap it.
 - **VD-14** rows up to 5 wide, nodes ~85%. *DONE 2026-09-23.*
 - **VD-13** the player-priced Nemesis tier. *After VD-04 and a crystal-loadout
   arena injection; re-spacing the three wave tiers belongs to VD-03.*
+
+**Build identity track (added 2026-09-25)** - independent of the balance chain
+and the map track.
+- **VD-16** Burn slice. *After the owner's review of `BUILD_ARCHETYPES.md`.*
+  Expected files: `relic.gd`, `relic_screen.gd`, `hero_shop.gd`,
+  `synergy_tracker.gd`, and the burn functions in `auto_battle_manager.gd` -
+  which had uncommitted edits from another session on 2026-09-25, so check
+  `git status` before touching it.
