@@ -46,6 +46,12 @@ enum WinMode { WINDOWED, BORDERLESS, FULLSCREEN }
 var _win_mode := WinMode.WINDOWED
 
 var _options_panel: Control
+var _options_title: Label
+var _options_window_label: Label
+var _options_style_label: Label
+var _options_close: Button
+var _ui_dark_btn: Button
+var _ui_light_btn: Button
 var _class_browser: ClassBrowser
 var _crystal_shop: CrystalShop
 var _run_history: RunHistoryScreen
@@ -390,21 +396,21 @@ func _build_main(canvas: CanvasLayer) -> void:
 	root.add_child(quit)
 	by += 40.0
 
-	_lbl(root, "v0.4.2.2 – early development", 12, Color(0.3, 0.3, 0.4),
+	_lbl(root, "v0.4.3.0 – early development", 12, Color(0.3, 0.3, 0.4),
 		Vector2(stack_x + stack_w / 2.0 - 150, by + 14), Vector2(300, 24), true)
 
 # ── Options panel ─────────────────────────────────────────────────────────────
 func _build_options(canvas: CanvasLayer) -> void:
-	_options_panel = _panel(canvas, Rect2(660, 160, 600, 460))
+	_options_panel = _panel(canvas, Rect2(660, 150, 600, 580))
 	_options_panel.visible = false
 
-	_lbl(_options_panel, "OPTIONS", 22, UITheme.TEXT_HEADER,
+	_options_title = _lbl(_options_panel, "OPTIONS", 22, UITheme.menu_title_color(),
 		Vector2(0, 20), Vector2(600, 40), true)
 	var sep := HSeparator.new()
 	sep.position = Vector2(0, 68); sep.size = Vector2(600, 4)
 	_options_panel.add_child(sep)
 
-	_lbl(_options_panel, "Window Mode", 15, UITheme.TEXT_BODY,
+	_options_window_label = _lbl(_options_panel, "Window Mode", 15, UITheme.menu_body_color(),
 		Vector2(30, 86), Vector2(240, 28))
 
 	var modes := [
@@ -419,6 +425,16 @@ func _build_options(canvas: CanvasLayer) -> void:
 		_options_panel.add_child(b)
 		my += 54
 
+	_options_style_label = _lbl(_options_panel, "Menu Style", 15, UITheme.menu_body_color(),
+		Vector2(30, my + 4), Vector2(240, 28))
+	_ui_dark_btn = _btn_secondary("Dark", Vector2(30, my + 40), Vector2(130, 44))
+	_ui_dark_btn.pressed.connect(_on_ui_style.bind("dark"))
+	_options_panel.add_child(_ui_dark_btn)
+	_ui_light_btn = _btn_secondary("Light", Vector2(176, my + 40), Vector2(130, 44))
+	_ui_light_btn.pressed.connect(_on_ui_style.bind("light"))
+	_options_panel.add_child(_ui_light_btn)
+	my += 108
+
 	var sep2 := HSeparator.new()
 	sep2.position = Vector2(0, my + 6); sep2.size = Vector2(600, 4)
 	_options_panel.add_child(sep2)
@@ -430,9 +446,27 @@ func _build_options(canvas: CanvasLayer) -> void:
 	_wipe_btn.pressed.connect(_on_wipe_pressed)
 	_options_panel.add_child(_wipe_btn)
 
-	var close := _btn_link("✕  Close", Vector2(220, my + 122), Vector2(160, 40))
-	close.pressed.connect(func(): _options_panel.visible = false)
-	_options_panel.add_child(close)
+	_options_close = _btn_link("✕  Close", Vector2(220, my + 122), Vector2(160, 40))
+	_options_close.pressed.connect(func(): _options_panel.visible = false)
+	_options_panel.add_child(_options_close)
+	_update_ui_style_controls()
+
+func _on_ui_style(style: String) -> void:
+	UITheme.set_ui_style(style)
+	_update_ui_style_controls()
+
+func _update_ui_style_controls() -> void:
+	if not _options_panel:
+		return
+	_options_panel.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
+	_options_title.add_theme_color_override("font_color", UITheme.menu_title_color())
+	_options_window_label.add_theme_color_override("font_color", UITheme.menu_body_color())
+	_options_style_label.add_theme_color_override("font_color", UITheme.menu_body_color())
+	_ui_dark_btn.text = "Dark ✓" if UITheme.ui_style() == "dark" else "Dark"
+	_ui_light_btn.text = "Light ✓" if UITheme.ui_style() == "light" else "Light"
+	var close_color := UITheme.menu_title_color()
+	for key in ["font_color", "font_hover_color", "font_pressed_color"]:
+		_options_close.add_theme_color_override(key, close_color)
 
 # ── Handlers ──────────────────────────────────────────────────────────────────
 func _on_start() -> void:
@@ -549,7 +583,7 @@ func _panel(parent: Node, rect: Rect2, themed: bool = true) -> Panel:
 	if rect.size != Vector2.ZERO:
 		p.position = rect.position; p.size = rect.size
 	if themed:
-		p.add_theme_stylebox_override("panel", UITheme.panel_box())
+		p.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 	else:
 		p.add_theme_stylebox_override("panel", _flat(Color(0, 0, 0, 0)))
 	parent.add_child(p)

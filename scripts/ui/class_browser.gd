@@ -27,8 +27,8 @@ const CLASSES := [
 		"skill": "Blood Frenzy  /  Bite  /  Pounce",
 		"skill_color": Color(0.95, 0.4, 0.35),
 		"skill_desc": (
-			"[PASSIVE] Blood Frenzy â€” below 45% HP, Bloodhound enters a frenzy and locks " +
-			"onto whichever enemy has dealt it the most damage, chasing them down.\n\n" +
+			"[PASSIVE] Blood Frenzy â€” below 45% HP, Bloodhound gains +2 movement speed, " +
+			"+20% attack speed, and +10% lifesteal.\n\n" +
 			"[ACTIVE â€“ 50 MP] Bite â€” savages the nearest enemy for 130% ATK and heals " +
 			"Bloodhound for 30% of the damage dealt.\n\n" +
 			"[ULTIMATE â€“ 300 charge] Pounce â€” leaps onto its top damage-dealer for 250% " +
@@ -45,13 +45,13 @@ const CLASSES := [
 		"str": 8, "dex": 6, "int": 16, "res": 16,
 		"atk": 11, "mag": 18, "def": 17,
 		"move": 2, "range": 2,
-		"skill": "Presence  /  Slam  /  Gravity Drop",
+		"skill": "Presence  /  Reel In  /  Gravity Drop",
 		"skill_color": Color(0.4, 0.65, 1.0),
 		"skill_desc": (
 			"[PASSIVE] Presence â€” each unit within 2 tiles grants +5% magic damage " +
 			"(max +30%). The more crowded the battlefield, the harder Bouncer hits.\n\n" +
-			"[ACTIVE â€“ 80 MP] Slam â€” leaps to the nearest enemy, stunning them for " +
-			"1.5s and dealing 100% MAG damage.\n\n" +
+			"[ACTIVE â€“ 80 MP] Reel In â€” fires a rubber fist at the farthest enemy. The first " +
+			"enemy in its path takes 100% MAG, is stunned 0.75s and reeled in 1 tile (2 if 4+ away).\n\n" +
 			"[ULTIMATE â€“ 350 charge] Gravity Drop â€” creates a shockwave that pulls all " +
 			"enemies in a 4-tile radius to the nearest open cell beside Bouncer, " +
 			"dealing 150% MAG to every enemy caught."

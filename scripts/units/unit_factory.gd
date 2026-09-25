@@ -152,7 +152,7 @@ const CLASS_BASE_STATS = {
 	# MAG is finally a live pick for him on the level-up screen. Autos still use
 	# ATK, so both stats do real work. See AbilityFormulas C.BLOODHOUND.
 	UnitBase.UnitClass.BLOODHOUND: { "hp":1100,"mana":400, "atk":20,"magic":20,"res":20,"aspd":0.74,"hpregen":0.5,"manaregen":2.0, "move":3,"range":1, "off_affinity":135.0,"def_affinity":80.0 },
-	UnitBase.UnitClass.BOUNCER: { "hp":1300,"mana":600, "atk":11,"magic":18,"res":22,"aspd":0.62,"hpregen":0.5,"manaregen":4.67, "move":2,"range":0, "off_affinity":130.0,"def_affinity":74.0 },
+	UnitBase.UnitClass.BOUNCER: { "hp":1300,"mana":600, "atk":11,"magic":18,"res":22,"aspd":0.62,"hpregen":0.5,"manaregen":4.67, "move":2,"range":1, "off_affinity":130.0,"def_affinity":74.0 },
 	# Balance 2026-07-03: HEADHUNTER atk 24→23, SABLE atk 21→20, RUSH atk 24→22,
 	# NEMI magic 19→21 — arena sweep + user playtests: the first three top the
 	# damage board (their base stats over-fit their kits), Nemi underperforms
@@ -303,12 +303,12 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.ultimate_charge_max = 300
 		UnitBase.UnitClass.BOUNCER:
 			unit.passive_name = "Presence"
-			unit.skill_name = "Slam"
+			unit.skill_name = "Reel In"
 			unit.skill_damage_multiplier = 1.0
-			unit.skill_range = 2
+			unit.skill_range = 20   # unlimited: it always fires at the farthest enemy
 			unit.skill_cooldown_max = 4
 			unit.skill_mana_cost = 80
-			unit.skill_description = "Deal 100% MAG to nearest enemy and stun them for 1.5s. Damage scales with nearby enemies. · 80 MP · 4s CD"
+			unit.skill_description = "Fire a rubber fist at the farthest enemy: the first enemy in its path takes 100% MAG, is stunned 0.75s and reeled in 1 tile (2 if 4+ tiles away). Damage scales with nearby enemies. · 80 MP · 4s CD"
 			unit.ultimate_name = "Gravity Drop"
 			unit.ultimate_damage_mult = 1.5
 			unit.ultimate_range = 4
@@ -332,9 +332,9 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_name          = "Kite"
 			unit.skill_damage_multiplier = 1.5
 			unit.skill_range         = 1
-			unit.skill_cooldown_max  = 2.5
+			unit.skill_cooldown_max  = 1.0
 			unit.skill_mana_cost     = 60
-			unit.skill_description   = "Step away from nearest attacker and empower next auto-attack (+50%). Only fires when being targeted. · 60 MP · 2.5s CD"
+			unit.skill_description   = "Step away from nearest attacker and empower next auto-attack (+50%). Only fires when being targeted. · 60 MP · 1s CD"
 			unit.ultimate_name       = "Overdrive"
 			unit.ultimate_damage_mult = 0.0   # utility ult
 			unit.ultimate_charge_max = 400
@@ -617,7 +617,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 1
 			unit.skill_cooldown_max  = 2
 			unit.skill_mana_cost     = 0
-	# skill_cd_time is initialized by the battle manager (start on cooldown).
+	# skill_cd_time is initialized by the battle manager (ready at battle start).
 
 	return unit
 

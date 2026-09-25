@@ -15,8 +15,8 @@ class EventChoice:
 	var band: String = "none"
 	# Callable(ctx: Dictionary, grade: String) -> {"effects": Dictionary, "outcome": String}
 	var resolve: Callable = Callable()
-	# What the button shows BEFORE you pick. A graded choice can't promise a
-	# number, so it advertises the shape instead ("Gain gold — graded D–S").
+	# What the button shows BEFORE you pick: the exact outcome, as a min–max
+	# range over the band (EventCatalog.preview_line), e.g. "+6–26g".
 	var preview: String = ""
 	# The catalog resolver kind ("gold", "damage", "combo"…). Carried purely so
 	# the panel can colour the preview line by what the choice DOES before its

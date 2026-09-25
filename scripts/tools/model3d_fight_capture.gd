@@ -92,6 +92,15 @@ func _ready() -> void:
 			var stitch = mg.auto_battle_manager.player_units.filter(
 				func(u): return u.unit_class == UnitBase.UnitClass.STITCH).front()
 			mg.auto_battle_manager._stitch_unravel(stitch, mg.auto_battle_manager.enemy_units)
+		# Bloodhound showcase: his ult charges too slowly to land inside a 10s
+		# capture on its own, so arm Pounce on each copy, staggered — the leap,
+		# the landing chop and the swipes all need to be on camera.
+		if hero == "BLOODHOUND" and (i == 30 or i == 110):
+			var hounds: Array = mg.auto_battle_manager.player_units.filter(
+				func(u): return is_instance_valid(u) and u.current_hp > 0 \
+					and u.unit_class == UnitBase.UnitClass.BLOODHOUND)
+			if hounds.size() > (0 if i == 30 else 1):
+				hounds[0 if i == 30 else 1].ultimate_ready = true
 		await RenderingServer.frame_post_draw
 		# Any between-round modal covers the whole board; this capture is about
 		# what the pawns look like, so keep them off screen for its duration.

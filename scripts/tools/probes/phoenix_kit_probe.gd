@@ -12,6 +12,7 @@ func _fresh() -> Dictionary:
 	var grid := BattleGrid.new(); var mgr := AutoBattleManager.new(); var fx := Node2D.new()
 	add_child(grid); add_child(mgr); add_child(fx)
 	mgr.initialize(grid, null); mgr.skill_effect_container = fx
+	var shots := Node2D.new(); add_child(shots); mgr.projectile_container = shots
 	return {"grid": grid, "mgr": mgr}
 
 func _mk(mgr, grid, u, cell: Vector2i, player: bool):
@@ -51,7 +52,7 @@ func _test_lance_not_instant() -> void:
 	mgr._tick_phoenix_lances(AutoBattleManager.PHOENIX_LANCE_CHARGE + 0.01)
 	_check(v.current_hp == hp0, "damage landed the instant the charge ended — the bolt must travel")
 	var bolts := 0
-	for pr in mgr.projectiles:
+	for pr in mgr.projectile_container.get_children():
 		if pr and is_instance_valid(pr) and pr.is_phoenix_lance: bolts += 1
 	_check(bolts == 1, "expected 1 travelling Cinder Lance bolt, found %d" % bolts)
 	_check(not ph.get_meta("hill_giant_committed", false), "committed flag never released after firing")
@@ -65,7 +66,7 @@ func _test_lance_interrupt() -> void:
 	ph.stun_time = 3.0
 	mgr._tick_phoenix_lances(AutoBattleManager.PHOENIX_LANCE_CHARGE + 0.01)
 	var bolts := 0
-	for pr in mgr.projectiles:
+	for pr in mgr.projectile_container.get_children():
 		if pr and is_instance_valid(pr) and pr.is_phoenix_lance: bolts += 1
 	_check(bolts == 0, "a stunned Phoenix still launched its lance — the charge is not a real window")
 	_check(not ph.get_meta("hill_giant_committed", false), "interrupted charge left the Phoenix committed forever")
@@ -74,18 +75,26 @@ func _test_rekindle() -> void:
 	var s := _fresh(); var mgr = s["mgr"]
 	var ph = _mk(mgr, s["grid"], EnemyFactory.create_ember_phoenix(), Vector2i(2, 1), false)
 	mgr.enemy_units = [ph]; mgr.player_units = []
-	ph.current_hp = 100
-	mgr._tick_passive(ph, mgr.player_units, mgr.enemy_units, 0.1)
-	_check(ph.hp_regen_accum > 0.0, "Rekindle did not regenerate while unblocked")
-	_check(mgr._rekindle_vfx.size() == 1,
-		"Rekindle is regenerating with no visual — the fire/lightning counterplay is never communicated")
-	# A FIRE hit must smother it (block flag is set inside take_damage).
-	ph.take_damage(10, UnitBase.Element.FIRE, null)
-	_check(float(ph.get_meta("troll_regen_block_t", 0.0)) > 0.0,
-		"a Fire hit did not set the regen block — passive plumbing changed")
-	mgr._tick_passive(ph, mgr.player_units, mgr.enemy_units, 0.1)
-	_check(mgr._rekindle_vfx.is_empty(),
-		"Rekindle readout survived the smother — it must clear the moment regen stops")
+	_check(str(ph.get_meta("mob_passive", "")) == "phoenix_rebirth", "Phoenix is not on phoenix_rebirth")
+	# Lethal hit -> rebuild instead of death.
+	ph.take_damage(ph.max_hp * 10, UnitBase.Element.NORMAL, null, true)
+	_check(ph.current_hp >= 1 and not ph._is_dying, "Phoenix died on its first death")
+	_check(ph.rebirth_time > 0.0 and ph.stun_time > 0.0, "rebuild window did not start")
+	_check(mgr._rekindle_vfx.size() == 1, "rebuild has no visual")
+	# Immune while rebuilding.
+	var hp_mid: int = ph.current_hp
+	ph.take_damage(ph.max_hp * 10, UnitBase.Element.NORMAL, null, true)
+	_check(ph.current_hp == hp_mid and not ph._is_dying, "Phoenix took damage mid-rebuild")
+	# Rebuild finishes at 25%.
+	var goal: int = int(round(ph.max_hp * AutoBattleManager.PHOENIX_REBIRTH_HP))
+	for i in 20:
+		mgr._tick_passive(ph, mgr.player_units, mgr.enemy_units, AutoBattleManager.PHOENIX_REBIRTH_TIME / 10.0)
+	_check(ph.rebirth_time <= 0.0, "rebuild never ended")
+	_check(ph.current_hp == goal, "rebuilt to %d HP, expected %d (25%%)" % [ph.current_hp, goal])
+	_check(mgr._rekindle_vfx.is_empty(), "rebuild visual outlived the rebuild")
+	# Second death is real.
+	ph.take_damage(ph.max_hp * 10, UnitBase.Element.NORMAL, null, true)
+	_check(ph.current_hp <= 0, "Phoenix cheated death twice — must be once per fight")
 
 # The Phoenix shares lizard_snipe with the Lizard and troll_regen with 6 Trolls
 # + the Gargoyle. None of them may have been dragged along.
@@ -97,7 +106,5 @@ func _test_shared_keys_unchanged() -> void:
 	for mk in [["Normal Troll", EnemyFactory.create_troll_normal()],
 			["Gargoyle", EnemyFactory.create_gargoyle()]]:
 		var m = mk[1]; add_child(m)
-		_check(str(m.get_meta("mob_passive", "")) == "troll_regen",
-			"%s no longer uses troll_regen — probe is stale" % mk[0])
 		_check(not bool(m.get_meta("phoenix", false)),
 			"%s was wrongly marked as a Phoenix and would gain ember VFX" % mk[0])

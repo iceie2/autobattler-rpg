@@ -31,11 +31,13 @@ const BONE_MOVE_MIN := 0.004
 ## that reports known-good clips as failures gets ignored within a week, at which
 ## point it protects nothing.
 const STATIC_BY_DESIGN := {
-	# No idle in Meshy's export; one was synthesized by freezing a pose
-	# (tools/model3d/freeze_pose.py). A frozen pose does not move — that is what
-	# it is.
-	"BLOODHOUND:idle": true,
-	# Same synthesized-idle story, from his aim pose.
+	# BLOODHOUND:idle is a real breathing loop since v003 and is checked like any
+	# other clip. The frozen pose it replaced is kept in the file under this name
+	# for side-by-side comparison only (never played by the game), and a frozen
+	# pose does not move.
+	"BLOODHOUND:idle_frozen_v002": true,
+	# No idle in Meshy's export; one was synthesized by freezing his aim pose
+	# (tools/model3d/freeze_pose.py). A frozen pose does not move.
 	"HEADHUNTER:idle": true,
 	# An unmapped 1-frame placeholder Meshy ships in the rig bundle. It is not a
 	# game clip; NAME_MAP never claims it.

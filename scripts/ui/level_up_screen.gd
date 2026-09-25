@@ -159,10 +159,10 @@ const RADAR_MAX := [40.0, 30.0, 30.0, 2000.0, 1000.0, 7.0, 2.0, 0.6, 4.0]
 const CUSTOM_BG_PATH := "res://assets/using/level_up_bg.png"
 
 const PANEL_W := 1100.0
-const PANEL_H := 700.0
+const PANEL_H := 830.0
 const CARD_W  := 318.0
 const CARD_H  := 308.0
-const INFO_Y  := 78.0
+const INFO_Y  := 154.0
 
 var _queue:      Array       = []
 var _panel:      Panel       = null
@@ -575,7 +575,7 @@ func _rebuild_cards() -> void:
 	var gap     := 13.0
 	var total_w := CARD_W * 3.0 + gap * 2.0
 	var start_x := (PANEL_W - total_w) / 2.0
-	var card_y  := PANEL_H - CARD_H - 16.0
+	var card_y  := PANEL_H - CARD_H - 65.0
 
 	for i in range(_cur_offers.size()):
 		var card := _make_card(_cur_offers[i], Vector2(start_x + i * (CARD_W + gap), card_y), i)
@@ -590,6 +590,22 @@ const PERK_ICON_KEY := {
 	"res": "res", "regen": "hpregen", "spd": "move",
 	"crit": "crit_chance", "critdmg": "crit_damage",
 }
+
+# Spelled-out stat name for headline use (the reward screen's "+0.39 HP & Mana
+# Regen"). PERKS.label stays the short tag for tight spots.
+const PERK_FULL_NAME := {
+	"atk": "Attack Damage", "aspd": "Attack Speed", "magic": "Magic Power",
+	"hp": "Max HP", "res": "Armor & Magic Resist", "regen": "HP & Mana Regen",
+	"spd": "Move Speed", "crit": "Crit Chance", "critdmg": "Crit Damage",
+}
+
+# The ONE perk -> icon lookup. shop_screen, round_reward_screen and
+# run_map_screen each used to carry their own copy of PERK_ICON_KEY.
+static func perk_icon(perk_id: String) -> Texture2D:
+	var key: String = PERK_ICON_KEY.get(perk_id, "")
+	if key == "" or not UnitFactory.STAT_ICONS.has(key):
+		return null
+	return load(UnitFactory.STAT_ICONS[key]) as Texture2D
 
 # Shared "+value" formatter for a rolled perk offer so every UI (level-up reveal,
 # round-reward panel, shop tooltip/summary) renders crit-as-% and crit-damage-as-x
@@ -696,11 +712,7 @@ func _make_card(perk: Dictionary, pos: Vector2, idx: int) -> Button:
 # Repaints a card's normal/hover/pressed background+border — called once with
 # NEUTRAL_COL at build time, then on every tick of the rank reel.
 func _paint_card_grade(btn: Button, col: Color) -> void:
-	var bg_base: Color = col.darkened(0.82)
-	btn.add_theme_stylebox_override("normal",  _flat(bg_base, col, 3, 12))
-	btn.add_theme_stylebox_override("hover",   _flat(bg_base.lightened(0.10), col.lightened(0.25), 4, 12))
-	btn.add_theme_stylebox_override("pressed", _flat(bg_base.darkened(0.15), col.lightened(0.1), 4, 12))
-	btn.add_theme_stylebox_override("focus",   _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
+	UITheme.paint_card(btn, col)
 
 # Wait for this card's turn -> reveal -> identity reel (icon+stat label cycle
 # through OTHER perk types) -> rank reel (badge+card tint) -> rolled-value
@@ -781,12 +793,13 @@ func _build_ui() -> void:
 	# previously) left the flat panel color exposed wherever the 650x450 art
 	# fell short of the 1100x700 panel — that read as a second background.
 	# Cover-and-crop instead so the art itself fills every pixel of the panel.
-	var bg_tex: Texture2D = load(CUSTOM_BG_PATH) as Texture2D if ResourceLoader.exists(CUSTOM_BG_PATH) else null
+	var bg_tex: Texture2D = load(CUSTOM_BG_PATH) as Texture2D \
+		if not UITheme.is_light() and ResourceLoader.exists(CUSTOM_BG_PATH) else null
 	if bg_tex:
 		_panel.add_theme_stylebox_override("panel", _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
 	else:
 		# UI theme pass 2026-07-04: dobo card panel instead of flat navy box.
-		_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+		_panel.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 	overlay.add_child(_panel)
 
 	if bg_tex:
@@ -800,11 +813,21 @@ func _build_ui() -> void:
 		bg.mouse_filter  = Control.MOUSE_FILTER_IGNORE
 		_panel.add_child(bg)
 
+	UITheme.menu_header(_panel, Rect2(18, 8, PANEL_W - 36, 112))
+
 	# Header
-	_hero_lbl = _lbl(_panel, "", 28, Color(1.0, 0.88, 0.45),
-		Vector2(0, 14), Vector2(PANEL_W, 38), true)
-	_level_lbl = _lbl(_panel, "", 15, Color(0.75, 0.72, 0.90, 0.85),
-		Vector2(0, 52), Vector2(PANEL_W, 22), true)
+	_hero_lbl = _lbl(_panel, "", 28, UITheme.menu_title_color(),
+		Vector2(0, 30), Vector2(PANEL_W, 38), true)
+	_level_lbl = _lbl(_panel, "", 15, UITheme.menu_subtitle_color(),
+		Vector2(0, 69), Vector2(PANEL_W, 22), true)
+	# The detailed kit and chart retain their dark reading surface in Light mode.
+	if UITheme.is_light():
+		var info_bg := ColorRect.new()
+		info_bg.position = Vector2(28, INFO_Y - 33)
+		info_bg.size = Vector2(PANEL_W - 56, 330)
+		info_bg.color = Color(0.11, 0.11, 0.14)
+		info_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_panel.add_child(info_bg)
 
 	# Info section — ability list | radar | stat list | portrait
 	#

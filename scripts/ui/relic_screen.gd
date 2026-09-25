@@ -9,9 +9,10 @@ signal chosen(relic)
 signal reroll_requested()
 
 const PANEL_W := 1000.0
-const PANEL_H := 440.0
+const PANEL_H := 520.0
 const CARD_W  := 290.0
 const CARD_H  := 260.0
+const CARD_ROW_Y := 136.0
 
 # ── Slot-machine reveal pacing (2026-07-21, restaggered same day) — shared
 # with hero_shop/level_up_screen. Only 2 reels here (relics have no numeric
@@ -68,6 +69,10 @@ func _refresh_reroll_btn() -> void:
 		return
 	_reroll_btn.visible = _rerolls_left > 0
 	_reroll_btn.text = "↻ Reroll (%d left)" % _rerolls_left
+	# No reroll charge (the common case) = no button row, so drop the panel's
+	# reserved strip instead of leaving it empty under the cards.
+	_panel.size.y = PANEL_H if _reroll_btn.visible else CARD_ROW_Y + CARD_H + 48.0
+	_center_panel()
 
 # ── Card builder ──────────────────────────────────────────────────────────────
 func _make_card(relic: Dictionary, idx: int) -> Button:
@@ -100,30 +105,33 @@ func _make_card(relic: Dictionary, idx: int) -> Button:
 	badge_lbl.size     = badge_bg.size
 	badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge_lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-	UITheme.apply_font(badge_lbl, UITheme.FONT_HEADER)
+	UITheme.apply_font(badge_lbl, UITheme.FONT_HEADER + 2)
 	badge_lbl.add_theme_color_override("font_color", grade_col)
 	badge_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(badge_lbl)
 
 	# "RELIC" kicker
-	_lbl(btn, "RELIC", 11, Color(0.55, 0.55, 0.72), Vector2(0, 22), Vector2(CARD_W, 16), true)
+	_lbl(btn, "RELIC", 11, Color(0.55, 0.55, 0.72), Vector2(0, 16), Vector2(CARD_W, 24), true)
 
 	# Icon (centered, above the name) — always created (even if this relic has
 	# no art yet) so the identity reel has a stable node to paint into.
+	# 104 (was 80): the card had a band of dead space under the description.
 	var icon := TextureRect.new()
 	icon.expand_mode  = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.position     = Vector2((CARD_W - 80) / 2.0, 44)
-	icon.size         = Vector2(80, 80)
+	icon.position     = Vector2((CARD_W - 104) / 2.0, 40)
+	icon.size         = Vector2(104, 104)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(icon)
 
-	# Name (grade coloured, big)
-	var name_lbl := _lbl(btn, "", 24, grade_col, Vector2(0, 130), Vector2(CARD_W, 34), true)
+	# Name (grade coloured). Header step, like hero names in the hero shop —
+	# base 24 snapped up to DISPLAY (42), three one-per-screen headlines at once.
+	var name_lbl := _lbl(btn, "", 14, grade_col, Vector2(0, 150), Vector2(CARD_W, 30), true)
 
-	# Divider
+	# Divider — BELOW the name. At y 162 it sat on the 42px name's baseline and
+	# read as a strikethrough.
 	var div := ColorRect.new()
-	div.position = Vector2(28, 162)
+	div.position = Vector2(28, 188)
 	div.size     = Vector2(CARD_W - 56, 1)
 	div.color    = Color(grade_col.r, grade_col.g, grade_col.b, 0.4)
 	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -131,9 +139,9 @@ func _make_card(relic: Dictionary, idx: int) -> Button:
 
 	# Description (wrapped)
 	var desc := Label.new()
-	desc.position             = Vector2(24, 182)
-	desc.size                 = Vector2(CARD_W - 48, 70)
-	UITheme.apply_font(desc, UITheme.FONT_VALUE)
+	desc.position             = Vector2(24, 196)
+	desc.size                 = Vector2(CARD_W - 48, 58)
+	UITheme.apply_font(desc, UITheme.FONT_VALUE + 2)
 	desc.add_theme_color_override("font_color", Color(0.82, 0.82, 0.92))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.vertical_alignment   = VERTICAL_ALIGNMENT_TOP
@@ -150,11 +158,7 @@ func _make_card(relic: Dictionary, idx: int) -> Button:
 # NEUTRAL_COL at build time, then on every tick of the rank reel so the tint
 # genuinely rolls with the rank instead of showing the final grade up front.
 func _paint_card_grade(btn: Button, col: Color) -> void:
-	var bg_base: Color = col.darkened(0.82)
-	btn.add_theme_stylebox_override("normal",  _flat(bg_base, col, 3, 12))
-	btn.add_theme_stylebox_override("hover",   _flat(bg_base.lightened(0.10), col.lightened(0.25), 4, 12))
-	btn.add_theme_stylebox_override("pressed", _flat(bg_base.darkened(0.15), col.lightened(0.1), 4, 12))
-	btn.add_theme_stylebox_override("focus",   _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
+	UITheme.paint_card(btn, col)
 
 # Wait for this card's turn -> fade in -> identity reel (icon+name cycle
 # through other relics) -> rank reel (badge + card tint), sequential.
@@ -206,7 +210,7 @@ func _on_pick(relic: Dictionary) -> void:
 func _build_ui() -> void:
 	var overlay := ColorRect.new()
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.color        = Color(0, 0, 0, 0.82)
+	overlay.color        = Color(0, 0, 0, 0.62)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(overlay)
 
@@ -216,25 +220,31 @@ func _build_ui() -> void:
 	# matches hero_shop/level_up_screen (this screen's own header comment
 	# already says it mirrors their gacha-card look, this was just missed
 	# in the original pass).
-	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+	_panel.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 	overlay.add_child(_panel)
+	UITheme.menu_header(_panel, Rect2(18, 18, PANEL_W - 36, 112))
 
-	_lbl(_panel, "CHOOSE A RELIC", 30, Color(1.0, 0.88, 0.45),
-		Vector2(0, 22), Vector2(PANEL_W, 42), true)
-	_sub_lbl = _lbl(_panel, "", 14, Color(0.75, 0.75, 0.85),
-		Vector2(0, 62), Vector2(PANEL_W, 24), true)
+	# Titles start below the panel texture's top stripe (they sat on it at y 22).
+	_lbl(_panel, "CHOOSE A RELIC", 30, UITheme.menu_title_color(),
+		Vector2(0, 39), Vector2(PANEL_W, 42), true, false)
+	_sub_lbl = _lbl(_panel, "", 14, UITheme.menu_subtitle_color(),
+		Vector2(0, 79), Vector2(PANEL_W, 24), true)
 
 	_card_row = HBoxContainer.new()
 	_card_row.add_theme_constant_override("separation", 22)
 	_card_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_card_row.position  = Vector2(0, 110)
+	_card_row.position  = Vector2(0, CARD_ROW_Y)
 	_card_row.size      = Vector2(PANEL_W, CARD_H)
 	_panel.add_child(_card_row)
 
 	_reroll_btn = Button.new()
 	_reroll_btn.text = "↻ Reroll"
-	_reroll_btn.position = Vector2(PANEL_W / 2.0 - 90, PANEL_H - 56)
-	_reroll_btn.size     = Vector2(180, 40)
+	# Gold like every other action button (it was the only unstyled default
+	# Godot button left), and above the panel's bottom stripe instead of on it.
+	UITheme.style_button(_reroll_btn)
+	UITheme.apply_font(_reroll_btn, UITheme.FONT_HEADER + 2)
+	_reroll_btn.position = Vector2(PANEL_W / 2.0 - 100, CARD_ROW_Y + CARD_H + 16)
+	_reroll_btn.size     = Vector2(200, 44)
 	_reroll_btn.pressed.connect(func(): reroll_requested.emit())
 	_panel.add_child(_reroll_btn)
 
@@ -254,12 +264,14 @@ func _flat(bg: Color, border: Color, bw: float, radius: float) -> StyleBoxFlat:
 	return s
 
 func _lbl(parent: Control, text: String, size: int, color: Color,
-		pos: Vector2, sz: Vector2, centered: bool = false) -> Label:
+		pos: Vector2, sz: Vector2, centered: bool = false, enlarge: bool = true) -> Label:
 	var l := Label.new()
 	l.text     = text
 	l.position = pos
 	l.size     = sz
-	UITheme.apply_font(l, UITheme.body_font(size))
+	# This screen's supporting text gets a 2px readability bump. Its title keeps
+	# the existing display size (enlarge=false at the title call).
+	UITheme.apply_font(l, UITheme.body_font(size) + (2 if enlarge else 0))
 	l.add_theme_color_override("font_color", color)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER if centered else HORIZONTAL_ALIGNMENT_LEFT
 	l.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER

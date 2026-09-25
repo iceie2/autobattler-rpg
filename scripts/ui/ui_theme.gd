@@ -36,6 +36,78 @@ class_name UITheme
 
 const _P := "res://assets/UI/generated/"
 
+# Shared menu title art. Titles remain live text so every screen can use the
+# same banner and localized/dynamic names remain readable.
+const MENU_HEADER_DARK := preload("res://assets/UI/generated/menu_header_dark.jpg")
+const MENU_HEADER_LIGHT := preload("res://assets/UI/generated/menu_header_light.jpg")
+const SETTINGS_PATH := "user://settings.json"
+static var _ui_style_cache := ""
+
+static func ui_style() -> String:
+	# Capture harnesses can preview either style without changing player settings.
+	for arg in OS.get_cmdline_user_args():
+		if arg == "--ui-style=light": return "light"
+		if arg == "--ui-style=dark": return "dark"
+	if _ui_style_cache != "":
+		return _ui_style_cache
+	_ui_style_cache = "dark"
+	if FileAccess.file_exists(SETTINGS_PATH):
+		var file := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
+		if file:
+			var parsed = JSON.parse_string(file.get_as_text())
+			if parsed is Dictionary and parsed.get("ui_style", "") == "light":
+				_ui_style_cache = "light"
+	return _ui_style_cache
+
+static func set_ui_style(style: String) -> void:
+	_ui_style_cache = "light" if style == "light" else "dark"
+	var data: Dictionary = {}
+	if FileAccess.file_exists(SETTINGS_PATH):
+		var source := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
+		if source:
+			var parsed = JSON.parse_string(source.get_as_text())
+			if parsed is Dictionary:
+				data = parsed
+	data["ui_style"] = _ui_style_cache
+	var target := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	if target:
+		target.store_string(JSON.stringify(data))
+
+static func is_light() -> bool:
+	return ui_style() == "light"
+
+static func menu_title_color() -> Color:
+	return Color(0.28, 0.19, 0.10) if is_light() else Color(1.0, 0.89, 0.63)
+
+static func menu_subtitle_color() -> Color:
+	return Color(0.34, 0.27, 0.20) if is_light() else Color(0.80, 0.80, 0.85)
+
+static func menu_body_color() -> Color:
+	return Color(0.25, 0.21, 0.17) if is_light() else Color(0.94, 0.91, 0.85)
+
+static func menu_header(parent: Control, rect: Rect2) -> TextureRect:
+	var banner := TextureRect.new()
+	banner.texture = MENU_HEADER_LIGHT if is_light() else MENU_HEADER_DARK
+	banner.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	banner.stretch_mode = TextureRect.STRETCH_SCALE
+	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(banner)
+	banner.custom_minimum_size = Vector2.ZERO
+	banner.position = rect.position
+	banner.size = rect.size
+	return banner
+
+# Neutral body under the illustrated title plate. The older panel texture has
+# its own ornamental border, which competes with the new header frame.
+static func menu_surface_box() -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.91, 0.87, 0.78) if is_light() else Color(0.105, 0.10, 0.10)
+	box.border_color = Color(0.42, 0.34, 0.22) if is_light() else Color(0.31, 0.29, 0.27)
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(4)
+	box.set_content_margin_all(12)
+	return box
+
 # ══ TYPE SCALE (2026-09-16) ═══════════════════════════════════════════════════
 # FIVE steps, and only five. Before this pass scenes/main_game.tscn alone
 # carried THIRTEEN distinct font sizes (10/11/12/13/14/16/18/20/22/24/26/28/42),
@@ -294,6 +366,39 @@ static func selection_ring_box(col: Color = Color(1.0, 0.85, 0.35)) -> StyleBoxF
 	s.set_border_width_all(4)
 	s.set_corner_radius_all(14)
 	return s
+
+# ── Picker cards — ONE look for every "choose one" card (2026-09-23) ─────────
+# Dark body darkened from an accent colour, accent border, rounded corners. The
+# hero shop, level-up perks, relic picker and stat-reward screen each carried a
+# private copy of this as _paint_card_grade(); they all route here now so the
+# pickers can't drift apart again. `accent` is whatever the card is keyed on —
+# a rolled grade for offers, the hero's element for the reward screen's cards.
+static func card_box(accent: Color, state: String = "normal") -> StyleBoxFlat:
+	var bg: Color = accent.darkened(0.82)
+	var s := StyleBoxFlat.new()
+	s.set_corner_radius_all(12)
+	match state:
+		"hover":
+			s.bg_color = bg.lightened(0.10)
+			s.border_color = accent.lightened(0.25)
+			s.set_border_width_all(4)
+		"pressed":
+			s.bg_color = bg.darkened(0.15)
+			s.border_color = accent.lightened(0.1)
+			s.set_border_width_all(4)
+		_:
+			s.bg_color = bg
+			s.border_color = accent
+			s.set_border_width_all(3)
+	return s
+
+static func paint_card(btn: Button, accent: Color) -> void:
+	btn.add_theme_stylebox_override("normal", card_box(accent))
+	btn.add_theme_stylebox_override("hover", card_box(accent, "hover"))
+	btn.add_theme_stylebox_override("pressed", card_box(accent, "pressed"))
+	btn.add_theme_stylebox_override("disabled", card_box(accent))
+	var none := StyleBoxEmpty.new()
+	btn.add_theme_stylebox_override("focus", none)
 
 # Currency icons (2026-07-05, user's own art — Coins.png/gems.png, copied in
 # from assets/using/icons/, source untouched). These are square icons, NOT

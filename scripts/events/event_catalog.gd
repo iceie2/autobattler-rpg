@@ -57,6 +57,12 @@ const EFFECT_VERBS: Array[String] = [
 # come back Epic — it just becomes possible to see a Legendary at all.
 const GRADE_RARITY := {"F": 0, "D": 0, "C": 1, "B": 2, "A": 3, "S": 4}
 
+# main_game clamps a scrap sale's grade multiplier to this window (a bad roll
+# still pays something, a great one can't beat buying). Shared so the preview
+# quotes the same gold main_game pays.
+const SCRAP_GRADE_MIN := 0.6
+const SCRAP_GRADE_MAX := 1.4
+
 # ══════════════════════════════════════════════════════════════════════════════
 # ELIGIBILITY
 # ══════════════════════════════════════════════════════════════════════════════
@@ -117,6 +123,61 @@ static func resolve_choice(choice: Dictionary, ctx: Dictionary, grade: String) -
 		out["outcome"] = "%s %s" % [prefix, out.get("outcome", "")]
 	return out
 
+# ── The button line (2026-09-23) ──────────────────────────────────────────────
+# What the player reads BEFORE picking. It used to be a hand-written line per
+# choice ("Cold, wet and slower — severity graded"), which told the player the
+# mood of a choice and none of its numbers. Now it is COMPUTED from the same
+# resolver that pays out: resolve at the band's floor and ceiling grade and
+# merge the two outcome sentences, so "…loses 8% of its current health" and
+# "…loses 33%…" read as "…loses 8–33%…". It cannot drift from what it does,
+# because it IS what the choice does, at both ends of its roll.
+static func preview_line(choice: Dictionary, ctx: Dictionary) -> String:
+	var pool: Array = EventGrade.reel_pool(String(choice.get("band", EventGrade.DEFAULT_BAND)))
+	var lo: String = String(resolve_choice(choice, ctx, String(pool[0])).get("outcome", ""))
+	var hi: String = String(resolve_choice(choice, ctx, String(pool[pool.size() - 1])).get("outcome", ""))
+	return merge_range(lo, hi)
+
+# Merge two outcome lines that differ only in their numbers/words into one
+# ranged line. Token by token: equal tokens pass through; "−8%" vs "−33%" share
+# a prefix and suffix around the digits, so they become "−8–33%"; anything else
+# ("Common" vs "Legendary") becomes "Common–Legendary". If the two lines don't
+# even have the same shape, show both rather than invent a merge.
+static func merge_range(lo: String, hi: String) -> String:
+	if lo == hi:
+		return lo
+	var a: PackedStringArray = lo.split(" ")
+	var b: PackedStringArray = hi.split(" ")
+	if a.size() != b.size():
+		return "%s  →  %s" % [lo, hi]
+	var num := RegEx.new()
+	num.compile("^(\\D*?)(\\d+)(\\D*)$")
+	# Words keep their punctuation outside the range: "D)" / "B)" → "D–B)".
+	var word := RegEx.new()
+	word.compile("^(\\W*)(.*?)(\\W*)$")
+	var out: PackedStringArray = []
+	for i in range(a.size()):
+		if a[i] == b[i]:
+			out.append(a[i])
+			continue
+		var ma: RegExMatch = num.search(a[i])
+		var mb: RegExMatch = num.search(b[i])
+		if ma and mb and ma.get_string(1) == mb.get_string(1) \
+				and ma.get_string(3) == mb.get_string(3):
+			var x: int = int(ma.get_string(2))
+			var y: int = int(mb.get_string(2))
+			out.append("%s%d–%d%s" % [ma.get_string(1), mini(x, y), maxi(x, y),
+				ma.get_string(3)])
+		else:
+			var wa: RegExMatch = word.search(a[i])
+			var wb: RegExMatch = word.search(b[i])
+			if wa and wb and wa.get_string(1) == wb.get_string(1) \
+					and wa.get_string(3) == wb.get_string(3):
+				out.append("%s%s–%s%s" % [wa.get_string(1), wa.get_string(2),
+					wb.get_string(2), wa.get_string(3)])
+			else:
+				out.append("%s–%s" % [a[i], b[i]])
+	return " ".join(out)
+
 # ── Scaling (MEASURED, not guessed — 2026-09-19) ──────────────────────────────
 # The first draft of this catalog scaled payouts as "base + per_round * round",
 # on the assumption that income climbs with the round. It does not: `arena
@@ -138,16 +199,53 @@ static func gold_scale(ctx: Dictionary) -> float:
 static func xp_scale(ctx: Dictionary) -> float:
 	return 1.0 + float(ctx.get("round", 1)) * 0.008
 
+# ── How outcomes are worded (2026-09-24) ──────────────────────────────────────
+# Every kind says what it does as (subject, clause) pairs — ["your team", "gains
+# 12 gold"] — and _sentence() stitches them into plain English the way a person
+# would say it: "Your team takes 9% more damage and gains 12 gold." The first
+# pass printed stat-sheet fragments ("Team damage taken +9%  ·  +12g"), which
+# the owner rejected: an event should read like how humans talk.
+#
+# Subject "" = the clause is already a whole sentence (flag lines, coin flips).
+# Clause wording must not depend on the NUMBER (no "1 enemy" / "2 enemies"),
+# because preview_line merges the floor and ceiling sentences word by word.
+const TEAM := "your team"
+
+static func _says(effects: Dictionary, said: Array) -> Dictionary:
+	return {"effects": effects, "said": said, "outcome": _sentence(said)}
+
+static func _sentence(said: Array) -> String:
+	var sentences: PackedStringArray = []
+	var i: int = 0
+	while i < said.size():
+		var subject: String = String(said[i][0])
+		if subject == "":
+			sentences.append(String(said[i][1]))
+			i += 1
+			continue
+		var clauses: PackedStringArray = []
+		while i < said.size() and String(said[i][0]) == subject:
+			clauses.append(String(said[i][1]))
+			i += 1
+		sentences.append("%s %s." % [subject.left(1).to_upper() + subject.substr(1),
+			_join_list(clauses)])
+	return " ".join(sentences)
+
+static func _join_list(items: PackedStringArray) -> String:
+	if items.size() <= 1:
+		return "".join(items)
+	return "%s and %s" % [", ".join(items.slice(0, items.size() - 1)), items[items.size() - 1]]
+
 static func _resolve_kind(kind: String, p: Dictionary, ctx: Dictionary, grade: String) -> Dictionary:
 	match kind:
 		"nothing":
-			return {"effects": {}, "outcome": "Nothing happens."}
+			return _says({}, [["", "Nothing happens."]])
 
 		# base (round-1 gold) × the price curve × the grade.
 		"gold":
 			var amt: int = EventGrade.scale_int(
 				float(p.get("base", 5)) * gold_scale(ctx), grade)
-			return {"effects": {"gold": amt}, "outcome": "+%dg" % amt}
+			return _says({"gold": amt}, [[TEAM, "gains %d gold" % amt]])
 
 		# A flat cost, or a percentage of the purse (pct wins if both given).
 		# NOT grade-scaled: a price you agreed to shouldn't move after you agree.
@@ -157,10 +255,10 @@ static func _resolve_kind(kind: String, p: Dictionary, ctx: Dictionary, grade: S
 			if p.has("pct"):
 				var pct: float = float(p["pct"])
 				var lost: int = int(round(float(ctx.get("gold", 0)) * pct))
-				return {"effects": {"gold": -lost},
-					"outcome": "−%dg (%d%% of your purse)" % [lost, int(pct * 100.0)]}
+				return _says({"gold": -lost},
+					[[TEAM, "pays %d gold (%d%% of your gold)" % [lost, int(pct * 100.0)]]])
 			var flat: int = maxi(1, int(round(float(p.get("gold", 3)) * gold_scale(ctx))))
-			return {"effects": {"gold": -flat}, "outcome": "−%dg" % flat}
+			return _says({"gold": -flat}, [[TEAM, "pays %d gold" % flat]])
 
 		# 50/50, resolved by main_game's existing gold_if_win/gold_if_lose path.
 		# stake_pct stakes a share of the purse; otherwise a flat amount. The
@@ -176,38 +274,38 @@ static func _resolve_kind(kind: String, p: Dictionary, ctx: Dictionary, grade: S
 			# which isn't a gamble, it's a mugging with extra steps.
 			var win: int = maxi(stake,
 				EventGrade.scale_int(float(stake) * float(p.get("payout", 2.0)), grade))
-			return {"effects": {"gold_if_win": win, "gold_if_lose": -stake},
-				"outcome": "50/50 — win %dg, lose %dg" % [win, stake]}
+			return _says({"gold_if_win": win, "gold_if_lose": -stake},
+				[["", "A coin flip: win %d gold or lose %d gold." % [win, stake]]])
 
 		# stat: dmg / def / spd / hp. base is the 1.xx multiplier at grade C.
 		"team_buff":
 			var stat_b: String = String(p.get("stat", "dmg"))
 			var m: float = EventGrade.scale_mult(float(p.get("base", 1.15)), grade)
-			return {"effects": {_buff_key(stat_b): m},
-				"outcome": _stat_line(stat_b, m - 1.0, true)}
+			return _says({_buff_key(stat_b): m}, [[TEAM, _stat_clause(stat_b, m - 1.0)]])
 
 		# Same, below 1.0. Grade here means SEVERITY — an S-grade curse is the
 		# worst one, not the best. Bands for curses should lean "risky".
 		"team_curse":
 			var stat_c: String = String(p.get("stat", "def"))
 			var mc: float = EventGrade.scale_penalty(float(p.get("base", 0.9)), grade)
-			return {"effects": {_buff_key(stat_c): mc},
-				"outcome": _stat_line(stat_c, mc - 1.0, false)}
+			return _says({_buff_key(stat_c): mc}, [[TEAM, _stat_clause(stat_c, mc - 1.0)]])
 
 		"heal":
 			var e: Dictionary = {}
-			var parts: Array[String] = []
+			var said: Array = []
 			var hp_pct: float = float(p.get("hp", 0.0))
 			if hp_pct > 0.0:
 				var scaled_hp: float = minf(1.0, hp_pct * EventGrade.mult(grade))
 				e["heal_pct"] = scaled_hp
-				parts.append("+%d%% HP" % int(round(scaled_hp * 100.0)))
+				said.append([TEAM, "heals %d%% of its max health" % int(round(scaled_hp * 100.0))])
 			var mp_pct: float = float(p.get("mana", 0.0))
 			if mp_pct > 0.0:
 				var scaled_mp: float = minf(1.0, mp_pct * EventGrade.mult(grade))
 				e["mana_pct"] = scaled_mp
-				parts.append("+%d%% MP" % int(round(scaled_mp * 100.0)))
-			return {"effects": e, "outcome": " · ".join(parts) if parts else "Nothing happens."}
+				said.append([TEAM, "restores %d%% of its max mana" % int(round(scaled_mp * 100.0))])
+			if said.is_empty():
+				said.append(["", "Nothing happens."])
+			return _says(e, said)
 
 		# Item rarity ceiling comes from the grade — this is the payout where the
 		# reel matters most, because a Legendary is only reachable at S.
@@ -216,21 +314,23 @@ static func _resolve_kind(kind: String, p: Dictionary, ctx: Dictionary, grade: S
 			var cap: int = int(GRADE_RARITY.get(grade, 1))
 			if p.has("max_rarity"):
 				cap = mini(cap, int(p["max_rarity"]))
-			return {"effects": {"grant_item": {"count": count, "max_rarity": cap}},
-				"outcome": "%d item%s (up to %s)" % [count, "" if count == 1 else "s",
-					_rarity_name(cap)]}
+			return _says({"grant_item": {"count": count, "max_rarity": cap}},
+				[[TEAM, "gets %s of up to %s rarity" % [
+					"a random item" if count == 1 else "%d random items" % count,
+					_rarity_name(cap)]]])
 
 		# A graded perk onto one hero. target: random / best / weakest.
 		"perk":
 			var n: int = int(p.get("count", 1))
 			var target: String = String(p.get("target", "random"))
-			return {"effects": {"hero_perk": {"count": n, "target": target, "grade": grade}},
-				"outcome": "%d %s-grade perk%s to your %s hero" % [
-					n, grade, "" if n == 1 else "s", _target_word(target)]}
+			var who: String = _target_phrase(target, n)
+			var verb: String = "each get" if n > 1 else "gets"
+			return _says({"hero_perk": {"count": n, "target": target, "grade": grade}},
+				[[who, "%s a grade %s perk" % [verb, grade]]])
 
 		"hero_xp":
 			var xp: int = EventGrade.scale_int(float(p.get("base", 50)) * xp_scale(ctx), grade)
-			return {"effects": {"hero_xp": xp}, "outcome": "+%d XP to every hero" % xp}
+			return _says({"hero_xp": xp}, [["every hero", "gains %d XP" % xp]])
 
 		# A permanent trade on ONE hero: gain a percentage of one stat, lose a
 		# percentage of another, forever. The GRADE SCALES THE UPSIDE ONLY — the
@@ -245,51 +345,53 @@ static func _resolve_kind(kind: String, p: Dictionary, ctx: Dictionary, grade: S
 			var cost: Dictionary = p.get("cost", {})
 			var gpct: float = float(gain.get("pct", 0.15)) * EventGrade.mult(grade)
 			var cpct: float = float(cost.get("pct", 0.12))
-			return {"effects": {"hero_scar": {
-					"target": String(p.get("target", "random")),
+			var target_s: String = String(p.get("target", "random"))
+			return _says({"hero_scar": {
+					"target": target_s,
 					"gain_stat": String(gain.get("stat", "attack_damage")),
 					"gain_pct": gpct,
 					"cost_stat": String(cost.get("stat", "max_hp")),
 					"cost_pct": cpct,
 				}},
-				"outcome": "%s hero: +%d%% %s, −%d%% %s (permanent)" % [
-					_target_word(String(p.get("target", "random"))).capitalize(),
+				[[_target_phrase(target_s, 1), "permanently gains %d%% %s but loses %d%% %s" % [
 					int(round(gpct * 100.0)), _stat_word(String(gain.get("stat", ""))),
-					int(round(cpct * 100.0)), _stat_word(String(cost.get("stat", "")))]}
+					int(round(cpct * 100.0)), _stat_word(String(cost.get("stat", "")))]]])
 
 		# Reach into the NEXT fight. extra_enemies adds bodies to the wave the
 		# director builds; reward_tier re-rolls its payout on a higher tier's
 		# odds. Both are consumed by that one battle and then cleared.
 		"next_wave":
 			var mods: Dictionary = {}
-			var lines: Array[String] = []
+			var said: Array = []
 			if p.has("extra_enemies"):
 				# Grade decides how many extra bodies show up, so a bad roll on a
 				# bounty is a rougher fight for the same promised payout.
 				var n_extra: int = maxi(1, int(round(float(p["extra_enemies"])
 					* EventGrade.mult(grade))))
 				mods["extra_enemies"] = n_extra
-				lines.append("next fight has +%d enemies" % n_extra)
+				said.append(["your next fight", "has %d more enemies than usual" % n_extra])
 			if p.has("reward_tier"):
 				mods["reward_tier"] = int(p["reward_tier"])
-				lines.append("its reward pays at %s rates"
-					% _tier_word(int(p["reward_tier"])))
-			return {"effects": {"next_wave": mods}, "outcome": ", ".join(lines)}
+				said.append(["your next fight", "pays %s-tier rewards"
+					% _tier_word(int(p["reward_tier"]))])
+			return _says({"next_wave": mods}, said)
 
 		"level_up":
 			var lv: int = int(p.get("count", 1))
-			return {"effects": {"max_level": lv},
-				"outcome": "Every hero gains %d level%s" % [lv, "" if lv == 1 else "s"]}
+			return _says({"max_level": lv},
+				[["every hero", "gains %d level%s" % [lv, "" if lv == 1 else "s"]]])
 
 		"team_size":
 			var slots: int = int(p.get("count", 1))
-			return {"effects": {"max_units": slots}, "outcome": "+%d board slot" % slots}
+			return _says({"max_units": slots},
+				[["your board", "permanently gets %d more hero slot%s" % [
+					slots, "" if slots == 1 else "s"]]])
 
 		# Team-wide HP loss. Grade = severity (bands should be "risky").
 		"damage":
 			var dmg: float = minf(0.9, float(p.get("pct", 0.2)) * EventGrade.mult(grade))
-			return {"effects": {"hero_damage": -dmg},
-				"outcome": "−%d%% team HP" % int(round(dmg * 100.0))}
+			return _says({"hero_damage": -dmg},
+				[[TEAM, "loses %d%% of its current health" % int(round(dmg * 100.0))]])
 
 		# Scrap value is computed by main_game FROM THE ACTUAL ITEMS, not from a
 		# flat number here — a flat "gold_per × price curve × grade" hit 84g per
@@ -299,52 +401,67 @@ static func _resolve_kind(kind: String, p: Dictionary, ctx: Dictionary, grade: S
 		# The grade rides along as a bounded bonus, not as the whole payout.
 		"destroy_items":
 			var dn: int = int(p.get("count", 1))
-			return {"effects": {"destroy_items":
-					{"count": dn, "grade_mult": EventGrade.mult(grade)}},
-				"outcome": "Scrap %d item%s at %s salvage rates" % [
-					dn, "" if dn == 1 else "s", _salvage_word(grade)]}
+			var what: String = "its lowest-rarity item" if dn == 1 \
+				else "its %d lowest-rarity items" % dn
+			var fx: Dictionary = {"destroy_items":
+				{"count": dn, "grade_mult": EventGrade.mult(grade)}}
+			# ctx.scrap_values (main_game._event_context) is each item's salvage
+			# value, lowest rarity first — the same items and the same formula
+			# main_game pays out with, so the quoted gold is the real gold.
+			if ctx.has("scrap_values"):
+				var vals: Array = ctx["scrap_values"]
+				var gm: float = clampf(EventGrade.mult(grade), SCRAP_GRADE_MIN, SCRAP_GRADE_MAX)
+				var total: int = 0
+				for i in range(mini(dn, vals.size())):
+					total += maxi(1, int(round(float(vals[i]) * gm)))
+				return _says(fx, [[TEAM, "sells %s for %d gold" % [what, total]]])
+			return _says(fx, [[TEAM, "sells %s at a %s price" % [what, _salvage_word(grade)]]])
 
 		"shop_discount":
 			var pctd: float = minf(0.75, float(p.get("pct", 0.2)) * EventGrade.mult(grade))
-			return {"effects": {"shop_discount": pctd},
-				"outcome": "%d%% off the next merchant" % int(round(pctd * 100.0))}
+			return _says({"shop_discount": pctd},
+				[[TEAM, "gets %d%% off at the next merchant" % int(round(pctd * 100.0))]])
 
 		"shop_sales":
 			var sn: int = int(p.get("count", 2))
-			return {"effects": {"shop_sales": sn},
-				"outcome": "+%d sale slots at the next merchant" % sn}
+			return _says({"shop_sales": sn},
+				[["the next merchant", "puts %d more item%s on sale" % [sn, "" if sn == 1 else "s"]]])
 
 		# Gold now, a larger sum owed at the next merchant. Not grade-scaled on
 		# the debt side — a loan shark doesn't round in your favour.
 		"debt":
 			var now_g: int = maxi(1, int(round(float(p.get("gold", 20)) * gold_scale(ctx))))
 			var owed: int = maxi(1, int(round(float(p.get("owed", 34)) * gold_scale(ctx))))
-			return {"effects": {"gold": now_g, "debt": owed},
-				"outcome": "+%dg now, %dg owed at the next merchant" % [now_g, owed]}
+			return _says({"gold": now_g, "debt": owed},
+				[[TEAM, "gets %d gold now but owes %d gold at the next merchant" % [now_g, owed]]])
 
 		"flag":
 			var f: Dictionary = {}
 			for k in p.keys():
 				f[String(k)] = p[k]
-			return {"effects": {"set_flag": f}, "outcome": String(p.get("_text", "Noted."))}
+			return _says({"set_flag": f}, [["", String(p.get("_text", "Noted."))]])
 
-		# Several kinds at once — "fight back: gold AND a beating".
+		# Several kinds at once — "fight back: gold AND a beating". Parts' clauses
+		# are concatenated so _sentence can share a subject across them: "Your
+		# team loses 18% of its current health and gains 26 gold."
 		"combo":
 			var merged: Dictionary = {}
-			var lines: Array[String] = []
+			var said_all: Array = []
 			for part in p.get("parts", []):
 				var sub: Dictionary = _resolve_kind(
 					String(part.get("kind", "nothing")), part.get("params", {}), ctx, grade)
 				for k in sub.get("effects", {}).keys():
 					merged[k] = sub["effects"][k]
-				var line: String = String(sub.get("outcome", ""))
-				if line != "" and line != "Nothing happens.":
-					lines.append(line)
-			return {"effects": merged, "outcome": "  ·  ".join(lines)}
+				for s in sub.get("said", []):
+					if String(s[1]) != "Nothing happens.":
+						said_all.append(s)
+			if said_all.is_empty():
+				said_all.append(["", "Nothing happens."])
+			return _says(merged, said_all)
 
 		_:
 			push_warning("EventCatalog: unknown choice kind '%s'" % kind)
-			return {"effects": {}, "outcome": "Nothing happens."}
+			return _says({}, [["", "Nothing happens."]])
 
 static func _buff_key(stat: String) -> String:
 	match stat:
@@ -359,16 +476,16 @@ static func _buff_key(stat: String) -> String:
 # so a 1.33 "def buff" means you TAKE 33% LESS, not "damage taken +33%" — which
 # is how the first version of this printed, i.e. a blessing that read like a
 # curse. delta is the signed change to the stat's multiplier (m - 1).
-static func _stat_line(stat: String, delta: float, _is_buff: bool) -> String:
+static func _stat_clause(stat: String, delta: float) -> String:
 	var pct: int = int(round(absf(delta) * 100.0))
+	var up: bool = delta > 0.0
 	match stat:
-		"dmg": return "Damage %s%d%%" % ["+" if delta > 0.0 else "−", pct]
-		"spd": return "Attack speed %s%d%%" % ["+" if delta > 0.0 else "−", pct]
-		"hp":  return "Max HP %s%d%%" % ["+" if delta > 0.0 else "−", pct]
+		"spd": return "attacks %d%% %s" % [pct, "faster" if up else "slower"]
+		"hp":  return "%s %d%% max health" % ["gains" if up else "loses", pct]
 		"def":
 			# delta > 0 = a defence BUFF = less incoming damage.
-			return "Damage taken %s%d%%" % ["−" if delta > 0.0 else "+", pct]
-	return "Damage %s%d%%" % ["+" if delta > 0.0 else "−", pct]
+			return "takes %d%% %s damage" % [pct, "less" if up else "more"]
+	return "deals %d%% %s damage" % [pct, "more" if up else "less"]
 
 # The grade on a scrap sale reads as how good a price she gives you, since the
 # actual per-item number depends on what you hand over.
@@ -382,8 +499,8 @@ static func _salvage_word(grade: String) -> String:
 static func _stat_word(stat: String) -> String:
 	match stat:
 		"attack_damage": return "damage"
-		"magic_power":   return "magic"
-		"max_hp":        return "max HP"
+		"magic_power":   return "magic power"
+		"max_hp":        return "max health"
 		"resistance":    return "armour"
 		"attack_speed":  return "attack speed"
 	return stat
@@ -391,11 +508,12 @@ static func _stat_word(stat: String) -> String:
 static func _tier_word(tier: int) -> String:
 	return ["Veteran", "Veteran", "Brutal"][clampi(tier, 0, 2)]
 
-static func _target_word(target: String) -> String:
+# The subject of a per-hero outcome: "your strongest hero gets…".
+static func _target_phrase(target: String, n: int) -> String:
 	match target:
-		"best":    return "strongest"
-		"weakest": return "weakest"
-	return "random"
+		"best":    return "your strongest hero"
+		"weakest": return "your weakest hero"
+	return "a random hero" if n == 1 else "%d random heroes" % n
 
 static func _rarity_name(r: int) -> String:
 	const NAMES := ["Common", "Uncommon", "Rare", "Epic", "Legendary"]
@@ -432,9 +550,9 @@ static func _pool_blessings() -> Array:
 		"weight": 10,
 		"choices": [
 			{"text": "Pocket the coin", "band": "safe", "kind": "gold",
-			 "params": {"base": 10}, "preview": "Gold — a sure thing (D–B)"},
+			 "params": {"base": 10}},
 			{"text": "Buy the caravan's training", "band": "none", "kind": "level_up",
-			 "params": {"count": 1}, "preview": "Every hero gains a level"},
+			 "params": {"count": 1}},
 		],
 	},
 	{
@@ -443,11 +561,11 @@ static func _pool_blessings() -> Array:
 		"weight": 10,
 		"choices": [
 			{"text": "Blessing of fury", "band": "wide", "kind": "team_buff",
-			 "params": {"stat": "dmg", "base": 1.15}, "preview": "Team damage — graded F–S"},
+			 "params": {"stat": "dmg", "base": 1.15}},
 			{"text": "Blessing of stone", "band": "wide", "kind": "team_buff",
-			 "params": {"stat": "def", "base": 1.15}, "preview": "Damage taken — graded F–S"},
+			 "params": {"stat": "def", "base": 1.15}},
 			{"text": "Blessing of haste", "band": "wide", "kind": "team_buff",
-			 "params": {"stat": "spd", "base": 1.18}, "preview": "Attack speed — graded F–S"},
+			 "params": {"stat": "spd", "base": 1.18}},
 		],
 	},
 	{
@@ -456,9 +574,9 @@ static func _pool_blessings() -> Array:
 		"weight": 9,
 		"choices": [
 			{"text": "Reinforce our armour", "band": "wide", "kind": "team_buff",
-			 "params": {"stat": "hp", "base": 1.15}, "preview": "Team max HP — graded F–S"},
+			 "params": {"stat": "hp", "base": 1.15}},
 			{"text": "Sell him the scrap", "band": "safe", "kind": "gold",
-			 "params": {"base": 7}, "preview": "Gold — a sure thing (D–B)"},
+			 "params": {"base": 7}},
 		],
 	},
 	{
@@ -467,14 +585,14 @@ static func _pool_blessings() -> Array:
 		"weight": 8,
 		"choices": [
 			{"text": "Sleep", "band": "none", "kind": "heal",
-			 "params": {"hp": 1.0}, "preview": "Restore all HP"},
+			 "params": {"hp": 1.0}},
 			{"text": "Meditate", "band": "none", "kind": "heal",
-			 "params": {"mana": 1.0}, "preview": "Restore all MP"},
+			 "params": {"mana": 1.0}},
 			{"text": "Half of each, and take the camp's tithe", "band": "none", "kind": "combo",
 			 "params": {"parts": [
 				{"kind": "heal", "params": {"hp": 0.5, "mana": 0.5}},
 				{"kind": "gold", "params": {"base": 5}},
-			 ]}, "preview": "Half HP and MP, plus gold"},
+			 ]}},
 		],
 	},
 	{
@@ -483,9 +601,9 @@ static func _pool_blessings() -> Array:
 		"weight": 7,
 		"choices": [
 			{"text": "Make room for them", "band": "none", "kind": "team_size",
-			 "params": {"count": 1}, "preview": "+1 board slot, permanently"},
+			 "params": {"count": 1}},
 			{"text": "Send them off with a purse", "band": "safe", "kind": "gold",
-			 "params": {"base": 8}, "preview": "Gold — a sure thing (D–B)"},
+			 "params": {"base": 8}},
 		],
 	},
 	{
@@ -494,9 +612,9 @@ static func _pool_blessings() -> Array:
 		"weight": 9,
 		"choices": [
 			{"text": "Sharpen for your strongest", "band": "safe", "kind": "perk",
-			 "params": {"count": 1, "target": "best"}, "preview": "One perk, your best hero (D–B)"},
+			 "params": {"count": 1, "target": "best"}},
 			{"text": "Let everyone take a turn", "band": "wide", "kind": "perk",
-			 "params": {"count": 2, "target": "random"}, "preview": "Two perks, random heroes (F–S)"},
+			 "params": {"count": 2, "target": "random"}},
 		],
 	},
 	{
@@ -505,9 +623,9 @@ static func _pool_blessings() -> Array:
 		"weight": 8,
 		"choices": [
 			{"text": "Sit and listen", "band": "wide", "kind": "hero_xp",
-			 "params": {"base": 55}, "preview": "XP for every hero — graded F–S"},
+			 "params": {"base": 55}},
 			{"text": "Buy her notes instead", "band": "safe", "kind": "gold",
-			 "params": {"base": 8}, "preview": "Gold — a sure thing (D–B)"},
+			 "params": {"base": 8}},
 		],
 	},
 	{
@@ -516,9 +634,9 @@ static func _pool_blessings() -> Array:
 		"weight": 9,
 		"choices": [
 			{"text": "Force the lock", "band": "wide", "kind": "item",
-			 "params": {"count": 1}, "preview": "One item — rarity set by the roll (F–S)"},
+			 "params": {"count": 1}},
 			{"text": "Sell it unopened", "band": "safe", "kind": "gold",
-			 "params": {"base": 9}, "preview": "Gold — a sure thing (D–B)"},
+			 "params": {"base": 9}},
 		],
 	},
 	{
@@ -527,9 +645,9 @@ static func _pool_blessings() -> Array:
 		"weight": 7,
 		"choices": [
 			{"text": "Drink deep", "band": "safe", "kind": "heal",
-			 "params": {"hp": 0.5, "mana": 0.5}, "preview": "Restore HP and MP — graded (D–B)"},
+			 "params": {"hp": 0.5, "mana": 0.5}},
 			{"text": "Fill the skins and march", "band": "wide", "kind": "team_buff",
-			 "params": {"stat": "spd", "base": 1.12}, "preview": "Attack speed — graded F–S"},
+			 "params": {"stat": "spd", "base": 1.12}},
 		],
 	},
 	]
@@ -544,12 +662,12 @@ static func _pool_curses() -> Array:
 		"weight": 9,
 		"choices": [
 			{"text": "Pay the toll", "band": "none", "kind": "gold_cost",
-			 "params": {"pct": 0.25}, "preview": "Lose a quarter of your gold"},
+			 "params": {"pct": 0.25}},
 			{"text": "Fight them for it", "band": "risky", "kind": "combo",
 			 "params": {"parts": [
 				{"kind": "gold", "params": {"base": 12}},
 				{"kind": "damage", "params": {"pct": 0.18}},
-			 ]}, "preview": "Their purse, and a beating — graded F–S"},
+			 ]}},
 		],
 	},
 	{
@@ -558,9 +676,9 @@ static func _pool_curses() -> Array:
 		"weight": 9,
 		"choices": [
 			{"text": "Hold formation and take it", "band": "risky", "kind": "damage",
-			 "params": {"pct": 0.2}, "preview": "Team HP — severity graded F–S"},
+			 "params": {"pct": 0.2}},
 			{"text": "Scatter, and abandon a pack", "band": "none", "kind": "gold_cost",
-			 "params": {"gold": 6}, "preview": "Pay them off — no damage taken"},
+			 "params": {"gold": 6}},
 		],
 	},
 	{
@@ -569,12 +687,12 @@ static func _pool_curses() -> Array:
 		"weight": 8,
 		"choices": [
 			{"text": "Pay the bridgekeeper", "band": "none", "kind": "gold_cost",
-			 "params": {"pct": 0.3}, "preview": "Lose 30% of your gold"},
+			 "params": {"pct": 0.3}},
 			{"text": "Ford the river", "band": "risky", "kind": "combo",
 			 "params": {"parts": [
 				{"kind": "damage", "params": {"pct": 0.15}},
 				{"kind": "team_curse", "params": {"stat": "spd", "base": 0.94}},
-			 ]}, "preview": "Cold, wet and slower — severity graded"},
+			 ]}},
 		],
 	},
 	{
@@ -583,12 +701,12 @@ static func _pool_curses() -> Array:
 		"weight": 7, "requires": {"min_round": 6},
 		"choices": [
 			{"text": "Burn the supplies and quarantine", "band": "none", "kind": "gold_cost",
-			 "params": {"pct": 0.2}, "preview": "Lose 20% of your gold, stay clean"},
+			 "params": {"pct": 0.2}},
 			{"text": "March through it", "band": "risky", "kind": "combo",
 			 "params": {"parts": [
 				{"kind": "damage", "params": {"pct": 0.16}},
 				{"kind": "gold", "params": {"base": 11}},
-			 ]}, "preview": "Loot the village, carry the sickness — graded"},
+			 ]}},
 		],
 	},
 	{
@@ -600,9 +718,9 @@ static func _pool_curses() -> Array:
 			 "params": {"parts": [
 				{"kind": "team_curse", "params": {"stat": "def", "base": 0.92}},
 				{"kind": "gold", "params": {"base": 11}},
-			 ]}, "preview": "Gold, and rattled nerves — graded F–S"},
+			 ]}},
 			{"text": "Back out quietly", "band": "none", "kind": "nothing",
-			 "params": {}, "preview": "Nothing gained, nothing lost"},
+			 "params": {}},
 		],
 	},
 	{
@@ -611,10 +729,9 @@ static func _pool_curses() -> Array:
 		"weight": 6, "requires": {"min_items": 2},
 		"choices": [
 			{"text": "Pay a caravan smith to treat the gear", "band": "none", "kind": "gold_cost",
-			 "params": {"pct": 0.18}, "preview": "Lose 18% of your gold, keep everything"},
+			 "params": {"pct": 0.18}},
 			{"text": "Salvage what's left", "band": "wide", "kind": "destroy_items",
-			 "params": {"count": 1},
-			 "preview": "Lose one item, sell the remains — graded F–S"},
+			 "params": {"count": 1}},
 		],
 	},
 	{
@@ -626,9 +743,9 @@ static func _pool_curses() -> Array:
 			 "params": {"parts": [
 				{"kind": "gold", "params": {"base": 20}},
 				{"kind": "team_curse", "params": {"stat": "hp", "base": 0.88}},
-			 ]}, "preview": "A fortune, and it costs you — graded F–S"},
+			 ]}},
 			{"text": "Take one handful and go", "band": "safe", "kind": "gold",
-			 "params": {"base": 8}, "preview": "Gold — a sure thing (D–B)"},
+			 "params": {"base": 8}},
 		],
 	},
 	]
@@ -647,9 +764,9 @@ static func _pool_crossroads() -> Array:
 			 "params": {"parts": [
 				{"kind": "team_buff", "params": {"stat": "dmg", "base": 1.25}},
 				{"kind": "team_curse", "params": {"stat": "hp", "base": 0.85}},
-			 ]}, "preview": "Damage up, HP down — both graded F–S"},
+			 ]}},
 			{"text": "Refuse", "band": "none", "kind": "nothing",
-			 "params": {}, "preview": "Nothing happens"},
+			 "params": {}},
 		],
 	},
 	{
@@ -658,9 +775,9 @@ static func _pool_crossroads() -> Array:
 		"weight": 8,
 		"choices": [
 			{"text": "Play a hand", "band": "risky", "kind": "gamble",
-			 "params": {"stake": 6, "payout": 2.2}, "preview": "50/50 — the prize is graded F–S"},
+			 "params": {"stake": 6, "payout": 2.2}},
 			{"text": "Watch someone else lose", "band": "none", "kind": "gold",
-			 "params": {"base": 2}, "preview": "Pocket a little and move on"},
+			 "params": {"base": 2}},
 		],
 	},
 	{
@@ -669,10 +786,9 @@ static func _pool_crossroads() -> Array:
 		"weight": 5, "requires": {"min_gold": 15},
 		"choices": [
 			{"text": "All in", "band": "wide", "kind": "gamble",
-			 "params": {"stake_pct": 1.0, "payout": 1.0},
-			 "preview": "50/50 on your whole purse — prize graded F–S"},
+			 "params": {"stake_pct": 1.0, "payout": 1.0}},
 			{"text": "Walk away", "band": "none", "kind": "gold",
-			 "params": {"base": 2}, "preview": "Pocket a little and move on"},
+			 "params": {"base": 2}},
 		],
 	},
 	{
@@ -684,12 +800,12 @@ static func _pool_crossroads() -> Array:
 			 "params": {"parts": [
 				{"kind": "team_buff", "params": {"stat": "dmg", "base": 1.1}},
 				{"kind": "team_buff", "params": {"stat": "spd", "base": 1.1}},
-			 ]}, "preview": "Sharper and faster — graded F–S"},
+			 ]}},
 			{"text": "Decline politely", "band": "none", "kind": "combo",
 			 "params": {"parts": [
 				{"kind": "gold", "params": {"base": 6}},
 				{"kind": "flag", "params": {"refused_duel": true, "_text": "She remembers this."}},
-			 ]}, "preview": "Take the purse and go — she'll remember"},
+			 ]}},
 		],
 	},
 	{
@@ -700,10 +816,9 @@ static func _pool_crossroads() -> Array:
 			{"text": "Let him work on your best", "band": "wide", "kind": "scar",
 			 "params": {"target": "best",
 				"gain": {"stat": "attack_damage", "pct": 0.18},
-				"cost": {"stat": "max_hp", "pct": 0.12}},
-			 "preview": "Permanent: damage up, max HP down — upside graded F–S"},
+				"cost": {"stat": "max_hp", "pct": 0.12}}},
 			{"text": "Send him away", "band": "safe", "kind": "gold",
-			 "params": {"base": 6}, "preview": "Gold — a sure thing (D–B)"},
+			 "params": {"base": 6}},
 		],
 	},
 	{
@@ -714,15 +829,13 @@ static func _pool_crossroads() -> Array:
 			{"text": "Offer your strongest", "band": "risky", "kind": "scar",
 			 "params": {"target": "best",
 				"gain": {"stat": "attack_speed", "pct": 0.16},
-				"cost": {"stat": "resistance", "pct": 0.25}},
-			 "preview": "Permanent: faster, thinner-skinned — upside graded F–S"},
+				"cost": {"stat": "resistance", "pct": 0.25}}},
 			{"text": "Offer whoever volunteers", "band": "wide", "kind": "scar",
 			 "params": {"target": "random",
 				"gain": {"stat": "magic_power", "pct": 0.2},
-				"cost": {"stat": "max_hp", "pct": 0.1}},
-			 "preview": "Permanent, on a random hero: magic up, HP down"},
+				"cost": {"stat": "max_hp", "pct": 0.1}}},
 			{"text": "Nobody is going under that knife", "band": "none", "kind": "nothing",
-			 "params": {}, "preview": "Nothing happens"},
+			 "params": {}},
 		],
 	},
 	{
@@ -731,10 +844,9 @@ static func _pool_crossroads() -> Array:
 		"weight": 8, "requires": {"min_round": 3},
 		"choices": [
 			{"text": "Take the contract", "band": "wide", "kind": "next_wave",
-			 "params": {"extra_enemies": 2, "reward_tier": 2},
-			 "preview": "Harder next fight, but it pays at Brutal rates"},
+			 "params": {"extra_enemies": 2, "reward_tier": 2}},
 			{"text": "Read it and walk on", "band": "none", "kind": "nothing",
-			 "params": {}, "preview": "Nothing happens"},
+			 "params": {}},
 		],
 	},
 	{
@@ -746,9 +858,9 @@ static func _pool_crossroads() -> Array:
 			 "params": {"parts": [
 				{"kind": "next_wave", "params": {"extra_enemies": 3, "reward_tier": 2}},
 				{"kind": "damage", "params": {"pct": 0.1}},
-			 ]}, "preview": "Bloodied going in, a much harder fight, top-tier payout"},
+			 ]}},
 			{"text": "Pay the crossing toll", "band": "none", "kind": "gold_cost",
-			 "params": {"pct": 0.25}, "preview": "Lose a quarter of your gold, walk through"},
+			 "params": {"pct": 0.25}},
 		],
 	},
 	{
@@ -757,11 +869,11 @@ static func _pool_crossroads() -> Array:
 		"weight": 8,
 		"choices": [
 			{"text": "The merchant road", "band": "wide", "kind": "gold",
-			 "params": {"base": 12}, "preview": "Gold — graded F–S"},
+			 "params": {"base": 12}},
 			{"text": "The battlefield road", "band": "wide", "kind": "item",
-			 "params": {"count": 1}, "preview": "An item — rarity set by the roll (F–S)"},
+			 "params": {"count": 1}},
 			{"text": "The pilgrim road", "band": "wide", "kind": "perk",
-			 "params": {"count": 1, "target": "random"}, "preview": "A perk for one hero — graded F–S"},
+			 "params": {"count": 1, "target": "random"}},
 		],
 	},
 	{
@@ -770,9 +882,9 @@ static func _pool_crossroads() -> Array:
 		"weight": 6, "requires": {"min_round": 4},
 		"choices": [
 			{"text": "Train them properly", "band": "safe", "kind": "perk",
-			 "params": {"count": 1, "target": "weakest"}, "preview": "A perk for your weakest hero (D–B)"},
+			 "params": {"count": 1, "target": "weakest"}},
 			{"text": "Put them to work carrying", "band": "safe", "kind": "gold",
-			 "params": {"base": 6}, "preview": "Gold — a sure thing (D–B)"},
+			 "params": {"base": 6}},
 		],
 	},
 	{
@@ -781,12 +893,12 @@ static func _pool_crossroads() -> Array:
 		"weight": 6,
 		"choices": [
 			{"text": "Let him work", "band": "wide", "kind": "heal",
-			 "params": {"hp": 0.4}, "preview": "Team HP — graded F–S"},
+			 "params": {"hp": 0.4}},
 			{"text": "Pay him to go away", "band": "none", "kind": "combo",
 			 "params": {"parts": [
 				{"kind": "gold_cost", "params": {"gold": 4}},
 				{"kind": "team_buff", "params": {"stat": "def", "base": 1.08}},
-			 ]}, "preview": "Pay him off — the company sleeps easier"},
+			 ]}},
 		],
 	},
 	]
@@ -801,9 +913,9 @@ static func _pool_economy() -> Array:
 		"weight": 7,
 		"choices": [
 			{"text": "Take the favour", "band": "wide", "kind": "shop_discount",
-			 "params": {"pct": 0.2}, "preview": "Discount at the next merchant — graded F–S"},
+			 "params": {"pct": 0.2}},
 			{"text": "Take coin instead", "band": "safe", "kind": "gold",
-			 "params": {"base": 8}, "preview": "Gold — a sure thing (D–B)"},
+			 "params": {"base": 8}},
 		],
 	},
 	{
@@ -812,9 +924,9 @@ static func _pool_economy() -> Array:
 		"weight": 6,
 		"choices": [
 			{"text": "Keep the token", "band": "none", "kind": "shop_sales",
-			 "params": {"count": 2}, "preview": "+2 sale slots at the next merchant"},
+			 "params": {"count": 2}},
 			{"text": "Melt it down", "band": "safe", "kind": "gold",
-			 "params": {"base": 7}, "preview": "Gold — a sure thing (D–B)"},
+			 "params": {"base": 7}},
 		],
 	},
 	{
@@ -823,10 +935,9 @@ static func _pool_economy() -> Array:
 		"weight": 6, "requires": {"min_round": 5, "not_flag": "debt"},
 		"choices": [
 			{"text": "Sign it", "band": "none", "kind": "debt",
-			 "params": {"gold": 20, "owed": 34},
-			 "preview": "Gold now, more owed at the next merchant"},
+			 "params": {"gold": 20, "owed": 34}},
 			{"text": "Don't sign anything", "band": "none", "kind": "nothing",
-			 "params": {}, "preview": "Nothing happens"},
+			 "params": {}},
 		],
 	},
 	{
@@ -835,13 +946,11 @@ static func _pool_economy() -> Array:
 		"weight": 7, "requires": {"min_items": 2},
 		"choices": [
 			{"text": "Sell her two pieces", "band": "wide", "kind": "destroy_items",
-			 "params": {"count": 2},
-			 "preview": "Two items become gold — graded F–S"},
+			 "params": {"count": 2}},
 			{"text": "Sell her one", "band": "safe", "kind": "destroy_items",
-			 "params": {"count": 1},
-			 "preview": "One item becomes gold (D–B)"},
+			 "params": {"count": 1}},
 			{"text": "Keep your kit", "band": "none", "kind": "nothing",
-			 "params": {}, "preview": "Nothing happens"},
+			 "params": {}},
 		],
 	},
 	{
@@ -857,12 +966,12 @@ static func _pool_economy() -> Array:
 			 "params": {"parts": [
 				{"kind": "gold_cost", "params": {"gold": 12}},
 				{"kind": "item", "params": {"count": 2}},
-			 ]}, "preview": "Two items, sight unseen — rarity graded F–S"},
+			 ]}},
 			{"text": "Buy two cheap bundles", "band": "safe", "kind": "combo",
 			 "params": {"parts": [
 				{"kind": "gold_cost", "params": {"gold": 10}},
 				{"kind": "item", "params": {"count": 2, "max_rarity": 1}},
-			 ]}, "preview": "Two low-rarity items at a fixed price"},
+			 ]}},
 		],
 	},
 	]
@@ -882,12 +991,12 @@ static func _pool_callbacks() -> Array:
 			 "params": {"parts": [
 				{"kind": "team_buff", "params": {"stat": "dmg", "base": 1.2}},
 				{"kind": "damage", "params": {"pct": 0.12}},
-			 ]}, "preview": "A real bout — graded F–S"},
+			 ]}},
 			{"text": "Buy her a drink and settle it", "band": "none", "kind": "combo",
 			 "params": {"parts": [
 				{"kind": "gold_cost", "params": {"gold": 8}},
 				{"kind": "team_buff", "params": {"stat": "def", "base": 1.1}},
-			 ]}, "preview": "Buy the round — the company steadies"},
+			 ]}},
 		],
 	},
 	{
@@ -899,12 +1008,12 @@ static func _pool_callbacks() -> Array:
 			 "params": {"parts": [
 				{"kind": "gold_cost", "params": {"pct": 0.5}},
 				{"kind": "flag", "params": {"debt_unpaid": false, "_text": "The ledger closes."}},
-			 ]}, "preview": "Half your purse, and the matter ends"},
+			 ]}},
 			{"text": "Tell them to try", "band": "risky", "kind": "combo",
 			 "params": {"parts": [
 				{"kind": "damage", "params": {"pct": 0.18}},
 				{"kind": "flag", "params": {"debt_unpaid": false, "_text": "The matter ends painfully."}},
-			 ]}, "preview": "They collect in blood — severity graded"},
+			 ]}},
 		],
 	},
 	{
@@ -916,12 +1025,12 @@ static func _pool_callbacks() -> Array:
 			 "params": {"parts": [
 				{"kind": "team_buff", "params": {"stat": "dmg", "base": 1.18}},
 				{"kind": "team_buff", "params": {"stat": "def", "base": 1.1}},
-			 ]}, "preview": "Damage and defence — graded F–S"},
+			 ]}},
 			{"text": "Loot the offerings", "band": "risky", "kind": "combo",
 			 "params": {"parts": [
 				{"kind": "gold", "params": {"base": 16}},
 				{"kind": "team_curse", "params": {"stat": "def", "base": 0.92}},
-			 ]}, "preview": "Gold, and the shrine's displeasure — graded"},
+			 ]}},
 		],
 	},
 	{
@@ -930,9 +1039,9 @@ static func _pool_callbacks() -> Array:
 		"weight": 10, "requires": {"team_full": true, "min_round": 8},
 		"choices": [
 			{"text": "Make room", "band": "none", "kind": "team_size",
-			 "params": {"count": 1}, "preview": "+1 board slot, permanently"},
+			 "params": {"count": 1}},
 			{"text": "Take their signing fee instead", "band": "wide", "kind": "gold",
-			 "params": {"base": 12}, "preview": "Gold — graded F–S"},
+			 "params": {"base": 12}},
 		],
 	},
 	{
@@ -941,9 +1050,9 @@ static func _pool_callbacks() -> Array:
 		"weight": 8, "requires": {"min_round": 20},
 		"choices": [
 			{"text": "Let them drink", "band": "wide", "kind": "hero_xp",
-			 "params": {"base": 70}, "preview": "XP for every hero — graded F–S"},
+			 "params": {"base": 70}},
 			{"text": "March at dawn regardless", "band": "safe", "kind": "team_buff",
-			 "params": {"stat": "spd", "base": 1.1}, "preview": "Attack speed (D–B)"},
+			 "params": {"stat": "spd", "base": 1.1}},
 		],
 	},
 	]

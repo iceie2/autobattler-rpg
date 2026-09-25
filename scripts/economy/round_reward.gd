@@ -75,7 +75,7 @@ static func roll(difficulty: int, round: int) -> Dictionary:
 			result["gold"] = maxi(1, int(base * mult))
 		Type.ITEM:
 			var max_rarity: int = EquipmentItem.Rarity.EPIC if difficulty == WaveScaler.Difficulty.BRUTAL else EquipmentItem.Rarity.RARE
-			result["item"] = EquipmentManager.generate_item(round, max_rarity)
+			result["item"] = ComponentEquipmentGateway.generate_item(round, max_rarity)
 		Type.STAT_BONUS:
 			# ONE gacha-graded perk, rolled once and shown in full on the
 			# difficulty panel — the only choice left after winning is which

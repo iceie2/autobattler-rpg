@@ -40,6 +40,22 @@ const OUT_MIXED   := Color(0.55, 0.28, 0.02)
 const OUT_GAMBLE  := Color(0.45, 0.22, 0.55)
 const OUT_NEUTRAL := Color(0.40, 0.35, 0.25)
 
+# Words that get their icon drawn right after them in outcome text (2026-09-24,
+# owner ask: "add icons for hp and gold, here and for other events too"). The
+# catalog writes plain words ("gains 12 gold", "loses 9% of its current
+# health"), so telemetry and logs stay readable text and only the panel dresses
+# them up. Paths are the game's existing coin and stat icons; the stat icons
+# are drawn WHITE (other screens put them on dark cards), which vanishes on the
+# gold choice button, so they carry a tint here. "" = draw as painted.
+const WORD_ICONS := {
+	"gold":   ["res://assets/UI/Vector_UI_Pack_dobo_ui/Icons/64px/coin_icon_64px.png", ""],
+	"health": ["res://assets/icons/stat_icons/health.png", "#d23a32"],
+	"mana":   ["res://assets/icons/stat_icons/mana.png", "#3a6ad2"],
+}
+const CHOICE_H := 64.0       # a one-line-outcome choice button
+const CHOICE_GAP := 12.0     # _choices_box separation
+const CHOICE_PAD_X := 18.0   # text inset inside a choice button
+
 var _panel: Panel
 var _backdrop: ColorRect
 var _banner: Label
@@ -47,7 +63,7 @@ var _title: Label
 var _desc: Label
 var _art: TextureRect
 var _choices_box: VBoxContainer
-var _resolution: Label
+var _resolution: RichTextLabel
 var _grade_lbl: Label          # the outcome-grade reel (see show_resolution)
 var _current_event: EventBlessing = null
 var _choice_buttons: Array[Button] = []
@@ -63,7 +79,7 @@ func _build_ui() -> void:
 	add_child(overlay)
 
 	_panel = Panel.new()
-	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+	_panel.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 	overlay.add_child(_panel)
 
 	_backdrop = ColorRect.new()
@@ -73,10 +89,11 @@ func _build_ui() -> void:
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_child(_backdrop)
 	_panel.move_child(_backdrop, 0)   # behind the parchment frame's corners
+	UITheme.menu_header(_panel, Rect2(12, 8, PANEL_W - 24, 110))
 
-	_banner = _lbl(_panel, "", 12, Color.WHITE, Vector2.ZERO, Vector2(PANEL_W, 24), true)
-	_title  = _lbl(_panel, "", 26, Color.WHITE, Vector2.ZERO, Vector2(PANEL_W, 44), true)
-	_desc   = _lbl(_panel, "", 15, Color(0.82, 0.8, 0.75), Vector2.ZERO, Vector2(CONTENT_W, 48), true)
+	_banner = _lbl(_panel, "", 12, UITheme.menu_title_color(), Vector2.ZERO, Vector2(PANEL_W, 24), true)
+	_title  = _lbl(_panel, "", 26, UITheme.menu_title_color(), Vector2.ZERO, Vector2(PANEL_W, 44), true)
+	_desc   = _lbl(_panel, "", 19, UITheme.menu_body_color(), Vector2.ZERO, Vector2(CONTENT_W, 48), true)
 	_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 	_art = TextureRect.new()
@@ -90,7 +107,11 @@ func _build_ui() -> void:
 	_choices_box.add_theme_constant_override("separation", 12)
 	_panel.add_child(_choices_box)
 
-	_resolution = _lbl(_panel, "", 22, Color.WHITE, Vector2.ZERO, Vector2(CHOICE_W, 60), true)
+	# Rich text so the outcome sentence carries the same gold/health icons as the
+	# buttons did, and wraps — outcomes are full sentences now, not "+12g".
+	_resolution = _rich(UITheme.body_font(22))
+	_resolution.size = Vector2(CHOICE_W, 60)
+	_panel.add_child(_resolution)
 	_resolution.visible = false
 
 	# The grade reel's landing spot — one-per-screen hero text, so it takes the
@@ -122,17 +143,22 @@ func _refresh_display() -> void:
 		return
 	var etype: int = _current_event.event_type
 	var color: Color = _current_event.get_type_color()
-	_backdrop.color = BACKDROPS.get(etype, BACKDROPS[EventBlessing.EventType.NEUTRAL])
+	if UITheme.is_light():
+		_backdrop.color = Color(0.90, 0.94, 0.86) if etype == EventBlessing.EventType.BLESSING \
+			else (Color(0.96, 0.88, 0.85) if etype == EventBlessing.EventType.CURSE \
+			else Color(0.94, 0.91, 0.84))
+	else:
+		_backdrop.color = BACKDROPS.get(etype, BACKDROPS[EventBlessing.EventType.NEUTRAL])
 
 	# Manual top-to-bottom layout; the panel then shrinks to exactly fit.
-	var y := 20.0
+	var y := 30.0
 	_banner.text = BANNERS.get(etype, BANNERS[EventBlessing.EventType.NEUTRAL])
-	_banner.add_theme_color_override("font_color", color)
-	_banner.position = Vector2(0, y); y += 30.0
+	_banner.add_theme_color_override("font_color", color.darkened(0.45) if UITheme.is_light() else color)
+	_banner.position = Vector2(0, y); y += 28.0
 
 	_title.text = _current_event.title
-	_title.add_theme_color_override("font_color", Color(0.96, 0.93, 0.86))
-	_title.position = Vector2(0, y); y += 46.0
+	_title.add_theme_color_override("font_color", UITheme.menu_title_color())
+	_title.position = Vector2(0, y - 8.0); y += 68.0
 
 	_desc.text = _current_event.description
 	_desc.position = Vector2(CONTENT_X, y); y += 50.0
@@ -150,10 +176,13 @@ func _refresh_display() -> void:
 	for child in _choices_box.get_children():
 		child.queue_free()
 	_choice_buttons.clear()
+	var choices_h := -CHOICE_GAP
 	for i in range(_current_event.choices.size()):
-		_choices_box.add_child(_make_choice_button(_current_event.choices[i], i))
+		var btn := _make_choice_button(_current_event.choices[i], i)
+		_choices_box.add_child(btn)
+		choices_h += btn.custom_minimum_size.y + CHOICE_GAP
 	_choices_box.position = Vector2((PANEL_W - CHOICE_W) / 2.0, y)
-	y += _current_event.choices.size() * 76.0 - 12.0
+	y += choices_h
 
 	_panel.size = Vector2(PANEL_W, y + 24.0)
 	_center_panel()
@@ -182,29 +211,81 @@ func _make_choice_button(choice, index: int) -> Button:
 	var title := Label.new()
 	title.text = choice.text
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UITheme.apply_font(title, UITheme.body_font(15))
+	UITheme.apply_font(title, UITheme.body_font(19))
 	title.add_theme_color_override("font_color", UITheme.TEXT_BTN)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(title)
 
 	# A graded choice has no effects yet (they're rolled at pick time), so it
-	# advertises its BAND instead of a number — and the line is colored by how
-	# risky that band is: green "sure thing", orange spread, purple gamble.
+	# shows the exact outcome as a min–max range over its band, coloured by
+	# what it does: green gain, red cost, orange trade-off, purple gamble.
 	var line: String = choice.button_line()
 	if line != "":
-		var outcome := Label.new()
-		outcome.text = line
-		outcome.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		UITheme.apply_font(outcome, UITheme.body_font(11))
-		outcome.add_theme_color_override("font_color", _choice_line_color(choice))
-		outcome.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var px: int = UITheme.body_font(15)
+		var outcome := _rich(px)
+		outcome.text = with_icons(line, px)
+		outcome.add_theme_color_override("default_color", _choice_line_color(choice))
 		col.add_child(outcome)
+		# Outcomes are sentences now and the long ones wrap; grow the button by
+		# one line-height per extra line so the text never spills out of it.
+		var lines: int = _line_count(line, px, CHOICE_W - CHOICE_PAD_X * 2.0)
+		btn.custom_minimum_size.y = CHOICE_H + (lines - 1) * _font_for(px).get_height(px)
 	return btn
+
+# A centred, wrapping, auto-height rich label for outcome text.
+func _rich(px: int) -> RichTextLabel:
+	var rt := RichTextLabel.new()
+	rt.bbcode_enabled = true
+	rt.fit_content = true
+	rt.scroll_active = false
+	rt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UITheme.apply_rich_font(rt, px)
+	return rt
+
+# "gains 12 gold" → "gains 12 gold[coin]". Whole words only, so a title-case
+# "Gold" in some future line isn't touched by accident. FIRST occurrence only:
+# "pays 20 gold (25% of your gold)" wants one coin, not two.
+static func with_icons(text: String, px: int) -> String:
+	var out: String = text.replace("[", "[lb]")
+	for word in WORD_ICONS:
+		var re := RegEx.new()
+		re.compile("\\b%s\\b" % word)
+		var m: RegExMatch = re.search(out)
+		if m == null:
+			continue
+		var path: String = WORD_ICONS[word][0]
+		var tint: String = WORD_ICONS[word][1]
+		var img: String = "[img=%dx%d%s]%s[/img]" % [px, px,
+			(" color=%s" % tint) if tint != "" else "", path]
+		out = out.substr(0, m.get_end()) + " " + img + out.substr(m.get_end())
+	return out
+
+func _font_for(px: int) -> Font:
+	var f: Font = UITheme.body_face() if px <= UITheme.BODY_FACE_MAX_PX else null
+	if f == null:
+		f = ThemeDB.fallback_font
+		var project_theme := ThemeDB.get_project_theme()
+		if project_theme and project_theme.default_font:
+			f = project_theme.default_font
+	return f
+
+# How many lines `text` wraps to at `width`, icons included. Measured, with a
+# little slack for word-wrap breaking early rather than mid-word.
+func _line_count(text: String, px: int, width: float) -> int:
+	var w: float = _font_for(px).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	for word in WORD_ICONS:
+		var re := RegEx.new()
+		re.compile("\\b%s\\b" % word)
+		if re.search(text):
+			w += px + 4.0
+	return maxi(1, ceili(w * 1.08 / width))
 
 # Colour the preview line by WHAT THE CHOICE DOES, same axis as the old fixed
 # events (gain / cost / trade-off / gamble). A catalog choice has no effects
 # dict until it resolves, so the colour comes from its resolver kind instead;
-# how risky the roll is already reads in the preview TEXT ("graded F–S"), and
+# how wide the roll is already reads in the preview TEXT (the min–max range), and
 # putting risk on the colour too would mean two scales fighting for one cue.
 const KIND_COLOR_COST := ["gold_cost", "damage", "team_curse", "destroy_items", "debt"]
 const KIND_COLOR_GAIN := ["gold", "item", "perk", "heal", "team_buff", "hero_xp",
@@ -293,9 +374,10 @@ func show_resolution(text: String, good: bool, grade: String = "", band: String 
 	else:
 		_grade_lbl.visible = false
 
-	_resolution.text = text
-	_resolution.add_theme_color_override("font_color",
-		Color(0.55, 1.0, 0.6) if good else Color(1.0, 0.55, 0.5))
+	_resolution.text = with_icons(text, UITheme.body_font(26))
+	_resolution.add_theme_color_override("default_color",
+		(Color(0.13, 0.43, 0.17) if good else Color(0.65, 0.14, 0.12)) if UITheme.is_light() \
+		else (Color(0.55, 1.0, 0.6) if good else Color(1.0, 0.55, 0.5)))
 	await get_tree().create_timer(1.4).timeout
 	_grade_lbl.visible = false
 	visible = false

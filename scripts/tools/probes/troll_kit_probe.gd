@@ -123,12 +123,30 @@ func _test_regen_and_smother() -> void:
 	mgr._tick_passive(t, mgr.player_units, mgr.enemy_units, 0.1)
 	_check(mgr._troll_regen_vfx.is_empty(),
 		"Regeneration readout survived the smother — it must clear the moment regen stops")
+	# Per-element counters (ELEMENT_COUNTERS.md): own element never counters;
+	# each element counts equally across the 6 Trolls; each Troll really obeys it.
+	var tally := {}
+	for el in UnitBase.REGEN_COUNTERS:
+		var pair: Array = UnitBase.REGEN_COUNTERS[el]
+		_check(pair.size() == 2 and not (el in pair), "Troll %s counters its own element" % el)
+		for c in pair: tally[c] = int(tally.get(c, 0)) + 1
+	for el in UnitBase.Element.values():
+		_check(int(tally.get(el, 0)) == 2, "element %d counters %d Trolls, want 2" % [el, int(tally.get(el, 0))])
+	for code in ["troll_normal", "troll_fire", "troll_water", "troll_earth", "troll_air", "troll_lightning"]:
+		var tv = _mk(mgr, s["grid"], EnemyFactory.create_by_type(code), Vector2i(4, 2), false)
+		for el in UnitBase.Element.values():
+			tv.set_meta("troll_regen_block_t", 0.0)
+			tv.take_damage(1, el, null)
+			var blocked: bool = float(tv.get_meta("troll_regen_block_t", 0.0)) > 0.0
+			_check(blocked == (el in UnitBase.REGEN_COUNTERS[tv.current_element]),
+				"%s: element %d block=%s disagrees with REGEN_COUNTERS" % [code, el, blocked])
+		s["grid"].remove_unit(Vector2i(4, 2)); tv.queue_free()
 
 func _test_shared_keys_unchanged() -> void:
 	for pair in [["Gargoyle", EnemyFactory.create_by_type("gargoyle")],
 			["Ember Phoenix", EnemyFactory.create_by_type("ember_phoenix")]]:
 		var m = pair[1]; add_child(m)
-		_check(str(m.get_meta("mob_passive", "")) == "troll_regen",
-			"%s no longer shares troll_regen — probe is stale" % pair[0])
+		_check(str(m.get_meta("mob_passive", "")) != "troll_regen",
+			"%s is back on troll_regen — it has its own passive since 2026-09-24" % pair[0])
 		_check(not bool(m.get_meta("troll", false)),
 			"%s was wrongly marked as the Troll and would gain sinew VFX" % pair[0])

@@ -46,7 +46,8 @@ func _ready() -> void:
 	await get_tree().process_frame
 	screen.present([unit])
 
-	for i in range(90):
+	# The three-card cascade takes longer than 90 frames; capture the settled UI.
+	for i in range(260):
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(

@@ -28,6 +28,15 @@ const RENDER_SIZE := Vector2i(128, 128)
 const STRETCH_FRAME_WIDTH := 1.9
 
 var render_size: Vector2i = RENDER_SIZE
+## Headroom on every side for a character whose CLIPS reach well past its idle +
+## death silhouette. The camera frame is sized from those two alone, so anything
+## outside it is cut off: Bloodhound's overhead chop put a claw ~0.45 units over
+## the top edge and ~0.4 past the side (measured 2026-09-23 — the v001 auto-attack
+## had been clipping the same way on every swing). Grows the camera frame AND the
+## viewport by the same factor, so pixels per world unit — his on-screen size and
+## pixel-art look — do not change; only the transparent canvas around him grows.
+## Viewport pixels scale with the square, so measure before raising it.
+var frame_grow: float = 1.0
 ## Test-only presentation override. The style-comparison scene sets this before
 ## constructing each VisualUnit, then clears it immediately. Empty in gameplay,
 ## so the production defaults below remain unchanged.
@@ -226,6 +235,9 @@ func setup(path: String, height: float = 120.0) -> bool:
 		render_size = RENDER_SIZE
 	if stretch_arm:
 		render_size.x = int(round(RENDER_SIZE.x * STRETCH_FRAME_WIDTH))
+	if frame_grow > 1.0:
+		render_size = Vector2i(int(round(render_size.x * frame_grow)),
+				int(round(render_size.y * frame_grow)))
 
 	_viewport = SubViewport.new()
 	_viewport.size = render_size
@@ -673,7 +685,9 @@ func _frame_camera() -> void:
 	# byte-for-byte what it was before death was ever factored in.
 	var half_h: float = maxf(idle_centre.y - frame_aabb.position.y,
 			(frame_aabb.position.y + frame_aabb.size.y) - idle_centre.y)
-	var frame_height: float = maxf(half_h * 2.0, 0.001)
+	# frame_grow widens the frame symmetrically about idle_centre, and setup()
+	# grew the viewport by the same factor, so density and idle placement hold.
+	var frame_height: float = maxf(half_h * 2.0, 0.001) * maxf(frame_grow, 1.0)
 	var half_w: float = maxf(idle_centre.x - frame_aabb.position.x,
 			(frame_aabb.position.x + frame_aabb.size.x) - idle_centre.x)
 	var half_d: float = maxf(idle_centre.z - frame_aabb.position.z,
@@ -710,7 +724,50 @@ func _frame_camera() -> void:
 # ── animation ────────────────────────────────────────────────────────────────
 
 ## Resolve a caller-facing clip name to the one actually in the file.
+## Blend-shape weights driven by a curve on a clip's OWN playback position:
+## {"ult": {"belly": [[t, w], ...]}} with t in clip seconds. Used where a shape
+## should follow a clip exactly without exporting per-clip shape-key actions
+## (Bouncer's belly inflating on the Gravity Drop inhale). Timing rides the clip,
+## so it follows play_oneshot_timed's speed change for free. Weights are zeroed
+## as soon as the clip is not the one playing.
+var morph_curves: Dictionary = {}
+var _morph_meshes: Array = []          # [MeshInstance3D, shape_idx, shape_name]
+var _morph_active := false
+
+func _update_morphs() -> void:
+	if morph_curves.is_empty() or _anim == null:
+		return
+	if _morph_meshes.is_empty():
+		var names := {}
+		for clip in morph_curves:
+			for n in morph_curves[clip]:
+				names[n] = true
+		for node in _walk(_model):
+			if node is MeshInstance3D:
+				for n in names:
+					var idx: int = (node as MeshInstance3D).find_blend_shape_by_name(n)
+					if idx >= 0:
+						_morph_meshes.append([node, idx, n])
+	var curves: Dictionary = morph_curves.get(_current, {})
+	var playing := not curves.is_empty() and _anim.is_playing()
+	if not playing and not _morph_active:
+		return
+	_morph_active = playing
+	var t: float = _anim.current_animation_position if playing else 0.0
+	for entry in _morph_meshes:
+		var w := 0.0
+		if playing and curves.has(entry[2]):
+			var pts: Array = curves[entry[2]]
+			w = float(pts[-1][1])
+			for i in pts.size() - 1:
+				if t <= float(pts[i + 1][0]):
+					var u := (t - float(pts[i][0])) / maxf(float(pts[i + 1][0]) - float(pts[i][0]), 0.0001)
+					w = lerpf(float(pts[i][1]), float(pts[i + 1][1]), smoothstep(0.0, 1.0, clampf(u, 0.0, 1.0)))
+					break
+		(entry[0] as MeshInstance3D).set_blend_shape_value(entry[1], w)
+
 func _process(_delta: float) -> void:
+	_update_morphs()
 	if not _attack_prop:
 		return
 	_attack_prop.transform = _attack_prop_base
@@ -898,6 +955,24 @@ func set_paused(v: bool) -> void:
 func modulate_sprite(c: Color) -> void:
 	if _sprite:
 		_sprite.modulate = c
+
+## Where a bone of the 3D character is on the 2D canvas, in GLOBAL canvas
+## coordinates. For effects that must attach to the body exactly — Bouncer's
+## drawn rubber arm leaves from his real shoulder, wherever the clip has put it.
+## Follows the sprite's offsets/scale (bob, lunge, toss) because it goes
+## through the Sprite2D's own transform.
+var _skel_cache: Skeleton3D = null
+func bone_canvas_position(bone_name: String) -> Vector2:
+	if _skel_cache == null:
+		_skel_cache = _find(_model, "Skeleton3D") as Skeleton3D
+	if _skel_cache == null or _camera == null or _sprite == null:
+		return global_position
+	var idx := _skel_cache.find_bone(bone_name)
+	if idx < 0:
+		return global_position
+	var world: Vector3 = (_skel_cache.global_transform * _skel_cache.get_bone_global_pose(idx)).origin
+	var px: Vector2 = _camera.unproject_position(world)
+	return _sprite.to_global(px - Vector2(render_size) * 0.5)
 
 func get_sprite() -> Sprite2D:
 	return _sprite

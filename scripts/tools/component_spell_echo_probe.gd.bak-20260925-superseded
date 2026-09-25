@@ -1,0 +1,38 @@
+extends AutoBattleManager
+
+var cast_count := 0
+var saw_target: UnitBase
+var saw_crit := -1.0
+
+func _ready() -> void:
+	var caster := UnitBase.new()
+	var target := UnitBase.new()
+	var other := UnitBase.new()
+	add_child(caster)
+	add_child(target)
+	add_child(other)
+	target.max_hp = 100
+	target.current_hp = 100
+	other.max_hp = 100
+	other.current_hp = 100
+	caster.target_unit = other
+	caster.crit_chance = 0.5
+	caster.equipment_passives["Spell Echo"] = 1.0
+	_try_component_spell_echo(caster, target, [])
+	assert(cast_count == 1)
+	assert(saw_target == target)
+	assert(is_equal_approx(saw_crit, 0.0))
+	assert(caster.target_unit == other)
+	assert(is_equal_approx(caster.crit_chance, 0.5))
+	assert(not caster.has_meta("_component_echo_copy"))
+	target.current_hp = 0
+	_try_component_spell_echo(caster, target, [])
+	assert(cast_count == 1)
+	print("COMPONENT_SPELL_ECHO_PROBE: PASSED")
+	get_tree().quit()
+
+func _use_skill(caster: UnitBase, opponents: Array, allies: Array = []) -> void:
+	cast_count += 1
+	saw_target = opponents[0] as UnitBase
+	saw_crit = caster.crit_chance
+	_try_component_spell_echo(caster, saw_target, allies)

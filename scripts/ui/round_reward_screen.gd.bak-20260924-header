@@ -1,0 +1,479 @@
+
+extends CanvasLayer
+class_name RoundRewardScreen
+
+signal done
+
+# ── Stat-bonus reward: "who gets it?" (redesigned 2026-09-23) ─────────────────
+# The perk is already fully rolled (see RoundReward.roll / the merchant's stat
+# slot) and was already shown in full before the player committed, so there's
+# no pick-1-of-3 here — the only choice left is which hero receives it.
+#
+# What the redesign fixed, in the order it mattered:
+#  - The REWARD was a grey subtitle. It's now the headline: grade-coloured stat
+#    icon, the rolled value at display size, the grade badge, and the full stat
+#    name + description — the same identity the merchant card already gives it.
+#  - The gain was hover-only. Every card now shows before -> after at rest, so
+#    heroes can be compared at a glance instead of by mousing over each one.
+#  - The panel was a fixed 1060px strip built for 5 columns, so a 1-3 hero team
+#    floated in a mostly empty box. Width AND height now follow the team.
+#  - Cards use the shared picker look (UITheme.card_box), keyed on the hero's
+#    element, with element · role under the name like the hero shop.
+#  - Picking a hero pays off on screen (stat counts up, the rest fade) instead
+#    of the modal just vanishing.
+
+const CARD_W := 200.0
+const CARD_H := 292.0
+const CARD_GAP := 16.0
+const PORTRAIT := 132.0
+const MAX_COLS := 6
+const MAX_VISIBLE_ROWS := 2   # more than this scrolls (team size clamps at 20)
+const SIDE_PAD := 40.0
+const MIN_PANEL_W := 640.0
+const GRID_TOP := 252.0
+const BOTTOM_PAD := 46.0
+
+# panel_cream.png is a DARK navy texture despite the name, so text on it is
+# light; UITheme.TEXT_* are parchment browns that vanish here.
+const TEXT_NAME  := Color(0.96, 0.91, 0.79)
+const TEXT_MUTED := Color(0.72, 0.74, 0.86)
+const TEXT_OLD   := Color(0.80, 0.80, 0.90)
+const TEXT_GAIN  := Color(0.45, 0.95, 0.50)
+const FIT_COL    := Color(1.0, 0.82, 0.35)
+
+# The number on the card is ONE stat even when the perk touches two (regen also
+# adds mana regen, DEF also adds magic resist) — the caption says which, and the
+# header's description covers the rest.
+const CARD_CAPTION := {
+	"atk": "ATTACK", "aspd": "ATTACKS / SEC", "magic": "MAGIC POWER",
+	"hp": "MAX HP", "res": "ARMOR", "regen": "HP REGEN / SEC",
+	"spd": "MOVE SPEED", "crit": "CRIT CHANCE", "critdmg": "CRIT MULTIPLIER",
+}
+const MOVE_SPEED_CAP := 8   # mirrors apply_perk_to_unit's clamp
+
+const KICKERS := {
+	"victory":  "VICTORY REWARD",
+	"merchant": "MERCHANT PURCHASE",
+}
+
+var _panel: Panel
+var _kicker_lbl: Label
+var _icon: TextureRect
+var _value_lbl: Label
+var _badge_bg: ColorRect
+var _badge_lbl: Label
+var _name_lbl: Label
+var _desc_lbl: Label
+var _prompt_lbl: Label
+var _rule_l: ColorRect
+var _rule_r: ColorRect
+var _scroll: ScrollContainer
+var _unit_grid: GridContainer
+
+var _chosen_perk: Dictionary = {}
+var _picking := false
+var _hover_tweens: Dictionary = {}   # Button -> Tween
+
+func _ready() -> void:
+	_build_ui()
+	visible = false
+
+
+# source: "victory" (wave reward) or "merchant" (bought at the event shop) —
+# only changes the kicker line above the reward.
+func present(reward: Dictionary, player_units: Array, source: String = "victory") -> void:
+	_chosen_perk = reward.get("perk", {})
+	_picking = false
+	_hover_tweens.clear()
+	visible = true
+	_fill_header(source)
+
+	for c in _unit_grid.get_children():
+		c.queue_free()
+	var shown := 0
+	for unit in player_units:
+		if not (unit and is_instance_valid(unit)):
+			continue
+		_unit_grid.add_child(_make_unit_card(unit))
+		shown += 1
+	_fit_panel(shown)
+
+
+# ── Header: the reward itself ─────────────────────────────────────────────────
+func _fill_header(source: String) -> void:
+	var perk_id: String = _chosen_perk.get("id", "")
+	var grade: String = _chosen_perk.get("grade", "")
+	var gcol: Color = _chosen_perk.get("grade_color",
+		LevelUpScreen.PERK_GRADE_COLORS.get(grade, Color(0.85, 0.85, 0.92)))
+
+	_kicker_lbl.text = "✦  %s  ✦" % KICKERS.get(source, KICKERS["victory"])
+	_kicker_lbl.add_theme_color_override("font_color", gcol.lightened(0.25))
+
+	_icon.texture = LevelUpScreen.perk_icon(perk_id)
+	_value_lbl.text = LevelUpScreen.format_perk_value(_chosen_perk)
+	_value_lbl.add_theme_color_override("font_color", gcol.lightened(0.3))
+
+	_badge_bg.visible = grade != ""
+	_badge_lbl.text = grade
+	_badge_lbl.add_theme_color_override("font_color", gcol.lightened(0.2))
+	_badge_bg.color = gcol.darkened(0.55)
+
+	_name_lbl.text = LevelUpScreen.PERK_FULL_NAME.get(perk_id, str(_chosen_perk.get("label", "?")))
+	_desc_lbl.text = str(_chosen_perk.get("desc", ""))
+
+
+# Width follows the column count, height the row count (capped — beyond that
+# the grid scrolls). A one-hero team gets a compact modal, not a 1060px strip.
+func _fit_panel(count: int) -> void:
+	var cols: int = clampi(count, 1, MAX_COLS)
+	var rows: int = maxi(1, ceili(float(count) / float(cols)))
+	_unit_grid.columns = cols
+
+	var grid_w: float = cols * CARD_W + (cols - 1) * CARD_GAP
+	var panel_w: float = maxf(MIN_PANEL_W, grid_w + SIDE_PAD * 2.0)
+	var vis_rows: int = mini(rows, MAX_VISIBLE_ROWS)
+	var grid_h: float = vis_rows * CARD_H + (vis_rows - 1) * CARD_GAP
+	var scrolls: bool = rows > MAX_VISIBLE_ROWS
+	if scrolls:
+		grid_h += CARD_H * 0.35   # show a sliver of the next row so it reads as scrollable
+		panel_w += 16.0           # room for the scrollbar
+	# Hover scale (1.05) grows cards past their slot — pad the scroll area so
+	# the grown edge isn't clipped.
+	var hover_pad := 12.0
+
+	_panel.size = Vector2(panel_w, GRID_TOP + grid_h + hover_pad * 2.0 + BOTTOM_PAD)
+	_scroll.position = Vector2(SIDE_PAD - hover_pad, GRID_TOP - hover_pad)
+	_scroll.size = Vector2(panel_w - (SIDE_PAD - hover_pad) * 2.0, grid_h + hover_pad * 2.0)
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if scrolls \
+		else ScrollContainer.SCROLL_MODE_DISABLED
+	# Non-scrolling: the centerer fills the scroll area so cards sit centred in
+	# both axes. Scrolling: height must follow content, width leaves the bar room.
+	var centerer := _unit_grid.get_parent() as Control
+	centerer.custom_minimum_size = Vector2(
+		_scroll.size.x - (16.0 if scrolls else 0.0),
+		0.0 if scrolls else _scroll.size.y)
+
+	for l in [_kicker_lbl, _name_lbl, _desc_lbl, _prompt_lbl]:
+		(l as Control).size.x = panel_w
+	var rule_w: float = (panel_w - 2.0 * SIDE_PAD - 220.0) / 2.0
+	_rule_l.position = Vector2(SIDE_PAD, 224)
+	_rule_l.size = Vector2(maxf(0.0, rule_w), 1)
+	_rule_r.position = Vector2(panel_w - SIDE_PAD - rule_w, 224)
+	_rule_r.size = Vector2(maxf(0.0, rule_w), 1)
+	_center_panel()
+
+
+# ── Hero card ─────────────────────────────────────────────────────────────────
+func _make_unit_card(unit: UnitBase) -> Button:
+	var perk_id: String = _chosen_perk.get("id", "")
+	var elem_col: Color = SynergyData.element_color(unit.current_element)
+
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(CARD_W, CARD_H)
+	btn.text = ""
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.pivot_offset = Vector2(CARD_W, CARD_H) * 0.5
+	UITheme.paint_card(btn, elem_col.darkened(0.15))
+
+	# Level chip (top-left) and "good fit" chip (top-right).
+	_chip(btn, "LV %d" % unit.level, TEXT_MUTED, Vector2(8, 8), false)
+	if _is_good_fit(unit):
+		_chip(btn, "GOOD FIT", FIT_COL, Vector2(CARD_W - 8, 8), true)
+
+	var portrait := HeroPortrait.new()
+	portrait.position = Vector2((CARD_W - PORTRAIT) / 2.0, 22)
+	portrait.size = Vector2(PORTRAIT, PORTRAIT)
+	portrait.pivot_offset = portrait.size * 0.5
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(portrait)
+	portrait.setup(unit.unit_class)
+
+	_lbl(btn, unit.get_class_name_string(), UITheme.FONT_VALUE, elem_col.lightened(0.15),
+		Vector2(6, 158), Vector2(CARD_W - 12, 26))
+	_lbl(btn, "%s  ·  %s" % [unit.get_element_name_string(), HeroShop.role_name(unit.unit_class)],
+		UITheme.FONT_BODY, TEXT_MUTED, Vector2(6, 186), Vector2(CARD_W - 12, 22))
+
+	var rule := ColorRect.new()
+	rule.position = Vector2(18, 218)
+	rule.size = Vector2(CARD_W - 36, 1)
+	rule.color = Color(elem_col.r, elem_col.g, elem_col.b, 0.35)
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(rule)
+
+	# before -> after, always visible.
+	var cur: float = _current_value(unit)
+	var nxt: float = _upgraded_value(unit, cur)
+	var capped: bool = perk_id == "spd" and cur >= MOVE_SPEED_CAP
+
+	var row := HBoxContainer.new()
+	row.position = Vector2(4, 226)
+	row.size = Vector2(CARD_W - 8, 34)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 6)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(row)
+
+	var sicon := TextureRect.new()
+	sicon.custom_minimum_size = Vector2(24, 24)
+	sicon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	sicon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	sicon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sicon.texture = LevelUpScreen.perk_icon(perk_id)
+	sicon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(sicon)
+
+	var old_lbl := _row_lbl(row, _fmt(perk_id, cur), UITheme.FONT_VALUE, TEXT_OLD)
+	var arrow_lbl := _row_lbl(row, "→", UITheme.FONT_VALUE, TEXT_MUTED)
+	var new_lbl := _row_lbl(row, "MAX" if capped else _fmt(perk_id, nxt), UITheme.FONT_HEADER,
+		TEXT_MUTED if capped else TEXT_GAIN)
+
+	var caption := _lbl(btn, "ALREADY AT MAX" if capped else CARD_CAPTION.get(perk_id, ""),
+		UITheme.FONT_BODY, TEXT_MUTED, Vector2(6, 260), Vector2(CARD_W - 12, 22))
+	if capped:
+		btn.modulate = Color(0.75, 0.75, 0.75)
+
+	btn.mouse_entered.connect(func() -> void: _tween_hover(btn, portrait, true))
+	btn.mouse_exited.connect(func() -> void: _tween_hover(btn, portrait, false))
+	btn.pressed.connect(func() -> void:
+		_on_unit_chosen(unit, btn, old_lbl, arrow_lbl, new_lbl, caption, cur, nxt))
+	return btn
+
+
+# PERKS.weights is the designer's own "which trait classes want this stat"
+# table (it drives the level-up offer odds). A 3+ weight is the same signal
+# the level-up screen already acts on, surfaced as a hint rather than a rule.
+func _is_good_fit(unit: UnitBase) -> bool:
+	var weights: Dictionary = _chosen_perk.get("weights", {})
+	return int(weights.get(int(unit.trait_class), 0)) >= 3
+
+
+# Reads the perk's `stat` off the unit. regen boosts hp+mana regen; the card
+# shows HP/s. DEF boosts armor+magic resist; the card shows armor.
+func _current_value(unit: UnitBase) -> float:
+	var stat: String = _chosen_perk.get("stat", "")
+	match stat:
+		"regen":
+			return unit.hp_regen
+		"":
+			return 0.0
+	if stat in unit:
+		return float(unit.get(stat))
+	return 0.0
+
+
+# Same arithmetic as LevelUpScreen.apply_perk_to_unit, so the preview can't
+# promise a number the pick won't deliver (int stats truncate, SPD caps at 8).
+func _upgraded_value(unit: UnitBase, cur: float) -> float:
+	var v: float = _chosen_perk.get("rolled_value", _chosen_perk.get("value", 0))
+	match _chosen_perk.get("stat", ""):
+		"attack_damage", "magic_power", "max_hp", "resistance":
+			return cur + int(v)
+		"movement_speed":
+			return float(mini(int(cur) + int(v), MOVE_SPEED_CAP))
+	return cur + v
+
+
+func _fmt(perk_id: String, value: float) -> String:
+	match perk_id:
+		"crit":          return "%d%%" % int(round(value * 100.0))
+		"critdmg":       return "%.2fx" % value
+		"aspd", "regen": return "%.2f" % value
+	return str(int(value))
+
+
+# ── Pick ──────────────────────────────────────────────────────────────────────
+# Apply first, THEN animate — the stat is already correct if anything cuts the
+# ~0.8s beat short. The chosen card flashes the reward's grade colour and its
+# old value counts up into the new one while the other cards fade away.
+func _on_unit_chosen(unit: UnitBase, btn: Button, old_lbl: Label, arrow_lbl: Label,
+		new_lbl: Label, caption: Label, from_v: float, to_v: float) -> void:
+	if _picking:
+		return
+	_picking = true
+	if unit and is_instance_valid(unit):
+		LevelUpScreen.apply_perk_to_unit(unit, _chosen_perk)
+
+	var perk_id: String = _chosen_perk.get("id", "")
+	var gcol: Color = _chosen_perk.get("grade_color", FIT_COL)
+
+	for c in _unit_grid.get_children():
+		var card := c as Button
+		if card == null:
+			continue
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if card != btn:
+			var fade := create_tween()
+			fade.tween_property(card, "modulate:a", 0.2, 0.18)
+
+	UITheme.paint_card(btn, gcol)
+	caption.text = "RECEIVED  " + LevelUpScreen.format_perk_value(_chosen_perk)
+	caption.add_theme_color_override("font_color", gcol.lightened(0.3))
+
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(btn, "scale", Vector2(1.07, 1.07), 0.10) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(arrow_lbl, "modulate:a", 0.0, 0.15)
+	tw.tween_property(new_lbl, "modulate:a", 0.0, 0.15)
+	var count_up := func(v: float) -> void:
+		if is_instance_valid(old_lbl):
+			old_lbl.text = _fmt(perk_id, v)
+	tw.tween_method(count_up, from_v, to_v, 0.45).set_delay(0.08)
+	tw.tween_property(old_lbl, "theme_override_colors/font_color", TEXT_GAIN, 0.3).set_delay(0.08)
+	tw.chain().tween_property(btn, "scale", Vector2(1.05, 1.05), 0.15)
+	tw.chain().tween_interval(0.35)
+	await tw.finished
+
+	visible = false
+	done.emit()
+
+
+func _tween_hover(btn: Button, portrait: Control, hovered: bool) -> void:
+	if _picking or not is_instance_valid(btn):
+		return
+	var old: Tween = _hover_tweens.get(btn)
+	if old and old.is_valid():
+		old.kill()
+	var tw := create_tween()
+	_hover_tweens[btn] = tw
+	tw.set_parallel(true).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	var s := 1.05 if hovered else 1.0
+	tw.tween_property(btn, "scale", Vector2(s, s), 0.12)
+	tw.tween_property(portrait, "scale", Vector2.ONE * (1.08 if hovered else 1.0), 0.12)
+
+
+# ── UI shell ──────────────────────────────────────────────────────────────────
+func _build_ui() -> void:
+	var overlay := ColorRect.new()
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.82)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	_panel = Panel.new()
+	_panel.size = Vector2(MIN_PANEL_W, 560)
+	# Same untinted panel as the relic picker and hero shop.
+	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+	overlay.add_child(_panel)
+
+	_kicker_lbl = _lbl(_panel, "", UITheme.FONT_BODY, FIT_COL, Vector2(0, 40), Vector2(MIN_PANEL_W, 22))
+
+	# Icon + value + badge, centred as one row.
+	var hero_row := HBoxContainer.new()
+	hero_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	hero_row.add_theme_constant_override("separation", 14)
+	hero_row.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	hero_row.offset_top = 66
+	hero_row.offset_bottom = 138
+	hero_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(hero_row)
+
+	_icon = TextureRect.new()
+	_icon.custom_minimum_size = Vector2(68, 68)
+	_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hero_row.add_child(_icon)
+
+	_value_lbl = Label.new()
+	_value_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	UITheme.apply_font(_value_lbl, UITheme.FONT_DISPLAY)
+	hero_row.add_child(_value_lbl)
+
+	_badge_bg = ColorRect.new()
+	_badge_bg.custom_minimum_size = Vector2(40, 40)
+	_badge_bg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hero_row.add_child(_badge_bg)
+	_badge_lbl = Label.new()
+	_badge_lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_badge_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	UITheme.apply_font(_badge_lbl, UITheme.FONT_HEADER)
+	_badge_bg.add_child(_badge_lbl)
+
+	_name_lbl = _lbl(_panel, "", UITheme.FONT_HEADER, TEXT_NAME, Vector2(0, 144), Vector2(MIN_PANEL_W, 30))
+	_desc_lbl = _lbl(_panel, "", UITheme.FONT_BODY, TEXT_MUTED, Vector2(0, 176), Vector2(MIN_PANEL_W, 22))
+
+	# "── CHOOSE WHO RECEIVES IT ──" divider between the reward and the heroes.
+	_prompt_lbl = _lbl(_panel, "CHOOSE WHO RECEIVES IT", UITheme.FONT_BODY, TEXT_NAME,
+		Vector2(0, 213), Vector2(MIN_PANEL_W, 22))
+	_rule_l = ColorRect.new()
+	_rule_l.color = Color(1, 1, 1, 0.18)
+	_panel.add_child(_rule_l)
+	_rule_r = ColorRect.new()
+	_rule_r.color = Color(1, 1, 1, 0.18)
+	_panel.add_child(_rule_r)
+
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_panel.add_child(_scroll)
+
+	# CenterContainer so a short last row (and a narrow team) sits centred.
+	var centerer := CenterContainer.new()
+	centerer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(centerer)
+
+	_unit_grid = GridContainer.new()
+	_unit_grid.columns = MAX_COLS
+	_unit_grid.add_theme_constant_override("h_separation", int(CARD_GAP))
+	_unit_grid.add_theme_constant_override("v_separation", int(CARD_GAP))
+	centerer.add_child(_unit_grid)
+
+	_center_panel()
+
+
+func _center_panel() -> void:
+	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
+	_panel.position = (vp - _panel.size) / 2.0
+
+
+# Centred, non-interactive label at an exact type-scale step.
+func _lbl(parent: Node, text: String, px: int, col: Color, pos: Vector2, sz: Vector2) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.position = pos
+	l.size = sz
+	UITheme.apply_font(l, px)
+	l.add_theme_color_override("font_color", col)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	l.clip_text = true
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(l)
+	return l
+
+
+func _row_lbl(row: HBoxContainer, text: String, px: int, col: Color) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	UITheme.apply_font(l, px)
+	l.add_theme_color_override("font_color", col)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(l)
+	return l
+
+
+# Small caption chip pinned to a card corner. right_align anchors `pos` to the
+# chip's right edge.
+func _chip(parent: Control, text: String, col: Color, pos: Vector2, right_align: bool) -> void:
+	var l := Label.new()
+	l.text = text
+	UITheme.apply_font(l, UITheme.FONT_CAPTION)
+	l.add_theme_color_override("font_color", col)
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.04, 0.04, 0.07, 0.85)
+	box.border_color = Color(col.r, col.g, col.b, 0.55)
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(4)
+	box.content_margin_left = 6
+	box.content_margin_right = 6
+	box.content_margin_top = 1
+	box.content_margin_bottom = 1
+	l.add_theme_stylebox_override("normal", box)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(l)
+	l.reset_size()
+	l.position = Vector2(pos.x - l.size.x, pos.y) if right_align else pos

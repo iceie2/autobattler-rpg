@@ -42,6 +42,7 @@ var _card_btns: Array = []
 # at least one node is bought. Cleared whenever a fresh shop opens.
 var _locked:    Dictionary = {}
 var _panel:     Panel
+var _header:    TextureRect
 var _title_lbl: Label
 var _sub_lbl:   Label
 var _cancel_btn: Button
@@ -102,6 +103,7 @@ func open(gold: int, slot_count: int = 3, free_mode: bool = false) -> void:
 func _layout_for_slots() -> void:
 	var panel_w: float = _slot_count * CARD_W + (_slot_count - 1) * CARD_GAP + 2.0 * SIDE_MARGIN
 	_panel.size.x = panel_w
+	if _header: _header.size.x = panel_w - 36.0
 	if _title_lbl: _title_lbl.size.x = panel_w
 	if _sub_lbl:   _sub_lbl.size.x = panel_w
 	if _cancel_btn: _cancel_btn.position.x = (panel_w - 200) / 2.0
@@ -176,13 +178,14 @@ func _build_ui() -> void:
 	_panel = Panel.new()
 	_panel.size = Vector2(PANEL_W, PANEL_H)
 	# UI theme pass 2026-07-04: dobo card panel instead of flat navy box.
-	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+	_panel.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 	overlay.add_child(_panel)
+	_header = UITheme.menu_header(_panel, Rect2(18, 6, PANEL_W - 36, 92))
 
-	_title_lbl = _lbl(_panel, "CHOOSE A HERO", 34, Color(0.88, 0.88, 1.0),
-		Vector2(0, 18), Vector2(PANEL_W, 44), true)
+	_title_lbl = _lbl(_panel, "CHOOSE A HERO", 34, UITheme.menu_title_color(),
+		Vector2(0, 16), Vector2(PANEL_W, 44), true, false)
 	_sub_lbl = _lbl(_panel, "Each hero has unique stat rolls  ·  %dg each  ·  Roll again next round" % HERO_COST,
-		15, Color(1.0, 0.82, 0.3, 0.80), Vector2(0, 58), Vector2(PANEL_W, 26), true)
+		15, UITheme.menu_subtitle_color(), Vector2(0, 52), Vector2(PANEL_W, 28), true)
 
 	# Cancel button
 	_cancel_btn = _btn("Cancel", Rect2((PANEL_W - 200) / 2.0, PANEL_H - 54, 200, 40))
@@ -209,7 +212,7 @@ func _rebuild_all_cards(gold: int) -> void:
 
 	for i in range(_slot_count):
 		var x    := start_x + i * (CARD_W + CARD_GAP)
-		var card := _build_card(Vector2(x, 86), i, gold)
+		var card := _build_card(Vector2(x, 100), i, gold)
 		_panel.add_child(card)
 		_card_btns.append(card)
 
@@ -275,7 +278,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	badge_lbl.size     = badge_bg.size
 	badge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge_lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
-	UITheme.apply_font(badge_lbl, UITheme.FONT_HEADER)
+	UITheme.apply_font(badge_lbl, UITheme.FONT_HEADER + 2)
 	badge_lbl.add_theme_color_override("font_color", grade_col)
 	badge_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(badge_lbl)
@@ -300,13 +303,13 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	sub_rt.position       = Vector2(0, y_name + 32)
 	sub_rt.size           = Vector2(CARD_W, 24)
 	sub_rt.mouse_filter   = Control.MOUSE_FILTER_IGNORE
-	UITheme.apply_rich_font(sub_rt, UITheme.body_font(13))
+	UITheme.apply_rich_font(sub_rt, UITheme.body_font(13) + 2)
 	btn.add_child(sub_rt)
 
 	# Tactical identity belongs beside the name, before the player starts
 	# parsing ability prose. Rank already owns the corner badge, so the subtitle
 	# is reserved for element and growth rather than repeating the same grade.
-	var role_lbl := _clbl(btn, _role_name(cls).to_upper(), 12,
+	var role_lbl := _clbl(btn, role_name(cls).to_upper(), 12,
 		Color(0.72, 0.74, 0.86), Vector2(0, y_name + 55), Vector2(CARD_W, 20), true)
 	role_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -514,7 +517,7 @@ func _portrait_tex(cls: UnitBase.UnitClass) -> Texture2D:
 	return null
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-func _role_name(cls: UnitBase.UnitClass) -> String:
+static func role_name(cls: UnitBase.UnitClass) -> String:
 	# A few kits are more specific than their synergy trait; the fallback keeps
 	# future heroes useful without requiring UI work before they can ship.
 	match cls:
@@ -629,11 +632,7 @@ func _grade_color(grade: String) -> Color:
 # (2026-07-21) so the card's tint genuinely rolls with the rank instead of
 # showing the final grade's color from frame one.
 func _paint_card_grade(btn: Button, col: Color) -> void:
-	var bg_base: Color = col.darkened(0.82)
-	btn.add_theme_stylebox_override("normal", _flat(bg_base, col, 3, 12))
-	btn.add_theme_stylebox_override("hover", _flat(bg_base.lightened(0.10), col.lightened(0.25), 4, 12))
-	btn.add_theme_stylebox_override("pressed", _flat(bg_base.darkened(0.15), col.lightened(0.1), 4, 12))
-	btn.add_theme_stylebox_override("focus", _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
+	UITheme.paint_card(btn, col)
 
 # Runs one card's full reveal: wait for its turn -> become visible -> hero
 # identity reel -> rank reel (also repaints the card tint every tick) ->
@@ -645,9 +644,9 @@ func _paint_card_grade(btn: Button, col: Color) -> void:
 # line, and the resolved numbers are sized up rather than bolded (RichTextLabel
 # has no bold cut of the project font, so [b] falls back to a face that reads
 # smaller than the body around it).
-const ABIL_ROW_H   := 86.0
+const ABIL_ROW_H   := 104.0
 const ABIL_BADGE_W := 92.0
-const ABIL_TITLE_H := 24.0
+const ABIL_TITLE_H := 28.0
 const ABIL_VALUE_FONT := 20
 const ABIL_SLOT_LABELS := ["PASSIVE", "ACTIVE", "ULTIMATE"]
 const ABIL_SLOT_COLORS := [
@@ -684,7 +683,7 @@ func _add_ability_rows(btn: Button, unit: UnitBase, cls: UnitBase.UnitClass,
 		desc.position       = Vector2(14, ry + ABIL_TITLE_H + 2.0)
 		desc.size           = Vector2(CARD_W - 28, ABIL_ROW_H - ABIL_TITLE_H - 6.0)
 		desc.mouse_filter   = Control.MOUSE_FILTER_IGNORE
-		UITheme.apply_rich_font(desc, UITheme.body_font(13))
+		UITheme.apply_rich_font(desc, UITheme.body_font(13) + 2)
 		desc.add_theme_color_override("default_color", Color(0.66, 0.68, 0.82))
 		btn.add_child(desc)
 
@@ -695,7 +694,7 @@ func _add_ability_rows(btn: Button, unit: UnitBase, cls: UnitBase.UnitClass,
 		for t in r["terms"]:
 			body = body.replace("{%s}" % t["id"],
 				"[font_size=%d][color=#%s]%s[/color][/font_size]"
-					% [UITheme.body_font(ABIL_VALUE_FONT), ABIL_VALUE_COL, t["display"]])
+					% [UITheme.body_font(ABIL_VALUE_FONT) + 2, ABIL_VALUE_COL, t["display"]])
 		desc.text = body
 
 func _run_card_reveal(delay: float, btn: Button, portrait: TextureRect,
@@ -796,10 +795,10 @@ func _run_card_reveal(delay: float, btn: Button, portrait: TextureRect,
 		0.0, REEL_TICKS, REEL_START, REEL_GROWTH)
 
 func _lbl(parent: Node, text: String, sz: int, col: Color,
-		pos: Vector2, size: Vector2, center: bool = false) -> Label:
+		pos: Vector2, size: Vector2, center: bool = false, enlarge: bool = true) -> Label:
 	var l := Label.new()
 	l.text = text; l.position = pos; l.size = size
-	UITheme.apply_font(l, UITheme.body_font(sz))
+	UITheme.apply_font(l, UITheme.body_font(sz) + (2 if enlarge else 0))
 	l.add_theme_color_override("font_color", col)
 	if center: l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	parent.add_child(l)
@@ -834,7 +833,7 @@ func _btn(text: String, rect: Rect2) -> Button:
 	var b := Button.new()
 	b.text = text; b.position = rect.position; b.size = rect.size
 	UITheme.style_button(b)
-	UITheme.apply_font(b, UITheme.body_font(16))
+	UITheme.apply_font(b, UITheme.body_font(16) + 2)
 	return b
 
 func _flat(bg: Color, border: Color = Color.TRANSPARENT,

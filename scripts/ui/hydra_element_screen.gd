@@ -82,13 +82,14 @@ func _build_ui() -> void:
 
 	_panel = Panel.new()
 	_panel.size = Vector2(PANEL_W, PANEL_H)
-	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+	_panel.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 	overlay.add_child(_panel)
+	UITheme.menu_header(_panel, Rect2(14, 8, PANEL_W - 28, 108))
 
-	_lbl(_panel, "CHOOSE THE HYDRA'S ELEMENT", 28, Color(1.0, 0.88, 0.45),
-		Vector2(0, 22), Vector2(PANEL_W, 38), true)
-	_lbl(_panel, "The final boss — it hits just as hard whichever you pick.", 14, Color(0.75, 0.75, 0.85),
-		Vector2(0, 60), Vector2(PANEL_W, 24), true)
+	_lbl(_panel, "CHOOSE THE HYDRA'S ELEMENT", 28, UITheme.menu_title_color(),
+		Vector2(0, 29), Vector2(PANEL_W, 38), true)
+	_lbl(_panel, "The final boss — it hits just as hard whichever you pick.", 14, UITheme.menu_subtitle_color(),
+		Vector2(0, 72), Vector2(PANEL_W, 24), true)
 
 	_btn_row = HBoxContainer.new()
 	_btn_row.add_theme_constant_override("separation", 18)

@@ -128,7 +128,7 @@ static func roll_stock(round: int, owned_relic_ids: Array = []) -> Array:
 
 	# Items — the shop can exceed the 100%-Common drop cap (uncommon/rare here).
 	for _i in range(N_ITEMS):
-		var item := EquipmentManager.generate_item(round, EquipmentItem.Rarity.RARE)
+		var item := ComponentEquipmentGateway.generate_item(round, EquipmentItem.Rarity.RARE)
 		stock.append({
 			"kind": "item", "item": item,
 			"price": item_price(item, round), "on_sale": false,

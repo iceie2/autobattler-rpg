@@ -67,20 +67,28 @@ func _test_stone_skin() -> void:
 	var s := _fresh(); var mgr = s["mgr"]
 	var g = _mk(mgr, s["grid"], EnemyFactory.create_by_type("gargoyle"), Vector2i(2, 2), false)
 	mgr.enemy_units = [g]; mgr.player_units = []
-	g.current_hp = 400
-	mgr._tick_passive(g, mgr.player_units, mgr.enemy_units, 0.1)
-	_check(g.hp_regen_accum > 0.0, "Stone Skin did not regenerate while unblocked")
-	_check(mgr._stone_skin_vfx.size() == 1,
-		"Stone Skin is running with no readout — its fire/lightning counterplay stays invisible")
-	# A FIRE hit must crack it.
-	g.take_damage(10, UnitBase.Element.FIRE, null)
-	_check(float(g.get_meta("troll_regen_block_t", 0.0)) > 0.0,
-		"a Fire hit did not set the regen block — passive plumbing changed")
-	mgr._tick_passive(g, mgr.player_units, mgr.enemy_units, 0.1)
-	_check(mgr._stone_skin_vfx.is_empty(),
-		"Stone Skin readout survived the crack — it must clear the moment regen stops")
+	_check(str(g.get_meta("mob_passive", "")) == "gargoyle_ward", "Gargoyle is not on gargoyle_ward")
+	# Above half: no ward, hits land normally.
+	var hp0: int = g.current_hp
+	g.take_damage(10, UnitBase.Element.NORMAL, null, true)
+	_check(g.current_hp < hp0 and g.ward_hits == 0, "ward raised before 50% HP")
+	# The hit that crosses 50% lands in full, then the ward goes up.
+	g.take_damage(int(g.max_hp * 0.6), UnitBase.Element.NORMAL, null, true)
+	_check(g.current_hp > 0 and g.current_hp * 2 <= g.max_hp, "setup hit did not leave it under half")
+	_check(g.ward_hits == UnitBase.STONE_WARD_HITS, "ward did not rise at 50%% HP (hits=%d)" % g.ward_hits)
+	_check(mgr._stone_skin_vfx.size() == 1, "ward is up with no visual")
+	# 4 hits of ANY size are eaten.
+	var hp_ward: int = g.current_hp
+	for i in UnitBase.STONE_WARD_HITS:
+		g.take_damage(99999 if i == 0 else 1, UnitBase.Element.FIRE, null, true)
+	_check(g.current_hp == hp_ward, "a warded hit removed HP (%d -> %d)" % [hp_ward, g.current_hp])
+	_check(g.ward_hits == 0 and mgr._stone_skin_vfx.is_empty(), "ward did not break after 4 hits")
+	# 5th hit lands, and the ward never comes back.
+	g.take_damage(5, UnitBase.Element.NORMAL, null, true)
+	_check(g.current_hp < hp_ward, "hit after the ward broke was still blocked")
+	_check(g.ward_hits == 0, "ward re-raised — must be once per fight")
 
-# THREE mobs now ride troll_regen with three fictions. Each must use its own.
+# Troll kept troll_regen; the Gargoyle and Phoenix each have their own passive now.
 func _test_three_regen_fictions_stay_separate() -> void:
 	var s := _fresh(); var mgr = s["mgr"]
 	var garg = _mk(mgr, s["grid"], EnemyFactory.create_by_type("gargoyle"), Vector2i(1, 1), false)
@@ -90,12 +98,10 @@ func _test_three_regen_fictions_stay_separate() -> void:
 	for u in [garg, troll, phx]:
 		u.current_hp = int(u.max_hp * 0.5)
 		mgr._tick_passive(u, mgr.player_units, mgr.enemy_units, 0.1)
-	_check(mgr._stone_skin_vfx.size() == 1,
-		"expected exactly 1 Stone Skin readout, found %d" % mgr._stone_skin_vfx.size())
+	_check(mgr._stone_skin_vfx.is_empty(), "Gargoyle showed Stone Skin with no ward up")
 	_check(mgr._troll_regen_vfx.size() == 1,
 		"expected exactly 1 Troll Regeneration readout, found %d" % mgr._troll_regen_vfx.size())
-	_check(mgr._rekindle_vfx.size() == 1,
-		"expected exactly 1 Phoenix Rekindle readout, found %d" % mgr._rekindle_vfx.size())
+	_check(mgr._rekindle_vfx.is_empty(), "Phoenix showed Rekindle while alive and not reborn")
 	_check(not bool(troll.get_meta("gargoyle", false)), "the Troll was marked as a Gargoyle")
 	_check(not bool(phx.get_meta("gargoyle", false)), "the Phoenix was marked as a Gargoyle")
 	_check(not bool(garg.get_meta("troll", false)), "the Gargoyle was marked as a Troll")

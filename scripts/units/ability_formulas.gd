@@ -118,8 +118,13 @@ static func _spec() -> Dictionary:
 		C.BLOODHOUND: {
 			"scale": "magic_power",
 			PASSIVE: {
-				"terms": [_f("thresh", "HP threshold", 0.45, "pct")],
-				"text": "Below {thresh} HP, he hunts whoever hurt him most.",
+				"terms": [
+					_f("thresh", "HP threshold", 0.45, "pct"),
+					_f("move", "Movement Speed", 2, "num"),
+					_f("aspd", "Attack Speed", 0.20, "pct"),
+					_f("lifesteal", "Lifesteal", 0.10, "pct"),
+				],
+				"text": "Below {thresh} HP, gains +{move} movement speed, +{aspd} attack speed, and +{lifesteal} lifesteal.",
 			},
 			ACTIVE: {
 				"terms": [
@@ -155,9 +160,11 @@ static func _spec() -> Dictionary:
 			ACTIVE: {
 				"terms": [
 					_t("dmg", "Damage", "magic_power", 1.0, "dmg", "skill"),
-					_f("stun", "Stun", 1.5, "sec"),
+					_f("stun", "Stun", 0.75, "sec"),
 				],
-				"text": "Smashes the nearest enemy for {dmg}, stunning {stun}.",
+				# Reel In (2026-09-24, replaced Slam — owner spec; pull 1/2 tiles is
+				# AutoBattleManager.REEL_FAR_TILES, not a formula term).
+				"text": "Fires a rubber fist at the farthest enemy. The first enemy in its path takes {dmg}, is stunned {stun} and reeled in 1 tile (2 tiles if 4+ away).",
 			},
 			ULTIMATE: {
 				"terms": [

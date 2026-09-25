@@ -743,7 +743,10 @@ static func _create_troll(element: UnitBase.Element, lvl: int = 1) -> VisualUnit
 	u.set_meta("troll", true)
 	u.set_meta("mob_passive", "troll_regen")
 	u.set_meta("passive_name", "Regeneration")
-	u.set_meta("passive_desc", "Regenerates 2% max HP/s. A Fire or Lightning hit disables regen for 2s.")
+	var counters: Array = UnitBase.REGEN_COUNTERS[element]
+	u.set_meta("passive_desc", "Regenerates 1.5%% max HP/s. A %s or %s hit disables regen for 2s." % [
+		str(UnitBase.Element.keys()[counters[0]]).capitalize(),
+		str(UnitBase.Element.keys()[counters[1]]).capitalize()])
 	if lvl > 1: u.set_level(lvl)
 	return u
 
@@ -2445,9 +2448,12 @@ static func create_gargoyle(lvl: int = 1) -> VisualUnit:
 	# Its passive is named "Stone Skin" (not the Troll's "Regeneration" or the
 	# Phoenix's "Rekindle"), so it gets its own masonry fiction.
 	u.set_meta("gargoyle", true)
-	u.set_meta("mob_passive", "troll_regen")     # reused key — +2% max hp/s, blocked briefly by fire/lightning hits
-	u.set_meta("passive_name", "Stone Skin")
-	u.set_meta("passive_desc", "Regenerates 2% max HP/s — a recent Fire or Lightning hit cracks the stone and blocks it briefly.")
+	# Stone Ward (2026-09-24, owner design — replaced the reused troll_regen):
+	# at half HP it turns to stone. The ward eats the next 4 HITS whatever their
+	# damage, so it rewards many small hits over one big one.
+	u.set_meta("mob_passive", "gargoyle_ward")
+	u.set_meta("passive_name", "Stone Ward")
+	u.set_meta("passive_desc", "At 50% HP it turns to stone: the next 4 hits deal no damage, however hard they land. Once per fight.")
 	if lvl > 1: u.set_level(lvl)
 	return u
 
@@ -2722,9 +2728,11 @@ static func create_ember_phoenix(lvl: int = 1) -> VisualUnit:
 	# Marks the Phoenix: the shared key is also the Lizard's row-piercing
 	# Precision Shot, which is unaffected by anything here.
 	u.set_meta("phoenix", true)
-	u.set_meta("mob_passive", "troll_regen")     # reused key — +2% max hp/s, blocked briefly by fire/lightning hits
-	u.set_meta("passive_name", "Rekindle")
-	u.set_meta("passive_desc", "Regenerates 2% max HP/s — a recent Fire or Lightning hit smothers the embers and blocks it briefly.")
+	# Rebirth (2026-09-24, owner design — replaced the reused troll_regen): the
+	# first death rebuilds it from the ashes to 25% HP instead. Once per fight.
+	u.set_meta("mob_passive", "phoenix_rebirth")
+	u.set_meta("passive_name", "Rebirth")
+	u.set_meta("passive_desc", "The first time it would die, it rapidly rebuilds itself from the ashes to 25% HP. Once per fight.")
 	if lvl > 1: u.set_level(lvl)
 	return u
 

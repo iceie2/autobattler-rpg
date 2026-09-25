@@ -96,7 +96,7 @@ static func build_event(def: Dictionary, ctx: Dictionary) -> EventBlessing:
 			String(cd.get("text", "…")),
 			String(cd.get("band", EventGrade.DEFAULT_BAND)),
 			resolver,
-			String(cd.get("preview", "")),
+			EventCatalog.preview_line(cd, ctx),
 			String(cd.get("kind", "")))
 	return event
 
