@@ -1,6 +1,7 @@
 # Build Archetypes - design worksheet
 
-Status: DRAFT for owner review, written 2026-09-25. Decisions live in
+Status: Burn pieces B1-B5 ACCEPTED 2026-09-25 under the loop rules below; verb
+tags and the tree synergy rule still open. Written 2026-09-25. Decisions live in
 `VERTICAL_DEPTH_BACKLOG.md` under **VD-16**. This worksheet proposes; it does not
 decide. Burn piece effects are moves, so the owner designs or approves them before
 any code (numbers are free to tune in the arena).
@@ -88,11 +89,55 @@ new rule. State column is for the owner: keep / change / cut.
 
 | # | Piece | Draft effect | Makes you want | Cue | State |
 |---|---|---|---|---|---|
-| B1 | **Kindling** (wave-1 seed) | Your burns deal +15% damage per Burn hero you field (max 3). | Coal, Sear, Ember | flames on burning enemies get a gold core | draft |
-| B2 | **Kindred Flames** (enabler) | Burns from different heroes add up: the strongest counts in full, each other hero's burn adds half. | a 2nd and 3rd burner | a pip per distinct burner under the burn icon; "+" flare when one joins | draft |
-| B3 | **Ashfall** (payoff) | When a burning enemy dies, its burn leaps to the nearest enemy with its remaining time. | wide burns; swarm fights | flame arc from the corpse to the next enemy | draft |
-| B4 | **Tinder Heart** (payoff) | While any enemy is burning, Burn heroes' ultimates charge 25% faster. | Sear + Ember together, so the spread-then-detonate combo fires | Burn heroes' ult bars flicker orange | draft |
-| B5 | **Inferno Crown** (capstone) | Every 8 s, every burning enemy takes 2 s of its burn at once. | big burns (Coal's charges, B2) | board-wide flare, numbers pop together | draft |
+| B1 | **Kindling** (wave-1 seed) | Your burns deal +15% damage per Burn hero you field (max 3). | Coal, Sear, Ember | flames on burning enemies get a gold core | accepted 2026-09-25 |
+| B2 | **Kindred Flames** (enabler) | Burns from different heroes add up: the strongest counts in full, each other hero's burn adds half. | a 2nd and 3rd burner | a pip per distinct burner under the burn icon; "+" flare when one joins | accepted 2026-09-25, under the loop rules below |
+| B3 | **Ashfall** (payoff) | When a burning enemy dies, its burn leaps to the nearest enemy with its remaining time. | wide burns; swarm fights | flame arc from the corpse to the next enemy | accepted 2026-09-25, under the loop rules below |
+| B4 | **Tinder Heart** (payoff) | While any enemy is burning, Burn heroes' ultimates charge 25% faster. | Sear + Ember together, so the spread-then-detonate combo fires | Burn heroes' ult bars flicker orange | accepted 2026-09-25; owner worried about an ult/burn loop - see "Loop safety" |
+| B5 | **Inferno Crown** (capstone) | Every 8 s, every burning enemy takes 2 s of its burn at once. | big burns (Coal's charges, B2) | board-wide flare, numbers pop together | accepted 2026-09-25 |
+
+Owner, 2026-09-25: *"okay i like these b4 i worry we create an infinite ult
+burn loop"*.
+
+### Loop safety (owner concern, 2026-09-25)
+
+**How ult charge is earned today** (read from code, not assumed):
+- a hero's own **basic attacks**, at 1/4 of the damage dealt
+  (`UnitBase.attack`, the melee swing paths, `projectile.gd`);
+- **damage the hero takes**, at the full amount (`UnitBase.take_damage`);
+- the kill-refund relics, on **basic-attack** killing blows only
+  (`apply_relic_on_hit`).
+
+**Burn ticks never fill the burner's ult bar, and no ult refunds ult charge.**
+So B4 cannot loop on its own: its worst case is a flat +25% ult rate for Burn
+heroes once something is always burning. Bounded.
+
+Side effect worth knowing: burning *enemies* do charge their own ults from burn
+ticks, because every unit charges from damage taken. A Burn team speeds up enemy
+ults, and B5's pulse adds to that.
+
+**The real runaway is B2 + Sear's ult, not B4.** Sear's ult copies "the worst
+burn on the board" onto every enemy. If B2 is built naively, that worst burn is
+a stacked total, and copying a total back in as a new burn ratchets it up on
+every cast: each Sear ult adds half of the other heroes' burns again, with no
+ceiling. B3's leap has the same shape if it carries a total. B4 would only spin
+the ratchet 25% faster.
+
+**Rules that close it** (proposed with B2/B3 - veto any):
+1. Burns are tracked **per hero type** on each target (two Coals count as one
+   entry - say so if duplicates should stack instead).
+2. **Spreads and leaps copy single-hero burns, never a stacked total.** Sear's
+   ult copies the strongest *single* burn; Ashfall moves each hero's burn
+   separately, and on arrival each entry keeps the larger of old and new.
+3. **Payoffs may read the total but never create burn.** Wildfire and B5 deal
+   damage from the total; they add nothing to it.
+4. **Hard cap:** a target's total burn is at most 2x its strongest single burn.
+   Belt and braces for 20-hero boards and for any future piece that reads totals.
+
+**Loop gate** (arena, measured - not trusted to the reasoning above): a
+3-burner team plus a duplicate Coal, all five pieces equipped, fights a
+high-HP target for 180 s. Pass = burn dps plateaus (its last-minute peak never
+exceeds the cap) and Burn heroes' ult casts per minute don't climb (last minute
+within 10% of the first full minute).
 
 Implementation notes (no design decisions): B2 needs per-hero burn tracking on
 the target (today a unit holds one burn). B4 needs the verb tags as data.
@@ -141,6 +186,7 @@ arena, not part of the Burn slice. Duplicates also count toward synergy today
   generic setup at waves 10 / 20 / 30.
 - **Runs diverge:** telemetry (VD-01) shows relic picks spreading out between
   runs, and Burn runs name themselves in the recap.
+- **No loops:** the loop gate under "Loop safety" passes.
 - Tooling (no design decisions): an arena mode that A/Bs one relic across two
   teams.
 

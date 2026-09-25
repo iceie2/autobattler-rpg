@@ -990,7 +990,7 @@ first render tried, seed 12345, had no 5-wide row at all).
 
 ---
 
-## VD-16 - Runs have no build identity - status: OPEN (direction decided, Burn slice in design)
+## VD-16 - Runs have no build identity - status: OPEN (Burn pieces accepted; tree rule open)
 
 **Owner framing (2026-09-25).**
 
@@ -1057,7 +1057,25 @@ works today, five Burn pieces (B1-B5) for review, seed and reserved-slot rules,
 gates. Burn piece effects are moves - the owner keeps, changes or cuts each
 before code.
 
-**Blocked on.** Owner review of B1-B5 and the verb tags; owner pick on item 2.
+**Owner review of B1-B5 (2026-09-25).**
+
+> "okay i like these b4 i worry we create an infinite ult burn loop"
+
+**DECIDED - B1-B5 accepted.** On the loop worry, measured from code: ult
+charge comes only from a hero's own basic attacks (1/4 of damage), damage it
+takes (1:1) and basic-attack kill refunds. Burn ticks never fill the burner's
+bar and no ult refunds charge, so B4 alone is bounded (worst case a flat +25%
+ult rate). The real runaway is **B2 + Sear's ult**: copying a stacked total
+back in as a new burn ratchets it up every cast, and B3's leap has the same
+shape. Closed by four rules in the worksheet's "Loop safety" section - per
+hero-type burn entries, spreads/leaps copy single-hero burns never totals,
+payoffs never create burn, total capped at 2x the strongest single burn - and a
+180 s arena loop gate that must pass before the slice ships.
+
+**Blocked on.** Owner pick on item 2 (tree synergy rule). Verb tags beyond
+Burn stay proposals. Code touches `auto_battle_manager.gd` and `unit_base.gd`,
+which carry another session's uncommitted gear-passive work (last edited
+2026-09-25 04:16) - commit or coordinate before editing them.
 
 **Done when.** The Burn slice ships - verb tags as data, a Burn seed at wave 1,
 Burn pieces reachable through the existing screens, the build named in the
