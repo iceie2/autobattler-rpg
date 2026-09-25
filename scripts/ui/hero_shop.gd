@@ -37,6 +37,11 @@ const PORT_SIZE  := 205.0
 
 var _offers:    Array = []
 var _card_btns: Array = []
+
+# VD-16 seeking tool: verbs of the seed relics the player owns, set by main_game
+# before open(). Heroes with one of these verbs are SEED_WEIGHT times as likely.
+const SEED_WEIGHT := 3.0
+var favored_verbs: Array = []
 # Slot indices the player has pinned so a reroll leaves them alone. Capacity
 # comes from the Hold That crystal upgrade; empty (and the toggle hidden) until
 # at least one node is bought. Cleared whenever a fresh shop opens.
@@ -153,11 +158,11 @@ func _generate_offers(preserve: Dictionary = {}) -> void:
 			continue
 		# Unique-by-class, but only while there are classes left to be unique
 		# with — fewer unlocked classes than slots used to spin here forever.
-		var cls: UnitBase.UnitClass = classes[randi() % classes.size()]
+		var cls: UnitBase.UnitClass = _pick_class(classes)
 		if used.size() < classes.size():
 			var guard := 0
 			while cls in used and guard < 200:
-				cls = classes[randi() % classes.size()]
+				cls = _pick_class(classes)
 				guard += 1
 		used.append(cls)
 		out[i] = {
@@ -166,6 +171,26 @@ func _generate_offers(preserve: Dictionary = {}) -> void:
 			"rolls":   UnitFactory.generate_recruit_rolls(),
 		}
 	_offers = out
+
+# With no seed owned this is the plain uniform draw, randi() call for call.
+func _pick_class(classes: Array) -> int:
+	if favored_verbs.is_empty():
+		return classes[randi() % classes.size()]
+	var total := 0.0
+	for c in classes:
+		total += _class_weight(c)
+	var r := randf() * total
+	for c in classes:
+		r -= _class_weight(c)
+		if r <= 0.0:
+			return c
+	return classes[-1]
+
+func _class_weight(cls: int) -> float:
+	for v in favored_verbs:
+		if HeroVerbs.has_verb(cls, String(v)):
+			return SEED_WEIGHT
+	return 1.0
 
 # ── UI shell (built once) ─────────────────────────────────────────────────────
 func _build_ui() -> void:

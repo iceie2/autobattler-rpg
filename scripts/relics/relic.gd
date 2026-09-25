@@ -88,12 +88,19 @@ static func icon_path(relic: Dictionary) -> String:
 #   underdog     {dmg_per_dead, res_per_dead}
 #                                          — bonus outgoing dmg / incoming dmg
 #                                            reduction per dead ally this fight
+#   burn_per_burner  {value} — Kindling: +burn dps per Burn hero type fielded (max 3)
+#   burn_stack_share {value} — Kindred Flames: each other hero's burn adds this share
+#   burn_leap        {value} — Ashfall: share of a dying enemy's burn that jumps
+#   burn_ult_haste   {value} — Tinder Heart: Burn heroes' ult charge bonus while a foe burns
+#   burn_flare       {value} — Inferno Crown: seconds of burn dealt at once every 8 s
+#                              (the burn_* types live on ARCHETYPE_PIECES, not POOL)
 # Run-economy / meta effect types (scanned on the inventory, not per-unit):
 #   gold_round   {value}   — +gold granted each round
 #   shop_slots   {value}   — +N extra hero cards in the shop
 #
 # ── Metadata fields (2026-08-05) ────────────────────────────────────────────
-#   category      "stat_ladder" | "mechanic" | "element" | "combo"
+#   category      "stat_ladder" | "mechanic" | "element" | "combo" | "archetype"
+#                 ("archetype" = ARCHETYPE_PIECES only; also carries verb/piece/seed)
 #   ladder        one of the 14 stat-ladder keys (only on category
 #                 "stat_ladder" relics): atk_dmg, max_hp, magic_power,
 #                 attack_speed, crit_chance, crit_damage, armor_dual,
@@ -275,6 +282,51 @@ const POOL: Array[Dictionary] = [
 	{"id": "s_ult", "name": "Singularity Core", "grade": "S", "desc": "Ultimates charge 50% faster", "category": "stat_ladder", "ladder": "ult_charge", "ladder_gated": true, "effects": [{"type": "ult_charge", "value": 1.50}]},
 ]
 
+# ── Archetype pieces (VD-16, BUILD_ARCHETYPES.md) ─────────────────────────────
+# Build-around relics: strong for a team that carries the verb, near-useless for
+# one that doesn't. Kept OUT of POOL on purpose - a random screen would offer them
+# to teams that can't use them. They arrive two ways only: as the SEED on the
+# run's first relic screen, and in the one card a later screen reserves for a
+# verb already on the team (see roll_offers). Same ladder pattern as the mechanic
+# relics: one effect, magnitude by grade. {pct}/{secs}/{heroes} fill per grade.
+const ARCHETYPE_PIECES: Array[Dictionary] = [
+	{"piece": "kindling", "verb": "burn", "seed": true, "name": "Kindling", "type": "burn_per_burner",
+	 "values": {"D": 0.11, "C": 0.15, "B": 0.20, "A": 0.24, "S": 0.33},
+	 "desc": "Your burns deal +{pct} damage for each Burn hero you field, up to 3 ({heroes}). Burn heroes show up more often in your shop."},
+	{"piece": "kindred", "verb": "burn", "name": "Kindred Flames", "type": "burn_stack_share",
+	 "values": {"D": 0.35, "C": 0.50, "B": 0.65, "A": 0.80, "S": 1.00},
+	 "desc": "Burns from different heroes add up: the strongest burns in full and each other hero's adds {pct} of itself, up to double the strongest."},
+	{"piece": "ashfall", "verb": "burn", "name": "Ashfall", "type": "burn_leap",
+	 "values": {"D": 0.50, "C": 0.65, "B": 0.80, "A": 0.90, "S": 1.00},
+	 "desc": "When a burning enemy dies, {pct} of its burn jumps to the nearest enemy."},
+	{"piece": "tinder", "verb": "burn", "name": "Tinder Heart", "type": "burn_ult_haste",
+	 "values": {"D": 0.18, "C": 0.25, "B": 0.33, "A": 0.40, "S": 0.55},
+	 "desc": "While any enemy is burning, your Burn heroes' ultimates charge {pct} faster ({heroes})."},
+	{"piece": "inferno", "verb": "burn", "name": "Inferno Crown", "type": "burn_flare",
+	 "values": {"D": 1.5, "C": 2.0, "B": 2.6, "A": 3.2, "S": 4.4},
+	 "desc": "Every 8 seconds, every burning enemy takes {secs} seconds of its burn at once."},
+]
+
+static var _archetype_cache: Array = []
+
+# Every archetype piece at every grade, as ordinary relic dicts (id "c_kindling").
+static func archetype_relics() -> Array:
+	if not _archetype_cache.is_empty():
+		return _archetype_cache
+	for spec: Dictionary in ARCHETYPE_PIECES:
+		for g: String in GRADE_ORDER:
+			var v: float = float(spec["values"][g])
+			var secs := ("%d" % int(v)) if is_equal_approx(v, round(v)) else ("%.1f" % v)
+			var text := String(spec["desc"]).replace("{pct}", "%d%%" % int(round(v * 100.0))) \
+				.replace("{secs}", secs).replace("{heroes}", HeroVerbs.hero_names(spec["verb"]))
+			_archetype_cache.append({
+				"id": "%s_%s" % [g.to_lower(), spec["piece"]], "name": spec["name"], "grade": g,
+				"desc": text, "category": "archetype", "verb": spec["verb"], "piece": spec["piece"],
+				"seed": bool(spec.get("seed", false)),
+				"effects": [{"type": spec["type"], "value": v}],
+			})
+	return _archetype_cache
+
 # ── Gacha rolling ─────────────────────────────────────────────────────────────
 
 # Roll a grade for one offer slot off the given wave's odds.
@@ -296,16 +348,71 @@ static func roll_grade(wave: int) -> String:
 # Roll `count` relic offers for a wave. Each slot rolls its grade independently,
 # then draws a random relic of that grade. Never offers the same relic twice on
 # one screen, and prefers relics the player doesn't already own.
-static func roll_offers(wave: int, owned_ids: Array = [], count: int = 3) -> Array:
+#
+# ctx (VD-16) reserves cards for archetype pieces; they take slots of the usual
+# `count`, never add one:
+#   {"seed_verbs": [...]} - the run's first screen: one SEED per buildable verb.
+#   {"team_verbs": [...]} - later screens: one piece for a verb on the team.
+# An empty ctx rolls exactly as before (no extra randi calls).
+static func roll_offers(wave: int, owned_ids: Array = [], count: int = 3, ctx: Dictionary = {}) -> Array:
 	var offers: Array = []
 	var used_ids: Array = []
-	for _i in range(count):
+	var reserved: Array = []
+	var seed_verbs: Array = ctx.get("seed_verbs", [])
+	var team_verbs: Array = ctx.get("team_verbs", [])
+	if not seed_verbs.is_empty() or not team_verbs.is_empty():
+		var owned_pieces := _owned_pieces(owned_ids)
+		if not seed_verbs.is_empty():
+			for v in seed_verbs:
+				if reserved.size() >= count:
+					break
+				var seed := _draw_piece(String(v), roll_grade(wave), owned_pieces, used_ids, true)
+				if not seed.is_empty():
+					reserved.append(seed)
+					used_ids.append(seed["id"])
+		else:
+			var verb := String(team_verbs[randi() % team_verbs.size()])
+			var piece := _draw_piece(verb, roll_grade(wave), owned_pieces, used_ids, false)
+			if not piece.is_empty():
+				reserved.append(piece)
+				used_ids.append(piece["id"])
+	for _i in range(count - reserved.size()):
 		var relic := _draw_one(wave, owned_ids, used_ids)
 		if relic.is_empty():
 			continue
 		used_ids.append(relic["id"])
 		offers.append(relic)
+	# A random position, so the build card is not always the same one.
+	for r in reserved:
+		offers.insert(randi() % (offers.size() + 1), r)
 	return offers
+
+# Piece keys ("kindling") of every archetype relic already owned, any grade.
+static func _owned_pieces(owned_ids: Array) -> Array:
+	var out: Array = []
+	for rid in owned_ids:
+		var r := by_id(String(rid))
+		if r.get("category", "") == "archetype":
+			out.append(r["piece"])
+	return out
+
+# One archetype piece for `verb` at `grade` (fanning out like _draw_one), never
+# a piece already owned at any grade. seed_only limits it to seed pieces.
+static func _draw_piece(verb: String, grade: String, owned_pieces: Array,
+		used_ids: Array, seed_only: bool) -> Dictionary:
+	for g in _grade_search_order(grade):
+		var pick: Array = []
+		for r in archetype_relics():
+			if r["verb"] != verb or r["grade"] != g:
+				continue
+			if seed_only and not r["seed"]:
+				continue
+			if r["piece"] in owned_pieces or r["id"] in used_ids:
+				continue
+			pick.append(r)
+		if not pick.is_empty():
+			return (pick[randi() % pick.size()] as Dictionary).duplicate(true)
+	return {}
 
 # Roll a grade, then draw an unused relic of that grade. If the rolled grade is
 # exhausted this screen, fan outward to adjacent grades so the slot still fills.
@@ -355,6 +462,9 @@ const _DESC_BUDGET := 200
 
 static func by_id(relic_id: String) -> Dictionary:
 	for r in POOL:
+		if r["id"] == relic_id:
+			return r
+	for r in archetype_relics():
 		if r["id"] == relic_id:
 			return r
 	return {}

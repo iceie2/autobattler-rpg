@@ -1008,7 +1008,7 @@ func start_new_game() -> void:
 		var starts: Array = _run_map.available_next()
 		if not starts.is_empty() and int(starts[0].get("type", -1)) == RunMap.NodeType.RELIC:
 			_map_node = _run_map.advance_to(String(starts[0]["id"]))
-		var offers: Array = Relic.roll_offers(1, _relic_inventory.owned_ids())
+		var offers: Array = Relic.roll_offers(1, _relic_inventory.owned_ids(), 3, _relic_offer_ctx(1))
 		if not offers.is_empty():
 			_relic_screen_wave = 1
 			_relic_rerolls_left = Progression.get_bonus("+1 Reroll")
@@ -1182,7 +1182,8 @@ func _on_battle_round_started(round_number: int) -> void:
 	# are the classic schedule and stay for when MAP_MODE is off.
 	if not MAP_MODE and round_number in Relic.RELIC_WAVES and not _relic_waves_done.has(round_number):
 		_relic_waves_done[round_number] = true
-		var offers: Array = Relic.roll_offers(round_number, _relic_inventory.owned_ids())
+		var offers: Array = Relic.roll_offers(round_number, _relic_inventory.owned_ids(), 3,
+				_relic_offer_ctx(round_number))
 		if not offers.is_empty():
 			_relic_screen_wave = round_number
 			_relic_rerolls_left = Progression.get_bonus("+1 Reroll")
@@ -1244,7 +1245,8 @@ func _on_relic_reroll() -> void:
 	if _relic_rerolls_left <= 0:
 		return
 	_relic_rerolls_left -= 1
-	var offers: Array = Relic.roll_offers(_relic_screen_wave, _relic_inventory.owned_ids())
+	var offers: Array = Relic.roll_offers(_relic_screen_wave, _relic_inventory.owned_ids(), 3,
+			_relic_offer_ctx(_relic_screen_wave))
 	_telemetry_relic_offers = _telemetry_relic_ids(offers)
 	_telemetry_decision("relic_offers_rerolled", {
 		"offers": _telemetry_relic_offers.duplicate(),
@@ -1850,6 +1852,15 @@ func _telemetry_decision(type: String, payload: Dictionary = {}) -> void:
 	row.merge(payload.duplicate(true), true)
 	_telemetry_decisions.append(row)
 	_telemetry_event(type, payload)
+
+# VD-16: which archetype cards a relic screen reserves. The run's first screen
+# (wave 1, before the first hero is picked) offers a SEED for every archetype
+# this account can build; later screens reserve one card for a verb the team
+# already carries (board + bench). See Relic.roll_offers.
+func _relic_offer_ctx(wave: int) -> Dictionary:
+	if wave <= 1:
+		return {"seed_verbs": HeroVerbs.buildable_verbs()}
+	return {"team_verbs": HeroVerbs.verbs_on_team(player_units + bench_units)}
 
 func _telemetry_relic_ids(offers: Array) -> Array:
 	var out: Array = []
@@ -2732,6 +2743,7 @@ func _on_spawn_hero_pressed() -> void:
 		info_label.text = "Not enough gold! Need %d gold." % HeroShop.HERO_COST
 		return
 	var shop_slots: int = 3 + (_relic_inventory.shop_slot_bonus() if _relic_inventory else 0)
+	_hero_shop.favored_verbs = _relic_inventory.seed_verbs() if _relic_inventory else []
 	_hero_shop.open(game_state.gold, shop_slots)
 	update_ui()
 
@@ -2958,6 +2970,7 @@ func _maybe_open_call_to_arms_picker() -> void:
 	_call_to_arms_pending = false
 	_awaiting_call_to_arms_pick = true
 	var shop_slots: int = 3 + (_relic_inventory.shop_slot_bonus() if _relic_inventory else 0)
+	_hero_shop.favored_verbs = _relic_inventory.seed_verbs() if _relic_inventory else []
 	_hero_shop.open(0, shop_slots, true)
 
 
@@ -3170,7 +3183,8 @@ func _on_map_node_chosen(node: Dictionary) -> void:
 			# battle_round, so use the node's round to switch the scenery first.
 			var relic_round: int = maxi(1, int(entered.get("round", game_state.battle_round)))
 			background_layer.set_biome_from_round(relic_round)
-			var offers: Array = Relic.roll_offers(relic_round, _relic_inventory.owned_ids())
+			var offers: Array = Relic.roll_offers(relic_round, _relic_inventory.owned_ids(), 3,
+					_relic_offer_ctx(relic_round))
 			if offers.is_empty():
 				_open_run_map()
 				return

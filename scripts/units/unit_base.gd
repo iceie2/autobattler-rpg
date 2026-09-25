@@ -401,6 +401,10 @@ var burn_source = null             # who lit the burn (for damage credit)
 # — it never touches damage, duration or stacking. "fire" keeps the original look,
 # so anything that does not pass a flavour is unchanged.
 var burn_flavor: String = "fire"
+# Kindred Flames (VD-16) only: one burn per hero TYPE, summed by
+# recompute_burn_total(). Empty under the classic rule (strongest burn wins).
+var burn_parts: Dictionary = {}          # unit_class -> [dps, time_left, source]
+var burn_stack_share: float = 0.0        # share in force on this unit; 0 = classic rule
 
 var bleed_time: float = 0.0        # >0 = bleeding; deals bleed_dps per second,
 var bleed_dps: float = 0.0         # doubled (BLEED_MOVE_MULT in auto_battle_manager)
@@ -492,6 +496,13 @@ var relic_momentum_pct_per_sec: float = 0.0 # attack speed ramp per second survi
 var relic_momentum_time: float = 0.0     # per-battle seconds-survived accumulator
 var relic_underdog_dmg_per_dead: float = 0.0 # bonus outgoing dmg mult per dead ally
 var relic_underdog_res_per_dead: float = 0.0 # incoming dmg reduction per dead ally
+# ── Burn archetype pieces (VD-16) - set by RelicInventory, read by combat ──
+var relic_burn_per_burner: float = 0.0   # Kindling: +burn dps per Burn hero type fielded (max 3)
+var relic_burn_stack_share: float = 0.0  # Kindred Flames: share each other hero's burn adds
+var relic_burn_leap: float = 0.0         # Ashfall: share of a dying enemy's burn that jumps
+var relic_burn_ult_haste: float = 0.0    # Tinder Heart: ult charge bonus while any foe burns
+var relic_burn_flare_secs: float = 0.0   # Inferno Crown: seconds of burn dealt at once every 8 s
+var burn_haste_active: bool = false      # set each frame by the battle manager for Tinder Heart
 
 # True on boss enemies (Orc Brute / The Triarch / future bosses) — read by the
 # Executioner relic's vs-boss damage bonus.
@@ -669,6 +680,7 @@ func clear_debuffs() -> void:
 	# Companion fields. A timer at 0 with a live dps/pct behind it is a bug
 	# waiting for the next thing that re-arms the timer without resetting them.
 	burn_dps = 0.0;  burn_accum = 0.0;  burn_source = null
+	burn_parts.clear(); burn_stack_share = 0.0
 	bleed_dps = 0.0; bleed_accum = 0.0; bleed_source = null
 	slow_pct = 0.0
 	taunt_source = null
@@ -690,6 +702,37 @@ func fade_debuffs(seconds: float) -> void:
 		var v: float = get(t)
 		if v > 0.0:
 			set(t, maxf(v - seconds, 0.0))
+
+# Strongest single burn on this unit. Equals burn_dps under the classic rule;
+# under Kindred Flames it is the biggest one hero's part. This is what Sear's
+# spread and Ashfall copy: a copy never reads a stacked total (VD-16 loop rule 2).
+func burn_strongest_single() -> float:
+	if burn_parts.is_empty():
+		return burn_dps
+	var best := 0.0
+	for k in burn_parts:
+		best = maxf(best, float(burn_parts[k][0]))
+	return best
+
+# Kindred Flames total: the strongest part in full, every other hero type adds
+# burn_stack_share of its own, capped at 2x the strongest (VD-16 loop rule 4).
+# Credit goes to the hero holding the strongest part.
+func recompute_burn_total() -> void:
+	var best := 0.0
+	var best_src = null
+	var total := 0.0
+	var longest := 0.0
+	for k in burn_parts:
+		var p: Array = burn_parts[k]
+		total += float(p[0])
+		longest = maxf(longest, float(p[1]))
+		if float(p[0]) > best:
+			best = float(p[0])
+			best_src = p[2]
+	burn_dps = minf(best + burn_stack_share * (total - best), 2.0 * best)
+	burn_time = longest
+	if best_src != null and is_instance_valid(best_src):
+		burn_source = best_src
 
 # Magic-typed damage: identical pipeline, mitigated by magic_resist instead of
 # armor. Use this for any hit whose amount scales off the caster's magic_power.
@@ -828,6 +871,9 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		if attacker != null and attacker is UnitBase:
 			last_killed_by = str(attacker.unit_name)
 		GearPassives.on_death(self)
+		# Ashfall (VD-16): the burn jumps while the body still carries it.
+		if burn_time > 0.0 and battle_manager and battle_manager.has_method("burn_ashfall"):
+			battle_manager.burn_ashfall(self)
 		die()
 	if not gear.is_empty() or (attacker is UnitBase and is_instance_valid(attacker) 			and not attacker.gear.is_empty()):
 		GearPassives.after_hit(self, attacker, mini(modified_damage, gear_pre_hp),
@@ -1120,6 +1166,10 @@ func _charge_ultimate(amount: int) -> void:
 		return
 	if relic_ult_charge_mult != 1.0:
 		amount = int(round(amount * relic_ult_charge_mult))
+	# Tinder Heart (VD-16). Bounded: burn ticks never reach this function for
+	# the burner, so the bonus can only ever be a flat multiplier.
+	if burn_haste_active:
+		amount = int(round(amount * (1.0 + relic_burn_ult_haste)))
 	ultimate_charge = min(ultimate_charge + amount, ultimate_charge_max)
 	if ultimate_charge >= ultimate_charge_max:
 		ultimate_ready = true

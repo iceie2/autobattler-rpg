@@ -253,6 +253,16 @@ var fallen_allies: Array = []
 # user correction). Reset at battle start.
 var ant_swarm_stacks: int = 0
 
+# ── Burn archetype pieces (VD-16) ─────────────────────────────────────────────
+# Team-wide values read off the player's relic fields once per battle (see
+# _setup_burn_pieces). All inert (1.0 / 0.0) unless the player owns the relic,
+# so a run without Burn pieces burns exactly as before.
+const INFERNO_PERIOD := 8.0          # Inferno Crown fires every this many seconds
+var _kindling_mult: float = 1.0      # Kindling: scales burns a player hero LIGHTS
+var _ashfall_frac: float = 0.0       # Ashfall: share of a dying enemy's burn that jumps
+var _flare_secs: float = 0.0         # Inferno Crown: seconds of burn dealt per flare
+var _flare_timer: float = 0.0
+
 # ── Freeze watchdog (2026-07-24, diagnosing user report of full mid-battle
 # freezes with no console access) — if real time passes with the sim running
 # unpaused but no unit ever fires unit_action/action_logged, something is
@@ -345,6 +355,7 @@ func start_battle() -> void:
 	_watchdog_fired = false
 	collect_units()
 	_init_unit_timers()
+	_setup_burn_pieces()
 	_spawn_khagan_overlay_if_present()
 	_spawn_arena_overlay()
 	print("[Battle] Started — players: %d, enemies: %d" % [player_units.size(), enemy_units.size()])
@@ -437,6 +448,7 @@ func _init_unit_timers() -> void:
 			unit.health_bar.update_shield(0.0, unit.max_hp)
 		# Roster-expansion status fields
 		unit.burn_time = 0.0; unit.burn_dps = 0.0; unit.burn_accum = 0.0; unit.burn_source = null
+		unit.burn_parts.clear(); unit.burn_stack_share = 0.0; unit.burn_haste_active = false
 		unit.bleed_time = 0.0; unit.bleed_dps = 0.0; unit.bleed_accum = 0.0; unit.bleed_source = null
 		unit.slow_time = 0.0; unit.slow_pct = 0.0
 		unit.root_time = 0.0
@@ -546,6 +558,7 @@ func _process(delta: float) -> void:
 	# Global timers (Rush freeze, board fields) tick once per frame, not per unit.
 	battle_elapsed += dt
 	_tick_global_effects(dt)
+	_tick_burn_pieces(dt)
 	_tick_khagan_possession(dt)
 
 	# Tick every living unit's real-time clocks and let it act.
@@ -5658,6 +5671,8 @@ func _tick_statuses(unit: UnitBase, dt: float) -> void:
 	# Burn damage-over-time.
 	if unit.burn_time > 0.0:
 		unit.burn_time -= dt
+		if not unit.burn_parts.is_empty():
+			_decay_burn_parts(unit, dt)
 		unit.burn_accum += unit.burn_dps * dt
 		if unit.burn_accum >= 1.0:
 			var whole: int = int(unit.burn_accum)
@@ -5669,6 +5684,7 @@ func _tick_statuses(unit: UnitBase, dt: float) -> void:
 		if unit.burn_time <= 0.0:
 			unit.burn_dps = 0.0
 			unit.burn_accum = 0.0
+			unit.burn_parts.clear()
 	if not is_instance_valid(unit):
 		return
 
@@ -5791,13 +5807,124 @@ func _tick_statuses(unit: UnitBase, dt: float) -> void:
 # ── Status application helpers (refresh = take stronger value / longer time) ───
 func apply_burn(target: UnitBase, dps: float, dur: float, source, flavor: String = "fire") -> void:
 	if not (target and is_instance_valid(target)): return
-	# NOTE: dps/time take the MAX rather than stacking — two sources burning the
-	# same target give the stronger one, not the sum. Unchanged here, but worth
-	# knowing when reading the Rat's pack passive (see the Infestation notes).
-	target.burn_dps = maxf(target.burn_dps, dps)
-	target.burn_time = maxf(target.burn_time, dur)
-	target.burn_source = source
+	# Kindling (VD-16): a burn a player hero LIGHTS scales with the Burn heroes
+	# fielded. Only here, never in _set_burn - see the note there.
+	if _kindling_mult != 1.0 and source is UnitBase and is_instance_valid(source) \
+			and source.is_player_unit:
+		dps *= _kindling_mult
+	_set_burn(target, dps, dur, source, flavor)
+
+# Lays a burn down exactly as given. Copies of an existing burn (Sear's spread,
+# Ashfall) come straight here: re-applying Kindling to a copy would multiply the
+# burn again on every spread - a loop the VD-16 loop rules forbid.
+func _set_burn(target: UnitBase, dps: float, dur: float, source, flavor: String = "fire") -> void:
+	if not (target and is_instance_valid(target)): return
+	var share := 0.0
+	if source is UnitBase and is_instance_valid(source) and source.is_player_unit:
+		share = source.relic_burn_stack_share
+	if share > 0.0:
+		# Kindred Flames: one part per hero TYPE (two Coals share one), each
+		# keeping its stronger/longer value; UnitBase sums them under the 2x cap.
+		var key: int = int(source.unit_class)
+		var part: Array = target.burn_parts.get(key, [0.0, 0.0, null])
+		target.burn_parts[key] = [maxf(float(part[0]), dps), maxf(float(part[1]), dur), source]
+		target.burn_stack_share = maxf(target.burn_stack_share, share)
+		target.recompute_burn_total()
+	else:
+		# Classic rule: dps/time take the MAX rather than stacking — two sources
+		# burning the same target give the stronger one, not the sum. Worth
+		# knowing when reading the Rat's pack passive (see the Infestation notes).
+		target.burn_dps = maxf(target.burn_dps, dps)
+		target.burn_time = maxf(target.burn_time, dur)
+		target.burn_source = source
 	target.burn_flavor = flavor
+
+# Kindred Flames parts expire one by one; the total is recomputed when one goes.
+func _decay_burn_parts(unit: UnitBase, dt: float) -> void:
+	var expired := false
+	for k in unit.burn_parts.keys():
+		var p: Array = unit.burn_parts[k]
+		p[1] = float(p[1]) - dt
+		if float(p[1]) <= 0.0:
+			unit.burn_parts.erase(k)
+			expired = true
+	if expired and not unit.burn_parts.is_empty():
+		unit.recompute_burn_total()
+
+# ── Burn archetype pieces (VD-16) ─────────────────────────────────────────────
+# Relics are applied to every hero alike, so the team value is the largest any
+# player unit carries.
+func _setup_burn_pieces() -> void:
+	var per := 0.0
+	_ashfall_frac = 0.0
+	_flare_secs = 0.0
+	_flare_timer = 0.0
+	for u in player_units:
+		if u and is_instance_valid(u):
+			per = maxf(per, u.relic_burn_per_burner)
+			_ashfall_frac = maxf(_ashfall_frac, u.relic_burn_leap)
+			_flare_secs = maxf(_flare_secs, u.relic_burn_flare_secs)
+	_kindling_mult = 1.0 + per * mini(3, HeroVerbs.count_types(player_units, HeroVerbs.BURN))
+
+func _tick_burn_pieces(dt: float) -> void:
+	# Tinder Heart: flag Burn heroes while any enemy burns; UnitBase applies it
+	# in _charge_ultimate.
+	var any_burning := false
+	for e in enemy_units:
+		if e and is_instance_valid(e) and e.current_hp > 0 and e.burn_time > 0.0:
+			any_burning = true
+			break
+	for u in player_units:
+		if u and is_instance_valid(u):
+			u.burn_haste_active = any_burning and u.relic_burn_ult_haste > 0.0 \
+				and HeroVerbs.has_verb(u.unit_class, HeroVerbs.BURN)
+	# Inferno Crown: damage from the burn total, never adds burn (loop rule 3).
+	if _flare_secs <= 0.0:
+		return
+	_flare_timer += dt
+	if _flare_timer < INFERNO_PERIOD:
+		return
+	_flare_timer -= INFERNO_PERIOD
+	for e in enemy_units.duplicate():
+		if not (e and is_instance_valid(e)) or e.current_hp <= 0 or e.burn_time <= 0.0:
+			continue
+		var dmg: int = int(e.burn_dps * _flare_secs)
+		if dmg <= 0:
+			continue
+		var src = e.burn_source
+		_spawn_skill_effect_sized(SkillEffect.Type.BURN, e.global_position, 44.0)
+		e.take_damage(dmg, UnitBase.Element.FIRE, src, true)
+		if src and is_instance_valid(src):
+			src.damage_dealt += dmg
+
+# Ashfall: called from UnitBase.take_damage just before a burning unit dies.
+# Each hero's part jumps separately at the relic's share (loop rule 2), onto the
+# dying unit's nearest living ally; on arrival each part keeps the larger value.
+func burn_ashfall(dying: UnitBase) -> void:
+	if not battle_active or _ashfall_frac <= 0.0 or dying.burn_time <= 0.0:
+		return
+	var src = dying.burn_source
+	if not (src is UnitBase and is_instance_valid(src) and src.is_player_unit):
+		return
+	var target: UnitBase = null
+	var best_d := INF
+	for u in (player_units if dying.is_player_unit else enemy_units):
+		if u == dying or not (u and is_instance_valid(u)) or u.current_hp <= 0:
+			continue
+		var d: float = dying.grid_position.distance_to(u.grid_position)
+		if d < best_d:
+			best_d = d
+			target = u
+	if target == null:
+		return
+	if dying.burn_parts.is_empty():
+		_set_burn(target, dying.burn_dps * _ashfall_frac, dying.burn_time, src, dying.burn_flavor)
+	else:
+		for k in dying.burn_parts:
+			var p: Array = dying.burn_parts[k]
+			if p[2] != null and is_instance_valid(p[2]):
+				_set_burn(target, float(p[0]) * _ashfall_frac, float(p[1]), p[2], dying.burn_flavor)
+	_spawn_skill_effect_sized(SkillEffect.Type.BURN, target.global_position, 36.0)
 
 const BLEED_MOVE_MULT := 2.0   # bleed tick rate while is_moving — see _tick_statuses
 func apply_bleed(target: UnitBase, dps: float, dur: float, source) -> void:
@@ -7159,8 +7286,12 @@ func _sear_conflagration(caster: UnitBase, opponents: Array) -> void:
 	for opp in opponents:
 		if not (opp and is_instance_valid(opp)) or opp.current_hp <= 0:
 			continue
-		if opp.burn_dps > maxdps:
-			maxdps = opp.burn_dps
+		# The strongest SINGLE burn, not a Kindred Flames total: copying a total
+		# back in would ratchet it up every cast (VD-16 loop rule 2). Identical to
+		# burn_dps when Kindred Flames isn't owned.
+		var single: float = opp.burn_strongest_single()
+		if single > maxdps:
+			maxdps = single
 			worst = opp
 	var origin: Node2D = worst if worst else caster
 	var dur: float = _abf(caster, AF_ULT, "dur")
@@ -7175,7 +7306,12 @@ func _sear_conflagration(caster: UnitBase, opponents: Array) -> void:
 		# Corpses awaiting purge used to be burned, burst and given VFX.
 		if not (opp and is_instance_valid(opp)) or opp.current_hp <= 0:
 			continue
-		apply_burn(opp, maxdps, dur, caster)
+		# A copied burn goes down as-is (no second Kindling); only the floor burn,
+		# lit fresh when nothing was burning, counts as Sear lighting one.
+		if worst:
+			_set_burn(opp, maxdps, dur, caster)
+		else:
+			apply_burn(opp, maxdps, dur, caster)
 		_ensure_sear_burn_mark(opp)
 		if opp != origin:
 			_spawn_sear_pair(SearVFX.Mode.ULT_SPREAD, origin, opp, 0.45)

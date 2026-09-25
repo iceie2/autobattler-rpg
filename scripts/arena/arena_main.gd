@@ -499,6 +499,31 @@ func _spawn_team(spec: String, element: int) -> Array:
 		out.append(u)
 	return out
 
+# --relics=c_kindling,b_kindred (VD-16): the team holds these relics exactly as
+# a run would - one RelicInventory, applied to every hero once.
+func _grant_relics(team: Array, spec: String) -> void:
+	if spec == "":
+		return
+	var inv := RelicInventory.new()
+	for rid in spec.split(",", false):
+		var relic := Relic.by_id(rid.strip_edges())
+		if relic.is_empty():
+			push_error("Unknown relic '%s'" % rid)
+			_had_failures = true
+			continue
+		inv.add_relic(relic)
+	for u in team:
+		inv.apply_all_to_unit(u)
+
+# --enemy-hp-mult=N stretches a fight without changing its cast - the VD-16
+# loop gate needs minutes of burning, not a harder wave.
+func _scale_enemy_hp(enemies: Array, mult: float) -> void:
+	if is_equal_approx(mult, 1.0) or mult <= 0.0:
+		return
+	for u in enemies:
+		u.max_hp = maxi(1, int(round(u.max_hp * mult)))
+		u.current_hp = u.max_hp
+
 # "wave:12[:difficulty]" or "goblin:3,orc_earth:5" → enemy units (unplaced).
 func _spawn_enemies(spec: String, difficulty: int) -> Array:
 	var out: Array = []
@@ -565,6 +590,8 @@ func _run_sims(args: Dictionary) -> Dictionary:
 			await _teardown_env()
 			_had_failures = true
 			return {"error": "empty team or enemy list — check specs"}
+		_grant_relics(team, String(args.get("relics", "")))
+		_scale_enemy_hp(enemies, float(args.get("enemy-hp-mult", "1")))
 		for u in team:
 			_wire_unit(u)
 		_place_team(team, formation)

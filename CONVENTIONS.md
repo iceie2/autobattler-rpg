@@ -88,6 +88,15 @@ GODOT="/c/anything coding/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mon
 #    → three PNGs in captures/renders (choices / reel mid-spin / outcome).
 #      Needs a real window — no --headless.
 
+# 3h. Burn archetype (after touching apply_burn / burn ticks / Sear or Ember
+#     ults / relic offers / HeroVerbs — VD-16, BUILD_ARCHETYPES.md):
+"$GODOT" --headless res://scenes/burn_smoke.tscn
+#    → "BURN_SMOKE: ALL PASS". Deterministic; covers the classic max rule, the
+#      four loop rules (incl. ten real Sear casts never growing a burn), each
+#      piece, the offer rules and the shop weighting. Arena sims can grant
+#      relics with --relics=c_kindling,b_kindred and stretch a fight with
+#      --enemy-hp-mult=N (the anti-stall enrage still ends it by ~150 s).
+
 # 4. Balance sim (after touching stats/numbers):
 "$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=sim \
   --team=SABLE:3,RIOT:3 --enemy=wave:5 --runs=5 --seed=42

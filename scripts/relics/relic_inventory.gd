@@ -60,6 +60,17 @@ func shop_slot_bonus() -> int:
 				n += int(e.get("value", 0))
 	return n
 
+# Verbs of every SEED relic owned (VD-16). The hero shop leans toward heroes
+# with these verbs, so a seed is a plan the player can act on.
+func seed_verbs() -> Array:
+	var out: Array = []
+	for r in owned:
+		if r.get("seed", false):
+			var v := String(r.get("verb", ""))
+			if v != "" and not v in out:
+				out.append(v)
+	return out
+
 # Apply every owned relic's stat effect to one unit (each at most once).
 func apply_all_to_unit(unit) -> void:
 	for r in owned:
@@ -143,6 +154,18 @@ func _apply_effect(unit, e: Dictionary) -> void:
 		"underdog":
 			unit.relic_underdog_dmg_per_dead += float(e.get("dmg_per_dead", 0.0))
 			unit.relic_underdog_res_per_dead += float(e.get("res_per_dead", 0.0))
+		# ── Burn archetype pieces (VD-16). The battle manager reads these as
+		# team-wide values at battle start; see AutoBattleManager._setup_burn_pieces.
+		"burn_per_burner":
+			unit.relic_burn_per_burner += float(e.get("value", 0.0))
+		"burn_stack_share":
+			unit.relic_burn_stack_share = maxf(unit.relic_burn_stack_share, float(e.get("value", 0.0)))
+		"burn_leap":
+			unit.relic_burn_leap = maxf(unit.relic_burn_leap, float(e.get("value", 0.0)))
+		"burn_ult_haste":
+			unit.relic_burn_ult_haste += float(e.get("value", 0.0))
+		"burn_flare":
+			unit.relic_burn_flare_secs = maxf(unit.relic_burn_flare_secs, float(e.get("value", 0.0)))
 		# gold_round / shop_slots are run-economy effects (see gold_per_round /
 		# shop_slot_bonus) â€” no per-unit mutation.
 
