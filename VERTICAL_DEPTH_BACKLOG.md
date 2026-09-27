@@ -1203,6 +1203,46 @@ all need `visual_unit.gd`/`health_bar.gd`; Ashfall and Inferno fire the generic
 burn puff as a stand-in), the build named in the synergy pop / run recap, relic
 card art (pieces render as text chips).
 
+### Balance gates run 2026-09-26 - pieces are conditional but far too weak
+
+Unblocked by the lane caps (committed as WIP 61417a4e; verified all 26 heroes
+act). Scenario: wave 12, heroes level 8, enemy HP x2.5 so fights last ~29 s,
+16 fights per setup on common seeds (the arena is not repeatable, so means;
+clear-time SD ~2-3 s, SE ~0.6 s). Teams: 3 burners = Coal/Sear/Ember/Riot;
+1 burner = Ember/Shauna/Lumen/Riot; 0 burners = Shauna/Lumen/Pastor/Riot.
+
+| Relic (C unless noted) | 3 burners, damage/s | 1 burner | 0 burners |
+|---|---:|---:|---:|
+| Kindling | +3.8% | ~0 | ~0 |
+| Kindred Flames | 0% | ~0 | ~0 |
+| Ashfall | +1.5% | ~0 | ~0 |
+| Tinder Heart | +8% | ~0 | ~0 |
+| Inferno Crown | +3% | ~0 | ~0 |
+| Warlord's Edge B (+30% ATK, generic) | +18% | | |
+| Overcharged Core B (+25% ult, generic) | +9% | | |
+| Archon Prism B (+32% magic, generic) | +1.5% | | |
+
+- **Gate "rewards going deep": passes structurally.** Every piece does nothing
+  off-build (all within +-0.5% clear time), and something on-build.
+- **Gate "worth picking": fails badly.** A generic B attack relic is worth 2-5x
+  any Burn piece on the Burn team itself. Tinder Heart only ties the generic
+  ult relic it is a conditional version of.
+- **Gate "not dominant": not run** - moot until the pieces are worth taking.
+
+**Root cause, measured:** burn is only **~14% of the Burn team's damage**
+(11.6-18.1% across 4 fights, integrating enemy burn_dps over the fight). Coal,
+Sear and Ember do ~86% of their work with direct hits, so amplifying burn moves
+little. Kindred Flames can never catch up by numbers alone: its ceiling is
+doubling that 14% slice, and in a spread-out wave burners rarely share targets.
+
+**Owner decision needed:** (A) retune piece numbers only - needs silly values
+(e.g. Kindling ~+40% per burner at C) and reads as "just more upgrades";
+(B) make burn the Burn heroes' main damage - shift part of Coal/Sear/Ember's
+direct damage into their burns, total damage unchanged without relics, then
+retune the pieces to sane values (recommended: the build then visibly IS
+burning); (C) change what the pieces boost to Burn heroes' damage in general -
+drifts back toward the scrapped element-stat pattern.
+
 ---
 
 ## Sequence
