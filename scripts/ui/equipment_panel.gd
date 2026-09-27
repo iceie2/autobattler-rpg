@@ -605,6 +605,10 @@ func _confirm_pick() -> void:
 		_commit_fuse(sources, keep)
 
 # ── Component merge menu: remove levels until the pool fits ──────────────────
+# Public entry for the bag's drag-to-combine (main_game._drop_combine).
+func open_level_removal(sources: Array[EquipmentItem]) -> void:
+	_open_level_removal(sources)
+
 func _open_level_removal(sources: Array[EquipmentItem]) -> void:
 	var a := sources[0] as ComponentEquipmentItem
 	var b := sources[1] as ComponentEquipmentItem

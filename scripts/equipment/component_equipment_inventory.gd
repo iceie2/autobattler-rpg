@@ -41,11 +41,14 @@ func _log(sources: Array[EquipmentItem], result: ComponentEquipmentItem, removal
 		"to_rarity": result.rarity,
 	})
 
-# Auto-merge (user decision 2026-09-25) only performs merges that need no
-# choice: green -> blue. Greys are never auto-paired (choosing the pair IS
-# choosing the passive), and anything that would open the merge menu stops.
-# Two greens sharing a passive pair up first so blues come out focused.
+# Auto-merge only performs merges that need no choice (user decision
+# 2026-09-25): two IDENTICAL greys (HP+HP -> Last Bastion; added 2026-09-26 —
+# mixed grey pairs pick a passive, so those stay manual / drag-to-combine), and
+# green -> blue, greens sharing a passive first so blues come out focused.
+# Anything that would open the merge menu stops.
 func _auto_combine_sweep() -> void:
+	while _auto_pair_identical_greys():
+		pass
 	while true:
 		var greens: Array[ComponentEquipmentItem] = []
 		for it in items:
@@ -74,6 +77,26 @@ func _auto_combine_sweep() -> void:
 		var sources: Array[EquipmentItem] = [pair[0], pair[1]]
 		_log(sources, result, {})
 		inventory_changed.emit()
+
+func _auto_pair_identical_greys() -> bool:
+	var seen: Dictionary = {}
+	for it in items:
+		if it is ComponentEquipmentItem and it.rarity == EquipmentItem.Rarity.COMMON:
+			var fam := ComponentEquipmentRules.dominant_family(it.composition)
+			if seen.has(fam):
+				var a: ComponentEquipmentItem = seen[fam]
+				var result := ComponentEquipmentRules.combine(a, it, STAT_KEEP)
+				if result == null:
+					return false
+				items.erase(a)
+				items.erase(it)
+				items.append(result)
+				var sources: Array[EquipmentItem] = [a, it]
+				_log(sources, result, {})
+				inventory_changed.emit()
+				return true
+			seen[fam] = it
+	return false
 
 func _apply_equipment_bonuses(unit: UnitBase, item: EquipmentItem) -> void:
 	super._apply_equipment_bonuses(unit, item)

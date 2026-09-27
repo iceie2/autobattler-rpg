@@ -195,7 +195,7 @@ func on_reach_target():
 	if target_unit and is_instance_valid(target_unit) and target_unit.has_method("take_damage") and target_unit.current_hp > 0:
 		var pre_hp: int = target_unit.current_hp
 		var was_alive: bool = pre_hp > 0
-		var tag_basic: bool = is_basic_auto and caster and is_instance_valid(caster) and "gear_basic_hit" in caster
+		var tag_basic: bool = is_basic_auto and is_instance_valid(caster) and "gear_basic_hit" in caster
 		if tag_basic:
 			caster.gear_basic_hit = true
 		target_unit.take_damage(damage, element, caster, is_true_damage, 0, is_magic, is_crit)

@@ -1,9 +1,10 @@
 extends RefCounted
 class_name ComponentEquipmentGateway
 
-# Flip only after the 36 passives (GearPassives), their cues, and arena tuning
-# are verified. Saved runs retain their own mode regardless of this default.
-const ENABLE_FOR_NEW_RUNS := false
+# ON since 2026-09-26 (user: route the new system into the game; arena tuning,
+# cue review and icon art continue live). Saved runs retain their own mode, so
+# a run started before the flip keeps the old equipment until it ends.
+const ENABLE_FOR_NEW_RUNS := true
 static var active_run: bool = false
 
 static func generate_item(round_number: int = 1,

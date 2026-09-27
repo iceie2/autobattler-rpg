@@ -382,7 +382,7 @@ static func effective_armor(u: UnitBase, armor: int) -> int:
 static func pre_shield(u: UnitBase, dmg: int, attacker, true_damage: bool) -> int:
 	if u.gear.is_empty() or dmg <= 0:
 		return dmg
-	var basic: bool = attacker is UnitBase and is_instance_valid(attacker) and attacker.gear_basic_hit
+	var basic: bool = is_instance_valid(attacker) and attacker is UnitBase and attacker.gear_basic_hit
 	var direct := not true_damage or basic
 	if direct and lv(u, "bulwark") > 0.0 and _t(u.gear, "bulwark_cd") <= 0.0:
 		u.gear["bulwark_cd"] = GearCatalog.shrink(24.0, 6.0, lv(u, "bulwark"))
@@ -410,7 +410,7 @@ static func pre_shield(u: UnitBase, dmg: int, attacker, true_damage: bool) -> in
 static func post_shield(u: UnitBase, dmg: int, attacker, true_damage: bool) -> int:
 	if not has(u) or dmg <= 0 or lv(u, "mana_shield") <= 0.0 or u.current_mana <= 0:
 		return dmg
-	var basic: bool = attacker is UnitBase and is_instance_valid(attacker) and attacker.gear_basic_hit
+	var basic: bool = is_instance_valid(attacker) and attacker is UnitBase and attacker.gear_basic_hit
 	if true_damage and not basic:
 		return dmg
 	var redirect := int(floor(dmg * _v(u, "mana_shield", "pct")))
@@ -434,7 +434,8 @@ static func heal_received(u: UnitBase, amount: int) -> int:
 # that reached HP before the clamp (for Overkill's excess).
 static func after_hit(victim: UnitBase, attacker, hp_dmg: int, raw: int, pre_hp: int,
 		is_crit: bool, true_damage: bool) -> void:
-	var att: UnitBase = attacker if attacker is UnitBase and is_instance_valid(attacker) else null
+	# Validity before `is`: the attacker may already be freed (in-flight projectile, DoT).
+	var att: UnitBase = attacker if is_instance_valid(attacker) and attacker is UnitBase else null
 	var basic := att != null and att.gear_basic_hit
 	var direct := not true_damage or basic
 	var killed := victim.current_hp <= 0

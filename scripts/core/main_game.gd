@@ -232,6 +232,11 @@ var _dragged_item:   EquipmentItem = null
 var _drag_layer:     CanvasLayer   = null
 var _drag_panel:     Panel         = null
 var _drag_press_pos: Vector2       = Vector2.ZERO
+# Drag an item onto another bag item to combine (component equipment): the
+# slot registry maps bag buttons to items, and the hovered target drives a
+# live preview of what the merge makes.
+var _bag_slots: Array = []            # [Button, EquipmentItem] per filled bag slot
+var _combine_target: EquipmentItem = null
 
 # Row-bonus tooltip (floats above grid on mouse hover)
 var _row_tip:       Panel
@@ -5023,6 +5028,7 @@ func _update_bag_drag() -> void:
 	# Move drag preview with the cursor
 	if _drag_panel:
 		_drag_panel.position = get_viewport().get_mouse_position() - Vector2(24, 24)
+		_update_combine_hover()
 	# Keep item tooltip positioned under cursor
 	if _item_tip and _item_tip.visible and not _dragged_item:
 		_reposition_item_tooltip(get_viewport().get_mouse_position())
@@ -5251,7 +5257,10 @@ func _build_left_panel() -> void:
 	var auto_combine_check := CheckButton.new()
 	auto_combine_check.text = "Auto-Combine"
 	UITheme.apply_font(auto_combine_check, UITheme.FONT_VALUE)
-	auto_combine_check.tooltip_text = "Fuse 3 same-rarity items automatically whenever you pick up loot"
+	auto_combine_check.tooltip_text = ("Combines two identical greys, and greens into blues, whenever you pick up loot. "
+		+ "Anything that needs a choice waits for you - drag an item onto another to combine it yourself.") \
+		if _equipment_inventory is ComponentEquipmentInventory \
+		else "Fuse 3 same-rarity items automatically whenever you pick up loot"
 	auto_combine_check.button_pressed = _equipment_inventory.auto_combine
 	auto_combine_check.toggled.connect(func(pressed: bool):
 		_equipment_inventory.set_auto_combine(pressed)
@@ -5560,6 +5569,7 @@ func _rebuild_inventory_grid() -> void:
 		return
 	for c in _inventory_grid.get_children():
 		c.queue_free()
+	_bag_slots.clear()
 
 	const SLOT_SIZE := Vector2(44, 44)
 	const MAX_SLOTS := 30
@@ -5596,7 +5606,7 @@ func _rebuild_inventory_grid() -> void:
 				btn.expand_icon = true
 
 			# Passive indicator: tiny gold dot in corner
-			if item.passive_effect != "":
+			if item.passive_effect != "" and not (item is ComponentEquipmentItem):
 				var dot := ColorRect.new()
 				dot.color = Color(1, 0.9, 0.3)
 				dot.custom_minimum_size = Vector2(6, 6)
@@ -5606,6 +5616,7 @@ func _rebuild_inventory_grid() -> void:
 
 			# Hover tooltip + drag-to-equip (click with no drag opens equipment panel)
 			var captured_item := item
+			_bag_slots.append([btn, captured_item])
 			btn.mouse_entered.connect(func():
 				_show_item_tooltip(captured_item, get_viewport().get_mouse_position()))
 			btn.mouse_exited.connect(func(): _hide_item_tooltip())
@@ -5738,8 +5749,8 @@ func _build_item_tooltip() -> void:
 	vb.add_child(_item_tip_hint_lbl)
 
 
-func _show_item_tooltip(item: EquipmentItem, mouse_pos: Vector2, hint: String = "") -> void:
-	if not _item_tip or _dragged_item:
+func _show_item_tooltip(item: EquipmentItem, mouse_pos: Vector2, hint: String = "", during_drag: bool = false) -> void:
+	if not _item_tip or (_dragged_item and not during_drag):
 		return
 	_item_tip_name_lbl.text = "%s  ·  %s" % [item.name, item.get_rarity_name()]
 	_item_tip_name_lbl.add_theme_color_override("font_color", item.icon_color.lightened(0.25))
@@ -5754,9 +5765,10 @@ func _show_item_tooltip(item: EquipmentItem, mouse_pos: Vector2, hint: String = 
 		"magic": "Magic Power", "res": "Defense",
 		"aspd": "Attack Speed", "hpregen": "HP Regen", "manaregen": "MP Regen",
 		"crit": "Crit Chance", "critdmg": "Crit Damage",
+		"magic_resist": "Magic Resist", "cdr": "Ability Haste",
 	}
 	const FLOAT_STATS := ["aspd", "hpregen", "manaregen"]
-	for stat in ["hp", "mana", "atk", "magic", "res", "aspd", "hpregen", "manaregen", "crit", "critdmg"]:
+	for stat in ["hp", "mana", "atk", "magic", "res", "magic_resist", "aspd", "hpregen", "manaregen", "crit", "critdmg", "cdr"]:
 		var raw: float = float(item.stat_bonus.get(stat, 0))
 		if raw > 0:
 			var lbl := Label.new()
@@ -5774,10 +5786,13 @@ func _show_item_tooltip(item: EquipmentItem, mouse_pos: Vector2, hint: String = 
 
 	# Every passive spelled out with its own rolled numbers, one per line — a
 	# fused item listing "Evasion, Thorns" told the player nothing (2026-08-02).
-	if not item.passives.is_empty():
+	# Component items keep item.passives EMPTY on purpose (legacy combat hooks
+	# read it); their passives only come through get_passive_lines().
+	var passive_lines: Array = item.get_passive_lines()
+	if not passive_lines.is_empty():
 		_item_tip_passive_lbl.text = "◆ Passives"
 		_item_tip_passive_lbl.visible = true
-		_item_tip_passive_desc.text = "\n".join(item.get_passive_lines())
+		_item_tip_passive_desc.text = "\n".join(passive_lines)
 		_item_tip_passive_desc.visible = true
 	else:
 		_item_tip_passive_lbl.visible = false
@@ -5920,6 +5935,13 @@ func _end_item_drag() -> void:
 	if not item:
 		return
 
+	var bag_target := _bag_item_at(get_viewport().get_mouse_position(), item)
+	_combine_target = null
+	_hide_item_tooltip()
+	if bag_target:
+		_drop_combine(item, bag_target)
+		return
+
 	var mouse     := get_viewport().get_mouse_position()
 	var grid_local := mouse - Vector2(battle_grid_node.global_position)
 	var cx := int(grid_local.x / battle_grid.cell_size)
@@ -5933,6 +5955,69 @@ func _end_item_drag() -> void:
 			info_label.text = "%s has no free equipment slot (%d)!" % [unit.unit_name, _equipment_inventory.hero_item_cap()]
 	else:
 		info_label.text = "Drop on a hero to equip."
+
+# ── Drag an item onto another to combine (component equipment) ──────────────
+func _bag_item_at(pos: Vector2, exclude: EquipmentItem) -> EquipmentItem:
+	for pair in _bag_slots:
+		var b = pair[0]
+		if pair[1] != exclude and b and is_instance_valid(b) and b.get_global_rect().has_point(pos):
+			return pair[1]
+	return null
+
+func _update_combine_hover() -> void:
+	var mouse := get_viewport().get_mouse_position()
+	var target := _bag_item_at(mouse, _dragged_item)
+	if target != _combine_target:
+		_combine_target = target
+		if target == null:
+			_hide_item_tooltip()
+		else:
+			_show_combine_preview(_dragged_item, target, mouse)
+	elif target and _item_tip and _item_tip.visible:
+		_reposition_item_tooltip(mouse)
+
+# What the merge would make, shown while hovering. A lossless merge previews
+# the exact result; one that needs levels removed lists the pooled passives.
+# The item dropped ONTO is the first input, so it wins icon-centre ties.
+func _show_combine_preview(dragged: EquipmentItem, target: EquipmentItem, pos: Vector2) -> void:
+	if not (dragged is ComponentEquipmentItem and target is ComponentEquipmentItem):
+		return
+	var ca := target as ComponentEquipmentItem
+	var cb := dragged as ComponentEquipmentItem
+	if not ComponentEquipmentRules.can_combine(ca, cb):
+		var why := "Legendary is the top tier" if ca.rarity >= EquipmentItem.Rarity.LEGENDARY \
+			else "Only items of the same rarity combine"
+		_show_item_tooltip(target, pos, "✕ " + why, true)
+		return
+	var need := ComponentEquipmentRules.levels_to_remove(ca, cb)
+	if need == 0:
+		var result := ComponentEquipmentRules.combine(ca, cb, ComponentEquipmentInventory.STAT_KEEP)
+		if result:
+			_show_item_tooltip(result, pos, "Release to combine", true)
+		return
+	var preview := ComponentEquipmentItem.new("Choose", ca.rarity + 1)
+	preview.passive_levels = ComponentEquipmentRules.pooled_levels(ca, cb)
+	preview.name = "%s (you pick)" % preview.get_rarity_name()
+	_show_item_tooltip(preview, pos, "Release, then remove %d level%s" % [need, "" if need == 1 else "s"], true)
+
+func _drop_combine(dragged: EquipmentItem, target: EquipmentItem) -> void:
+	if not (dragged is ComponentEquipmentItem and target is ComponentEquipmentItem \
+			and _equipment_inventory is ComponentEquipmentInventory):
+		info_label.text = "Drop on a hero to equip."
+		return
+	var ca := target as ComponentEquipmentItem
+	var cb := dragged as ComponentEquipmentItem
+	if not ComponentEquipmentRules.can_combine(ca, cb):
+		info_label.text = "Only items of the same rarity combine."
+		return
+	var sources: Array[EquipmentItem] = [target, dragged]
+	if ComponentEquipmentRules.levels_to_remove(ca, cb) > 0:
+		_equipment_panel.open(_equipment_inventory, player_units)
+		_equipment_panel.open_level_removal(sources)
+		return
+	var merged := (_equipment_inventory as ComponentEquipmentInventory).combine_components(sources)
+	if merged:
+		info_label.text = "Combined into %s (%s)" % [merged.name, merged.get_rarity_name()]
 
 
 func _sb_accordion(title: String, body: Control, open: bool = false) -> Button:

@@ -146,7 +146,10 @@ func _inventory() -> void:
 	inv.add_item(ComponentEquipmentRules.create_common("hp"))
 	inv.add_item(ComponentEquipmentRules.create_common("atk"))
 	inv.set_auto_combine(true)
-	_check(inv.items.size() == 2, "auto never pairs greys")
+	_check(inv.items.size() == 2, "auto never pairs MIXED greys")
+	inv.add_item(ComponentEquipmentRules.create_common("hp"))
+	_check(inv.items.size() == 2 and inv.items.any(func(it): return it.passive_levels.has("last_bastion")),
+		"auto pairs identical greys (hp+hp -> last bastion)")
 	inv.items.clear()
 	inv.add_item(_green("hp", "atk"))
 	inv.add_item(_green("res", "res"))
@@ -181,6 +184,17 @@ func _passives() -> void:
 	var p: Array
 	var a: UnitBase
 	var b: UnitBase
+
+	# Crash regression (2026-09-26): a projectile / DoT whose attacker was already
+	# freed. `is` on a freed instance is a hard script error, so these must not error.
+	var ghost := _unit(true, {"lifesteal": 4, "arcane_precision": 4})
+	var hurt := _unit(false, {"thorns": 4, "bulwark": 4})
+	hurt.gear["bulwark_cd"] = 99.0
+	_mgr.player_units.erase(ghost)
+	ghost.free()
+	hurt.take_damage(40, UnitBase.Element.NORMAL, ghost)            # projectile landing
+	hurt.take_damage(10, UnitBase.Element.FIRE, ghost, true)        # burn tick
+	_check(hurt.current_hp == 950, "freed attacker: hits still land, no script error (%d)" % hurt.current_hp)
 
 	# No gear: every hook is inert.
 	var plain := _unit(true)

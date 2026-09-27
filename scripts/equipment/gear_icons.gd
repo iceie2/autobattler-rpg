@@ -1,11 +1,12 @@
 extends RefCounted
 class_name GearIcons
 
-# Composite icons for component equipment (icon model, EQUIPMENT_GREEN_PAIRS.md):
-#   grey   = the stat's item object
-#   green  = its passive emblem + its two stat badges small in the top corners
-#   blue+  = the highest-level passive's emblem in a tier frame, level pips, and
-#            every other passive as a mini emblem in a rim notch (top, bottom, left)
+# Composite icons for component equipment (icon model, EQUIPMENT_GREEN_PAIRS.md;
+# every tier is an OBJECT since 2026-09-26):
+#   grey   = the component's item object
+#   green  = a crafted object built from its two greys (passive_<key>.png)
+#   blue+  = the highest-level passive's object in a tier frame, level pips, and
+#            every other passive as a mini object in a rim notch (top, bottom, left)
 # Art comes from assets/using/equipment_icons/<key>.png (tools/sprite_pipeline/
 # equipment_icons.py). Until a file exists, a placeholder is drawn: the old 64px
 # item art for objects, and the passive's two family colours for emblems. Legacy
@@ -88,18 +89,8 @@ static func _compose(item: ComponentEquipmentItem) -> Image:
 		_blit(img, frame, Rect2i(0, 0, SIZE, SIZE))
 	else:
 		_border(img, item.icon_color, 3 if item.rarity >= EquipmentItem.Rarity.RARE else 2)
-	# Green: its two stat badges in the top corners.
-	if item.rarity == EquipmentItem.Rarity.UNCOMMON:
-		var comps: Array = item.composition.keys()
-		if comps.size() == 1:
-			comps.append(comps[0])
-		for i in range(mini(2, comps.size())):
-			var at := Rect2i(4 if i == 0 else SIZE - 20, 4, 16, 16)
-			var badge: Image = _art("badge_" + str(comps[i]))
-			if badge:
-				_blit(img, badge, at)
-			else:
-				_disc(img, at.get_center(), 6, COMPONENT_COLOR.get(str(comps[i]), Color.WHITE))
+	# (No stat badges: since 2026-09-26 a green's art is a crafted object built
+	# from its two greys, so the recipe is already visible in the object.)
 	# Blue+: level pips for the centre, notches for the rest.
 	if item.rarity >= EquipmentItem.Rarity.RARE and center != "":
 		var n := int(levels[center])

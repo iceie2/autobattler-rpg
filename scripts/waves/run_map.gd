@@ -798,7 +798,7 @@ static func _reward_from_stub(stub: Dictionary, round_no: int) -> Dictionary:
 			var want: int = int(stub.get("rarity", 0))
 			var item: EquipmentItem = null
 			for _i in range(12):
-				item = EquipmentManager.generate_item(round_no, want)
+				item = ComponentEquipmentGateway.generate_item(round_no, want)   # new system when active
 				if item and int(item.rarity) == want:
 					break
 			out["item"] = item
