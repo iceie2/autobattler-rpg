@@ -1288,7 +1288,7 @@ throwaway probe instead).
 
 ---
 
-## VD-18 - The hero XP nodes only boosted kill XP - status: DECIDED
+## VD-18 - The hero XP nodes only boosted kill XP - status: BUILT 2026-09-27 (9c146a74), smoke check not yet run
 
 **Finding (measured 2026-09-27).** Hero XP per battle is
 `(damage dealt / 8 + kill XP) x row bonus` (x1.10 back row .. x1.40 front,
@@ -1322,6 +1322,13 @@ XP: ~31-32.
 Known and left alone: `set_level` (the tree's start-level node) never advances
 `xp_to_level`, so heroes that start at level 10 pay level-1 XP costs. It is part
 of what lands them in the 25-33 band.
+
+**Built 2026-09-27 (9c146a74).** `main_game._hero_xp_node_mult` applies Quick
+Learner and Tutelage to the damage share as well as the kill share (kill math
+unchanged). Modelled landing by wave 100: full tree ~31 Normal / ~32 Brutal for
+the whole team, half the XP nodes ~29-31. `ceremony_smoke` gained a VD-18 check
+(800 damage -> 100 XP x Quick Learner x row bonus) that has NOT been run yet: the
+owner was playing, and main_game-based smokes write the live save files.
 
 ---
 
