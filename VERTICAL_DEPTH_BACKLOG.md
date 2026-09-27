@@ -1367,6 +1367,33 @@ saves with a specific pre-rolled reward still pay that reward.
 
 ---
 
+## VD-20 - Relic unlocks move from the crystal tree to milestones - status: DECIDED (mapping in review)
+
+**Owner decision (2026-09-27), verbatim:**
+
+> "so we have relics locked behind crystal tree. i thin we should move those to
+> milestone unlocks. either from beating certain waves/bosses or if they do a
+> certain team comp etc. and once u unlock them they are in future runs"
+
+**DECIDED - relics are earned by milestones, not bought.** A milestone is met
+in a run (a wave or boss beaten, a team comp or way of winning); the relic is
+then in the pool for every future run.
+
+**Today:** 46 tree nodes gate relics - 32 single-relic nodes across 8 mechanic
+families and 14 stat-ladder bundles (33 relics). The owner's save owns none, so
+no refunds. A- and S-grade First Strike claim a tree unlock but are ungated.
+
+**Worksheet:** `RELIC_MILESTONES.md` - proposed rules (the condition teaches
+the relic; unlock by family in two tiers; mix progress and play style; tier 1
+reachable in the first few runs; a collection screen + unlock banner so players
+can chase them; remove the 46 nodes) and a draft condition for every family and
+ladder.
+
+**Blocked on.** Owner review of the rows and the four open questions in the
+worksheet.
+
+---
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
