@@ -59,8 +59,16 @@ const INCLUDE_CAMP := true
 # boss poorer and lower-level for it. That's the trade the player is making, and
 # it's why a wave row always keeps at least one real fight (so the wave EXISTS
 # for anyone who wants it) and why the elite and boss rows are fights only.
-const UTILITY_CHANCE := 0.30
-const MAX_UTILITY_NODES_PER_BIOME := 4
+# Raised 2026-09-27 (VD-17, owner: "we need more events/merchants"): a route
+# met 0.93 events over ten stages at 0.30 / 4.
+const UTILITY_CHANCE := 0.60
+const MAX_UTILITY_NODES_PER_BIOME := 9
+
+# VD-17: where the two merchants go, and how hard generation tries to make
+# both reachable (see merchant_reach_problems).
+const MERCHANT_EARLY := Vector2i(3, 4)
+const MERCHANT_LATE := Vector2i(7, 9)
+const MERCHANT_REACH_ATTEMPTS := 40
 
 # One start plus ten stages. There are no interstitial rows.
 const ROW_PLAN: Array[Dictionary] = [
@@ -99,7 +107,13 @@ static func generate(biome_index: int, rng_seed: int = 0, roll_rewards: bool = t
 	map.biome = maxi(0, biome_index)
 	map.generation_seed = rng_seed if rng_seed != 0 else randi()
 	map._rng.seed = map.generation_seed
-	map._build(roll_rewards)
+	# VD-17: a merchant the player's lane can't reach is a merchant that
+	# doesn't exist. Rebuild (the rng carries on, so this stays deterministic
+	# per seed) until both merchants are reachable from where they must be.
+	for _attempt in range(MERCHANT_REACH_ATTEMPTS):
+		map._build(roll_rewards)
+		if map.merchant_reach_problems().is_empty():
+			break
 	return map
 
 func _build(roll_rewards: bool) -> void:
@@ -107,10 +121,12 @@ func _build(roll_rewards: bool) -> void:
 	cleared.clear()
 	current_id = ""
 	_utility_budget = MAX_UTILITY_NODES_PER_BIOME
-	# Exactly one merchant, late enough that the player has gold and early enough
-	# to matter before the boss. Its stage is guaranteed to contain utility even
-	# when that row rolls only two choices.
-	var merchant_wave: int = _rng.randi_range(6, 9)
+	# TWO merchants per biome (VD-17, owner 2026-09-27: three runs to biome 3
+	# without meeting one). The first comes once the player has had a few
+	# fights' gold; the second after the elite, before the boss. Each merchant
+	# row is guaranteed to contain utility even when it rolls only two choices.
+	var merchant_waves: Array = [_rng.randi_range(MERCHANT_EARLY.x, MERCHANT_EARLY.y),
+		_rng.randi_range(MERCHANT_LATE.x, MERCHANT_LATE.y)]
 
 	for r in range(ROW_PLAN.size()):
 		var plan: Dictionary = ROW_PLAN[r]
@@ -119,7 +135,7 @@ func _build(roll_rewards: bool) -> void:
 				rows.append([_make_node(r, 1, NodeType.RELIC, 0, 0, roll_rewards)])
 			"battle":
 				var wave: int = int(plan["wave"])
-				rows.append(_build_battle_row(r, wave, roll_rewards, wave == merchant_wave))
+				rows.append(_build_battle_row(r, wave, roll_rewards, wave in merchant_waves))
 			"elite":
 				rows.append(_build_tiered_row(r, int(plan["wave"]), NodeType.ELITE, roll_rewards))
 			"boss":
@@ -804,6 +820,45 @@ static func _reward_from_stub(stub: Dictionary, round_no: int) -> Dictionary:
 			out["item"] = item
 	return out
 
+# VD-17: a merchant only counts if the player's lane can reach it. Every
+# wave-1 node must reach the early merchant, and every elite node (wave 5) the
+# late one — so whichever lane a player takes, both are still on the table.
+func merchant_reach_problems() -> Array:
+	var bad: Array = []
+	var early: Array = []
+	var late: Array = []
+	for row in rows:
+		for n in row:
+			if int(n["type"]) != NodeType.MERCHANT:
+				continue
+			if int(n.get("slot_wave", 0)) <= 5:
+				early.append(String(n["id"]))
+			else:
+				late.append(String(n["id"]))
+	if early.size() != 1 or late.size() != 1:
+		bad.append("%d early / %d late merchants, expected 1 / 1" % [early.size(), late.size()])
+		return bad
+	for n in rows[1]:
+		if not _can_reach(n, early[0]):
+			bad.append("%s cannot reach the early merchant %s" % [n["id"], early[0]])
+	for n in rows[5]:
+		if not _can_reach(n, late[0]):
+			bad.append("%s cannot reach the late merchant %s" % [n["id"], late[0]])
+	return bad
+
+func _can_reach(start: Dictionary, target_id: String) -> bool:
+	var stack: Array = [start]
+	var seen: Dictionary = {}
+	while not stack.is_empty():
+		var n: Dictionary = stack.pop_back()
+		if String(n["id"]) == target_id:
+			return true
+		for cid in n["children"]:
+			if not seen.has(cid):
+				seen[cid] = true
+				stack.append(node_by_id(String(cid)))
+	return false
+
 # ── Invariants (asserted by arena --mode=map) ─────────────────────────────────
 # Returns a list of human-readable violations; empty means the map is sound.
 func validate() -> Array:
@@ -870,14 +925,8 @@ func validate() -> Array:
 	if waves.size() != WAVES_PER_BIOME:
 		bad.append("map only offers %d of the %d waves (%s)"
 			% [waves.size(), WAVES_PER_BIOME, str(waves)])
-	# Exactly one merchant per biome.
-	var merchants: int = 0
-	for row in rows:
-		for n in row:
-			if int(n["type"]) == NodeType.MERCHANT:
-				merchants += 1
-	if merchants != 1:
-		bad.append("%d merchants in one biome, expected exactly 1" % merchants)
+	# Two merchants per biome, each reachable from where it must be (VD-17).
+	bad.append_array(merchant_reach_problems())
 
 	# Reachability: walk forward from row 0 and make sure every node is hit.
 	var reached: Dictionary = {}

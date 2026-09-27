@@ -1245,7 +1245,7 @@ drifts back toward the scrapped element-stat pattern.
 
 ---
 
-## VD-17 - Players go whole runs without meeting a merchant - status: ACTIVE
+## VD-17 - Players go whole runs without meeting a merchant - status: DONE
 
 **Owner report (2026-09-27).**
 
@@ -1265,6 +1265,22 @@ nodes over its ten stages.
    until it holds; `validate()` enforces it.
 3. More events: the optional side-node budget and chance go up; measured per
    route before and after.
+
+**Landed 2026-09-27.** `MERCHANT_EARLY` waves 3-4, `MERCHANT_LATE` 7-9;
+`generate()` retries (up to 40, rng carried on, still deterministic per seed)
+until `merchant_reach_problems()` is empty; `validate()` checks it.
+`UTILITY_CHANCE` 0.30 -> 0.60, `MAX_UTILITY_NODES_PER_BIOME` 4 -> 9.
+
+| | before | after |
+|---|---:|---:|
+| random route meets a merchant | 35% | **83%** |
+| elite lanes that can reach one | 70% | **100%** |
+| no merchant across 3 biomes (random route) | 27% | **0.5%** |
+| events / side nodes per route | 0.93 / 1.58 | 1.26 / 2.83 |
+| battle nodes per map | ~20.7 | 18.5 |
+
+A player who wants a shop can always reach both. `--mode=map` 2000 maps: 0
+violations, Normal-in-every-row / way-down / max-paths all hold. map_smoke passes.
 
 **Files.** `scripts/waves/run_map.gd` only (the map harness in
 `arena_main.gd` is another agent's open file; the measurement runs from a
