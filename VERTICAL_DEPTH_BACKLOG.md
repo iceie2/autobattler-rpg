@@ -1288,6 +1288,43 @@ throwaway probe instead).
 
 ---
 
+## VD-18 - The hero XP nodes only boosted kill XP - status: DECIDED
+
+**Finding (measured 2026-09-27).** Hero XP per battle is
+`(damage dealt / 8 + kill XP) x row bonus` (x1.10 back row .. x1.40 front,
+`main_game._snapshot_between_round_bonuses`). Kill `xp_reward` is fixed per
+enemy type while enemy HP grows, so over a 100-wave run damage XP is ~23x kill
+XP (96% of hero XP). Quick Learner (20 nodes, +500%, text "+25% battle XP for
+every hero per level") and Tutelage (text "+25% battle XP for heroes below your
+highest hero's level") only multiplied the kill share: +1 level by wave 100 on
+Normal, +0 on Brutal. XP to the next level starts at 100 and grows x1.5 per
+level; the tree raises the cap to 50.
+
+Modelled with every wave fought and won (real WaveDirector enemy HP, xpcurve
+team sizes, mid-row bonus, top damage dealer at 1.5x the average share): a fresh
+account hits the level-10 cap around wave 30; a full tree (heroes start at 10)
+reaches ~27 on Normal / ~28 on Brutal by wave 100. With the nodes applied to all
+XP: ~31-32.
+
+**Owner decision (2026-09-27), verbatim:**
+
+> "sure it make it apply to all. and we hit crazy stats by level 50 and thats
+> not even considering items, relic or the crystal tree. so 50 can be the max
+> that no one can ever reach, it sounds like most will land 25-33 with the
+> apply to all change"
+
+1. **DECIDED - Quick Learner and Tutelage multiply all battle XP** (damage and
+   kills), which is what their descriptions already say. Event XP payouts stay
+   exactly as the event states.
+2. **DECIDED - level 50 stays the cap and is not meant to be reached.** The
+   x1.5 XP curve is unchanged; invested heroes are expected to land ~25-33.
+
+Known and left alone: `set_level` (the tree's start-level node) never advances
+`xp_to_level`, so heroes that start at level 10 pay level-1 XP costs. It is part
+of what lands them in the 25-33 band.
+
+---
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
