@@ -12,14 +12,27 @@ extends Node
 
 func _ready() -> void:
 	var hero := "STATIC"
+	var enemy := ""   # --enemy=<EnemyFactory type>, e.g. drowned_maw (2026-09-25)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--hero="): hero = a.split("=")[1].to_upper()
+		if a.begins_with("--enemy="): enemy = a.split("=")[1]
 
 	get_window().size = Vector2i(1920, 1080)
 	var mg: Node = (load("res://scenes/main_game.tscn") as PackedScene).instantiate()
 	add_child(mg)
 	for i in range(30):
 		await get_tree().process_frame
+
+	if enemy != "":
+		var e: UnitBase = EnemyFactory.create_by_type(enemy)
+		if not e:
+			push_error("unknown enemy %s" % enemy)
+			get_tree().quit()
+			return
+		add_child(e)
+		hero = enemy
+		await _capture(mg, e)
+		return
 
 	var cls: int = -1
 	for c in UnitFactory.get_all_classes():
@@ -46,6 +59,10 @@ func _ready() -> void:
 		return
 	var u: UnitBase = heroes[0]
 	u.set_level(8)
+	await _capture(mg, u)
+
+func _capture(mg: Node, u: UnitBase) -> void:
+	var hero: String = u.unit_name
 
 	# Open the details panel through whatever entry point main_game exposes.
 	if mg.has_method("_show_unit_details"):

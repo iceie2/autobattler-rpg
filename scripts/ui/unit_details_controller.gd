@@ -443,10 +443,16 @@ func _refresh() -> void:
 	# code. ClassBrowser text remains the fallback for anything the registry does
 	# not cover (enemies, summons, legacy base classes).
 	var kit := _hero_kit_text(unit)
+	# 2026-09-25: enemies list every move they own too (passive, skill,
+	# ultimate), not just the skill — see _enemy_kit_text.
+	var enemy_kit := _enemy_kit_text(unit)
 	if skill_name_lbl:
-		skill_name_lbl.text = kit[0] if kit[0] != "" else (unit.skill_name if unit.skill_name != "" else "-")
+		if enemy_kit[0] != "":
+			skill_name_lbl.text = enemy_kit[0]
+		else:
+			skill_name_lbl.text = kit[0] if kit[0] != "" else (unit.skill_name if unit.skill_name != "" else "-")
 	if skill_desc_lbl:
-		var resolved := _kit_numbers_text(unit)
+		var resolved: String = enemy_kit[1] if enemy_kit[1] != "" else _kit_numbers_text(unit)
 		if resolved != "":
 			skill_desc_lbl.text = resolved
 		else:
@@ -505,6 +511,36 @@ func _kit_numbers_text(unit: UnitBase) -> String:
 	if out.is_empty():
 		return ""
 	return "\n\n".join(out)
+
+# [names_line, blurb] for a non-player unit, in the same PASSIVE / ACTIVE /
+# ULTIMATE layout the hero kit uses. Reads the passive from the passive_name /
+# passive_desc metas, the skill straight off the unit, and the ultimate from
+# ultimate_name + the ultimate_desc meta (EnemyFactory sets all of these). Empty
+# slots are skipped; ["", ""] when there is nothing at all, so the caller falls
+# back to the old single-skill readout.
+func _enemy_kit_text(unit: UnitBase) -> Array:
+	if unit.is_player_unit:
+		return ["", ""]
+	var slots := [
+		[String(unit.get_meta("passive_name", "")), String(unit.get_meta("passive_desc", ""))],
+		[unit.skill_name, unit.skill_description],
+		[unit.ultimate_name, String(unit.get_meta("ultimate_desc", ""))],
+	]
+	var names: Array[String] = []
+	var out: Array[String] = []
+	for i in 3:
+		var slot_name: String = slots[i][0]
+		var slot_desc: String = slots[i][1]
+		if slot_name == "" and slot_desc == "":
+			continue
+		if slot_name != "":
+			names.append(slot_name)
+		out.append("[color=%s]%s[/color]  [color=%s]%s[/color]\n%s" % [
+			KIT_SLOT_COLORS[i], KIT_SLOT_LABELS[i],
+			KIT_SLOT_COLORS[i], slot_name, slot_desc])
+	if out.is_empty():
+		return ["", ""]
+	return [" / ".join(names), "\n\n".join(out)]
 
 func _hero_kit_text(unit: UnitBase) -> Array:
 	if not unit.is_player_unit:

@@ -959,12 +959,31 @@ func display_desc(key: String) -> String:
 	var upgrade := _find(key)
 	return String(upgrade.get("desc", ""))
 
+# Hero unlocks share ONE price ladder (2026-09-25 owner request): every
+# unbought hero costs the same, and each hero bought raises the price of all
+# the rest. The node's own cost_mult (the generator's per-spoke ramp) is
+# ignored. 1st hero 150c, 12th ~1,115c, 20th ~4,930c.
+const HERO_UNLOCK_BASE := 150.0
+const HERO_UNLOCK_RAMP := 1.2
+
+func hero_unlocks_owned() -> int:
+	var n := 0
+	for key: String in HERO_UNLOCK_KEYS.values():
+		if get_level(key) >= 1:
+			n += 1
+	return n
+
+func _hero_unlock_cost(owned: int) -> int:
+	return roundi(HERO_UNLOCK_BASE * pow(HERO_UNLOCK_RAMP, owned))
+
 # Cost to purchase the next level of an upgrade (returns -1 if already maxed)
 func next_cost(key: String) -> int:
 	var lvl := get_level(key)
 	var upgrade := _find(key)
 	if upgrade.is_empty() or lvl >= max_level(key):
 		return -1
+	if key.begins_with("hero_unlock_"):
+		return _hero_unlock_cost(hero_unlocks_owned())
 	# Exponential curve: base 10, multiplier 1.255, caps near 750 at level 19
 	# Lv0→1: 10c  |  Lv4→5: 25c  |  Lv9→10: 77c  |  Lv14→15: 240c  |  Lv19→20: 749c
 	# cost_mult scales the whole curve for premium nodes (per-kill economy pair).
@@ -1027,7 +1046,11 @@ func buy(key: String) -> bool:
 # crystals_spent, the real ledger. See reset_all().
 func total_spent() -> int:
 	var spent := 0
+	for i in range(hero_unlocks_owned()):
+		spent += _hero_unlock_cost(i)
 	for u in _catalogue:
+		if String(u["key"]).begins_with("hero_unlock_"):
+			continue    # replayed above from the shared ramp
 		var mult: float = float(u.get("cost_mult", 1.0))
 		for lvl in range(get_level(u["key"])):
 			spent += roundi(10.0 * pow(1.255, lvl) * mult)

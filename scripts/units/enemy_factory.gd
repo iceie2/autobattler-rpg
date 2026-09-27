@@ -1089,6 +1089,8 @@ static func create_triarch(lvl: int = 1) -> VisualUnit:
 	# ever reaches 0 HP the external leveling has long since happened, so the
 	# lazy snapshot in advance_triarch_phase() always sees the real scaled stats.
 	u.set_meta("triarch_phase", 1)
+	u.set_meta("passive_name", "Three Forms")
+	u.set_meta("passive_desc", "Each time it falls it rises again at full health in a new form: Melee, then Ranger, then Arcane.")
 	return u
 
 # Called from VisualUnit.die() when a Triarch's HP hits 0. Transforms it into
@@ -1212,6 +1214,8 @@ static func create_stat_stealer(lvl: int = 1) -> VisualUnit:
 	u.ultimate_damage_mult = 0.0      # utility ultimate, no direct damage
 	u.ultimate_range = 6
 	u.ultimate_charge_max = 350
+	u.set_meta("ultimate_desc", "Drains a random stat off its target over 10s (up to %d%% of it) and keeps it until it dies." \
+			% roundi(AutoBattleManager.DRAIN_MAX_STEAL_PCT * 100.0))
 
 	if lvl > 1: u.set_level(lvl)
 	return u
@@ -1252,6 +1256,9 @@ static func create_ant_hill(lvl: int = 1) -> VisualUnit:
 	u.xp_reward       = 130
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "ant_hill")
+	u.set_meta("passive_name", "Swarm")
+	u.set_meta("passive_desc", "Spawns an Ant every %.1fs (up to %d alive). Every Ant bite makes every Ant hit harder, with no cap. Kill the hill fast." % [
+		Balance.ANT_HILL_SPAWN_INTERVAL, Balance.ANT_HILL_MAX_ANTS])
 	u.is_elite        = true
 	u.tenacity        = TENACITY_ELITE
 	u.ultimate_charge_max = 0     # no skill/ultimate — purely the passive spawn behavior
@@ -1310,6 +1317,8 @@ static func create_gale_warden(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_ELITE
 	# Reuses the player-equipment evasion roll — enemies read the same dict.
 	u.equipment_passives["Evasion"] = GALE_WARDEN_EVASION
+	u.set_meta("passive_name", "Windborne")
+	u.set_meta("passive_desc", "%d%% of direct hits against it miss entirely." % roundi(GALE_WARDEN_EVASION * 100.0))
 
 	u.set_meta("mob_skill", "gale_shove")
 	u.skill_name = "Cyclone Shove"
@@ -1367,6 +1376,9 @@ static func create_tidecaller(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_ELITE
 
 	u.set_meta("mob_passive", "tide_font")
+	u.set_meta("passive_name", "Tide Font")
+	u.set_meta("passive_desc", "Allies within %d tiles regenerate %.1f%% of their max HP per second." % [
+		int(AutoBattleManager.TIDE_FONT_RANGE), AutoBattleManager.TIDE_FONT_PCT_PER_SEC * 100.0])
 	u.set_meta("mob_skill", "tide_ward")
 	u.skill_name = "Tidal Ward"
 	u.skill_description = "Shield the most-wounded ally in range (itself included) for 20% of their max HP. · 7s CD"
@@ -1421,6 +1433,9 @@ static func create_terracotta_colossus(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_ELITE
 
 	u.set_meta("mob_passive", "terracotta_harden")
+	u.set_meta("passive_name", "Set in Stone")
+	u.set_meta("passive_desc", "Gains +%d armor every second it lives, up to +%d. Kill it fast." % [
+		int(AutoBattleManager.TERRACOTTA_ARMOR_PER_SEC), int(AutoBattleManager.TERRACOTTA_ARMOR_CAP)])
 	u.ultimate_charge_max = 0     # no skill/ultimate — the hardening passive IS the kit
 
 	if lvl > 1: u.set_level(lvl)
@@ -1466,6 +1481,10 @@ static func create_magma_heart(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_ELITE
 
 	u.set_meta("mob_passive", "magma_pulse")
+	u.set_meta("passive_name", "Eruption")
+	u.set_meta("passive_desc", "Every %ds it burns your whole team, each pulse hotter than the last (+%d%% MAG burn per pulse, up to %d pulses). It has no attack." % [
+		int(AutoBattleManager.MAGMA_PULSE_INTERVAL), roundi(AutoBattleManager.MAGMA_PULSE_DPS_PCT * 100.0),
+		AutoBattleManager.MAGMA_PULSE_MAX_STACKS])
 	u.ultimate_charge_max = 0     # no skill/ultimate — the pulse passive IS the kit
 
 	if lvl > 1: u.set_level(lvl)
@@ -1570,6 +1589,9 @@ static func create_mirrorplate_warden(lvl: int = 1) -> VisualUnit:
 	# strictly-bigger round-95 elite was winnable — the reflect, not the body, was
 	# doing the killing. 15% keeps it a real overkill tax without out-scaling.
 	u.set_meta("mob_reflect", 0.15)
+	u.set_meta("passive_name", "Mirrorplate")
+	u.set_meta("passive_desc", "Throws 15%% of every hit it takes back at the attacker (at most %.1f%% of the attacker's max HP per hit). The reflect can never kill." \
+			% (AutoBattleManager.MIRROR_REFLECT_MAX_HP_PCT * 100.0))
 	u.ultimate_charge_max = 0     # no skill/ultimate — the reflect IS the kit
 
 	if lvl > 1: u.set_level(lvl)
@@ -1614,6 +1636,8 @@ static func create_aspect_devourer(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_ELITE
 
 	u.set_meta("mob_passive", "aspect_devour")
+	u.set_meta("passive_name", "Devour Aspect")
+	u.set_meta("passive_desc", "Every %ds it devours a new element and becomes it, changing what hurts it. Mixed damage types handle it best." % int(AutoBattleManager.ASPECT_CYCLE_INTERVAL))
 	u.ultimate_charge_max = 0     # no skill/ultimate — the element cycle IS the kit
 
 	if lvl > 1: u.set_level(lvl)
@@ -1684,6 +1708,8 @@ static func create_khagan(lvl: int = 1) -> VisualUnit:
 
 	if lvl > 1: u.set_level(lvl)
 	u.set_meta("khagan_phase", 1)
+	u.set_meta("passive_name", "Horde Lord")
+	u.set_meta("passive_desc", "When its mount falls it fights on dismounted, faster and squishier. When that body falls it possesses one of your heroes: survive the timer (or burst the puppet) to win.")
 	return u
 
 # Called from VisualUnit.die() when Khagan's HP hits 0. Phase 1→2: transforms
@@ -1846,6 +1872,11 @@ static func create_skyrender(lvl: int = 1) -> VisualUnit:
 	u.skill_mana_cost = 0
 	u.skill_description = "A lance of compressed wind for 135% ATK at up to 3 tiles. · 3s CD"
 	u.set_meta("mob_passive", "skyrender_ascent")
+	u.set_meta("passive_name", "Cyclone Ascent")
+	u.set_meta("passive_desc", "Grounded for %ds, then aloft for %ds, where melee can't reach it. Below %d%% HP it gains +%d%% damage and +%d%% attack speed." % [
+		int(AutoBattleManager.SKYRENDER_GROUND_TIME), int(AutoBattleManager.SKYRENDER_ALOFT_TIME),
+		roundi(AutoBattleManager.SKYRENDER_ENRAGE_HP_PCT * 100.0), roundi(AutoBattleManager.SKYRENDER_ENRAGE_DMG * 100.0),
+		roundi(AutoBattleManager.SKYRENDER_ENRAGE_ASPD * 100.0)])
 	u.set_meta("skyrender_aloft", false)
 	u.set_meta("skyrender_timer", 0.0)
 
@@ -1907,9 +1938,11 @@ static func create_drowned_maw(lvl: int = 1) -> VisualUnit:
 	u.skill_mana_cost = 0
 	# Built by concatenation, not the % operator — the literal "150% ATK" in the
 	# text is itself a format specifier and makes `%` throw a parse error.
-	u.skill_description = "Crushing bite for 150% ATK. While it lives, your team's healing is cut to " \
-			+ str(int(round(AutoBattleManager.DROWNED_HEAL_MULT * 100.0))) + "%. · 4s CD"
+	u.skill_description = "Crushing bite for 150% ATK. · 4s CD"
 	u.set_meta("mob_passive", "drowned_riptide")
+	u.set_meta("passive_name", "Riptide")
+	u.set_meta("passive_desc", "While it lives, all healing your team receives is cut to %d%%." \
+			% roundi(AutoBattleManager.DROWNED_HEAL_MULT * 100.0))
 
 	if lvl > 1: u.set_level(lvl)
 	return u
@@ -1962,7 +1995,10 @@ static func create_cloven_titan(lvl: int = 1) -> VisualUnit:
 	u.skill_range = 1
 	u.skill_cooldown_max = 4
 	u.skill_mana_cost = 0
-	u.skill_description = "Splitting overhead blow for 160% ATK. On death it breaks into two halves that fight on. · 4s CD"
+	u.skill_description = "Splitting overhead blow for 160% ATK. · 4s CD"
+	u.set_meta("passive_name", "Split in Two")
+	u.set_meta("passive_desc", "On death it breaks into two halves (%d%% of its max HP each) that fight on." \
+			% roundi(AutoBattleManager.CLOVEN_HALF_HP * 100.0))
 	u.set_meta("cloven_split", true)
 
 	if lvl > 1: u.set_level(lvl)
@@ -2014,7 +2050,9 @@ static func create_ember_heart(lvl: int = 1) -> VisualUnit:
 	u.skill_range = 2
 	u.skill_cooldown_max = 4
 	u.skill_mana_cost = 0
-	u.skill_description = "Coughs an ember for 110% ATK. While it burns, Emberhollow can return. · 4s CD"
+	u.skill_description = "Coughs an ember for 110% ATK. · 4s CD"
+	u.set_meta("passive_name", "Kindling")
+	u.set_meta("passive_desc", "While any Ember Heart still burns, Emberhollow can return from death once.")
 
 	if lvl > 1: u.set_level(lvl)
 	return u
@@ -2053,7 +2091,10 @@ static func create_emberhollow(lvl: int = 1) -> VisualUnit:
 	u.skill_range = 1
 	u.skill_cooldown_max = 4
 	u.skill_mana_cost = 0
-	u.skill_description = "Furnace blast for 150% ATK. Returns once at half health unless both Ember Hearts are out. · 4s CD"
+	u.skill_description = "Furnace blast for 150% ATK. · 4s CD"
+	u.set_meta("passive_name", "Hollow Return")
+	u.set_meta("passive_desc", "Returns once at %d%% health unless both Ember Hearts are out." \
+			% roundi(AutoBattleManager.EMBERHOLLOW_REVIVE_HP * 100.0))
 	u.set_meta("emberhollow_revive", true)
 
 	if lvl > 1: u.set_level(lvl)
@@ -2106,8 +2147,11 @@ static func create_arcfang(lvl: int = 1) -> VisualUnit:
 	u.skill_range = 1
 	u.skill_cooldown_max = 3
 	u.skill_mana_cost = 0
-	u.skill_description = "Savage bite for 145% ATK. Every 10s it flashes across the field onto your strongest attacker. · 3s CD"
+	u.skill_description = "Savage bite for 145% ATK. · 3s CD"
 	u.set_meta("mob_passive", "arcfang_blink")
+	u.set_meta("passive_name", "Thunder Run")
+	u.set_meta("passive_desc", "Every %ds it flashes across the field beside your strongest attacker, past your frontline." \
+			% int(AutoBattleManager.ARCFANG_BLINK_INTERVAL))
 	u.set_meta("arcfang_timer", 0.0)
 
 	if lvl > 1: u.set_level(lvl)
@@ -2156,7 +2200,11 @@ static func create_gravekeeper(lvl: int = 1) -> VisualUnit:
 	u.skill_range = 1
 	u.skill_cooldown_max = 4
 	u.skill_mana_cost = 0
-	u.skill_description = "Spade sweep for 150% ATK. Every hero that falls rises as a shade under its command. · 4s CD"
+	u.skill_description = "Spade sweep for 150% ATK. · 4s CD"
+	u.set_meta("passive_name", "Grave Call")
+	u.set_meta("passive_desc", "Every hero that falls rises as a shade on its side (%d%% HP, %d%% attack, up to %d at once)." % [
+		roundi(AutoBattleManager.GRAVE_SHADE_HP * 100.0), roundi(AutoBattleManager.GRAVE_SHADE_DMG * 100.0),
+		AutoBattleManager.GRAVE_SHADE_MAX])
 	u.set_meta("gravekeeper", true)
 
 	if lvl > 1: u.set_level(lvl)
@@ -2212,8 +2260,10 @@ static func create_the_architect(lvl: int = 1) -> VisualUnit:
 	u.skill_range = 2
 	u.skill_cooldown_max = 4
 	u.skill_mana_cost = 0
-	u.skill_description = "Monolithic slam for 170% ATK. Cycles the run's three trials as its health falls: out of reach, then healing cut, then hunting your strongest. · 4s CD"
+	u.skill_description = "Monolithic slam for 170% ATK. · 4s CD"
 	u.set_meta("mob_passive", "architect_phases")
+	u.set_meta("passive_name", "The Three Trials")
+	u.set_meta("passive_desc", "Changes trial as its health falls: above 66% it is aloft (melee can't reach it), then your healing is cut, then below 33% it blinks onto your strongest attacker.")
 	u.set_meta("architect_phase", 0)
 	u.set_meta("arcfang_timer", 0.0)      # reused by the phase-3 blink
 
@@ -2287,7 +2337,10 @@ static func _create_hydra(element: UnitBase.Element, lvl: int = 1) -> VisualUnit
 	u.skill_range = 1
 	u.skill_cooldown_max = 5
 	u.skill_mana_cost = 0
-	u.skill_description = "Each head bites a different nearby target for 120% ATK (scales with own elemental affinity). Grows another head every 20s survived, up to 4. · 5s CD"
+	u.skill_description = "Each head bites a different nearby target for 120% ATK (scales with own elemental affinity). · 5s CD"
+	u.set_meta("passive_name", "Regrowth")
+	u.set_meta("passive_desc", "Grows another head every %ds it survives, up to %d, and hits a little harder each time." % [
+		int(AutoBattleManager.HYDRA_REGROW_INTERVAL), AutoBattleManager.HYDRA_MAX_HEADS])
 	u.set_meta("mob_skill", "hydra_strike")
 	u.set_meta("hydra_heads", 1)
 	u.set_meta("hydra_regrow_accum", 0.0)

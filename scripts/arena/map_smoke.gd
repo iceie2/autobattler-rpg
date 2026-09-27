@@ -24,7 +24,26 @@ const DOSSIER_DWELL_S := RunMapScreen.DOSSIER_DWELL
 var _fails: Array = []
 var _checked: int = 0
 
+# Keep the player's real mid-run save out of the blast radius (2026-09-26: this
+# smoke drives the real main_game, which rewrites user://run_save.json, and it
+# replaced a live run once). Snapshot before main_game exists, restore on exit.
+var _save_existed := false
+var _save_backup := ""
+
+func _exit_tree() -> void:
+	if _save_existed:
+		var f := FileAccess.open(RunSave.PATH, FileAccess.WRITE)
+		if f:
+			f.store_string(_save_backup)
+	else:
+		RunSave.clear()
+
 func _ready() -> void:
+	_save_existed = FileAccess.file_exists(RunSave.PATH)
+	if _save_existed:
+		var sf := FileAccess.open(RunSave.PATH, FileAccess.READ)
+		if sf:
+			_save_backup = sf.get_as_text()
 	var mg_scene := load("res://scenes/main_game.tscn") as PackedScene
 	var mg := mg_scene.instantiate()
 	add_child(mg)

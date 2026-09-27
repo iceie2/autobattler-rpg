@@ -112,6 +112,31 @@ func _test_purchase() -> void:
 	# total_spent replays EVERY owned level, including the prereq granted above.
 	_check(Progression.total_spent() == cost + granted_cost,
 		"total_spent replays the generated cost")
+	_test_hero_price_ladder()
+
+# Hero unlocks share one ladder: all unbought heroes cost the same, and each
+# purchase raises every remaining one (2026-09-25).
+func _test_hero_price_ladder() -> void:
+	print("hero price ladder:")
+	Progression.upgrade_levels.clear()
+	var keys: Array = Progression.HERO_UNLOCK_KEYS.values()
+	var first := Progression.next_cost(keys[0])
+	var all_same := true
+	for k: String in keys:
+		all_same = all_same and Progression.next_cost(k) == first
+	_check(all_same, "every unbought hero costs the same (%dc)" % first)
+	Progression.upgrade_levels[keys[0]] = 1
+	var second := Progression.next_cost(keys[1])
+	_check(second > first, "buying one raises the rest (%dc -> %dc)" % [first, second])
+	_check(Progression.next_cost(keys[5]) == second, "raise applies to every remaining hero")
+	for i in range(11):
+		Progression.upgrade_levels[keys[i]] = 1
+	print("    12th hero costs %dc" % Progression.next_cost(keys[11]))
+	var replay := 0
+	for i in range(11):
+		replay += Progression._hero_unlock_cost(i)
+	_eq(Progression.total_spent(), replay, "total_spent replays the shared ladder")
+	Progression.upgrade_levels.clear()
 	Progression.upgrade_levels.clear()
 
 func _test_level_cap() -> void:
