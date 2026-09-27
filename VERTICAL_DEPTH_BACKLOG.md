@@ -1332,6 +1332,31 @@ owner was playing, and main_game-based smokes write the live save files.
 
 ---
 
+## VD-19 - Round rewards become a pick 1 of 3 - status: ACTIVE
+
+**Owner decision (2026-09-27).**
+
+> "change our round reward to a 1 of 3 reward. like item or stat reward will
+> pop up 3 and u get to pick 1. so preview on map would just be stat/item not a
+> specific one"
+
+**Decided.**
+- The map (and the classic difficulty panel) roll only the reward's TYPE -
+  gold, item or stat - plus the gold amount. Odds per tier are unchanged.
+- Items and stats are no longer pre-rolled. After the fight, three candidates
+  are rolled at that fight's tier and round; the player picks one. A stat then
+  goes to the existing "which hero receives it" screen.
+- The map badge shows a generic item (sword) or stat (fist) icon; the preview
+  reads "Item - pick 1 of 3" / "Stat bonus - pick 1 of 3". Nothing specific is
+  promised, so nothing specific needs to survive a save.
+
+**Files.** `economy/round_reward.gd`, new `ui/reward_choice_screen.gd`,
+`waves/run_map.gd`, `ui/run_map_screen.gd`, and the grant branch of
+`core/main_game.gd` (another agent has uncommitted edits in that file; only
+this hunk is committed).
+
+---
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
