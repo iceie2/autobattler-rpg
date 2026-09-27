@@ -4235,6 +4235,24 @@ func reset_player_positions() -> void:
 		unit.move_target_pos = unit.position
 
 
+# ── HERO XP NODES (VD-18) ──────────────────────────────────────────────────
+# Quick Learner (every hero) and Tutelage (heroes below the team's highest
+# level - a late pickup catches up instead of staying dead weight) as ONE
+# multiplier, shared by the kill share and the damage share of battle XP.
+func _hero_xp_node_mult(hero: UnitBase, top_level: int) -> float:
+	var m: float = 1.0 + float(Progression.get_bonus("quick_learner")) / 100.0
+	if hero.level < top_level:
+		m *= 1.0 + float(Progression.get_bonus("catch_up_xp")) / 100.0
+	return m
+
+func _top_hero_level(heroes: Array) -> int:
+	var top: int = 1
+	for hero in heroes:
+		if hero and is_instance_valid(hero):
+			top = maxi(top, hero.level)
+	return top
+
+
 # ── BETWEEN-ROUND BONUSES ──────────────────────────────────────────────────
 # Row bonuses are MEASURED here, at the end of the round that earned them, off
 # the positions the player actually fought in — but they are not applied yet
@@ -4267,6 +4285,7 @@ func _snapshot_between_round_bonuses() -> void:
 	for unit in _downed_heroes:
 		if unit not in measured:
 			measured.append(unit)
+	var top_level: int = _top_hero_level(measured)
 
 	for unit in measured:
 		if not (unit and is_instance_valid(unit)):
@@ -4286,9 +4305,13 @@ func _snapshot_between_round_bonuses() -> void:
 			var heal_pct: float = lerpf(HEAL_BACK, HEAL_FRONT, front_t)
 			heal_amt = int(unit.max_hp * heal_pct)
 
-		# XP from output this battle
+		# XP from output this battle. The kill share already carries Quick
+		# Learner/Tutelage (applied per kill); the damage share - ~96% of hero
+		# XP - gets them here (VD-18: it used to get neither).
 		var xp_mult: float = lerpf(XP_MULT_BACK, XP_MULT_FRONT, front_t)
-		var base_xp: float = float(unit.damage_dealt) / float(XP_PER_DMG) + unit.kill_xp
+		var dmg_xp: float = float(unit.damage_dealt) / float(XP_PER_DMG) \
+			* _hero_xp_node_mult(unit, top_level)
+		var base_xp: float = dmg_xp + unit.kill_xp
 		var xp_gained: float = base_xp * xp_mult
 
 		_pending_row_bonuses.append({
@@ -4614,18 +4637,11 @@ func _on_unit_died(unit) -> void:
 			# 2026-08-03: hero battle XP now rides "quick_learner" (the Mentor
 			# spoke). "bonus_xp" was this upgrade's old key and has been
 			# repurposed for account XP below, which had no upgrade at all.
-			var xp_mult: float = 1.0 + float(Progression.get_bonus("quick_learner")) / 100.0
-			var xp_per_hero: float = float(unit.xp_reward) / float(living_heroes) * xp_mult
-			# Tutelage: heroes behind your best hero learn faster, so a late
-			# pickup can catch up instead of staying dead weight all run.
-			var top_level: int = 1
+			var xp_per_hero: float = float(unit.xp_reward) / float(living_heroes)
+			var top_level: int = _top_hero_level(player_units)
 			for hero in player_units:
 				if hero and is_instance_valid(hero):
-					top_level = maxi(top_level, hero.level)
-			var catch_up: float = 1.0 + float(Progression.get_bonus("catch_up_xp")) / 100.0
-			for hero in player_units:
-				if hero and is_instance_valid(hero):
-					hero.kill_xp += xp_per_hero * (catch_up if hero.level < top_level else 1.0)
+					hero.kill_xp += xp_per_hero * _hero_xp_node_mult(hero, top_level)
 
 		# Player/account level (2026-07-04): a SHARE of every kill's total XP also
 		# feeds the account-wide pool that grows team size — see game_state.gd.

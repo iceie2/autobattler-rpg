@@ -93,6 +93,35 @@ func _ready() -> void:
 	await mg._play_round_start_ceremony()
 	_check(not mg._ceremony_active, "empty ceremony is a no-op")
 
+	# ── VD-18: Quick Learner multiplies the DAMAGE share of battle XP too ────
+	# Damage XP is ~96% of hero XP; the node used to reach only the kill share.
+	# A known Quick Learner level is set in memory only - nothing between here
+	# and the restore saves - so the check means the same on every save.
+	var saved_levels: Dictionary = Progression.upgrade_levels.duplicate(true)
+	Progression.upgrade_levels["quick_learner"] = 4
+	var ql_mult: float = 1.0 + float(Progression.get_bonus("quick_learner")) / 100.0
+	# The highest-level hero, so Tutelage (catch-up) can't join the multiplier.
+	var probe = null
+	for u in mg.player_units:
+		if u and is_instance_valid(u) and (probe == null or u.level > probe.level):
+			probe = u
+	for u in mg.player_units:
+		if u and is_instance_valid(u):
+			u.damage_dealt = 0
+			u.kill_xp = 0
+	probe.damage_dealt = 800                 # 100 XP before any multiplier
+	mg._snapshot_between_round_bonuses()
+	var paid: Dictionary = {}
+	for b: Dictionary in mg._pending_row_bonuses:
+		if b["unit"] == probe:
+			paid = b
+	var row_mult: float = lerpf(1.10, 1.40, float(paid.get("front_t", 0.0)))
+	Progression.upgrade_levels = saved_levels
+	mg._pending_row_bonuses.clear()
+	_check(ql_mult > 1.5, "Quick Learner staged in memory (x%.2f)" % ql_mult)
+	_check(absf(float(paid.get("xp", 0.0)) - 100.0 * ql_mult * row_mult) < 0.01,
+		"damage XP carries Quick Learner (%.1f, want %.1f)" % [float(paid.get("xp", 0.0)), 100.0 * ql_mult * row_mult])
+
 	# ── MAP MODE: level-ups are settled BEFORE the map opens ─────────────────
 	# Owner call (2026-09-22): "if we level up we should do our level up screen
 	# before we go to the map screen." The claim is about ORDER, so this drives
