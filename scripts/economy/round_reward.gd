@@ -39,11 +39,11 @@ static func describe(reward: Dictionary) -> String:
 			return "+%d Gold" % int(reward.get("gold", 0))
 		Type.ITEM:
 			var item: EquipmentItem = reward.get("item")
-			return "%s (%s)" % [item.name, item.get_rarity_name()] if item else "Item"
+			return "%s (%s)" % [item.name, item.get_rarity_name()] if item 				else "Item — pick 1 of %d" % OPTIONS
 		Type.STAT_BONUS:
 			var p: Dictionary = reward.get("perk", {})
 			if p.is_empty():
-				return "Stat Bonus"
+				return "Stat bonus — pick 1 of %d" % OPTIONS
 			var _v: float = p.get("rolled_value", p.get("value", 0))
 			var val_str: String = LevelUpScreen.format_perk_value(p)
 			return "%s %s (%s)" % [p.get("label", "?"), val_str, p.get("grade", "?")]
@@ -73,14 +73,37 @@ static func roll(difficulty: int, round: int) -> Dictionary:
 			var base: float = 2.0 + round * 0.4
 			var mult: float = 1.0 + difficulty * 0.5   # NORMAL 1.0x, VETERAN 1.5x, BRUTAL 2.0x
 			result["gold"] = maxi(1, int(base * mult))
-		Type.ITEM:
-			var max_rarity: int = EquipmentItem.Rarity.EPIC if difficulty == WaveScaler.Difficulty.BRUTAL else EquipmentItem.Rarity.RARE
-			result["item"] = ComponentEquipmentGateway.generate_item(round, max_rarity)
-		Type.STAT_BONUS:
-			# ONE gacha-graded perk, rolled once and shown in full on the
-			# difficulty panel — the only choice left after winning is which
-			# unit on the team receives it (no separate "pick 1 of 3" step,
-			# since that would let the shown preview lie about what you get).
-			var base_perk: Dictionary = LevelUpScreen.PERKS[randi() % LevelUpScreen.PERKS.size()]
-			result["perk"] = LevelUpScreen.roll_perk_offer(base_perk)
+		Type.ITEM, Type.STAT_BONUS:
+			# VD-19 (owner, 2026-09-27): a PICK 1 OF 3. Only the kind is decided
+			# here — the map says "item" or "stat", nothing more — and the three
+			# candidates are rolled by roll_options() after the fight. Tier and
+			# round travel with the reward so those candidates are rolled at the
+			# fight that earned them.
+			result["choice"] = true
+			result["difficulty"] = difficulty
+			result["round"] = round
 	return result
+
+# How many candidates a choice reward offers.
+const OPTIONS := 3
+
+# The candidates for a choice reward, rolled when it is granted. Items: one per
+# slot, the same rarity ceiling the old single roll used (Epic on Brutal, Rare
+# otherwise). Stats: three different perks, each graded on its own.
+static func roll_options(reward: Dictionary) -> Array:
+	var difficulty: int = int(reward.get("difficulty", WaveScaler.Difficulty.NORMAL))
+	var round_no: int = maxi(1, int(reward.get("round", 1)))
+	var out: Array = []
+	match int(reward.get("type", Type.NOTHING)):
+		Type.ITEM:
+			var max_rarity: int = EquipmentItem.Rarity.EPIC 				if difficulty == WaveScaler.Difficulty.BRUTAL else EquipmentItem.Rarity.RARE
+			for _i in range(OPTIONS):
+				var item: EquipmentItem = ComponentEquipmentGateway.generate_item(round_no, max_rarity)
+				if item:
+					out.append(item)
+		Type.STAT_BONUS:
+			var pool: Array = LevelUpScreen.PERKS.duplicate()
+			pool.shuffle()
+			for i in range(mini(OPTIONS, pool.size())):
+				out.append(LevelUpScreen.roll_perk_offer(pool[i]))
+	return out

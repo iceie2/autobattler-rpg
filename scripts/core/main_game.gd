@@ -2244,6 +2244,8 @@ func _grant_round_reward() -> void:
 			update_ui()
 		RoundReward.Type.ITEM:
 			var item: EquipmentItem = reward.get("item")
+			if item == null and reward.get("choice", false):
+				item = await _pick_reward_option(reward)
 			if item:
 				_equipment_inventory.add_item(item)
 				info_label.text = "Round reward: %s (%s)!" % [item.name, item.get_rarity_name()]
@@ -2252,10 +2254,33 @@ func _grant_round_reward() -> void:
 				func(u): return u and is_instance_valid(u))
 			if alive_units.is_empty():
 				return
+			# VD-19: pick the stat first (1 of 3), then which hero receives it.
+			if Dictionary(reward.get("perk", {})).is_empty() and reward.get("choice", false):
+				var perk = await _pick_reward_option(reward)
+				if perk == null:
+					return
+				reward["perk"] = perk
 			_round_reward_screen.present(reward, alive_units)
 			await _round_reward_screen.done
 		_:
 			pass   # NOTHING
+
+# VD-19 (owner, 2026-09-27): item and stat rewards are a pick 1 of 3. The map
+# only promised the kind; the candidates are rolled here, at the tier and round
+# of the fight that earned them. Returns the picked EquipmentItem or perk dict.
+var _reward_choice_screen: RewardChoiceScreen
+
+func _pick_reward_option(reward: Dictionary) -> Variant:
+	var options: Array = RoundReward.roll_options(reward)
+	if options.is_empty():
+		return null
+	if _reward_choice_screen == null:
+		_reward_choice_screen = RewardChoiceScreen.new()
+		add_child(_reward_choice_screen)
+	_reward_choice_screen.present(options, int(reward.get("type", RoundReward.Type.ITEM)),
+		int(reward.get("round", game_state.battle_round)))
+	var idx: int = await _reward_choice_screen.chosen
+	return options[clampi(idx, 0, options.size() - 1)]
 
 func _on_unit_summoned(unit: UnitBase) -> void:
 	if not (unit and is_instance_valid(unit)):

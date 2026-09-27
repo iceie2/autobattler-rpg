@@ -789,6 +789,13 @@ static func from_dict(d: Dictionary) -> RunMap:
 
 static func _reward_stub(reward: Dictionary) -> Dictionary:
 	var stub: Dictionary = {"type": int(reward.get("type", RoundReward.Type.NOTHING))}
+	# VD-19: a pick-1-of-3 reward promises only its kind — save the kind, the
+	# tier and the round, and let the candidates be rolled when it pays out.
+	if reward.get("choice", false):
+		stub["choice"] = true
+		stub["difficulty"] = int(reward.get("difficulty", 0))
+		stub["round"] = int(reward.get("round", 1))
+		return stub
 	match int(stub["type"]):
 		RoundReward.Type.GOLD:
 			stub["gold"] = int(reward.get("gold", 0))
@@ -801,6 +808,11 @@ static func _reward_stub(reward: Dictionary) -> Dictionary:
 
 static func _reward_from_stub(stub: Dictionary, round_no: int) -> Dictionary:
 	var out: Dictionary = {"type": int(stub.get("type", RoundReward.Type.NOTHING))}
+	if stub.get("choice", false):
+		out["choice"] = true
+		out["difficulty"] = int(stub.get("difficulty", 0))
+		out["round"] = int(stub.get("round", round_no))
+		return out
 	match int(out["type"]):
 		RoundReward.Type.GOLD:
 			out["gold"] = int(stub.get("gold", 0))

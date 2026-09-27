@@ -1332,7 +1332,7 @@ owner was playing, and main_game-based smokes write the live save files.
 
 ---
 
-## VD-19 - Round rewards become a pick 1 of 3 - status: ACTIVE
+## VD-19 - Round rewards become a pick 1 of 3 - status: DONE
 
 **Owner decision (2026-09-27).**
 
@@ -1354,6 +1354,16 @@ owner was playing, and main_game-based smokes write the live save files.
 `waves/run_map.gd`, `ui/run_map_screen.gd`, and the grant branch of
 `core/main_game.gd` (another agent has uncommitted edits in that file; only
 this hunk is committed).
+
+**Landed 2026-09-27.** `RoundReward.roll()` returns kind + `choice/difficulty/
+round` for items and stats; `roll_options()` rolls the three at grant time (items
+at the old rarity ceiling, stats = three different perks). New
+`RewardChoiceScreen`; `_grant_round_reward` routes items and stats through it,
+stats then on to `RoundRewardScreen`. Map badges: sword / fist; save stubs keep
+only the kind. `ceremony_smoke` drives the real grant for both kinds (roll()
+never pre-rolls, 3 cards, exactly one item lands, the picked perk reaches the hero
+screen) - sabotage-checked. `--mode=map` 0 violations, map_smoke passes. Old
+saves with a specific pre-rolled reward still pay that reward.
 
 ---
 

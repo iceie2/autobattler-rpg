@@ -103,6 +103,10 @@ const TIER_COLORS := [
 # level-up screen use tells the player it's the same thing; a bespoke glyph
 # would be a second vocabulary for no gain.
 const COIN_ICON := "res://assets/UI/Vector_UI_Pack_dobo_ui/Icons/64px/coin_icon_64px.png"
+# Generic badges for pick-1-of-3 rewards (VD-19): the map says "item" or "stat",
+# not which. The sword is the game's own gear art; the fist is its strength stat.
+const REWARD_ITEM_ICON := "res://assets/icons/64x64/fc1601.png"
+const REWARD_STAT_ICON := "res://assets/icons/stat_icons/strength.png"
 # How big the reward badge on a fight node is, as a multiple of its original
 # 10px-rim / 14px-icon size. Owner call (2026-09-22): "+150%" — the badge was
 # the one piece of information on the node you still had to lean in to read.
@@ -1941,10 +1945,14 @@ func _reward_icon(reward: Dictionary) -> Texture2D:
 		RoundReward.Type.ITEM:
 			var item: EquipmentItem = reward.get("item")
 			if item == null:
-				return null
+				# VD-19: a pick-1-of-3 reward promises only "an item" — show the
+				# generic sword rather than a specific item it won't be.
+				return _tex(REWARD_ITEM_ICON)
 			return GearIcons.icon_for(item)   # legacy art or component composite
 		RoundReward.Type.STAT_BONUS:
 			var perk: Dictionary = reward.get("perk", {})
+			if perk.is_empty():
+				return _tex(REWARD_STAT_ICON)   # VD-19: "a stat bonus", not which
 			var key: String = String(LevelUpScreen.PERK_ICON_KEY.get(
 				String(perk.get("id", "")), ""))
 			return _tex(String(UnitFactory.STAT_ICONS.get(key, "")))

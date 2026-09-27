@@ -165,6 +165,47 @@ func _ready() -> void:
 		await mg._play_round_start_ceremony()
 		_check(not mg._ceremony_active, "round-start ceremony is a no-op after a map payout")
 
+	# ── VD-19: round rewards are a pick 1 of 3 ───────────────────────────────
+	# The map promises only a kind; the real grant path must roll three, show
+	# them, and hand over exactly the one picked — for items straight into the
+	# bag, for stats on to the "which hero" screen with that perk.
+	var specific: int = 0
+	for _r in range(60):
+		var rolled: Dictionary = RoundReward.roll(WaveScaler.Difficulty.BRUTAL, 3)
+		if rolled.has("item") or rolled.has("perk"):
+			specific += 1
+	_check(specific == 0, "roll() promises only a kind, never a specific item/perk (%d did)" % specific)
+	var item_reward := {"type": RoundReward.Type.ITEM, "choice": true, "difficulty": 2, "round": 3}
+	var bag_before: int = mg._equipment_inventory.items.size()
+	mg._pending_round_reward = item_reward
+	mg._grant_round_reward()                   # not awaited: it waits on the pick
+	await get_tree().process_frame
+	var pick_screen: RewardChoiceScreen = mg._reward_choice_screen
+	_check(pick_screen != null and pick_screen.visible, "item reward opened the pick screen")
+	if pick_screen:
+		_check(pick_screen._card_row.get_child_count() == RoundReward.OPTIONS,
+			"pick screen shows %d items" % RoundReward.OPTIONS)
+		pick_screen._on_pick(1)
+		await get_tree().process_frame
+	_check(mg._equipment_inventory.items.size() == bag_before + 1,
+		"exactly one item went into the bag (%d -> %d)"
+			% [bag_before, mg._equipment_inventory.items.size()])
+
+	mg._pending_round_reward = {"type": RoundReward.Type.STAT_BONUS, "choice": true,
+		"difficulty": 1, "round": 3}
+	mg._grant_round_reward()
+	await get_tree().process_frame
+	_check(pick_screen and pick_screen.visible, "stat reward opened the pick screen")
+	if pick_screen:
+		pick_screen._on_pick(0)
+		await get_tree().process_frame
+	_check(mg._round_reward_screen.visible, "the picked stat went on to the hero screen")
+	_check(not mg._round_reward_screen._chosen_perk.is_empty(),
+		"the hero screen was handed the picked perk")
+	mg._round_reward_screen.visible = false
+	mg._round_reward_screen.done.emit()
+	await get_tree().process_frame
+
 	if _fails.is_empty():
 		print("CEREMONY_SMOKE: ALL PASS")
 		get_tree().quit(0)
