@@ -23,9 +23,21 @@ const SPRITE_RENDER_H_2X_MULT := 1.9
 # Fall toss — composites onto it EXACTLY as it does for a flat sprite. Nothing
 # in _apply_animation() needed a 3D branch.
 const HERO_MODEL_PATHS: Dictionary = {
-	UnitBase.UnitClass.BOUNCER: "res://assets/3d pipeline/hero/bouncer/bouncer.glb",
-	UnitBase.UnitClass.BLOODHOUND: "res://assets/3d pipeline/hero/bloodhound/bloodhound.glb",
-	UnitBase.UnitClass.CROSS: "res://assets/3d pipeline/hero/cross/cross.glb",
+	# Bouncer v002 (2026-09-24, rework in progress): `attack` is the body half of
+	# the rubber punch; the arm itself is drawn by RubberArm. bouncer.glb untouched.
+	UnitBase.UnitClass.BOUNCER: "res://assets/3d pipeline/hero/bouncer/bouncer_v002.glb",
+	# Bloodhound v002, 2026-09-23. Versioned candidate pending human art review;
+	# bloodhound.glb (v001) is untouched. `attack` is one quick claw swipe,
+	# `ult` is the Pounce (crouch, leap, land into the two overhead swipes that
+	# used to be his auto-attack), the colour map is rebuilt from the raw Meshy
+	# texture (v001's gamma lift had turned his brown fur grey-mauve), and the
+	# eyes + maw are their own "Glow" material. Build notes:
+	# assets/3d pipeline/hero/bloodhound/review/conversion_report_v002.md
+	# v003 (same day, owner-approved next step): v002 + a 2 s breathing idle in
+	# place of the frozen pose; starts/ends on the old pose so attack/ult entry
+	# is unchanged.
+	UnitBase.UnitClass.BLOODHOUND: "res://assets/3d pipeline/hero/bloodhound/bloodhound_v003.glb",
+	UnitBase.UnitClass.CROSS: "res://assets/3d pipeline/hero/cross/cross_v002.glb",
 	UnitBase.UnitClass.STITCH: "res://assets/3d pipeline/hero/stitch/stitch.glb",
 	UnitBase.UnitClass.DOC: "res://assets/3d pipeline/hero/doc/doc.glb",
 	# Versioned Coal candidate: magma-rock brawler with a complete unarmed clip set.
@@ -147,8 +159,13 @@ const HERO_SPRITE_PATHS: Dictionary = {
 # the whole economic case for converting enemies: the second variant costs
 # nothing beyond its own attack motion.
 const MONSTER_MODEL_PATHS: Dictionary = {
-	"goblin":        "res://assets/3d pipeline/enemy/goblin/goblin.glb",
-	"goblin_archer": "res://assets/3d pipeline/enemy/goblin/goblin.glb",
+	# v010 (2026-09-24): goblin.glb + a re-authored `attack_bow` (v009's Meshy
+	# clip aimed 137 deg off target, never drew, held the bow like a stick; kept
+	# as `attack_bow_meshy_v009`). Every other clip is unchanged. Both variants
+	# MUST point at the same file: each hides the other's props only via this
+	# shared path (split paths showed the archer holding the melee knife).
+	"goblin":        "res://assets/3d pipeline/enemy/goblin/goblin_v010.glb",
+	"goblin_archer": "res://assets/3d pipeline/enemy/goblin/goblin_v010.glb",
 }
 
 # Which socketed props each monster variant shows, and any clip renames it
@@ -550,6 +567,7 @@ func _ready():
 	attacked.connect(_on_attacked)
 	took_damage.connect(_on_took_damage)
 	shield_changed.connect(_on_shield_changed)
+	ward_changed.connect(_on_ward_changed)
 	_anim_phase = randf() * TAU   # so units don't all bob in lockstep
 	update_visuals()
 
@@ -633,6 +651,32 @@ func _setup_model3d(path: String, prop_nodes: Variant = null,
 			"skill": Color(0.30, 1.00, 0.40, 1.60),
 			"ult": Color(1.00, 0.78, 0.20, 2.20),
 		}
+	if unit_class == UnitBase.UnitClass.BOUNCER:
+		# Gravity Drop "Big Inhale": the `belly` morph balloons on the inhale and
+		# snaps back (with a small overshoot) on the exhale. Clip seconds of the
+		# v002 `ult` — impact is f15.8 = 0.66 s, matching GD_IMPACT.
+		m.morph_curves = {"ult": {"belly": [
+			[0.0, 0.0], [0.125, 0.0], [0.62, 1.0], [0.66, 1.05],
+			[0.72, -0.12], [0.80, 0.06], [0.90, 0.0], [1.083, 0.0]]}}
+	if unit_class == UnitBase.UnitClass.CROSS:
+		# v002 (2026-09-25, "just a happy lemur knight healing people"): the halo
+		# and the chest cross share one "Glow" material. Warm gold at rest; it
+		# brightens on Absolution and blazes on Judgment.
+		m.glow_material = "Glow"
+		m.glow_base = Color(1.00, 0.78, 0.30, 0.60)
+		m.glow_by_clip = {"skill": Color(1.00, 0.86, 0.45, 1.40),
+			"ult": Color(1.00, 0.84, 0.35, 2.00)}
+	if unit_class == UnitBase.UnitClass.BLOODHOUND:
+		# v002: eyes + maw are one "Glow" material (faces picked by raycasting
+		# the head close-up, teeth excluded by colour). One ember colour for
+		# both reads as a single fire inside him; it flares on the Pounce.
+		m.glow_material = "Glow"
+		m.glow_base = Color(1.00, 0.45, 0.12, 1.00)
+		m.glow_by_clip = {"ult": Color(1.00, 0.32, 0.06, 2.00)}
+		# The Pounce's overhead chop reaches 1.47x past the idle+death frame
+		# (top) and 1.44x (side), measured on bone heads + claw length; 1.55
+		# clears both. Same on-screen size and pixel density, bigger canvas.
+		m.frame_grow = 1.55
 	if unit_class == UnitBase.UnitClass.HEADHUNTER:
 		# idle (2026-09-07): user supplied a REAL Meshy idle clip ("Idle_9"),
 		# replacing the earlier hand-frozen-from-attack workaround — see
@@ -746,6 +790,10 @@ func _setup_model3d(path: String, prop_nodes: Variant = null,
 		m.queue_free()
 		return false
 	model3d = m
+	if unit_class == UnitBase.UnitClass.CROSS:
+		var halo := CrossHaloGlow.new()
+		add_child(halo)
+		halo.setup(self)
 	# Players hold the bottom of the board and face up-screen, enemies the top —
 	# same convention the flip_h on the 2D sprites encodes.
 	m.set_facing_right(is_player_unit)
@@ -1171,6 +1219,10 @@ func _on_shield_changed(current: int) -> void:
 	if health_bar:
 		health_bar.update_shield(float(current), float(max_hp))
 
+func _on_ward_changed(hits: int, maximum: int) -> void:
+	if health_bar:
+		health_bar.update_ward(hits, maximum)
+
 # ── Attack: anticipation → snappy lunge → ease back, with a stretch punch ─────
 func _on_attacked(target) -> void:
 	if _is_dying:
@@ -1184,6 +1236,9 @@ func _on_attacked(target) -> void:
 	if dir_world.length() > 0.01:
 		_engaged_dir = dir_world
 		_engaged_until_ms = Time.get_ticks_msec() + ENGAGED_HOLD_MS
+	if unit_class == UnitBase.UnitClass.BOUNCER and model3d and model3d.has_animation("attack"):
+		throw_rubber_arm(target, "attack")
+		return
 	if attack_range > 1:
 		# Ranged units: play their attack-pose sheet if they have one (e.g.
 		# Headhunter's aim/fire frames) alongside the projectile; otherwise
@@ -1195,6 +1250,8 @@ func _on_attacked(target) -> void:
 			# haste/slow source through attacks_per_second and shares its release
 			# fraction with UnitBase.spawn_projectile.
 			played = model3d.play_oneshot_timed("attack", 1.0 / attacks_per_second, "idle")
+		elif _is_goblin_archer() and model3d and model3d.has_animation("attack"):
+			played = play_goblin_bow_shot(target)
 		else:
 			played = _play_oneshot("attack")
 		_face_target_3d(dir_world)   # AFTER play(): needs "attack"'s own yaw bias, not idle's
@@ -1211,7 +1268,8 @@ func _on_attacked(target) -> void:
 			var dir: Vector2 = dir_world.normalized() if dir_world.length() > 0.01 else Vector2.UP
 			# Zolt's custom muzzle particle is emitted by Projectile on the authored
 			# hands-out frame; an immediate generic burst would double/lead that cue.
-			if unit_class != UnitBase.UnitClass.ZOLT:
+			# The goblin archer's arrow waits for the string release the same way.
+			if unit_class != UnitBase.UnitClass.ZOLT and not _is_goblin_archer():
 				_spawn_particle(attack_particle_pack, 0.22, global_position + dir * 24.0)
 			if unit_class == UnitBase.UnitClass.STATIC:
 				_static_discharge_recoil(dir)
@@ -1377,16 +1435,103 @@ func cast_particles() -> void:
 # fine), but nothing ever told the model to switch TO that clip when the
 # ability fired. He just kept playing whatever he was already doing (idle or
 # mid-attack) underneath the VFX, so the body never visibly changed.
-func play_ult_oneshot() -> void:
+##
+## `speed` plays the clip in step with the battle clock (pass the manager's
+## time_scale). Clips otherwise run in real time while combat runs at
+## time_scale — 0.8 on the "1×" button — which matters for an ult whose travel
+## and hit are timed against its own frames (Bloodhound's Pounce).
+func play_ult_oneshot(speed: float = 1.0) -> void:
 	if not model3d or not model3d.has_animation("ult"):
 		return
-	model3d.play_oneshot("ult", "idle")
+	if is_equal_approx(speed, 1.0):
+		model3d.play_oneshot("ult", "idle")
+	else:
+		model3d.play_oneshot_timed("ult", model3d.animation_length("ult") / maxf(speed, 0.05), "idle")
 	_face_stitch_cast_3d()
+
+## Bouncer's rubber punch (2026-09-24). The 3D clip does the wind-up and lunge
+## and tucks the real lead arm away; RubberArm draws the arm that actually
+## reaches the target, at any distance. Both run on battle time — the clip via
+## play_oneshot_timed, the arm via its own clock — and UnitBase lands the damage
+## at BOUNCER_PUNCH_CONTACT on that same clock, so glove, number and clip agree.
+const RubberArmScript := preload("res://scripts/combat/rubber_arm.gd")
+##
+## `out`/`hold`/`back` < 0 keep the punch defaults. A longer throw (the grab)
+## slows the whole body clip so its tuck window still covers the drawn arm:
+## the clip launches at CLIP_LAUNCH_FRAC and regrows the 3D arm at
+## CLIP_RETURN_FRAC of its length (bouncer_v002 `attack`: f4.5 and f12.5 of 18).
+const CLIP_LAUNCH_FRAC := 4.5 / 18.0
+const CLIP_RETURN_FRAC := 12.5 / 18.0
+func throw_rubber_arm(target, clip: String = "attack", out: float = -1.0,
+		hold: float = -1.0, back: float = -1.0) -> RubberArm:
+	if _is_dying or not (target and is_instance_valid(target)) or not model3d:
+		return null
+	var ts: float = 1.0
+	if battle_manager and battle_manager.get("time_scale") != null:
+		ts = maxf(float(battle_manager.time_scale), 0.05)
+	var arm: RubberArm = RubberArmScript.new()
+	if out > 0.0: arm.out_time = out
+	if hold > 0.0: arm.hold_time = hold
+	if back > 0.0: arm.back_time = back
+	var clip_len: float = model3d.animation_length(clip)
+	var active: float = arm.out_time + arm.hold_time + arm.back_time
+	# battle seconds the clip should take so launch..regrow spans the arm
+	var dur: float = maxf(clip_len, active / (CLIP_RETURN_FRAC - CLIP_LAUNCH_FRAC) + 0.02)
+	arm.launch_delay = dur * CLIP_LAUNCH_FRAC if dur > clip_len else arm.launch_delay
+	model3d.play_oneshot_timed(clip, dur / ts, _resume_clip())
+	_face_target_3d(target.global_position - global_position)
+	var host: Node = battle_manager.skill_effect_container \
+		if battle_manager and battle_manager.get("skill_effect_container") else get_parent()
+	host.add_child(arm)
+	arm.setup(self, target)
+	return arm
+
+func _is_goblin_archer() -> bool:
+	return str(get_meta("sprite_folder", "")) == "goblin_archer"
+
+## Goblin Archer bow shot, for his auto AND Crippling Arrow (which used to fire
+## with no body motion). One authored shot per attack interval, in real seconds;
+## UnitBase holds the arrow for GOBLIN_ARROW_RELEASE_FRAC of the same number, so
+## the arrow leaves on the string-release frame at any haste / battle speed.
+func play_goblin_bow_shot(target) -> bool:
+	if _is_dying or not (target and is_instance_valid(target)):
+		return false
+	var played := false
+	if model3d and model3d.has_animation("attack"):
+		played = model3d.play_oneshot_timed("attack", goblin_shot_seconds(), _resume_clip())
+	else:
+		played = _play_oneshot("attack")
+	_face_target_3d(target.global_position - global_position)
+	return played
+
+## Turn to face an on-screen direction outside an auto-attack — Bloodhound's
+## Pounce faces its victim from the crouch, before any swing has set a facing.
+func face_toward(dir_world: Vector2) -> void:
+	_face_target_3d(dir_world)
+
+## Height of Bloodhound's Pounce arc, in px, driven from the battle tick so it
+## stays locked to the travel at any battle speed. Rides _toss_offset (the Long
+## Fall / knock-up layer): the sprite, health bar and glow lift while the contact
+## shadow stays on the ground, and clear_long_fall() resets it at battle start.
+func set_pounce_height(px: float) -> void:
+	_toss_offset = Vector2(0.0, -px)
 
 func play_skill_oneshot() -> void:
 	if model3d and model3d.has_animation("skill"):
 		model3d.play_oneshot("skill", "idle")
 		_face_stitch_cast_3d()
+
+## Start a generic skill clip only when the ability itself has not already
+## started an authored action (for example a lunge or wind-up).
+func play_generic_skill_action() -> void:
+	if model3d and model3d.has_animation("skill") and not model3d.is_oneshot_playing():
+		play_skill_oneshot()
+
+## As above for ultimates. Ability-specific timing may start its own ultimate
+## clip later, so do not restart an action that has already begun.
+func play_generic_ult_action(speed: float = 1.0) -> void:
+	if model3d and model3d.has_animation("ult") and not model3d.is_oneshot_playing():
+		play_ult_oneshot(speed)
 
 # Basic monsters can reuse their authored attack strip for a melee signature
 # without emitting the gameplay `attacked` signal (which would deal another hit).
@@ -1523,6 +1668,19 @@ func die() -> void:
 		# back up looked identical to one that simply had not died yet.
 		if battle_manager and battle_manager.has_method("spawn_skeleton_reassemble"):
 			battle_manager.spawn_skeleton_reassemble(self)
+		return
+	# Phoenix "Rebirth": the first death starts a short rebuild instead — immune
+	# and unable to act while HP climbs back to PHOENIX_REBIRTH_HP (ticked in
+	# AutoBattleManager._tick_mob_passive). Once per fight.
+	if has_meta("mob_passive") and str(get_meta("mob_passive")) == "phoenix_rebirth" \
+			and not has_meta("rebirth_used") and current_hp <= 0:
+		set_meta("rebirth_used", true)
+		current_hp = 1   # setter emits health_changed
+		current_shield = 0
+		rebirth_time = AutoBattleManager.PHOENIX_REBIRTH_TIME
+		stun_time = maxf(stun_time, rebirth_time)
+		if battle_manager and battle_manager.has_method("spawn_phoenix_rebirth"):
+			battle_manager.spawn_phoenix_rebirth(self)
 		return
 	# Slime "Split": a real death spawns two smaller slimes (handled by the battle
 	# manager, which owns the grid + unit arrays). Guarded there against splitting
@@ -2441,6 +2599,26 @@ func _oneshot_duration(name: String) -> float:
 	if not (frames and frames.has_animation(name)):
 		return 0.0
 	return float(frames.get_frame_count(name)) / maxf(1.0, frames.get_animation_speed(name))
+
+## Duration of the visual action beat used by AutoBattleManager to keep a unit
+## from starting another action before its current attack/cast has finished.
+## Procedural and VFX-only skills still get a short readable beat when no clip
+## exists for them.
+func combat_action_duration(action_type: String) -> float:
+	var clip := ""
+	var fallback := 0.0
+	match action_type:
+		"attack":
+			clip = "attack"
+			fallback = 0.30  # VisualUnit.play_attack procedural lunge is 0.29s
+		"skill":
+			clip = "skill" if model3d and model3d.has_animation("skill") else "attack"
+			fallback = 0.45
+		"ultimate":
+			clip = "ult"
+			fallback = 0.70
+	var duration := _oneshot_duration(clip) if clip != "" else 0.0
+	return maxf(duration, fallback)
 
 func _update_animation() -> void:
 	# Opt-in escape hatch for scripts/tools/anim_preview.gd: that tool calls

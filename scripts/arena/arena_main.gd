@@ -65,7 +65,7 @@ const EXPECTED_SILENT := {
 	"SEAR":      {"passive": "fire trail only spawns while moving"},
 	"RUSH":      {"passive": "momentum builds from movement"},
 	"HEADHUNTER": {"passive": "crit logic lives inside attack() — see on_hit",
-		"ultimate": "Snipe now channels for HEADHUNTER_AIM_DURATION before firing (headhunter_aim_time gate in _tick_unit); damage lands via _headhunter_fire_snipe on a later tick, not within the single force-cast frame the probe measures"},
+		"ultimate": "Snipe now channels for HEADHUNTER_AIM_DURATION before firing (shared channel system: start_channel / _tick_channel); damage lands via _headhunter_fire_snipe on a later tick, not within the single force-cast frame the probe measures"},
 	"SHAUNA":    {"passive": "kite logic reacts to enemy proximity while moving"},
 	"STITCH":    {
 		"passive": "Threadguard converts transferred and rupture damage into shield",
@@ -167,7 +167,7 @@ const EXPECTED_SILENT := {
 	# EXPECTED_SILENT reasons since these mobs reuse those same mob_passive keys.
 	"ogre": {"passive": "Bloodrage (reused from Orc) triggers below 50% HP — silent at full HP in probe"},
 	"minotaur": {"passive": "Savage Charge (reused from Bear's Fury) ramps with missing HP — silent at full HP in probe"},
-	"gargoyle": {"passive": "Stone Skin (reused from Troll's Regeneration) only shows on a damaged unit; probe unit is at full HP"},
+	"gargoyle": {"passive": "Stone Ward raises at 50% HP — silent at full HP in probe (covered by gargoyle_kit_probe)"},
 	"stone_golem": {"passive": "no passive by design"},
 	# Earth-decade variety (2026-07-24, wave 31-40).
 	"crystal_crab": {"passive": "Frenzied Clacking (reused from Bear's Fury) ramps with missing HP — silent at full HP in probe"},
@@ -175,7 +175,7 @@ const EXPECTED_SILENT := {
 	# Fire decade (2026-07-24, wave 41-50).
 	"fire_giant": {"passive": "Forge Fury (reused from Orc's Bloodrage) triggers below 50% HP — silent at full HP in probe"},
 	"hellhound": {"passive": "Hunting Pack (reused from Goblin's Pack Courage) needs other Hellhounds within 3 tiles — silent for a lone probe unit"},
-	"ember_phoenix": {"passive": "Rekindle (reused from Troll's Regeneration) only shows on a damaged unit; probe unit is at full HP"},
+	"ember_phoenix": {"passive": "Rebirth fires on its first death — silent while alive in probe (covered by phoenix_kit_probe)"},
 	# Lightning decade (2026-07-24, wave 51-60).
 	"storm_giant": {"passive": "Gathering Storm (reused from Wind-Up Bot's Overclock) ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff"},
 	"storm_crow": {"passive": "Murder (reused from Goblin's Pack Courage) needs other Storm Crows within 3 tiles — silent for a lone probe unit"},
@@ -1292,8 +1292,14 @@ func _run_events(args: Dictionary) -> Dictionary:
 				continue
 			if String(ch.get("text", "")) == "":
 				errors.append("%s: empty choice text" % where)
-			if String(ch.get("preview", "")) == "":
-				warnings.append("%s: no preview line — the button will read blank" % where)
+			# The button line is computed from the resolver (preview_line), so it
+			# can't lie — but it can come out blank, or fail to merge into a
+			# range ("A  →  B" means floor and ceiling lines had different shapes).
+			var pv: String = EventCatalog.preview_line(ch, _event_probe_ctx(10))
+			if pv == "":
+				errors.append("%s: button line resolves blank" % where)
+			elif "→" in pv:
+				warnings.append("%s: button line didn't merge into a range: %s" % [where, pv])
 
 			for r: int in rounds:
 				var ctx: Dictionary = _event_probe_ctx(r)
@@ -1321,6 +1327,7 @@ func _run_events(args: Dictionary) -> Dictionary:
 			var hi: String = String(pool[pool.size() - 1])
 			rows.append({
 				"id": id, "choice": ci, "kind": kind, "band": band,
+				"button": EventCatalog.preview_line(ch, _event_probe_ctx(10)),
 				"early_%s" % lo: EventCatalog.resolve_choice(ch, _event_probe_ctx(10), lo).get("outcome", ""),
 				"early_%s" % hi: EventCatalog.resolve_choice(ch, _event_probe_ctx(10), hi).get("outcome", ""),
 				"late_%s" % hi: EventCatalog.resolve_choice(ch, _event_probe_ctx(75), hi).get("outcome", ""),
@@ -1362,6 +1369,8 @@ func _event_probe_ctx(round_no: int) -> Dictionary:
 		"team_size": 6, "team_max": 8, "bench": 2,
 		"items": 4, "relics": 2, "dominant_element": 3,
 		"flags": {},
+		# Salvage values, lowest rarity first (see main_game._event_scrap_values).
+		"scrap_values": [4.0, 6.0, 12.0, 24.0],
 	}
 
 # EV version of WaveScaler.gold_drops_for_unit — same shape, but returns the
@@ -1696,7 +1705,13 @@ func _probe_one(make_unit: Callable, subject_is_player: bool,
 	else:
 		before = _world_snapshot()
 		mgr._use_ultimate(subject, opponents, allies)
-		await _settle(30 if subject.unit_class == UnitBase.UnitClass.SHEILDOR else 20)
+		# Bloodhound's Pounce resolves on the overhead chop's contact frame,
+		# 0.6875s in (POUNCE_IMPACT) — just past the default 0.67s settle.
+		# Bouncer's Gravity Drop lands on the exhale, 0.66s in (GD_IMPACT).
+		# Cross's Judgment lands on his mace slam, 0.79s in (CROSS_JUDGMENT_IMPACT).
+		await _settle(30 if subject.unit_class in [UnitBase.UnitClass.SHEILDOR,
+				UnitBase.UnitClass.BLOODHOUND, UnitBase.UnitClass.BOUNCER,
+				UnitBase.UnitClass.CROSS] else 20)
 		report["ultimate"] = _diff_report(before, _world_snapshot(), label, "ultimate")
 
 	await _teardown_env()

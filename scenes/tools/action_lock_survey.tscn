@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/checks/action_lock_survey.gd" id="1"]
+
+[node name="ActionLockSurvey" type="Node"]
+script = ExtResource("1")

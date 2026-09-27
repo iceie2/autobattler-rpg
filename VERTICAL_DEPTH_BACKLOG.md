@@ -990,6 +990,45 @@ first render tried, seed 12345, had no 5-wide row at all).
 
 ---
 
+## VD-15 - The action lane locks a unit for its whole clip - status: DECIDED + BUILT 2026-09-26 (caps); channel system proposed
+
+**Owner decision 2026-09-26:** cap the lock, don't lock the whole clip. Buff-type
+skills (hit no enemy: Headhunter, Shauna, Sheildor, Necro, Doc, Pastor, Coal,
+Cross, Reed, Vail) 0.15 s; other skills 0.5 s; ultimates 1.0 s; attacks 90% of
+the attack interval. The clip keeps playing and the next action cuts it.
+Built in `AutoBattleManager._combat_action_duration` (`BUFF_SKILL_CLASSES`,
+`LANE_*`); survey: `scenes/tools/action_lock_survey.tscn`. Coal vs 1 goblin: was
+a 30-40 s stall, now 6.6 s. Coal/June/Rift/Zolt 6-8 s clips remain an asset
+issue to check. **Channels BUILT 2026-09-26 (owner: "a system we should
+have"):** one shared system - `Channel` (`scripts/combat/channel.gd`),
+`AutoBattleManager.start_channel(caster, id, duration, on_complete, opts)` /
+`cancel_channel` / `_tick_channel`, one channel per unit, a channel bar under
+the HP bar. Options: `blocks` (caster can't act) and `on_stun` INTERRUPT (no
+payoff) or PAUSE. Static's Grid (non-blocking, stun breaks it; any number of
+Statics now) and Headhunter's Snipe (blocking, stun pauses it) are migrated with
+unchanged behaviour. Gate: `scenes/tools/channel_probe.tscn` (17 checks). New
+channelled abilities should call `start_channel`, never hand-roll a timer.
+
+
+**Found 2026-09-25 (Claude, Cross audit).** Uncommitted working-tree change
+(`AutoBattleManager` `action_time`, `VisualUnit.combat_action_duration`, file
+mtime 2026-09-24 ~18:07). Its author isn't recorded anywhere in this file. After a skill, ult or auto, a unit
+can't act for `max(clip length, fallback)`.
+
+**Measured (real windowed fight, Cross vs goblins).** Cross's clips lock him for
+skill 2.67 s / ult 3.0 s / attack 1.0 s against a 4 s skill cooldown. Adjacent
+to a goblin for ~9 s, he swung **once**; the rest was his cast pose.
+
+**Why the arena can't see it.** Headless runs have no Model3DSprite, so every
+lock is the fallback (0.30 / 0.45 / 0.70 s). Any 3D hero with long clips is
+weaker in the real game than every sim/sweep number says.
+
+**Owner call so far.** Cross gets tighter clips as part of his rework (his side only).
+Whether the lane should lock only to the contact beat, or cap long clips, is
+open and belongs to the lane's author and the owner.
+
+---
+
 ## VD-16 - Runs have no build identity - status: ACTIVE (Burn mechanics built; balance gates blocked on the action lane)
 
 **Owner framing (2026-09-25).**

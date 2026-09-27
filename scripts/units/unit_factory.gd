@@ -334,7 +334,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 1
 			unit.skill_cooldown_max  = 1.0
 			unit.skill_mana_cost     = 60
-			unit.skill_description   = "Step away from nearest attacker and empower next auto-attack (+50%). Only fires when being targeted. · 60 MP · 1s CD"
+			unit.skill_description   = "Dodge two tiles away from an attacker and empower next auto-attack (+50%). Fires when a melee enemy targeting her is within 2 tiles, or a ranged one can hit her; slides out of corners. · 60 MP · 1s CD"
 			unit.ultimate_name       = "Overdrive"
 			unit.ultimate_damage_mult = 0.0   # utility ult
 			unit.ultimate_charge_max = 400

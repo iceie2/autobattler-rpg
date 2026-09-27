@@ -101,6 +101,16 @@ var gear_pips: int = 0
 var gear_pip_max: int = 0
 var gear_pip_color: Color = Color.WHITE
 var gear_badge: String = ""
+# Channel bar (VD-15 shared channels): fills left-to-right under the HP bar
+# while an ability channels; hidden (< 0) otherwise.
+var channel_frac: float = -1.0
+var channel_color: Color = Color(0.95, 0.85, 0.45)
+
+func set_channel(frac: float, color: Color = Color(0.95, 0.85, 0.45)) -> void:
+	if not is_equal_approx(frac, channel_frac) or color != channel_color:
+		channel_frac = frac
+		channel_color = color
+		queue_redraw()
 
 func set_gear_shield(current: float) -> void:
 	if current != gear_shield_current:
@@ -246,6 +256,10 @@ func _draw() -> void:
 		var ult_fill: StyleBoxTexture = _sb_ult_ready if ult_current >= ult_max else _sb_ult
 		_draw_bar(sub_x, sub_y, sub_height, ult_pct, ult_fill, hp_width)
 		sub_y += sub_height + gap
+	if channel_frac >= 0.0:
+		draw_rect(Rect2(sub_x, sub_y, hp_width, 4.0), Color(0.05, 0.05, 0.07, 0.85))
+		draw_rect(Rect2(sub_x, sub_y, hp_width * clampf(channel_frac, 0.0, 1.0), 4.0), channel_color)
+		sub_y += 4.0 + gap
 	if gear_pip_max > 0:
 		var pgap: float = 2.0
 		var pw: float = minf(8.0, (hp_width - pgap * (gear_pip_max - 1)) / float(gear_pip_max))

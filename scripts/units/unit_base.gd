@@ -227,6 +227,9 @@ var gear: Dictionary = {}          # per-fight passive state, reset by GearPassi
 var gear_shield: int = 0           # item shields (#1/#3/#5): violet, absorbed before current_shield
 var gear_basic_hit: bool = false   # true only while this unit's basic attack resolves
 var ability_haste: int = 0         # League-style haste: skill cooldown x 100/(100+haste)
+# Shared channel system (VD-15): the ability this unit is channelling, if any.
+# Owned by AutoBattleManager.start_channel / _tick_channel / cancel_channel.
+var channel: Channel = null
 
 # Multi-cell size (1 = normal 1×1, 2 = 2×2 boss)
 var cell_size: int = 1
@@ -759,7 +762,9 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 
 	var modified_damage := amount
 	# Component equipment: Empty Reservoir / Arcane Precision on skill damage.
-	if attacker is UnitBase and not attacker.gear_levels.is_empty():
+	# is_instance_valid FIRST: a projectile or DoT can outlive its attacker, and
+	# `is` on a freed instance is a hard script error (crashed round ends 2026-09-26).
+	if is_instance_valid(attacker) and attacker is UnitBase and not attacker.gear_levels.is_empty():
 		modified_damage = GearPassives.skill_damage_mult(attacker, self, modified_damage, true_damage)
 	# Attacker's offensive affinity vs THIS unit's element — applied centrally
 	# (2026-07-17) so every non-true damage source scales the same way.
@@ -875,7 +880,7 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		if burn_time > 0.0 and battle_manager and battle_manager.has_method("burn_ashfall"):
 			battle_manager.burn_ashfall(self)
 		die()
-	if not gear.is_empty() or (attacker is UnitBase and is_instance_valid(attacker) 			and not attacker.gear.is_empty()):
+	if not gear.is_empty() or (is_instance_valid(attacker) and attacker is UnitBase 			and not attacker.gear.is_empty()):
 		GearPassives.after_hit(self, attacker, mini(modified_damage, gear_pre_hp),
 			modified_damage, gear_pre_hp, is_crit, true_damage)
 
