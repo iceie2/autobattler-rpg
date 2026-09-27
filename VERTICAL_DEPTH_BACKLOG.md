@@ -1245,6 +1245,33 @@ drifts back toward the scrapped element-stat pattern.
 
 ---
 
+## VD-17 - Players go whole runs without meeting a merchant - status: ACTIVE
+
+**Owner report (2026-09-27).**
+
+> "we need more events/merchants. my last 3 play throughts i havnt hit a
+> merchant and im making it to biome 3 so 3 maps."
+
+**Measured (2000 maps, 20 random walks each).** One merchant per biome, one
+random slot in waves 6-9, no reachability guarantee: a route meets it 35% of
+the time, 30% of elite lanes cannot reach it at all, and the chance of no
+merchant across three biomes is 27%. A route meets 0.93 events and 1.58 side
+nodes over its ten stages.
+
+**Decided.**
+1. Two merchants per biome: one in waves 3-4, one in waves 7-9.
+2. Reachability is guaranteed, not rolled for: every wave-1 node can reach the
+   first merchant and every elite lane can reach the second. Generation retries
+   until it holds; `validate()` enforces it.
+3. More events: the optional side-node budget and chance go up; measured per
+   route before and after.
+
+**Files.** `scripts/waves/run_map.gd` only (the map harness in
+`arena_main.gd` is another agent's open file; the measurement runs from a
+throwaway probe instead).
+
+---
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
