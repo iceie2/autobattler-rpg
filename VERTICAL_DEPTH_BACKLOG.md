@@ -1404,6 +1404,16 @@ tutorial is coming soon, so milestone wording lives in data it can reuse.
 
 ---
 
+### VD-20 owner visual revision (2026-09-27)
+
+Owner: "we need icons or somehthing that looks so a.i./dated we need good art value"
+
+The collection screen will use the existing per-relic art and rarity frames as
+its main visual content. Newly earned rewards get illustrated cards in a
+separate reveal view; a Collection tab keeps all milestone conditions available.
+Use the shared RPG title art, readable prose type and a focused collect action.
+This changes presentation only. Capture the revision for the owner's review.
+
 ### VD-20 verification (2026-09-27)
 
 Implemented all 28 accepted milestones, immediate pending persistence, frozen
