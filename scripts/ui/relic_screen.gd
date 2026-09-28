@@ -11,8 +11,11 @@ signal reroll_requested()
 const PANEL_W := 1000.0
 const PANEL_H := 520.0
 const CARD_W  := 290.0
-const CARD_H  := 260.0
+const CARD_H  := 260.0   # minimum; a screen grows to its tallest description
 const CARD_ROW_Y := 136.0
+const DESC_Y   := 196.0
+const DESC_W   := CARD_W - 48.0
+const DESC_PAD := 20.0    # space under the description's last line
 
 # ── Slot-machine reveal pacing (2026-07-21, restaggered same day) — shared
 # with hero_shop/level_up_screen. Only 2 reels here (relics have no numeric
@@ -35,6 +38,7 @@ var _reroll_btn: Button
 
 var _wave:            int = 0
 var _rerolls_left:    int = 0
+var _card_h:          float = CARD_H
 
 func _ready() -> void:
 	_build_ui()
@@ -61,8 +65,31 @@ func set_offers(offers: Array, charges_left: int) -> void:
 func _rebuild_cards(offers: Array) -> void:
 	for c in _card_row.get_children():
 		c.queue_free()
+	# All three cards share the tallest description's height. A fixed 58 px box
+	# held two lines of the old display face; the Inter reading face runs taller
+	# and archetype pieces run 5-6 lines, so text spilled out of the card
+	# (owner screenshot 2026-09-28).
+	var tallest := 0.0
+	for relic in offers:
+		tallest = maxf(tallest, _desc_height(String(relic.get("desc", ""))))
+	_card_h = maxf(CARD_H, DESC_Y + tallest + DESC_PAD)
+	_card_row.size = Vector2(PANEL_W, _card_h)
+	_reroll_btn.position = Vector2(PANEL_W / 2.0 - 100, CARD_ROW_Y + _card_h + 16)
 	for i in range(offers.size()):
 		_card_row.add_child(_make_card(offers[i], i))
+
+# Height a description needs at the reading size, wrapped to the card's text
+# width, including the Label's spacing between lines.
+func _desc_height(text: String) -> float:
+	if text == "":
+		return 0.0
+	var f: Font = UITheme.body_face()
+	if f == null:
+		f = ThemeDB.fallback_font
+	var h: float = f.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_CENTER,
+			DESC_W, UITheme.FONT_READ).y
+	var lines: float = roundf(h / f.get_height(UITheme.FONT_READ))
+	return h + maxf(0.0, lines - 1.0) * 3.0   # Label's default line_spacing
 
 func _refresh_reroll_btn() -> void:
 	if not _reroll_btn:
@@ -71,7 +98,8 @@ func _refresh_reroll_btn() -> void:
 	_reroll_btn.text = "↻ Reroll (%d left)" % _rerolls_left
 	# No reroll charge (the common case) = no button row, so drop the panel's
 	# reserved strip instead of leaving it empty under the cards.
-	_panel.size.y = PANEL_H if _reroll_btn.visible else CARD_ROW_Y + CARD_H + 48.0
+	_panel.size.y = PANEL_H + (_card_h - CARD_H) if _reroll_btn.visible \
+			else CARD_ROW_Y + _card_h + 48.0
 	_center_panel()
 
 # ── Card builder ──────────────────────────────────────────────────────────────
@@ -80,7 +108,7 @@ func _make_card(relic: Dictionary, idx: int) -> Button:
 	var grade_col: Color = Relic.grade_color(grade)
 
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(CARD_W, CARD_H)
+	btn.custom_minimum_size = Vector2(CARD_W, _card_h)
 	btn.text = ""
 	# Card stays neutral-tinted until its OWN rank reel lands (2026-07-21) —
 	# see hero_shop.gd's _paint_card_grade for why. Hidden via modulate/mouse
@@ -139,8 +167,8 @@ func _make_card(relic: Dictionary, idx: int) -> Button:
 
 	# Description (wrapped)
 	var desc := Label.new()
-	desc.position             = Vector2(24, 196)
-	desc.size                 = Vector2(CARD_W - 48, 58)
+	desc.position             = Vector2(24, DESC_Y)
+	desc.size                 = Vector2(DESC_W, _card_h - DESC_Y - DESC_PAD)
 	UITheme.apply_font(desc, UITheme.FONT_VALUE + 2)
 	desc.add_theme_color_override("font_color", Color(0.82, 0.82, 0.92))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
