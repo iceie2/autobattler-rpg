@@ -1478,7 +1478,7 @@ Progression writes a flushed temporary file before replacing its JSON save.
   for integration/capture runs; the deterministic milestone smoke never calls
   a save path. Live-profile VD-18 ceremony verification remains pending.
 
-## VD-21 - Relic audit: four relic rules do not do what they say - status: ACTIVE (fixing bugs 1-4)
+## VD-21 - Relic audit: four relic rules do not do what they say - status: BUGS 1-4 FIXED 2026-09-27 (e47823e3); items 5-6, balance and owner calls open
 
 **Owner request (2026-09-27), verbatim:**
 
@@ -1562,6 +1562,49 @@ text fix only? Rework or cut First Strike (one crit per hero per fight is
 ~3-7% of basic-attack damage)? Trim the ladders into fewer, distinct relics as
 part of VD-16? **Unverified:** Double Attack on Bouncer and windup heroes,
 whose swings are delayed.
+
+**Found while fixing (2026-09-27) - extends item 6.** Every outgoing-damage relic
+applies inside `UnitBase.attack()` only: Glass Cannon, Avatar Engine,
+Worldbreaker, the Boss Damage ladder, Row, Execute and Gold Scale. So do
+Opening and Underdog, through `outgoing_damage_multiplier()`, which the code's
+own comment says "is only consulted by basic attacks". Skills, ults and burn
+converge on `take_damage` and skip all of them; only stat relics (attack, magic,
+HP, speed) reach ability damage. Casters and Burn teams get a fraction of what
+the text says. Owner call, tied to item 6: extend damage relics to all damage
+(a large balance swing - re-measure after), or say "basic attacks" in the
+text. Gold Scale's new text already says "Basic attacks".
+
+**Built 2026-09-27 (e47823e3).**
+- `Relic.odds_for_wave`: latest `WAVE_ODDS` row at or before the round.
+  main_game's relic branch plays a round-0 relic node as
+  `_run_map.absolute_round(1)`. Merchants pass their own round, now bucketed.
+- `UnitBase.grant_on_kill_attack` / `kill_atk_whole` +
+  `relic_kill_atk_gain`: linear growth with a fractional carry. The synergy
+  backup stores the whole points so `_revert_team_synergies` keeps the
+  growth; the hero save carries `r_kill_atk`.
+- `RelicInventory` reads `first_strike_crit_mult`; `attack()` deals
+  max(natural crit multiplier, the relic's) on the first swing. D is now its
+  intended 1.8x (it was 2.0x with every other grade) - below a normal 2x
+  crit, so a natural crit keeps 2x. Flagged for the First Strike call.
+- `_on_relic_chosen` applies to `player_units + bench_units + _downed_heroes`.
+- Texts: First Strike, Momentum and Gold Scale state their numbers.
+- Old saves: on-kill growth from before the fix was erased at the end of
+  each fight, so there is nothing to migrate; benched heroes that missed a
+  relic in an old run stay without it.
+
+**Verified 2026-09-27.** New `scenes/relic_rules_smoke.tscn` ALL PASS (65
+checks: odds rows, real relic nodes for biomes 0-3, seeded roll shares -
+round 14 D 46%, round 54 zero D and 40% A/S, a round-54 merchant stocking
+zero D - First Strike grades, stacking and hit ratios 3.0/1.8/1.5/1.0, and
+on-kill 20 -> 21 on the third S kill, 30 after 25, D paying out on the 13th).
+New `scenes/tools/relic_rules_integration.tscn` ALL PASS (17 checks, real
+main_game in a disposable APPDATA profile: bench hero 18 -> 23 on +30%, biome
+1's relic node = round 11 / biome 1 scenery / "Wave 11" / team-verb piece,
++15 attack from 25 kills surviving the revert, the next fight and a resume).
+Regression: burn, relic milestone (489), map, UI and ceremony smokes, the
+VD-20 integration, boot (0 SCRIPT ERROR) and the ability probe
+(silent_abilities 0) all pass. The main_game-based runs used disposable
+profiles; the live saves and telemetry were unchanged.
 
 ## Sequence
 
