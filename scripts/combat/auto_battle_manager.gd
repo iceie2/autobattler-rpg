@@ -428,6 +428,9 @@ func _init_unit_timers() -> void:
 	for unit in player_units + enemy_units:
 		if not (unit and is_instance_valid(unit)):
 			continue
+		unit.milestone_ult_casts = 0
+		unit.milestone_double_attacks = 0
+		unit.milestone_shield_absorbed = 0
 		unit.attack_cooldown = 0.0
 		unit.skill_cd_time = 0.0
 		unit.action_time = 0.0
@@ -1031,6 +1034,7 @@ func _tick_unit(unit: UnitBase, dt: float) -> void:
 				_apply_on_hit_passives(unit, target, opponents)
 			# Twin Fang relic: chance for the attack to strike a second time.
 			if unit.relic_double_atk_chance > 0.0 and randf() < unit.relic_double_atk_chance and is_instance_valid(target) and target.current_hp > 0:
+				unit.milestone_double_attacks += 1
 				unit.attack(target)
 				if str(unit.get_meta("mob_passive", "")) != "archer_focus" \
 						and unit.unit_class != UnitBase.UnitClass.SHEILDOR \
@@ -1475,6 +1479,7 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 
 # ── Ultimate implementations ──────────────────────────────────────────────────
 func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
+	caster.milestone_ult_casts += 1
 	match caster.unit_class:
 		UnitBase.UnitClass.STAT_STEALER:
 			_stat_steal_drain(caster, opponents)

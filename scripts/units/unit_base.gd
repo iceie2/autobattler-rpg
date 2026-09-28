@@ -539,6 +539,10 @@ var summon_spawn_timer: float = 0.0
 # Battle state
 var grid_position: Vector2i = Vector2i.ZERO
 var home_position: Vector2i = Vector2i.ZERO   # row at battle start — drives heal/XP bonuses
+var milestone_ult_casts: int = 0
+var milestone_double_attacks: int = 0
+var milestone_shield_absorbed: int = 0
+
 var kill_count:    int       = 0              # kills this battle (display / stat tracking)
 var kill_xp:       int       = 0              # XP earned from kills this battle (summed from enemy xp_reward)
 var target_unit = null
@@ -820,12 +824,15 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 
 	# Component equipment: Bulwark block, then the violet item-shield pool.
 	if not gear.is_empty():
+		var shield_before := gear_shield
 		modified_damage = GearPassives.pre_shield(self, modified_damage, attacker, true_damage)
+		milestone_shield_absorbed += maxi(0, shield_before - gear_shield)
 		if modified_damage <= 0:
 			return
 	# Shield absorbs damage before HP
 	if current_shield > 0:
 		var absorbed: int = mini(current_shield, modified_damage)
+		milestone_shield_absorbed += absorbed
 		current_shield -= absorbed
 		modified_damage -= absorbed
 		shield_changed.emit(current_shield)

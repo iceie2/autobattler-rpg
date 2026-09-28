@@ -161,6 +161,7 @@ var _perf_overlay_lbl: Label = null    # F3 debug overlay (FPS / frame ms / node
 var _equipment_inventory: EquipmentInventory
 var _equipment_panel: EquipmentPanel
 var _event_panel: EventPanel
+var _milestone_battle := RelicMilestoneBattle.new()
 var _game_over_screen: GameOverScreen
 var _relic_screen: RelicScreen
 var _relic_inventory: RelicInventory
@@ -286,6 +287,8 @@ func _ready():
 		RunSave.resume_on_start = false
 		_resume_run()
 	else:
+		if not Progression.relic_milestones.pending.is_empty():
+			await _collect_relic_milestones()
 		start_new_game()
 
 # ══ Run save / resume (2026-07-17 user request) ═══════════════════════════════
@@ -345,6 +348,7 @@ func save_run() -> void:
 		"run_flags": _run_flags.duplicate(true),
 		"shop_discount": _shop_discount_pending,
 		"shop_sale_slots": _shop_sale_slots_pending,
+		"relic_milestone_pool": Progression.relic_milestones.pool.duplicate(),
 		"relics": _relic_inventory.owned.duplicate(true),
 		"relic_waves_done": _relic_waves_done.duplicate(),
 		"shop_rounds_done": _shop_rounds_done.duplicate(),
@@ -360,6 +364,7 @@ func _resume_run() -> void:
 	if d.is_empty():
 		start_new_game()
 		return
+	Progression.relic_milestones.resume_pool(d.get("relic_milestone_pool", Progression.relic_milestones.unlocked))
 	_run_kills = int(d.get("run_kills", 0))
 	_run_start_nodes = int(d.get("run_start_nodes", Progression.nodes_owned()))
 	_run_start_spent = int(d.get("run_start_spent", Progression.total_spent()))
@@ -931,6 +936,7 @@ var _wave_specs: Dictionary = {}    # difficulty → spec Array, cleared each ro
 var _intent_overlay: IntentOverlay = null   # prep-phase enemy intent arrows
 
 func start_new_game() -> void:
+	Progression.relic_milestones.begin_run()
 	# Economy v3 (2026-07-03): 50 → 10 starting gold, heroes cost 10 — the whole
 	# economy moved to coin-drop scale (see GoldCoin / gold_drops_for_unit).
 	# 2026-07-10: Call to Arms (the crystal-shop tree's always-active root node)
@@ -1477,6 +1483,9 @@ func _on_battle_started() -> void:
 		difficulty_panel.set_panel_visible(false)
 	enable_unit_dragging(false)
 	_apply_team_synergies()
+	_milestone_battle.begin(player_units, game_state.gold, game_state.battle_round,
+		current_difficulty == WaveScaler.Difficulty.BRUTAL)
+	_record_relic_milestones(_milestone_battle.facts)
 	_telemetry_battle_started()
 	info_label.text = "Battle joined! Your heroes fight on their own from here."
 	close_shop()
@@ -2089,7 +2098,39 @@ func _build_after_action_verdict() -> String:
 				% [best_name, share]
 	return ""
 
+func _record_relic_milestones(facts: Dictionary, boss_token: String = "") -> void:
+	var awards := Progression.award_relic_milestones(facts, boss_token)
+	if awards.is_empty(): return
+	_telemetry_event("relic_milestones_earned", {"ids": awards})
+	var names: PackedStringArray = []
+	for id: String in awards: names.append(RelicMilestones.by_id(id).name)
+	var banner := CanvasLayer.new()
+	banner.layer = 110
+	add_child(banner)
+	var label := Label.new()
+	label.text = "Milestone earned: %s\nCollect at the end of the run" % ", ".join(names)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	label.offset_top = 50
+	label.add_theme_font_size_override("font_size", UITheme.header_font(24))
+	label.add_theme_color_override("font_color", Color(1.0, 0.86, 0.4))
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 6)
+	banner.add_child(label)
+	get_tree().create_timer(4.0).timeout.connect(banner.queue_free)
+
+func _collect_relic_milestones() -> void:
+	var screen := RelicMilestoneScreen.new()
+	add_child(screen)
+	screen.show_collection(Progression.relic_milestones)
+	await screen.collected
+	Progression.collect_relic_milestones()
+	screen.queue_free()
+
 func _on_battle_ended(player_won: bool) -> void:
+	if _milestone_battle.active:
+		_record_relic_milestones(_milestone_battle.finish(player_won, auto_battle_manager.battle_elapsed, game_state.gold),
+			"%s:%d" % [_telemetry_run_id, game_state.battle_round])
 	# Capture the exact finished fight before synergies, units and counters reset.
 	_telemetry_battle_ended(player_won)
 	# Strip the battle-only synergy bonuses first so between-round stats/displays
@@ -2110,6 +2151,7 @@ func _on_battle_ended(player_won: bool) -> void:
 					_equipment_inventory.fusion_log if _equipment_inventory else [],
 					_run_last_death,
 					Progression.nodes_owned(), Progression.total_spent(), telemetry_summary)
+			await _collect_relic_milestones()
 			_game_over_screen.show_victory(
 				game_state.crystals, game_state.battle_round, total_dmg, _run_kills,
 				_build_after_action_verdict())
@@ -2182,6 +2224,7 @@ func _on_battle_ended(player_won: bool) -> void:
 				_equipment_inventory.fusion_log if _equipment_inventory else [],
 				_run_last_death,
 				Progression.nodes_owned(), Progression.total_spent(), telemetry_summary)
+		await _collect_relic_milestones()
 		_game_over_screen.show_defeat(
 			game_state.crystals,       # earned this run
 			game_state.battle_round,
@@ -4556,6 +4599,9 @@ func _on_unit_revived(unit) -> void:
 
 func _on_unit_died(unit) -> void:
 	var was_enemy := enemy_units.has(unit)
+	if _milestone_battle.active and is_instance_valid(unit):
+		_milestone_battle.death(unit, was_enemy, auto_battle_manager.battle_elapsed)
+		_record_relic_milestones(_milestone_battle.sample())
 	var _dead_level: int = unit.level if (unit and is_instance_valid(unit)) else 1
 
 	# Balance export (2026-08-05): last player death this run, for "died to what".
@@ -4749,6 +4795,8 @@ func _process(_delta: float) -> void:
 	_ui_refresh_accum += _delta
 	if _ui_refresh_accum >= COMBAT_UI_REFRESH_INTERVAL:
 		_ui_refresh_accum = 0.0
+		if _milestone_battle.active:
+			_record_relic_milestones(_milestone_battle.sample())
 		if _combat_ui_dirty:
 			_combat_ui_dirty = false
 			update_team_health_bars()
