@@ -108,7 +108,7 @@ static func icon_path(relic: Dictionary) -> String:
 #                 start_shield, ult_charge
 #   ladder_gated  true only on the 33-relic ladder-fill pass; those relics are
 #                 gated EXCLUSIVELY by Progression.is_ladder_unlocked(ladder),
-#                 ignoring any per-id relic_unlock_* gate. Older ladder rungs
+#                 through its milestone, rather than a family gate. Older ladder rungs
 #                 (no ladder_gated) stay free/ungated as they always were —
 #                 see Relic._draw_one.
 const POOL: Array[Dictionary] = [

@@ -21,7 +21,7 @@ func _ready() -> void:
 	for side in ["top", "bottom"]: margin.add_theme_constant_override("margin_" + side, 32)
 	root.add_child(margin)
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+	panel.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 	margin.add_child(panel)
 	var inset := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]: inset.add_theme_constant_override("margin_" + side, 24)
@@ -43,6 +43,7 @@ func _ready() -> void:
 	_button = Button.new()
 	_button.custom_minimum_size.y = 52
 	UITheme.style_button(_button)
+	UITheme.apply_font(_button, UITheme.FONT_HEADER)
 	_button.pressed.connect(func(): collected.emit())
 	stack.add_child(_button)
 
@@ -59,7 +60,7 @@ func show_collection(state: RelicMilestoneState) -> void:
 			var row_status := "NEW" if state.pending.has(row.id) else ("COLLECTED" if state.unlocked.has(row.id) else "LOCKED")
 			if row_status != status: continue
 			var box := PanelContainer.new()
-			box.add_theme_stylebox_override("panel", UITheme.slot_box())
+			box.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 			_rows.add_child(box)
 			var pad := MarginContainer.new()
 			for side in ["left", "right", "top", "bottom"]: pad.add_theme_constant_override("margin_" + side, 12)
@@ -79,6 +80,6 @@ func _label(text: String, size: int, header := false) -> Label:
 	label.text = text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.add_theme_font_size_override("font_size", UITheme.header_font(size) if header else UITheme.body_font(size))
-	label.add_theme_color_override("font_color", UITheme.TEXT_HEADER if header else UITheme.TEXT_BODY)
+	UITheme.apply_font(label, UITheme.header_font(size) if header else UITheme.body_font(size))
+	label.add_theme_color_override("font_color", UITheme.menu_title_color() if header else UITheme.menu_body_color())
 	return label

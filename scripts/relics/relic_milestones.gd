@@ -488,4 +488,5 @@ static func members(id: String) -> Array:
 	for relic: Dictionary in Relic.POOL:
 		var gate := "ladder_" + String(relic.get("ladder", "")) if relic.get("ladder_gated", false) else relic_gate(relic.id)
 		if gate == id: out.append(relic)
+	out.sort_custom(func(a, b): return Relic.GRADE_ORDER.find(a.grade) < Relic.GRADE_ORDER.find(b.grade))
 	return out

@@ -1,7 +1,7 @@
 # Relic Milestones - design worksheet
 
 Status: ACCEPTED by the owner 2026-09-27 (all rows, two tiers, remove the tree
-nodes, end-of-run collection screen); building. Decision recorded in
+nodes, end-of-run collection screen); implemented, owner UI review pending. Decision recorded in
 `VERTICAL_DEPTH_BACKLOG.md` **VD-20**. Unlock conditions are moves, so the owner
 keeps, changes or cuts each row; thresholds are numbers and can be tuned.
 
@@ -26,7 +26,7 @@ certain way**. Once earned, a relic is in the pool for every future run.
 - Found while mapping: A- and S-grade First Strike say "requires crystal tree
   unlock" but are not in `RELIC_UNLOCK_KEYS`, so nothing gates them.
 
-## Design rules (proposed)
+## Design rules (accepted)
 
 1. **The condition teaches the relic.** Momentum (attack speed that ramps in long
    fights) unlocks by winning a long fight; Opening (burst in the first seconds)
@@ -45,7 +45,7 @@ certain way**. Once earned, a relic is in the pool for every future run.
 6. **Remove the 46 tree nodes** (owner's earlier call on the synergy nodes: "we
    have SOOO many nodes"). No refunds needed - the owner's save owns none.
 
-## Draft mapping - mechanic families
+## Accepted mapping - mechanic families
 
 Signals marked * need a small new per-fight counter; everything else is already
 known at the end of a fight.
@@ -61,7 +61,7 @@ known at the end of a fight.
 | Underdog (stronger per dead ally; A/S only) | - | Win a fight after losing half your team | accepted |
 | Gold Scale (damage grows with gold held; A/S only) | - | Start a fight holding 150+ gold | accepted |
 
-## Draft mapping - stat ladders (upper rungs)
+## Accepted mapping - stat ladders (upper rungs)
 
 Where a ladder matches a role, the condition is a **team comp** (owner asked for
 comps); otherwise it is one hero reaching the stat.
@@ -87,21 +87,30 @@ Element comps ("win with 4 Fire heroes") are left out on purpose until the
 element synergy question settles; hero-verb comps can unlock archetype pieces
 later (e.g. "win with Coal, Sear and Ember" -> Kindred Flames).
 
-## Build notes (no design decisions)
+## Implementation (VD-20)
 
-- `Progression` keeps an `unlocked_relic_milestones` set in the save;
-  `is_relic_unlocked` / `is_ladder_unlocked` read it instead of tree levels.
-- One `RelicMilestones` checker runs at the end of every won fight with the facts
-  above; it records new unlocks, fires the banner and logs telemetry.
-- Tree removal goes through the generator AND surgical data edits (the live tree
-  carries post-generation nodes - see the crystal-tree memory).
-- Collection screen + unlock banner are UI the owner reviews.
+- `scripts/relics/relic_milestones.gd`: 28 data rows with stable IDs, names,
+  conditions and predicates. Six two-tier families, two A/S-only families,
+  and 14 stat ladders; free low Gold Scale/Underdog rungs remain free.
+- `RelicMilestoneState` keeps collected/pending sets and three distinct boss
+  win tokens. `Progression` persists them alongside the wallet/upgrades.
+- `RelicMilestoneBattle` samples the starting fielded roster, combat stats,
+  per-fight counters and actual enemy kill times. Win-only rows require a win;
+  other rows may also be earned during a lost battle.
+- Awards save as pending when detected and display a banner. Collection at
+  either run outcome makes them available for the next run. A fresh run first
+  recovers any outstanding pending awards from an interrupted run.
+- The active pool is a frozen snapshot stored in the run checkpoint. Collecting
+  or reloading does not add relics to that run's offers.
+- The new collection screen lists newly earned, locked and collected milestones
+  with their exact conditions and relic members. Its capture awaits owner review.
+- The 46 tree nodes and authored purchases are removed. Do not run the retired
+  `tools/crystal_tree/place_relic_nodes.py` placement utility to re-add them.
 
-## Open questions
+## Verification
 
-1. Unlock by family in two tiers (recommended), or each of the 46 relics on its
-   own condition?
-2. Keep, change or cut each row above.
-3. Remove the 46 tree nodes (recommended), or keep them as an alternative way to
-   buy an unlock?
-4. Does a milestone count on any difficulty, or only on the difficulty named?
+`scenes/relic_milestones_smoke.tscn` is deterministic and performs no save writes.
+It covers all predicates, tier/ladder gates, all pool entries, JSON state round
+trips, boss replay deduplication, formation/death facts and real combat counters.
+`scenes/tools/relic_milestones_integration.tscn` exercises the real save and run
+flow only in its explicitly guarded disposable APPDATA profile.

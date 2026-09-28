@@ -826,7 +826,8 @@ func get_bonus_float(key: String) -> float:
 # ── Persistence ───────────────────────────────────────────────────────────────
 
 func save_data() -> void:
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var temporary := SAVE_PATH + ".tmp"
+	var file := FileAccess.open(temporary, FileAccess.WRITE)
 	if not file:
 		return
 	file.store_string(JSON.stringify({
@@ -835,6 +836,14 @@ func save_data() -> void:
 		"crystals_spent":  crystals_spent,
 		"relic_milestones": relic_milestones.to_dict(),
 	}))
+	file.flush()
+	file.close()
+	# Replace only after the complete JSON is on disk; a crash cannot truncate
+	# the previous wallet/milestone state. The temporary file is never loaded.
+	var error := DirAccess.rename_absolute(ProjectSettings.globalize_path(temporary),
+		ProjectSettings.globalize_path(SAVE_PATH))
+	if error != OK:
+		push_error("Could not persist progression: %s" % error_string(error))
 
 func load_data() -> void:
 	if not FileAccess.file_exists(SAVE_PATH):

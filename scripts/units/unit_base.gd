@@ -841,7 +841,9 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 			return   # fully blocked — no HP lost, no signals
 
 	if not gear_levels.is_empty():
+		var before_mana_shield := modified_damage
 		modified_damage = GearPassives.post_shield(self, modified_damage, attacker, true_damage)
+		milestone_shield_absorbed += maxi(0, before_mana_shield - modified_damage)
 		if modified_damage <= 0:
 			return
 	spawn_damage_text(modified_damage, element, is_crit)

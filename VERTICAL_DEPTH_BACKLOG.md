@@ -1367,7 +1367,7 @@ saves with a specific pre-rolled reward still pay that reward.
 
 ---
 
-## VD-20 - Relic unlocks move from the crystal tree to milestones - status: DECIDED (mapping accepted, building)
+## VD-20 - Relic unlocks move from the crystal tree to milestones - status: IMPLEMENTED (owner UI review pending)
 
 **Owner decision (2026-09-27), verbatim:**
 
@@ -1403,6 +1403,35 @@ the pool from the NEXT run, as the owner framed it ("in future runs"). A
 tutorial is coming soon, so milestone wording lives in data it can reuse.
 
 ---
+
+### VD-20 verification (2026-09-27)
+
+Implemented all 28 accepted milestones, immediate pending persistence, frozen
+per-run pools (including checkpoint resume), recovery collection before a fresh
+run, an end-of-run collection/catalogue screen, and the 46-node surgical removal.
+The three combat counters include ordinary, equipment and Mana Shield absorption.
+Progression writes a flushed temporary file before replacing its JSON save.
+
+- `scenes/relic_milestones_smoke.tscn`: ALL PASS, 489 deterministic checks;
+  all predicates/boundaries, all 145 pool entries locked/unlocked, tiers,
+  JSON round trips, boss deduplication, real combat counters. No save writes.
+- `scenes/tools/relic_milestones_integration.tscn`: ALL PASS in the guarded
+  disposable profile; real save/reload, both end screens, collection, next-run
+  pool, resume freeze and interrupted-run recovery.
+- Parse/import: no SCRIPT ERROR. Burn/UI/ceremony smokes ALL PASS;
+  map smoke PASSED; 2,000-map generation audit has `violations: []`.
+- VD-18's previously unrun damage-XP assertion also PASSED in the isolated
+  ceremony smoke (Quick Learner result 280 XP, expected 280).
+- Crystal wiring: `problems: 0`; 46 removed nodes, all retained node records
+  and other tree fields unchanged. No tree regeneration.
+- Main-game-based tests report ObjectDB/resource retention at shutdown, with
+  no script errors; not treated as a clean leak check.
+- UI capture: `../captures/renders/vd20_relic_milestones.png`. Owner visual
+  review remains pending. Capture harness: `scenes/tools/relic_milestones_capture.tscn`.
+- Existing work in shared files was preserved; only snapshot-derived VD-20
+  patches were staged. All integration writes used disposable APPDATA profiles
+  under `../backups/vd20-20260927/`; the live saves were not used for those tests.
+- VD-16's owner A/B/C choice remains pending and unchanged.
 
 ### VD-20 implementation decisions (2026-09-27)
 

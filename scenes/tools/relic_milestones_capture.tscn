@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/captures/relic_milestones_capture.gd" id="1"]
+
+[node name="RelicMilestonesCapture" type="Node"]
+script = ExtResource("1")
