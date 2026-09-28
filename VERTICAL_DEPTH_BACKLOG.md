@@ -1606,6 +1606,50 @@ VD-20 integration, boot (0 SCRIPT ERROR) and the ability probe
 (silent_abilities 0) all pass. The main_game-based runs used disposable
 profiles; the live saves and telemetry were unchanged.
 
+**Owner answers to the open calls (2026-09-27), verbatim:**
+
+> "1. life steal is basic attacks/ what your describing is magic vamp or omni
+> vamp / 2. idk what u mean / 3 cut it / 4. i think the next focus should be
+> making more syergentic relics like we did for burn. we need ones for the
+> different elements for the different roles. etc"
+
+1. **DECIDED - lifesteal stays basic-attack only** (the genre's meaning;
+   healing from all damage would be omnivamp/spell vamp, a different relic).
+   The lifesteal texts will say "basic attacks". Still open: whether the
+   outgoing-damage relics (Glass Cannon etc.) should reach ability damage.
+2. The relic-node grade badge was not understood - re-explained in chat,
+   still open.
+3. **DECIDED - cut First Strike.** The 5 relics, the First Strike milestone
+   family (firststrike_1/_2), its combat code and its text go. Icon files
+   stay (production assets). Old saves: `RelicMilestoneState.restore` already
+   drops unknown milestone IDs; a First Strike relic owned in a saved run stays
+   listed and does nothing.
+4. **DECIDED - next focus is more build-around relics like Burn,** for the
+   elements and the roles. Recorded as VD-22.
+
+## VD-22 - Build-around relics for elements and roles - status: DESIGN (worksheet for owner review)
+
+**Owner decision (2026-09-27), verbatim:**
+
+> "i think the next focus should be making more syergentic relics like we did
+> for burn. we need ones for the different elements for the different roles.
+> etc"
+
+**DECIDED:** extend the VD-16 archetype pattern (a seed that sets the run's
+direction + follow-up pieces reserved for what the team already fields) from
+the one Burn verb to the elements and the roles. Pieces are mechanics, so each
+one is proposed in a worksheet and approved by the owner before it is built
+(standing rule: numbers are free, moves need a yes).
+
+**Carry-overs from VD-16/VD-21 the design must respect:**
+- A piece has to amplify something that is a real share of the team's power.
+  Burn pieces measured weak because burn was ~14% of a Burn team's damage
+  (VD-16, A/B/C still pending with the owner).
+- Damage relics currently reach basic attacks only (VD-21) - a piece that says
+  "damage" must say which damage, or be built on the shared damage path.
+- Element synergy is +1 per element (VD-16); element counter passives and
+  per-variant weaknesses are the element identity hook.
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
