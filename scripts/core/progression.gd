@@ -757,59 +757,26 @@ func is_hero_unlocked(unit_class) -> bool:
 	var key: String = HERO_UNLOCK_KEYS.get(unit_class, "")
 	return key != "" and get_level(key) >= 1
 
-# Relic id -> relic_unlock_* upgrade key, for the ~half of the 2026-08-04 relic
-# expansion gated behind a crystal tree purchase. A relic id absent here is not
-# gated — see is_relic_unlocked() and Relic.POOL.
-const RELIC_UNLOCK_KEYS: Dictionary = {
-	"c_execute": "relic_unlock_c_execute",
-	"c_firststrike": "relic_unlock_c_firststrike",
-	"c_row": "relic_unlock_c_row",
-	"b_execute": "relic_unlock_b_execute",
-	"b_firststrike": "relic_unlock_b_firststrike",
-	"b_row": "relic_unlock_b_row",
-	"b_opening": "relic_unlock_b_opening",
-	"b_momentum": "relic_unlock_b_momentum",
-	"b_ultrefund": "relic_unlock_b_ultrefund",
-	"a_execute": "relic_unlock_a_execute",
-	"a_row": "relic_unlock_a_row",
-	"a_opening": "relic_unlock_a_opening",
-	"a_momentum": "relic_unlock_a_momentum",
-	"a_ultrefund": "relic_unlock_a_ultrefund",
-	"a_underdog": "relic_unlock_a_underdog",
-	"a_goldscale": "relic_unlock_a_goldscale",
-	"s_execute": "relic_unlock_s_execute",
-	"s_row": "relic_unlock_s_row",
-	"s_opening": "relic_unlock_s_opening",
-	"s_momentum": "relic_unlock_s_momentum",
-	"s_ultrefund": "relic_unlock_s_ultrefund",
-	"s_underdog": "relic_unlock_s_underdog",
-	"s_goldscale": "relic_unlock_s_goldscale",
-	# ── 2026-08-05 mechanic low rungs (gated to match their ladder's existing
-	# low rung — see Relic.POOL comment). gold_scaling_dmg and underdog were
-	# never gated at their existing low rung (b_goldscale/b_underdog are free),
-	# so their new d_/c_ rungs stay out of this map (free) on purpose.
-	"d_execute": "relic_unlock_d_execute",
-	"d_firststrike": "relic_unlock_d_firststrike",
-	"d_row": "relic_unlock_d_row",
-	"d_opening": "relic_unlock_d_opening",
-	"c_opening": "relic_unlock_c_opening",
-	"d_momentum": "relic_unlock_d_momentum",
-	"c_momentum": "relic_unlock_c_momentum",
-	"d_ultrefund": "relic_unlock_d_ultrefund",
-	"c_ultrefund": "relic_unlock_c_ultrefund",
-}
+# VD-20: pending awards are durable; pool membership is frozen per run.
+var relic_milestones := RelicMilestoneState.new()
 
-# True if this relic id may appear in the gacha pool: not gated, or its
-# relic_unlock_* upgrade has been bought (level >= 1). Mirrors is_hero_unlocked.
 func is_relic_unlocked(relic_id: String) -> bool:
-	var key: String = RELIC_UNLOCK_KEYS.get(relic_id, "")
-	return key == "" or get_level(key) >= 1
+	var gate := RelicMilestones.relic_gate(relic_id)
+	return gate == "" or relic_milestones.pool.has(gate)
 
-# True if the stat-ladder bundle for `ladder_key` (e.g. "max_hp", "double_atk")
-# has been purchased. Gates every relic in Relic.POOL tagged
-# "ladder_gated": true with that "ladder" key — see Relic._draw_one.
 func is_ladder_unlocked(ladder_key: String) -> bool:
-	return get_level("relic_unlock_ladder_" + ladder_key) >= 1
+	return relic_milestones.pool.has("ladder_" + ladder_key)
+
+func award_relic_milestones(facts: Dictionary, boss_token: String = "") -> Array:
+	var old_bosses := relic_milestones.boss_wins.size()
+	var awards := relic_milestones.record(facts, boss_token)
+	if not awards.is_empty() or old_bosses != relic_milestones.boss_wins.size():
+		save_data()
+	return awards
+
+func collect_relic_milestones() -> void:
+	relic_milestones.collect()
+	save_data()
 
 # Per-node overrides from data/crystal_tree.json (2026-07-31: max_level;
 # 2026-08-01: name/desc), so node depth AND wording are tunable from the F9
@@ -1076,6 +1043,7 @@ func reset_all() -> int:
 # unlike reset_all(), this does NOT refund — crystals go to zero along with
 # every upgrade level, since the point is starting over from nothing.
 func wipe_all() -> void:
+	relic_milestones = RelicMilestoneState.new()
 	upgrade_levels.clear()
 	crystals = 0
 	crystals_spent = 0
@@ -1118,6 +1086,7 @@ func save_data() -> void:
 		"crystals":        crystals,
 		"upgrade_levels":  upgrade_levels,
 		"crystals_spent":  crystals_spent,
+		"relic_milestones": relic_milestones.to_dict(),
 	}))
 
 func load_data() -> void:
@@ -1129,6 +1098,7 @@ func load_data() -> void:
 	var parsed = JSON.parse_string(file.get_as_text())
 	if not parsed is Dictionary:
 		return
+	relic_milestones.restore(parsed.get("relic_milestones", {}))
 	crystals        = int(parsed.get("crystals", 0))
 	upgrade_levels  = parsed.get("upgrade_levels", {})
 	# Migration: saves from before crystals_spent existed have no ledger yet.
