@@ -1367,7 +1367,7 @@ saves with a specific pre-rolled reward still pay that reward.
 
 ---
 
-## VD-20 - Relic unlocks move from the crystal tree to milestones - status: DECIDED (mapping in review)
+## VD-20 - Relic unlocks move from the crystal tree to milestones - status: DECIDED (mapping accepted, building)
 
 **Owner decision (2026-09-27), verbatim:**
 
@@ -1389,8 +1389,18 @@ reachable in the first few runs; a collection screen + unlock banner so players
 can chase them; remove the 46 nodes) and a draft condition for every family and
 ladder.
 
-**Blocked on.** Owner review of the rows and the four open questions in the
-worksheet.
+**Owner review (2026-09-27), verbatim:**
+
+> "i agree specially the screen to collect them at the end of the run. pretty
+> soon here were gonna work on a proper tutorial"
+
+**DECIDED:** unlock by family in two tiers; the worksheet's draft conditions as
+written (thresholds stay tunable); remove the 46 tree nodes; an END-OF-RUN
+screen where the player collects every relic unlocked that run. Question 4 was
+not answered, so the default applies: a milestone counts on any difficulty
+unless its condition names one (only Execute tier 2 says Brutal). Unlocks join
+the pool from the NEXT run, as the owner framed it ("in future runs"). A
+tutorial is coming soon, so milestone wording lives in data it can reuse.
 
 ---
 

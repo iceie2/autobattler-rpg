@@ -1,6 +1,7 @@
 # Relic Milestones - design worksheet
 
-Status: DRAFT for owner review, 2026-09-27. Decision recorded in
+Status: ACCEPTED by the owner 2026-09-27 (all rows, two tiers, remove the tree
+nodes, end-of-run collection screen); building. Decision recorded in
 `VERTICAL_DEPTH_BACKLOG.md` **VD-20**. Unlock conditions are moves, so the owner
 keeps, changes or cuts each row; thresholds are numbers and can be tuned.
 
@@ -51,14 +52,14 @@ known at the end of a fight.
 
 | Family (what it does) | Tier 1: D-B grades | Tier 2: A-S grades | State |
 |---|---|---|---|
-| Opening (bonus damage for the first seconds) | Win a fight in under 6 s | Beat an elite in under 10 s | draft |
-| Momentum (attack speed ramps as the fight goes) | Win a fight that lasts 40+ s | Beat a decade boss in a fight lasting 60+ s | draft |
-| Row (front-row heroes deal more) | Win with 4+ heroes in the front row | Beat a decade boss with 4+ heroes in the front row | draft |
-| Execute (bonus damage to low-HP enemies) | Beat your first decade boss (wave 10) | Beat a decade boss on Brutal | draft |
-| First Strike (first attack is a guaranteed crit) | Kill an enemy in the first 2 s of a fight | Kill an elite in the first 5 s of a fight | draft |
-| Ult Refund (kills refund ult charge) | Cast 4 ultimates in one fight* | Cast 10 ultimates in one fight* | draft |
-| Underdog (stronger per dead ally; A/S only) | - | Win a fight after losing half your team | draft |
-| Gold Scale (damage grows with gold held; A/S only) | - | Start a fight holding 150+ gold | draft |
+| Opening (bonus damage for the first seconds) | Win a fight in under 6 s | Beat an elite in under 10 s | accepted |
+| Momentum (attack speed ramps as the fight goes) | Win a fight that lasts 40+ s | Beat a decade boss in a fight lasting 60+ s | accepted |
+| Row (front-row heroes deal more) | Win with 4+ heroes in the front row | Beat a decade boss with 4+ heroes in the front row | accepted |
+| Execute (bonus damage to low-HP enemies) | Beat your first decade boss (wave 10) | Beat a decade boss on Brutal | accepted |
+| First Strike (first attack is a guaranteed crit) | Kill an enemy in the first 2 s of a fight | Kill an elite in the first 5 s of a fight | accepted |
+| Ult Refund (kills refund ult charge) | Cast 4 ultimates in one fight* | Cast 10 ultimates in one fight* | accepted |
+| Underdog (stronger per dead ally; A/S only) | - | Win a fight after losing half your team | accepted |
+| Gold Scale (damage grows with gold held; A/S only) | - | Start a fight holding 150+ gold | accepted |
 
 ## Draft mapping - stat ladders (upper rungs)
 
@@ -67,20 +68,20 @@ comps); otherwise it is one hero reaching the stat.
 
 | Ladder | Unlock | State |
 |---|---|---|
-| Armor | Win a fight with 3+ Tanks | draft |
-| HP | A hero reaches 3,000 max HP | draft |
-| Magic | Win a fight with 3+ Mages | draft |
-| Attack | Win a fight with 3+ Fighters | draft |
-| Attack Speed | Win a fight with 3+ Ranged heroes | draft |
-| Lifesteal | Win a fight with 2+ Healers | draft |
-| Crit Chance | A hero reaches 40% crit chance | draft |
-| Crit Damage | A hero reaches 3x crit damage | draft |
-| Gold | Finish a fight holding 200+ gold | draft |
-| Boss Damage | Beat 3 decade bosses (any runs) | draft |
-| Double Attack | 15 double attacks in one fight* | draft |
-| On-Kill | One hero gets 8 kills in one fight | draft |
-| Start Shield | Win a fight where shields absorb 1,000 damage* | draft |
-| Ult Charge | One hero casts 3 ultimates in one fight* | draft |
+| Armor | Win a fight with 3+ Tanks | accepted |
+| HP | A hero reaches 3,000 max HP | accepted |
+| Magic | Win a fight with 3+ Mages | accepted |
+| Attack | Win a fight with 3+ Fighters | accepted |
+| Attack Speed | Win a fight with 3+ Ranged heroes | accepted |
+| Lifesteal | Win a fight with 2+ Healers | accepted |
+| Crit Chance | A hero reaches 40% crit chance | accepted |
+| Crit Damage | A hero reaches 3x crit damage | accepted |
+| Gold | Finish a fight holding 200+ gold | accepted |
+| Boss Damage | Beat 3 decade bosses (any runs) | accepted |
+| Double Attack | 15 double attacks in one fight* | accepted |
+| On-Kill | One hero gets 8 kills in one fight | accepted |
+| Start Shield | Win a fight where shields absorb 1,000 damage* | accepted |
+| Ult Charge | One hero casts 3 ultimates in one fight* | accepted |
 
 Element comps ("win with 4 Fire heroes") are left out on purpose until the
 element synergy question settles; hero-verb comps can unlock archetype pieces
