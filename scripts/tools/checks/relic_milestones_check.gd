@@ -18,7 +18,8 @@ func _ready() -> void:
 	get_tree().quit(0 if failures.is_empty() else 1)
 
 func _test_conditions() -> void:
-	check(RelicMilestones.TABLE.size() == 28, "28 accepted milestones")
+	# 28 accepted, minus First Strike I/II (cut by the owner, VD-21).
+	check(RelicMilestones.TABLE.size() == 26, "26 accepted milestones")
 	var seen := {}
 	for row: Dictionary in RelicMilestones.TABLE:
 		check(not seen.has(row.id), "unique ID " + row.id)
@@ -49,7 +50,7 @@ func _test_state_and_pool() -> void:
 	Progression.relic_milestones = state
 	state.restore({})
 	check(state.pending.is_empty() and state.pool.is_empty(), "old saves default empty")
-	check(not Progression.is_relic_unlocked("a_firststrike") and not Progression.is_relic_unlocked("s_firststrike"), "A/S First Strike gated")
+	check(not Progression.is_relic_unlocked("a_execute") and not Progression.is_relic_unlocked("s_execute"), "A/S Execute gated")
 	check(Progression.is_relic_unlocked("b_goldscale") and Progression.is_relic_unlocked("d_underdog"), "free low rungs preserved")
 	var earned := state.record({"won": true, "elapsed": 5.9, "max_hp": 3000})
 	check(earned.has("opening_1") and earned.has("ladder_max_hp"), "pending awards recorded")
@@ -67,12 +68,13 @@ func _test_state_and_pool() -> void:
 	check(Progression.is_relic_unlocked("d_opening") and Progression.is_relic_unlocked("b_opening"), "tier I opens D-B next run")
 	check(not Progression.is_relic_unlocked("a_opening"), "tier I does not open A-S")
 	check(Progression.is_ladder_unlocked("max_hp"), "ladder opens next run")
-	restored.record({"first_elite_kill": 5.0})
+	# Earns Execute II only: Execute I needs round 10, and no boss token is passed.
+	restored.record({"won": true, "boss": true, "brutal": true, "round": 20})
 	restored.collect()
-	check(not Progression.is_relic_unlocked("s_firststrike"), "collect leaves this run fixed")
+	check(not Progression.is_relic_unlocked("s_execute"), "collect leaves this run fixed")
 	restored.begin_run()
-	check(Progression.is_relic_unlocked("a_firststrike") and Progression.is_relic_unlocked("s_firststrike"), "tier II opens A/S First Strike")
-	check(not Progression.is_relic_unlocked("b_firststrike"), "tiers remain independent")
+	check(Progression.is_relic_unlocked("a_execute") and Progression.is_relic_unlocked("s_execute"), "tier II opens A/S Execute")
+	check(not Progression.is_relic_unlocked("b_execute"), "tiers remain independent")
 	var boss := {"won": true, "boss": true}
 	restored.record(boss, "one:10")
 	restored.record(boss, "one:10")

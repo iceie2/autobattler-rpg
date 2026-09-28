@@ -56,7 +56,7 @@ known at the end of a fight.
 | Momentum (attack speed ramps as the fight goes) | Win a fight that lasts 40+ s | Beat a decade boss in a fight lasting 60+ s | accepted |
 | Row (front-row heroes deal more) | Win with 4+ heroes in the front row | Beat a decade boss with 4+ heroes in the front row | accepted |
 | Execute (bonus damage to low-HP enemies) | Beat your first decade boss (wave 10) | Beat a decade boss on Brutal | accepted |
-| First Strike (first attack is a guaranteed crit) | Kill an enemy in the first 2 s of a fight | Kill an elite in the first 5 s of a fight | accepted |
+| ~~First Strike (first attack is a guaranteed crit)~~ | ~~Kill an enemy in the first 2 s of a fight~~ | ~~Kill an elite in the first 5 s of a fight~~ | **cut** 2026-09-27 (VD-21: the family was cut) |
 | Ult Refund (kills refund ult charge) | Cast 4 ultimates in one fight* | Cast 10 ultimates in one fight* | accepted |
 | Underdog (stronger per dead ally; A/S only) | - | Win a fight after losing half your team | accepted |
 | Gold Scale (damage grows with gold held; A/S only) | - | Start a fight holding 150+ gold | accepted |
@@ -89,8 +89,9 @@ later (e.g. "win with Coal, Sear and Ember" -> Kindred Flames).
 
 ## Implementation (VD-20)
 
-- `scripts/relics/relic_milestones.gd`: 28 data rows with stable IDs, names,
-  conditions and predicates. Six two-tier families, two A/S-only families,
+- `scripts/relics/relic_milestones.gd`: 26 data rows (28 before First Strike
+  was cut, VD-21) with stable IDs, names, conditions and predicates. Five
+  two-tier families, two A/S-only families,
   and 14 stat ladders; free low Gold Scale/Underdog rungs remain free.
 - `RelicMilestoneState` keeps collected/pending sets and three distinct boss
   win tokens. `Progression` persists them alongside the wallet/upgrades.

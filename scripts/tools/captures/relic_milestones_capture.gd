@@ -4,7 +4,7 @@ const CapturePaths = preload("res://scripts/tools/capture_paths.gd")
 func _ready() -> void:
 	get_window().size = Vector2i(1440, 900)
 	var state := RelicMilestoneState.new()
-	state.pending = {"opening_1": true, "firststrike_2": true, "ladder_max_hp": true}
+	state.pending = {"opening_1": true, "execute_2": true, "ladder_max_hp": true}
 	state.unlocked = {"row_1": true}
 	var screen := RelicMilestoneScreen.new()
 	add_child(screen)

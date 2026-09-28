@@ -486,9 +486,6 @@ var relic_on_kill_atk: float = 0.0       # each kill permanently grants +frac at
 var relic_kill_atk_gain: float = 0.0     # attack earned from kills so far, fraction kept (VD-21)
 var relic_execute_threshold: float = 0.0 # target hp% (0-1) below which execute_pct kicks in
 var relic_execute_bonus: float = 0.0     # bonus outgoing dmg mult while target is below threshold
-var relic_first_strike_crit: bool = false # first attack each fight is a guaranteed crit
-var relic_first_strike_used: bool = false # per-battle guard for relic_first_strike_crit
-var relic_first_strike_crit_mult: float = 2.0 # damage mult applied on that guaranteed first crit (own magnitude, independent of crit_damage)
 var relic_row_front_mult: float = 1.0    # outgoing dmg mult while in the front row
 var relic_row_back_mult: float = 1.0     # outgoing dmg mult while in the back row
 var relic_opening_burst_pct: float = 0.0 # bonus outgoing dmg mult for the opening window
@@ -1053,24 +1050,13 @@ func attack(target) -> void:
 	# did_crit drives the gold/oversized/wobble crit floating text (DamageText).
 	# Both the generic crit stat and the Headhunter 7th-hit triple are "crits" visually.
 	var did_crit := false
-	var pre_crit_damage := damage
-	var crit_mult := 1.0
 	# Component equipment crit sources (Desperation, Critical Focus,
 	# Counterstrike) add here; both bonuses are 0 for a unit without gear.
 	var roll_chance: float = crit_chance + GearPassives.crit_bonus(self)
 	if roll_chance > 0.0 and randf() < roll_chance:
-		crit_mult = crit_damage + GearPassives.crit_damage_bonus(self)
-		damage = int(damage * crit_mult)
+		damage = int(damage * (crit_damage + GearPassives.crit_damage_bonus(self)))
 		did_crit = true
 	GearPassives.on_attack_roll(self)
-	# Relic "First Strike": the first attack each fight is a guaranteed crit for
-	# at least the relic's multiplier. A natural crit that rolls lower is raised
-	# to it instead of using the relic up for nothing (VD-21).
-	if relic_first_strike_crit and not relic_first_strike_used:
-		relic_first_strike_used = true
-		if relic_first_strike_crit_mult > crit_mult:
-			damage = int(pre_crit_damage * relic_first_strike_crit_mult)
-		did_crit = true
 	# Headhunter "Seventh Shot" — numbers from AbilityFormulas, see that file.
 	var is_seventh_shot := false
 	if unit_class == UnitClass.HEADHUNTER \

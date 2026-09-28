@@ -98,12 +98,12 @@ GODOT="/c/anything coding/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mon
 #      --enemy-hp-mult=N (the anti-stall enrage still ends it by ~150 s).
 
 # 3i. Relic rules (after touching relic odds / RelicInventory effects /
-#     First Strike or on-kill in UnitBase / relic picks, the synergy revert or
-#     hero save fields in main_game — VD-21):
+#     on-kill in UnitBase / relic picks, the synergy revert or hero save
+#     fields in main_game — VD-21):
 "$GODOT" --headless res://scenes/relic_rules_smoke.tscn
 #    → "RELIC_RULES_SMOKE: ALL PASS". Deterministic, touches no save: odds rows
-#      per round (map relic nodes, merchants), First Strike grades and hits,
-#      linear on-kill growth with its fractional carry.
+#      per round (map relic nodes, merchants) and linear on-kill growth with
+#      its fractional carry.
 APPDATA=<scratch>/vd21-relic-rules/isolated-profile \
   "$GODOT" --headless res://scenes/tools/relic_rules_integration.tscn
 #    → "RELIC_RULES_INTEGRATION: ALL PASS". Drives the real main_game (bench

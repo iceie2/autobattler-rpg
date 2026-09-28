@@ -73,12 +73,6 @@ static func icon_path(relic: Dictionary) -> String:
 #   execute_pct  {hp_threshold_pct, dmg_bonus_pct}
 #                                          — bonus outgoing dmg while target HP% is
 #                                            at/below hp_threshold_pct
-#   first_strike_crit {first_strike_crit_mult}
-#                                          — each hero's first attack each fight
-#                                            is a guaranteed crit for at least
-#                                            first_strike_crit_mult x damage; a
-#                                            natural crit that rolls higher keeps
-#                                            its own multiplier
 #   row_stat_mult {front_mult, back_mult} — outgoing dmg mult, front row vs back row
 #   battle_start_dmg_window {dmg_bonus_pct, seconds}
 #                                          — bonus outgoing dmg for the first
@@ -135,14 +129,14 @@ const POOL: Array[Dictionary] = [
 	{"id": "c_tide",  "name": "Tidal Charm",    "grade": "C", "desc": "+6% max HP for all; Water units get +20% instead", "category": "element", "effects": [{"type": "element_mult", "stat": "max_hp", "element": UnitBase.Element.WATER, "base": 1.06, "matched": 1.20}]},
 	{"id": "c_mag",   "name": "Scholar's Codex","grade": "C", "desc": "+20% team magic power", "category": "stat_ladder", "ladder": "magic_power", "effects": [{"type": "stat_mult", "stat": "magic_power", "value": 1.20}]},
 	{"id": "c_crit",  "name": "Hunter's Eye",   "grade": "C", "desc": "+10% crit chance and +15% crit damage", "category": "combo", "effects": [{"type": "stat_add", "stat": "crit_chance", "value": 0.10}, {"type": "stat_add", "stat": "crit_damage", "value": 0.15}]},
-	{"id": "c_vamp",  "name": "Bloodthorn",     "grade": "C", "desc": "Team heals 7% of the damage it deals", "category": "stat_ladder", "ladder": "lifesteal", "effects": [{"type": "lifesteal", "value": 0.07}]},
+	{"id": "c_vamp",  "name": "Bloodthorn",     "grade": "C", "desc": "Basic attacks heal for 7% of the damage they deal", "category": "stat_ladder", "ladder": "lifesteal", "effects": [{"type": "lifesteal", "value": 0.07}]},
 	{"id": "c_ward",  "name": "Warding Candle", "grade": "C", "desc": "+45% armor and magic armor", "category": "stat_ladder", "ladder": "armor_dual", "effects": [{"type": "stat_mult_multi", "stats": ["resistance", "magic_resist"], "value": 1.45}]},
 	{"id": "c_gale",  "name": "Gale Feather",   "grade": "C", "desc": "+6% attack speed for all; Air units get +22% instead", "category": "element", "effects": [{"type": "element_mult", "stat": "attack_speed", "element": UnitBase.Element.AIR, "base": 1.06, "matched": 1.22}]},
 	{"id": "c_stone", "name": "Stonebound Idol","grade": "C", "desc": "+8% max HP for all; Earth units get +25% instead", "category": "element", "effects": [{"type": "element_mult", "stat": "max_hp", "element": UnitBase.Element.EARTH, "base": 1.08, "matched": 1.25}]},
 
 	# ── B — build-shaping ──
 	{"id": "b_atk",   "name": "Warlord's Edge", "grade": "B", "desc": "+30% team attack damage", "category": "stat_ladder", "ladder": "atk_dmg", "effects": [{"type": "stat_mult", "stat": "attack_damage", "value": 1.30}]},
-	{"id": "b_vamp",  "name": "Vampiric Sigil", "grade": "B", "desc": "Team heals 12% of the damage it deals", "category": "stat_ladder", "ladder": "lifesteal", "effects": [{"type": "lifesteal", "value": 0.12}]},
+	{"id": "b_vamp",  "name": "Vampiric Sigil", "grade": "B", "desc": "Basic attacks heal for 12% of the damage they deal", "category": "stat_ladder", "ladder": "lifesteal", "effects": [{"type": "lifesteal", "value": 0.12}]},
 	{"id": "b_shield","name": "Bulwark Crest",  "grade": "B", "desc": "Team starts each fight with a shield worth 15% of max HP", "category": "stat_ladder", "ladder": "start_shield", "effects": [{"type": "start_shield", "value": 0.15}]},
 	{"id": "b_ult",   "name": "Overcharged Core","grade": "B", "desc": "Ultimates charge 25% faster", "category": "stat_ladder", "ladder": "ult_charge", "effects": [{"type": "ult_charge", "value": 1.25}]},
 	{"id": "b_ember", "name": "Emberheart",     "grade": "B", "desc": "+8% damage for all; Fire units get +25% instead", "category": "element", "effects": [{"type": "element_mult", "stat": "attack_damage", "element": UnitBase.Element.FIRE, "base": 1.08, "matched": 1.25}]},
@@ -159,7 +153,7 @@ const POOL: Array[Dictionary] = [
 	{"id": "a_exec",  "name": "Executioner",    "grade": "A", "desc": "+30% damage dealt to bosses", "category": "stat_ladder", "ladder": "vs_boss", "effects": [{"type": "vs_boss", "value": 1.30}]},
 	{"id": "a_twin",  "name": "Twin Fang",      "grade": "A", "desc": "20% chance for each attack to strike twice", "category": "stat_ladder", "ladder": "double_atk", "ladder_gated": true, "effects": [{"type": "double_atk", "value": 0.20}]},
 	{"id": "a_storm", "name": "Stormcore",      "grade": "A", "desc": "+10% attack speed for all; Lightning units get +30% instead", "category": "element", "effects": [{"type": "element_mult", "stat": "attack_speed", "element": UnitBase.Element.LIGHTNING, "base": 1.10, "matched": 1.30}]},
-	{"id": "a_vamp",  "name": "Sanguine Crown", "grade": "A", "desc": "Team heals 25% of the damage it deals", "category": "stat_ladder", "ladder": "lifesteal", "effects": [{"type": "lifesteal", "value": 0.25}]},
+	{"id": "a_vamp",  "name": "Sanguine Crown", "grade": "A", "desc": "Basic attacks heal for 25% of the damage they deal", "category": "stat_ladder", "ladder": "lifesteal", "effects": [{"type": "lifesteal", "value": 0.25}]},
 	{"id": "a_bast",  "name": "Adamant Bastion","grade": "A", "desc": "+70% armor and magic armor, and a battle-start shield worth 20% of max HP", "category": "combo", "effects": [{"type": "stat_mult_multi", "stats": ["resistance", "magic_resist"], "value": 1.70}, {"type": "start_shield", "value": 0.20}]},
 	{"id": "a_crit",  "name": "Kingslayer",     "grade": "A", "desc": "+20% crit chance and +80% crit damage", "category": "combo", "effects": [{"type": "stat_add", "stat": "crit_chance", "value": 0.20}, {"type": "stat_add", "stat": "crit_damage", "value": 0.80}]},
 	{"id": "a_siege", "name": "Siege Engine",   "grade": "A", "desc": "+28% attack damage and +28% magic power", "category": "combo", "effects": [{"type": "stat_mult_multi", "stats": ["attack_damage", "magic_power"], "value": 1.28}]},
@@ -173,7 +167,7 @@ const POOL: Array[Dictionary] = [
 	{"id": "s_soul",  "name": "Soul Harvest",   "grade": "S", "desc": "Each kill permanently grants that hero +2% attack damage (stacks all run)", "category": "stat_ladder", "ladder": "on_kill_atk", "effects": [{"type": "on_kill_atk", "value": 0.02}]},
 	{"id": "s_phoenix","name": "Phoenix Pact",  "grade": "S", "desc": "Each hero cheats death once per fight, reviving at 40% HP", "category": "combo", "effects": [{"type": "revive", "value": 0.40}]},
 	{"id": "s_avatar","name": "Avatar Engine",  "grade": "S", "desc": "+25% attack speed and +25% damage dealt", "category": "combo", "effects": [{"type": "stat_mult", "stat": "attack_speed", "value": 1.25}, {"type": "outgoing", "value": 1.25}]},
-	{"id": "s_coil",  "name": "Immortal Coil",  "grade": "S", "desc": "Team heals 20% of the damage it deals, and each hero cheats death once per fight at 25% HP", "category": "combo", "effects": [{"type": "lifesteal", "value": 0.20}, {"type": "revive", "value": 0.25}]},
+	{"id": "s_coil",  "name": "Immortal Coil",  "grade": "S", "desc": "Basic attacks heal for 20% of the damage they deal, and each hero cheats death once per fight at 25% HP", "category": "combo", "effects": [{"type": "lifesteal", "value": 0.20}, {"type": "revive", "value": 0.25}]},
 	{"id": "s_tyrant","name": "Tyrant's Crown", "grade": "S", "desc": "+45% attack damage and +20% crit chance", "category": "combo", "effects": [{"type": "stat_mult", "stat": "attack_damage", "value": 1.45}, {"type": "stat_add", "stat": "crit_chance", "value": 0.20}]},
 	{"id": "s_break", "name": "Worldbreaker",   "grade": "S", "desc": "+20% damage dealt, and +60% damage dealt to bosses", "category": "combo", "effects": [{"type": "outgoing", "value": 1.20}, {"type": "vs_boss", "value": 1.60}]},
 	{"id": "s_gemini","name": "Gemini Fang",    "grade": "S", "desc": "40% chance for each attack to strike twice", "category": "stat_ladder", "ladder": "double_atk", "ladder_gated": true, "effects": [{"type": "double_atk", "value": 0.40}]},
@@ -188,7 +182,7 @@ const POOL: Array[Dictionary] = [
 	{"id": "d_tusk",    "name": "Boar Tusk",      "grade": "D", "desc": "+10% damage dealt to bosses", "category": "stat_ladder", "ladder": "vs_boss", "effects": [{"type": "vs_boss", "value": 1.10}]},
 	{"id": "d_twinspark","name": "Twinspark",     "grade": "D", "desc": "8% chance for each attack to strike twice", "category": "stat_ladder", "ladder": "double_atk", "effects": [{"type": "double_atk", "value": 0.08}]},
 	{"id": "d_grit",    "name": "Iron Grit",      "grade": "D", "desc": "Team takes 5% less damage", "category": "combo", "effects": [{"type": "dmg_taken", "value": 0.95}]},
-	{"id": "d_leech",   "name": "Leech Fang",     "grade": "D", "desc": "Team heals 4% of the damage it deals", "category": "stat_ladder", "ladder": "lifesteal", "effects": [{"type": "lifesteal", "value": 0.04}]},
+	{"id": "d_leech",   "name": "Leech Fang",     "grade": "D", "desc": "Basic attacks heal for 4% of the damage they deal", "category": "stat_ladder", "ladder": "lifesteal", "effects": [{"type": "lifesteal", "value": 0.04}]},
 
 	# ── C (new) ──
 	{"id": "c_critdmg", "name": "Sharpened Fang", "grade": "C", "desc": "+30% crit damage",         "category": "stat_ladder", "ladder": "crit_damage", "effects": [{"type": "stat_add", "stat": "crit_damage", "value": 0.30}]},
@@ -196,14 +190,12 @@ const POOL: Array[Dictionary] = [
 	{"id": "c_trophy",  "name": "Trophy Hunter",  "grade": "C", "desc": "Each kill permanently grants that hero +0.8% attack damage (stacks all run)", "category": "stat_ladder", "ladder": "on_kill_atk", "effects": [{"type": "on_kill_atk", "value": 0.008}]},
 	{"id": "c_sturdy",  "name": "Sturdy Font",    "grade": "C", "desc": "+25% max mana and +15% max HP", "category": "combo", "effects": [{"type": "stat_mult", "stat": "max_mana", "value": 1.25}, {"type": "stat_mult", "stat": "max_hp", "value": 1.15}]},
 	{"id": "c_execute", "name": "Coup de Grace",  "grade": "C", "desc": "+25% damage to enemies below 15% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.15, "dmg_bonus_pct": 0.25}]},
-	{"id": "c_firststrike","name": "Ambush Blade","grade": "C", "desc": "Every hero's first attack in a fight is a guaranteed crit for at least 2x damage", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.0}]},
 	{"id": "c_row",     "name": "Vanguard Standard","grade": "C", "desc": "Front-row heroes deal +15% damage", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.15, "back_mult": 1.0}]},
 	{"id": "c_range",   "name": "Extended Reach", "grade": "C", "desc": "+1 attack range and +10% attack speed", "category": "combo", "effects": [{"type": "stat_add", "stat": "attack_range", "value": 1}, {"type": "stat_mult", "stat": "attack_speed", "value": 1.10}]},
 
 	# ── B (new) ──
 	{"id": "b_doubleatk2","name": "Whirlwind Fang", "grade": "B", "desc": "17.5% chance for each attack to strike twice", "category": "stat_ladder", "ladder": "double_atk", "effects": [{"type": "double_atk", "value": 0.175}]},
 	{"id": "b_execute", "name": "Executioner's Whisper", "grade": "B", "desc": "+35% damage to enemies below 25% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.25, "dmg_bonus_pct": 0.35}]},
-	{"id": "b_firststrike","name": "First Blood",  "grade": "B", "desc": "Every hero's first attack in a fight is a guaranteed crit for at least 2.3x damage", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.3}]},
 	{"id": "b_row",     "name": "Phalanx Core",    "grade": "B", "desc": "Front-row heroes deal +30% damage", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.30, "back_mult": 1.0}]},
 	{"id": "b_opening", "name": "Opening Gambit",  "grade": "B", "desc": "+30% damage for the first 4 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.30, "seconds": 4.0}]},
 	{"id": "b_momentum","name": "Flywheel",        "grade": "B", "desc": "Attack and move speed rise 3% for every second of a fight, up to +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.03}]},
@@ -220,7 +212,6 @@ const POOL: Array[Dictionary] = [
 	{"id": "a_ultrefund","name": "Reaper's Bargain","grade": "A", "desc": "Killing blows refund 30% of the killer's ultimate charge", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.30}]},
 	{"id": "a_underdog","name": "Martyr's Resolve","grade": "A", "desc": "+15% damage dealt and 10% less damage taken per dead ally this fight", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.15, "res_per_dead": 0.10}]},
 	{"id": "a_goldscale","name": "Midas Touch",    "grade": "A", "desc": "Basic attacks deal +6% damage for every 100 gold you hold", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0006}]},
-	{"id": "a_firststrike","name": "Vanguard's Gambit","grade": "A", "desc": "Every hero's first attack in a fight is a guaranteed crit for at least 2.6x damage", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.6}]},
 
 	# ── S (new) ──
 	{"id": "s_execute", "name": "Deathmark",       "grade": "S", "desc": "+80% damage to enemies below 35% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.35, "dmg_bonus_pct": 0.80}]},
@@ -230,12 +221,10 @@ const POOL: Array[Dictionary] = [
 	{"id": "s_ultrefund","name": "Endless Reaping", "grade": "S", "desc": "Killing blows refund 50% of the killer's ultimate charge", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.50}]},
 	{"id": "s_underdog","name": "Last Light",       "grade": "S", "desc": "+25% damage dealt and 18% less damage taken per dead ally this fight", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.25, "res_per_dead": 0.18}]},
 	{"id": "s_goldscale","name": "Dragon's Avarice","grade": "S", "desc": "Basic attacks deal +10% damage for every 100 gold you hold", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0010}]},
-	{"id": "s_firststrike","name": "Alpha Predator","grade": "S", "desc": "Every hero's first attack in a fight is a guaranteed crit for at least 3x damage", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 3.0}]},
 	{"id": "s_allstat", "name": "Ascendant Core",   "grade": "S", "desc": "+20% attack damage, magic power, max HP, and attack speed", "category": "combo", "effects": [{"type": "stat_mult_multi", "stats": ["attack_damage", "magic_power", "max_hp", "attack_speed"], "value": 1.20}]},
 
 	# ── Mechanic-ladder low rungs (2026-08-05) — fills D/C beneath the B-S mechanic relics above ──
 	{"id": "d_execute", "name": "Faltering Blow",   "grade": "D", "desc": "+15% damage to enemies below 10% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.10, "dmg_bonus_pct": 0.15}]},
-	{"id": "d_firststrike", "name": "Sudden Strike", "grade": "D", "desc": "Every hero's first attack in a fight is a guaranteed crit for at least 1.8x damage", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 1.8}]},
 	{"id": "d_row",     "name": "Skirmish Line",    "grade": "D", "desc": "Front-row heroes deal +8% damage", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.08, "back_mult": 1.0}]},
 	{"id": "d_opening", "name": "Quickdraw",        "grade": "D", "desc": "+15% damage for the first 3 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.15, "seconds": 3.0}]},
 	{"id": "c_opening", "name": "Ambuscade",        "grade": "C", "desc": "+22% damage for the first 3.5 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.22, "seconds": 3.5}]},
@@ -268,7 +257,7 @@ const POOL: Array[Dictionary] = [
 	{"id": "b_res", "name": "Sanctified Plate", "grade": "B", "desc": "+65% armor and magic armor", "category": "stat_ladder", "ladder": "armor_dual", "ladder_gated": true, "effects": [{"type": "stat_mult_multi", "stats": ["resistance", "magic_resist"], "value": 1.65}]},
 	{"id": "a_res", "name": "Aegis of the Unbroken", "grade": "A", "desc": "+90% armor and magic armor", "category": "stat_ladder", "ladder": "armor_dual", "ladder_gated": true, "effects": [{"type": "stat_mult_multi", "stats": ["resistance", "magic_resist"], "value": 1.90}]},
 	{"id": "s_res", "name": "Bulwark Eternal", "grade": "S", "desc": "+120% armor and magic armor", "category": "stat_ladder", "ladder": "armor_dual", "ladder_gated": true, "effects": [{"type": "stat_mult_multi", "stats": ["resistance", "magic_resist"], "value": 2.20}]},
-	{"id": "s_leech", "name": "Crimson Sovereign", "grade": "S", "desc": "Team heals 35% of the damage it deals", "category": "stat_ladder", "ladder": "lifesteal", "ladder_gated": true, "effects": [{"type": "lifesteal", "value": 0.35}]},
+	{"id": "s_leech", "name": "Crimson Sovereign", "grade": "S", "desc": "Basic attacks heal for 35% of the damage they deal", "category": "stat_ladder", "ladder": "lifesteal", "ladder_gated": true, "effects": [{"type": "lifesteal", "value": 0.35}]},
 	{"id": "a_hoard", "name": "King's Ransom", "grade": "A", "desc": "+7 gold each round, and the shop shows 5 heroes", "category": "stat_ladder", "ladder": "gold_econ", "ladder_gated": true, "effects": [{"type": "gold_round", "value": 7}, {"type": "shop_slots", "value": 2}]},
 	{"id": "s_hoard", "name": "Endless Vault", "grade": "S", "desc": "+10 gold each round, and the shop shows 5 heroes", "category": "stat_ladder", "ladder": "gold_econ", "ladder_gated": true, "effects": [{"type": "gold_round", "value": 10}, {"type": "shop_slots", "value": 2}]},
 	{"id": "c_vsboss", "name": "Wyrmspike", "grade": "C", "desc": "+16% damage dealt to bosses", "category": "stat_ladder", "ladder": "vs_boss", "ladder_gated": true, "effects": [{"type": "vs_boss", "value": 1.16}]},

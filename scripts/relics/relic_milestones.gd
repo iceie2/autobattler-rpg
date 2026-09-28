@@ -1,7 +1,8 @@
 class_name RelicMilestones
 extends RefCounted
 # VD-20: canonical, tutorial-ready wording and predicates. Evaluation is pure.
-const FAMILIES := ["opening", "momentum", "row", "execute", "firststrike", "ultrefund", "underdog", "goldscale"]
+# First Strike was cut by the owner (VD-21, 2026-09-27).
+const FAMILIES := ["opening", "momentum", "row", "execute", "ultrefund", "underdog", "goldscale"]
 const TABLE: Array = [
   {
     "id": "opening_1",
@@ -161,30 +162,6 @@ const TABLE: Array = [
         "brutal",
         "eq",
         true
-      ]
-    ]
-  },
-  {
-    "id": "firststrike_1",
-    "name": "First Strike I",
-    "condition": "Kill an enemy in the first 2 seconds of a fight.",
-    "requirements": [
-      [
-        "first_kill",
-        "le",
-        2
-      ]
-    ]
-  },
-  {
-    "id": "firststrike_2",
-    "name": "First Strike II",
-    "condition": "Kill an elite in the first 5 seconds of a fight.",
-    "requirements": [
-      [
-        "first_elite_kill",
-        "le",
-        5
       ]
     ]
   },

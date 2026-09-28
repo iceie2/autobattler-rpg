@@ -61,7 +61,7 @@ func _ready() -> void:
 	mg.queue_free()
 	await get_tree().process_frame
 	# An abandoned/crashed run's pending awards are presented before a new run.
-	Progression.relic_milestones.pending["firststrike_2"] = true
+	Progression.relic_milestones.pending["execute_2"] = true
 	var recovered = load("res://scenes/main_game.tscn").instantiate()
 	add_child(recovered)
 	await get_tree().process_frame
@@ -71,7 +71,7 @@ func _ready() -> void:
 	check(screen != null, "fresh run recovers uncollected awards")
 	if screen: screen._button.pressed.emit()
 	await get_tree().process_frame
-	check(Progression.is_relic_unlocked("s_firststrike"), "recovery collects before new run snapshot")
+	check(Progression.is_relic_unlocked("s_execute"), "recovery collects before new run snapshot")
 	recovered.queue_free()
 	await get_tree().process_frame
 	await get_tree().create_timer(4.1).timeout

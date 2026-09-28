@@ -517,7 +517,6 @@ func _init_unit_timers() -> void:
 		unit.summon_spawn_timer = 2.5
 		# ── Relic battle-start effects ──
 		unit.relic_revive_used = false
-		unit.relic_first_strike_used = false
 		unit.relic_opening_burst_remaining = unit.relic_opening_burst_window
 		unit.relic_momentum_time = 0.0
 		if unit.relic_start_shield_pct > 0.0:
