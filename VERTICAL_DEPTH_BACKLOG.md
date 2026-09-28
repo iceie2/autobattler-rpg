@@ -1627,7 +1627,7 @@ profiles; the live saves and telemetry were unchanged.
 4. **DECIDED - next focus is more build-around relics like Burn,** for the
    elements and the roles. Recorded as VD-22.
 
-## VD-22 - Build-around relics for elements and roles - status: DESIGN (worksheet for owner review)
+## VD-22 - Build-around relics for elements and roles - status: DESIGN (worksheet `ARCHETYPE_PIECES.md` awaiting owner review)
 
 **Owner decision (2026-09-27), verbatim:**
 
