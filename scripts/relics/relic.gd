@@ -68,15 +68,17 @@ static func icon_path(relic: Dictionary) -> String:
 #   free_ult     {}        — start each battle with the ultimate charged
 #   revive       {value}   — cheat death once per battle, revive at `value` HP frac
 #   on_kill_atk  {value}   — each kill permanently grants +`value` frac attack dmg
+#                            (linear, of the attack without kill growth, with a
+#                            fractional carry; see UnitBase.grant_on_kill_attack)
 #   execute_pct  {hp_threshold_pct, dmg_bonus_pct}
 #                                          — bonus outgoing dmg while target HP% is
 #                                            at/below hp_threshold_pct
 #   first_strike_crit {first_strike_crit_mult}
-#                                          — the first attack each fight is a
-#                                            guaranteed crit, dealing
-#                                            first_strike_crit_mult (default
-#                                            2.0) x damage instead of the
-#                                            normal crit_damage multiplier
+#                                          — each hero's first attack each fight
+#                                            is a guaranteed crit for at least
+#                                            first_strike_crit_mult x damage; a
+#                                            natural crit that rolls higher keeps
+#                                            its own multiplier
 #   row_stat_mult {front_mult, back_mult} — outgoing dmg mult, front row vs back row
 #   battle_start_dmg_window {dmg_bonus_pct, seconds}
 #                                          — bonus outgoing dmg for the first
@@ -194,55 +196,55 @@ const POOL: Array[Dictionary] = [
 	{"id": "c_trophy",  "name": "Trophy Hunter",  "grade": "C", "desc": "Each kill permanently grants that hero +0.8% attack damage (stacks all run)", "category": "stat_ladder", "ladder": "on_kill_atk", "effects": [{"type": "on_kill_atk", "value": 0.008}]},
 	{"id": "c_sturdy",  "name": "Sturdy Font",    "grade": "C", "desc": "+25% max mana and +15% max HP", "category": "combo", "effects": [{"type": "stat_mult", "stat": "max_mana", "value": 1.25}, {"type": "stat_mult", "stat": "max_hp", "value": 1.15}]},
 	{"id": "c_execute", "name": "Coup de Grace",  "grade": "C", "desc": "+25% damage to enemies below 15% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.15, "dmg_bonus_pct": 0.25}]},
-	{"id": "c_firststrike","name": "Ambush Blade","grade": "C", "desc": "The first attack each fight is a guaranteed crit", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.0}]},
+	{"id": "c_firststrike","name": "Ambush Blade","grade": "C", "desc": "Every hero's first attack in a fight is a guaranteed crit for at least 2x damage", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.0}]},
 	{"id": "c_row",     "name": "Vanguard Standard","grade": "C", "desc": "Front-row heroes deal +15% damage", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.15, "back_mult": 1.0}]},
 	{"id": "c_range",   "name": "Extended Reach", "grade": "C", "desc": "+1 attack range and +10% attack speed", "category": "combo", "effects": [{"type": "stat_add", "stat": "attack_range", "value": 1}, {"type": "stat_mult", "stat": "attack_speed", "value": 1.10}]},
 
 	# ── B (new) ──
 	{"id": "b_doubleatk2","name": "Whirlwind Fang", "grade": "B", "desc": "17.5% chance for each attack to strike twice", "category": "stat_ladder", "ladder": "double_atk", "effects": [{"type": "double_atk", "value": 0.175}]},
 	{"id": "b_execute", "name": "Executioner's Whisper", "grade": "B", "desc": "+35% damage to enemies below 25% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.25, "dmg_bonus_pct": 0.35}]},
-	{"id": "b_firststrike","name": "First Blood",  "grade": "B", "desc": "The first attack each fight is a guaranteed crit", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.3}]},
+	{"id": "b_firststrike","name": "First Blood",  "grade": "B", "desc": "Every hero's first attack in a fight is a guaranteed crit for at least 2.3x damage", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.3}]},
 	{"id": "b_row",     "name": "Phalanx Core",    "grade": "B", "desc": "Front-row heroes deal +30% damage", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.30, "back_mult": 1.0}]},
 	{"id": "b_opening", "name": "Opening Gambit",  "grade": "B", "desc": "+30% damage for the first 4 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.30, "seconds": 4.0}]},
-	{"id": "b_momentum","name": "Flywheel",        "grade": "B", "desc": "Attack speed ramps up the longer a fight goes, capping at +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.03}]},
+	{"id": "b_momentum","name": "Flywheel",        "grade": "B", "desc": "Attack and move speed rise 3% for every second of a fight, up to +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.03}]},
 	{"id": "b_ultrefund","name": "Soulsiphon Blade","grade": "B", "desc": "Killing blows refund 15% of the killer's ultimate charge", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.15}]},
 	{"id": "b_underdog","name": "Last Stand Banner","grade": "B", "desc": "+8% damage dealt and 5% less damage taken per dead ally this fight", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.08, "res_per_dead": 0.05}]},
-	{"id": "b_goldscale","name": "Miser's Edge",   "grade": "B", "desc": "Damage scales with the run's current gold total", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0003}]},
+	{"id": "b_goldscale","name": "Miser's Edge",   "grade": "B", "desc": "Basic attacks deal +3% damage for every 100 gold you hold", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0003}]},
 	{"id": "b_critres", "name": "Battleworn Plate","grade": "B", "desc": "+10% crit chance and the team takes 10% less damage", "category": "combo", "effects": [{"type": "stat_add", "stat": "crit_chance", "value": 0.10}, {"type": "dmg_taken", "value": 0.90}]},
 
 	# ── A (new) ──
 	{"id": "a_execute", "name": "Culling Blade",  "grade": "A", "desc": "+55% damage to enemies below 30% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.30, "dmg_bonus_pct": 0.55}]},
 	{"id": "a_row",     "name": "Battleline Discipline","grade": "A", "desc": "Front-row heroes deal +45% damage; back-row +10%", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.45, "back_mult": 1.10}]},
 	{"id": "a_opening", "name": "Alpha Strike",    "grade": "A", "desc": "+45% damage for the first 5 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.45, "seconds": 5.0}]},
-	{"id": "a_momentum","name": "Overdrive Engine","grade": "A", "desc": "Attack speed ramps up faster the longer a fight goes, capping at +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.05}]},
+	{"id": "a_momentum","name": "Overdrive Engine","grade": "A", "desc": "Attack and move speed rise 5% for every second of a fight, up to +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.05}]},
 	{"id": "a_ultrefund","name": "Reaper's Bargain","grade": "A", "desc": "Killing blows refund 30% of the killer's ultimate charge", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.30}]},
 	{"id": "a_underdog","name": "Martyr's Resolve","grade": "A", "desc": "+15% damage dealt and 10% less damage taken per dead ally this fight", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.15, "res_per_dead": 0.10}]},
-	{"id": "a_goldscale","name": "Midas Touch",    "grade": "A", "desc": "Damage scales strongly with the run's current gold total", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0006}]},
-	{"id": "a_firststrike","name": "Vanguard's Gambit","grade": "A", "desc": "The first attack each fight is a guaranteed crit", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.6}]},
+	{"id": "a_goldscale","name": "Midas Touch",    "grade": "A", "desc": "Basic attacks deal +6% damage for every 100 gold you hold", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0006}]},
+	{"id": "a_firststrike","name": "Vanguard's Gambit","grade": "A", "desc": "Every hero's first attack in a fight is a guaranteed crit for at least 2.6x damage", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.6}]},
 
 	# ── S (new) ──
 	{"id": "s_execute", "name": "Deathmark",       "grade": "S", "desc": "+80% damage to enemies below 35% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.35, "dmg_bonus_pct": 0.80}]},
 	{"id": "s_row",     "name": "Immortal Formation","grade": "S", "desc": "Front-row heroes deal +60% damage; back-row +25%", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.60, "back_mult": 1.25}]},
 	{"id": "s_opening", "name": "First Light",      "grade": "S", "desc": "+60% damage for the first 6 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.60, "seconds": 6.0}]},
-	{"id": "s_momentum","name": "Perpetual Motion", "grade": "S", "desc": "Attack speed ramps up rapidly the longer a fight goes, capping at +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.08}]},
+	{"id": "s_momentum","name": "Perpetual Motion", "grade": "S", "desc": "Attack and move speed rise 8% for every second of a fight, up to +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.08}]},
 	{"id": "s_ultrefund","name": "Endless Reaping", "grade": "S", "desc": "Killing blows refund 50% of the killer's ultimate charge", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.50}]},
 	{"id": "s_underdog","name": "Last Light",       "grade": "S", "desc": "+25% damage dealt and 18% less damage taken per dead ally this fight", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.25, "res_per_dead": 0.18}]},
-	{"id": "s_goldscale","name": "Dragon's Avarice","grade": "S", "desc": "Damage scales heavily with the run's current gold total", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0010}]},
-	{"id": "s_firststrike","name": "Alpha Predator","grade": "S", "desc": "The first attack each fight is a guaranteed crit", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 3.0}]},
+	{"id": "s_goldscale","name": "Dragon's Avarice","grade": "S", "desc": "Basic attacks deal +10% damage for every 100 gold you hold", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0010}]},
+	{"id": "s_firststrike","name": "Alpha Predator","grade": "S", "desc": "Every hero's first attack in a fight is a guaranteed crit for at least 3x damage", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 3.0}]},
 	{"id": "s_allstat", "name": "Ascendant Core",   "grade": "S", "desc": "+20% attack damage, magic power, max HP, and attack speed", "category": "combo", "effects": [{"type": "stat_mult_multi", "stats": ["attack_damage", "magic_power", "max_hp", "attack_speed"], "value": 1.20}]},
 
 	# ── Mechanic-ladder low rungs (2026-08-05) — fills D/C beneath the B-S mechanic relics above ──
 	{"id": "d_execute", "name": "Faltering Blow",   "grade": "D", "desc": "+15% damage to enemies below 10% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.10, "dmg_bonus_pct": 0.15}]},
-	{"id": "d_firststrike", "name": "Sudden Strike", "grade": "D", "desc": "The first attack each fight is a guaranteed crit", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 1.8}]},
+	{"id": "d_firststrike", "name": "Sudden Strike", "grade": "D", "desc": "Every hero's first attack in a fight is a guaranteed crit for at least 1.8x damage", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 1.8}]},
 	{"id": "d_row",     "name": "Skirmish Line",    "grade": "D", "desc": "Front-row heroes deal +8% damage", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.08, "back_mult": 1.0}]},
 	{"id": "d_opening", "name": "Quickdraw",        "grade": "D", "desc": "+15% damage for the first 3 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.15, "seconds": 3.0}]},
 	{"id": "c_opening", "name": "Ambuscade",        "grade": "C", "desc": "+22% damage for the first 3.5 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.22, "seconds": 3.5}]},
-	{"id": "d_momentum","name": "Spinup Coil",      "grade": "D", "desc": "Attack speed ramps up the longer a fight goes, capping at +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.015}]},
-	{"id": "c_momentum","name": "Ramping Gear",     "grade": "C", "desc": "Attack speed ramps up the longer a fight goes, capping at +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.022}]},
+	{"id": "d_momentum","name": "Spinup Coil",      "grade": "D", "desc": "Attack and move speed rise 1.5% for every second of a fight, up to +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.015}]},
+	{"id": "c_momentum","name": "Ramping Gear",     "grade": "C", "desc": "Attack and move speed rise 2.2% for every second of a fight, up to +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.022}]},
 	{"id": "d_ultrefund","name": "Faint Echo",      "grade": "D", "desc": "Killing blows refund 6% of the killer's ultimate charge", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.06}]},
 	{"id": "c_ultrefund","name": "Soulspark Blade",  "grade": "C", "desc": "Killing blows refund 10% of the killer's ultimate charge", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.10}]},
-	{"id": "d_goldscale","name": "Penny Pincher",   "grade": "D", "desc": "Damage scales with the run's current gold total", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.00012}]},
-	{"id": "c_goldscale","name": "Coinbiter's Edge","grade": "C", "desc": "Damage scales with the run's current gold total", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0002}]},
+	{"id": "d_goldscale","name": "Penny Pincher",   "grade": "D", "desc": "Basic attacks deal +1.2% damage for every 100 gold you hold", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.00012}]},
+	{"id": "c_goldscale","name": "Coinbiter's Edge","grade": "C", "desc": "Basic attacks deal +2% damage for every 100 gold you hold", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0002}]},
 	{"id": "d_underdog","name": "Grim Resolve",     "grade": "D", "desc": "+4% damage dealt and 2% less damage taken per dead ally this fight", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.04, "res_per_dead": 0.02}]},
 	{"id": "c_underdog","name": "Defiant Stand",    "grade": "C", "desc": "+6% damage dealt and 3.5% less damage taken per dead ally this fight", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.06, "res_per_dead": 0.035}]},
 
@@ -329,9 +331,21 @@ static func archetype_relics() -> Array:
 
 # ── Gacha rolling ─────────────────────────────────────────────────────────────
 
+# The odds row in force on `wave`: the latest relic wave at or before it. Map
+# relic nodes and merchants open on rounds that are not table keys (a biome's
+# relic node rolls as round 11, 21, ..., a merchant as 13 or 18); an exact-key
+# lookup sent every one of them back to wave-1 odds, so grades never rose past
+# the first biome (VD-21).
+static func odds_for_wave(wave: int) -> Dictionary:
+	var row: int = 1
+	for w in WAVE_ODDS:
+		if int(w) <= wave and int(w) > row:
+			row = int(w)
+	return WAVE_ODDS[row]
+
 # Roll a grade for one offer slot off the given wave's odds.
 static func roll_grade(wave: int) -> String:
-	var odds: Dictionary = WAVE_ODDS.get(wave, WAVE_ODDS[1])
+	var odds: Dictionary = odds_for_wave(wave)
 	var total := 0
 	for w in odds.values():
 		total += int(w)

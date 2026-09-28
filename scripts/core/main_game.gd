@@ -459,6 +459,9 @@ func _hero_to_dict(u: UnitBase, on_bench: bool) -> Dictionary:
 		"r_dmg_taken": u.relic_dmg_taken_mult, "r_outgoing": u.relic_outgoing_mult,
 		"r_vs_boss": u.relic_vs_boss_mult, "r_double": u.relic_double_atk_chance,
 		"r_revive": u.relic_revive_pct,
+		# On-kill relic growth: the whole points are already in "atk"; this keeps
+		# the running total and its fraction (VD-21).
+		"r_kill_atk": u.relic_kill_atk_gain,
 		# The scar STATS ride along in the absolute values above, but the record
 		# of what was traded lives in meta — without this a resumed run shows a
 		# hero with unexplained numbers and no scar chip (see
@@ -506,6 +509,7 @@ func _restore_hero(d: Dictionary) -> void:
 	u.relic_vs_boss_mult = float(d.get("r_vs_boss", 1.0))
 	u.relic_double_atk_chance = float(d.get("r_double", 0.0))
 	u.relic_revive_pct = float(d.get("r_revive", 0.0))
+	u.relic_kill_atk_gain = float(d.get("r_kill_atk", 0.0))
 	u.died.connect(_on_unit_died.bind(u))
 	u.battle_manager = auto_battle_manager
 	u.damage_text_container = damage_text_container
@@ -1276,10 +1280,12 @@ func _on_relic_chosen(relic: Dictionary) -> void:
 	# a stack of half-closed modals is how the opening beat locked up.
 	if _relic_screen:
 		_relic_screen.visible = false
-	# Store it, then apply retroactively to heroes already on the team. Newly
-	# recruited heroes pick it up in _on_hero_chosen.
+	# Store it, then apply retroactively to every hero the player owns: board,
+	# bench and downed. Board-only left benched heroes without the relic for the
+	# rest of the run (VD-21); the per-unit acquisition guard makes a repeat
+	# harmless. Newly recruited heroes pick it up in _recruit_hero.
 	var owned_copy: Dictionary = _relic_inventory.add_relic(relic)
-	_relic_inventory.apply_relic_to_units(owned_copy, player_units)
+	_relic_inventory.apply_relic_to_units(owned_copy, player_units + bench_units + _downed_heroes)
 	_rebuild_relic_bar()
 	update_ui()
 	update_team_health_bars()
@@ -3254,7 +3260,13 @@ func _on_map_node_chosen(node: Dictionary) -> void:
 		RunMap.NodeType.RELIC:
 			# A biome's opening relic is entered before its first battle advances
 			# battle_round, so use the node's round to switch the scenery first.
-			var relic_round: int = maxi(1, int(entered.get("round", game_state.battle_round)))
+			# Relic nodes are utility stops with round 0 (no wave of their own);
+			# they open the biome, so they roll and paint as its first round.
+			# Read as round 1, every biome's relic rolled wave-1 odds, re-offered
+			# the VD-16 seed and flipped the scenery back to biome 1 (VD-21).
+			var relic_round: int = int(entered.get("round", 0))
+			if relic_round <= 0:
+				relic_round = _run_map.absolute_round(1)
 			background_layer.set_biome_from_round(relic_round)
 			var offers: Array = Relic.roll_offers(relic_round, _relic_inventory.owned_ids(), 3,
 					_relic_offer_ctx(relic_round))
@@ -5619,6 +5631,7 @@ func _apply_team_synergies() -> void:
 			"attack_damage": u.attack_damage, "magic_power": u.magic_power,
 			"resistance": u.resistance, "max_hp": u.max_hp,
 			"attack_speed": u.attack_speed, "attack_range": u.attack_range,
+			"kill_atk_whole": u.kill_atk_whole(),
 		})
 		u.attack_damage = maxi(1, int(round(u.attack_damage * b["attack_damage"])))
 		u.magic_power   = maxi(0, int(round(u.magic_power   * b["magic_power"])))
@@ -5639,7 +5652,10 @@ func _revert_team_synergies() -> void:
 		if not (u and is_instance_valid(u) and u.has_meta("syn_backup")):
 			continue
 		var bk: Dictionary = u.get_meta("syn_backup")
-		u.attack_damage = int(bk["attack_damage"])
+		# Restore the pre-fight attack but keep what on-kill relics earned in
+		# this fight; restoring the snapshot alone erased it every fight (VD-21).
+		var kill_atk_earned: int = u.kill_atk_whole() - int(bk.get("kill_atk_whole", u.kill_atk_whole()))
+		u.attack_damage = int(bk["attack_damage"]) + kill_atk_earned
 		u.magic_power   = int(bk["magic_power"])
 		u.resistance    = int(bk["resistance"])
 		u.attack_speed  = float(bk["attack_speed"])

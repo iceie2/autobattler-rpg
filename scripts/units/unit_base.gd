@@ -483,6 +483,7 @@ var relic_free_first_ult: bool = false   # start each battle with ult charged
 var relic_revive_pct: float = 0.0        # cheat death once/battle, revive at this frac
 var relic_revive_used: bool = false      # per-battle guard for relic_revive_pct
 var relic_on_kill_atk: float = 0.0       # each kill permanently grants +frac attack dmg
+var relic_kill_atk_gain: float = 0.0     # attack earned from kills so far, fraction kept (VD-21)
 var relic_execute_threshold: float = 0.0 # target hp% (0-1) below which execute_pct kicks in
 var relic_execute_bonus: float = 0.0     # bonus outgoing dmg mult while target is below threshold
 var relic_first_strike_crit: bool = false # first attack each fight is a guaranteed crit
@@ -1052,19 +1053,24 @@ func attack(target) -> void:
 	# did_crit drives the gold/oversized/wobble crit floating text (DamageText).
 	# Both the generic crit stat and the Headhunter 7th-hit triple are "crits" visually.
 	var did_crit := false
+	var pre_crit_damage := damage
+	var crit_mult := 1.0
 	# Component equipment crit sources (Desperation, Critical Focus,
 	# Counterstrike) add here; both bonuses are 0 for a unit without gear.
 	var roll_chance: float = crit_chance + GearPassives.crit_bonus(self)
 	if roll_chance > 0.0 and randf() < roll_chance:
-		damage = int(damage * (crit_damage + GearPassives.crit_damage_bonus(self)))
+		crit_mult = crit_damage + GearPassives.crit_damage_bonus(self)
+		damage = int(damage * crit_mult)
 		did_crit = true
 	GearPassives.on_attack_roll(self)
-	# Relic "First Strike": the first attack each fight is a guaranteed crit.
+	# Relic "First Strike": the first attack each fight is a guaranteed crit for
+	# at least the relic's multiplier. A natural crit that rolls lower is raised
+	# to it instead of using the relic up for nothing (VD-21).
 	if relic_first_strike_crit and not relic_first_strike_used:
 		relic_first_strike_used = true
-		if not did_crit:
-			damage = int(damage * relic_first_strike_crit_mult)
-			did_crit = true
+		if relic_first_strike_crit_mult > crit_mult:
+			damage = int(pre_crit_damage * relic_first_strike_crit_mult)
+		did_crit = true
 	# Headhunter "Seventh Shot" — numbers from AbilityFormulas, see that file.
 	var is_seventh_shot := false
 	if unit_class == UnitClass.HEADHUNTER \
@@ -1162,12 +1168,29 @@ func apply_relic_on_hit(target, actual: int, was_alive: bool) -> void:
 		heal(int(round(actual * relic_lifesteal)))
 	apply_bloodhound_frenzy_lifesteal(actual)
 	if relic_on_kill_atk > 0.0 and was_alive and target is UnitBase and target.current_hp <= 0:
-		attack_damage = maxi(1, int(round(attack_damage * (1.0 + relic_on_kill_atk))))
+		grant_on_kill_attack()
 	if relic_ult_refund_kill > 0.0 and was_alive and target is UnitBase and target.current_hp <= 0 \
 			and ultimate_charge_max > 0 and not ultimate_ready:
 		ultimate_charge = mini(ultimate_charge_max, ultimate_charge + int(round(ultimate_charge_max * relic_ult_refund_kill)))
 		if ultimate_charge >= ultimate_charge_max:
 			ultimate_ready = true
+
+# On-kill relics ("+1% attack damage per kill, stacks all run"). Linear, as the
+# text reads: each kill adds the relic's share of the hero's attack WITHOUT its
+# kill growth, and the fraction carries. The old int(round(atk x 1.01)) gave
+# back the same attack for any hero under 50 attack, so the relic did nothing
+# (VD-21). Whole points land in attack_damage; relic_kill_atk_gain keeps the
+# running total so the battle-end synergy revert and save/resume keep them.
+func grant_on_kill_attack() -> void:
+	var baked := kill_atk_whole()
+	var base := float(maxi(1, attack_damage - baked))
+	relic_kill_atk_gain += base * relic_on_kill_atk
+	attack_damage += kill_atk_whole() - baked
+
+# Whole attack points on-kill relics have added so far; the fraction waits. The
+# epsilon keeps a float sum like 9.9999999 from paying out one point late.
+func kill_atk_whole() -> int:
+	return int(floor(relic_kill_atk_gain + 0.000001))
 
 func apply_bloodhound_frenzy_lifesteal(actual: int) -> void:
 	if actual <= 0 or unit_class != UnitClass.BLOODHOUND or not frenzy_active:

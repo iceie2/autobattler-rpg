@@ -97,6 +97,21 @@ GODOT="/c/anything coding/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mon
 #      relics with --relics=c_kindling,b_kindred and stretch a fight with
 #      --enemy-hp-mult=N (the anti-stall enrage still ends it by ~150 s).
 
+# 3i. Relic rules (after touching relic odds / RelicInventory effects /
+#     First Strike or on-kill in UnitBase / relic picks, the synergy revert or
+#     hero save fields in main_game — VD-21):
+"$GODOT" --headless res://scenes/relic_rules_smoke.tscn
+#    → "RELIC_RULES_SMOKE: ALL PASS". Deterministic, touches no save: odds rows
+#      per round (map relic nodes, merchants), First Strike grades and hits,
+#      linear on-kill growth with its fractional carry.
+APPDATA=<scratch>/vd21-relic-rules/isolated-profile \
+  "$GODOT" --headless res://scenes/tools/relic_rules_integration.tscn
+#    → "RELIC_RULES_INTEGRATION: ALL PASS". Drives the real main_game (bench
+#      heroes get picked relics, a biome-1 relic node plays as round 11,
+#      on-kill growth survives the synergy revert and a resume). It writes
+#      saves and telemetry, so it refuses to run (exit 2) unless APPDATA
+#      points at a disposable folder with that path segment.
+
 # 4. Balance sim (after touching stats/numbers):
 "$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=sim \
   --team=SABLE:3,RIOT:3 --enemy=wave:5 --runs=5 --seed=42

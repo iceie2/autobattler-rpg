@@ -137,8 +137,14 @@ func _apply_effect(unit, e: Dictionary) -> void:
 			unit.relic_execute_threshold = maxf(unit.relic_execute_threshold, float(e.get("hp_threshold_pct", 0.0)))
 			unit.relic_execute_bonus += float(e.get("dmg_bonus_pct", 0.0))
 		"first_strike_crit":
+			# Each grade's own multiplier (D 1.8x .. S 3.0x). This read "mult",
+			# which no relic has, so every grade fell back to 2.0x (VD-21). The
+			# strongest owned grade wins; the first one sets it outright, so a D
+			# below the field's 2.0 default is not raised to it.
+			var fs_mult := float(e.get("first_strike_crit_mult", 2.0))
+			unit.relic_first_strike_crit_mult = maxf(unit.relic_first_strike_crit_mult, fs_mult) \
+					if unit.relic_first_strike_crit else fs_mult
 			unit.relic_first_strike_crit = true
-			unit.relic_first_strike_crit_mult = maxf(unit.relic_first_strike_crit_mult, float(e.get("mult", 2.0)))
 		"row_stat_mult":
 			unit.relic_row_front_mult *= float(e.get("front_mult", 1.0))
 			unit.relic_row_back_mult *= float(e.get("back_mult", 1.0))
