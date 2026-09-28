@@ -1288,7 +1288,7 @@ throwaway probe instead).
 
 ---
 
-## VD-18 - The hero XP nodes only boosted kill XP - status: BUILT 2026-09-27 (9c146a74), smoke check not yet run
+## VD-18 - The hero XP nodes only boosted kill XP - status: DONE 2026-09-27 (9c146a74, smoke check passed)
 
 **Finding (measured 2026-09-27).** Hero XP per battle is
 `(damage dealt / 8 + kill XP) x row bonus` (x1.10 back row .. x1.40 front,
@@ -1329,6 +1329,9 @@ unchanged). Modelled landing by wave 100: full tree ~31 Normal / ~32 Brutal for
 the whole team, half the XP nodes ~29-31. `ceremony_smoke` gained a VD-18 check
 (800 damage -> 100 XP x Quick Learner x row bonus) that has NOT been run yet: the
 owner was playing, and main_game-based smokes write the live save files.
+
+**Verified 2026-09-27.** The VD-18 check PASSED in the isolated ceremony smoke
+run during VD-20's verification (Quick Learner result 280 XP, expected 280).
 
 ---
 
@@ -1474,6 +1477,91 @@ Progression writes a flushed temporary file before replacing its JSON save.
 - Verification while the owner plays uses a separate disposable APPDATA profile
   for integration/capture runs; the deterministic milestone smoke never calls
   a save path. Live-profile VD-18 ceremony verification remains pending.
+
+## VD-21 - Relic audit: four relic rules do not do what they say - status: ACTIVE (fixing bugs 1-4)
+
+**Owner request (2026-09-27), verbatim:**
+
+> "okay can you do an audit on relics now?"
+
+Audited all 145 relics, the code behind every effect, the offer odds, the VD-20
+gates and telemetry (129 relic picks). Read-only; full report in chat
+2026-09-27. Findings, most severe first:
+
+**Broken - the relic does not do what its text says**
+
+1. **Relic grades never rise in map mode.** `Relic.roll_grade` looked the odds
+   up by exact key (`WAVE_ODDS.get(wave, WAVE_ODDS[1])`). Map relic nodes are
+   utility nodes with round 0, and merchants open on rounds like 13 or 18;
+   neither is a key, so every relic after the run-start screen rolled wave-1
+   odds (80% D, 0% S). Telemetry: biome-1 relic screens 80% D (15 cards,
+   expected 45%), biome 2 89% D (9 cards, expected 20%). A/S relics effectively
+   never dropped, VD-20's tier-2 unlocks could not be offered, and the grade
+   badge rolled for a relic node is never read by the relic screen. The same
+   round 0 (read as round 1) also flipped the scenery back to biome 1, titled
+   every screen "Wave 1", and re-offered the VD-16 seed at every biome instead
+   of a piece for a verb already on the team.
+2. **On-kill relics reset every fight.** `_revert_team_synergies` restores the
+   pre-fight attack snapshot, erasing kill growth, and within a fight
+   `round(atk x 1.02)` returns the same attack below 25 (S) .. 125 (D) while
+   heroes start at 9-23 attack. All five (Trophy Fang .. Soul Harvest) did
+   nothing.
+3. **First Strike read the wrong key** (`mult`, not `first_strike_crit_mult`),
+   so D through S all dealt 2.0x, and a natural crit used the relic up.
+4. **Benched heroes missed relics.** A pick applied to fielded heroes only, and
+   deploying never caught up; a resume half-applied it.
+
+**Misleading - works, but not as written** (not in this pass)
+
+5. "+X% team stat" relics multiply the stat once, at pick or hire time; later
+   level growth, perks and gear are not multiplied (+30% attack picked at level
+   1 is worth ~13-22% at level 10, ~6-13% at level 30). Gear exploit: equip,
+   pick the relic, unequip - the multiplied gear share stays.
+6. Lifesteal, on-kill and ult refund fire on basic attacks (plus 6 custom
+   autos) only - not skills, ults or burn.
+7. Text without numbers: First Strike (all 5 grades identical), Momentum D-B,
+   Gold Scale D-B. Momentum also speeds movement.
+
+**Balance (numbers).** Strictly worse picks at one grade: Marksman's Focus and
+Butcher's Edge < Kingslayer; Godkiller < Worldbreaker; Worn Talisman < Twin
+Font; Berserker's Chain < Windrunner Core. Inverted: Headhunter's Chain (B,
+1.4%/kill) > Reaper's Tally (A, 1%). Uneven ladders: Double Attack
+15/17.5/20/40, Attack Speed A 34 / S 40, S crit chance below A Kingslayer. For
+5 of 14 ladders the milestone unlocks lower rungs while a higher one is free
+(Attack Speed, On-Kill, Boss Damage, Start Shield, Ult Charge).
+
+**Content.** Names do not teach families: three "Executioner" relics with three
+effects, "Vanguard" on two families, "Fang" on six effects. Icons: 145/145
+(closed).
+
+**Structure.** ~57 distinct ideas across 145 relics (5 grades each); about
+two-thirds are stat ladders or stat combos - the VD-16 vertical problem. The
+most-offered relics (D Range, Mana, Armor, Gold Scale) were taken 11-19% of the
+time against a 33% baseline.
+
+**Owner decision (2026-09-27), verbatim:**
+
+> "yeah go ahead"
+
+**DECIDED:** fix bugs 1-4 now - correctness only, no relic number changes. The
+text in 7 goes with them: it is text only, and bug 3 makes First Strike's grades
+differ. Then re-measure before the balance pass. Formula choices made inside
+the fixes (reversible):
+- Odds come from the latest table row at or before the wave. A relic node rolls
+  as its biome's first round (biome x 10 + 1).
+- On-kill growth is linear, as the text reads: each kill adds the relic's % of
+  the hero's attack without kill growth, with a fractional carry. It survives
+  the synergy revert and save/resume.
+- First Strike uses each grade's own multiplier (D 1.8x .. S 3.0x) and deals
+  at least that much even when the hit crits naturally.
+- A picked relic applies to board, bench and downed heroes.
+
+**Open (owner calls):** should a relic node's grade badge mean something (e.g.
+one card guaranteed at that grade)? Lifesteal and refund from all damage, or a
+text fix only? Rework or cut First Strike (one crit per hero per fight is
+~3-7% of basic-attack damage)? Trim the ladders into fewer, distinct relics as
+part of VD-16? **Unverified:** Double Attack on Bouncer and windup heroes,
+whose swings are delayed.
 
 ## Sequence
 
