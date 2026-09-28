@@ -1414,6 +1414,19 @@ separate reveal view; a Collection tab keeps all milestone conditions available.
 Use the shared RPG title art, readable prose type and a focused collect action.
 This changes presentation only. Capture the revision for the owner's review.
 
+Implemented the illustrated reveal and Collection tab using the existing relic
+art (145/145 icon files present), grade frames, the shared wood/parchment title
+banner and readable condition text. The action names the number of relics being
+collected. Locked entries retain visible, dimmed art and exact conditions;
+hovering an icon exposes its name, grade and effect.
+
+Revision checks: parse/import and boot have no SCRIPT ERROR; UI smoke and the
+VD-20 isolated collect/recovery integration both ALL PASS. Existing shutdown
+resource-retention messages remain. Captured the earned view, catalogue and
+empty-award state in both dark and light modes. Owner art/layout review remains
+pending: `../captures/renders/vd20_relic_milestones_dark.png` and
+`../captures/renders/vd20_relic_milestones_light.png`.
+
 ### VD-20 verification (2026-09-27)
 
 Implemented all 28 accepted milestones, immediate pending persistence, frozen
