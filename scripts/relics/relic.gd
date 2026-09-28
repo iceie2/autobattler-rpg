@@ -193,54 +193,54 @@ const POOL: Array[Dictionary] = [
 	{"id": "c_doubleatk","name": "Twinfang Charm","grade": "C", "desc": "15% chance for each attack to strike twice", "category": "stat_ladder", "ladder": "double_atk", "effects": [{"type": "double_atk", "value": 0.15}]},
 	{"id": "c_trophy",  "name": "Trophy Hunter",  "grade": "C", "desc": "Each kill permanently grants that hero +0.8% attack damage (stacks all run)", "category": "stat_ladder", "ladder": "on_kill_atk", "effects": [{"type": "on_kill_atk", "value": 0.008}]},
 	{"id": "c_sturdy",  "name": "Sturdy Font",    "grade": "C", "desc": "+25% max mana and +15% max HP", "category": "combo", "effects": [{"type": "stat_mult", "stat": "max_mana", "value": 1.25}, {"type": "stat_mult", "stat": "max_hp", "value": 1.15}]},
-	{"id": "c_execute", "name": "Coup de Grace",  "grade": "C", "desc": "+25% damage to enemies below 15% HP (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.15, "dmg_bonus_pct": 0.25}]},
-	{"id": "c_firststrike","name": "Ambush Blade","grade": "C", "desc": "The first attack each fight is a guaranteed crit (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.0}]},
-	{"id": "c_row",     "name": "Vanguard Standard","grade": "C", "desc": "Front-row heroes deal +15% damage (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.15, "back_mult": 1.0}]},
+	{"id": "c_execute", "name": "Coup de Grace",  "grade": "C", "desc": "+25% damage to enemies below 15% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.15, "dmg_bonus_pct": 0.25}]},
+	{"id": "c_firststrike","name": "Ambush Blade","grade": "C", "desc": "The first attack each fight is a guaranteed crit", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.0}]},
+	{"id": "c_row",     "name": "Vanguard Standard","grade": "C", "desc": "Front-row heroes deal +15% damage", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.15, "back_mult": 1.0}]},
 	{"id": "c_range",   "name": "Extended Reach", "grade": "C", "desc": "+1 attack range and +10% attack speed", "category": "combo", "effects": [{"type": "stat_add", "stat": "attack_range", "value": 1}, {"type": "stat_mult", "stat": "attack_speed", "value": 1.10}]},
 
 	# ── B (new) ──
 	{"id": "b_doubleatk2","name": "Whirlwind Fang", "grade": "B", "desc": "17.5% chance for each attack to strike twice", "category": "stat_ladder", "ladder": "double_atk", "effects": [{"type": "double_atk", "value": 0.175}]},
-	{"id": "b_execute", "name": "Executioner's Whisper", "grade": "B", "desc": "+35% damage to enemies below 25% HP (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.25, "dmg_bonus_pct": 0.35}]},
-	{"id": "b_firststrike","name": "First Blood",  "grade": "B", "desc": "The first attack each fight is a guaranteed crit (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.3}]},
-	{"id": "b_row",     "name": "Phalanx Core",    "grade": "B", "desc": "Front-row heroes deal +30% damage (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.30, "back_mult": 1.0}]},
-	{"id": "b_opening", "name": "Opening Gambit",  "grade": "B", "desc": "+30% damage for the first 4 seconds of each fight (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.30, "seconds": 4.0}]},
-	{"id": "b_momentum","name": "Flywheel",        "grade": "B", "desc": "Attack speed ramps up the longer a fight goes, capping at +100% (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.03}]},
-	{"id": "b_ultrefund","name": "Soulsiphon Blade","grade": "B", "desc": "Killing blows refund 15% of the killer's ultimate charge (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.15}]},
+	{"id": "b_execute", "name": "Executioner's Whisper", "grade": "B", "desc": "+35% damage to enemies below 25% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.25, "dmg_bonus_pct": 0.35}]},
+	{"id": "b_firststrike","name": "First Blood",  "grade": "B", "desc": "The first attack each fight is a guaranteed crit", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.3}]},
+	{"id": "b_row",     "name": "Phalanx Core",    "grade": "B", "desc": "Front-row heroes deal +30% damage", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.30, "back_mult": 1.0}]},
+	{"id": "b_opening", "name": "Opening Gambit",  "grade": "B", "desc": "+30% damage for the first 4 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.30, "seconds": 4.0}]},
+	{"id": "b_momentum","name": "Flywheel",        "grade": "B", "desc": "Attack speed ramps up the longer a fight goes, capping at +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.03}]},
+	{"id": "b_ultrefund","name": "Soulsiphon Blade","grade": "B", "desc": "Killing blows refund 15% of the killer's ultimate charge", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.15}]},
 	{"id": "b_underdog","name": "Last Stand Banner","grade": "B", "desc": "+8% damage dealt and 5% less damage taken per dead ally this fight", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.08, "res_per_dead": 0.05}]},
 	{"id": "b_goldscale","name": "Miser's Edge",   "grade": "B", "desc": "Damage scales with the run's current gold total", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0003}]},
 	{"id": "b_critres", "name": "Battleworn Plate","grade": "B", "desc": "+10% crit chance and the team takes 10% less damage", "category": "combo", "effects": [{"type": "stat_add", "stat": "crit_chance", "value": 0.10}, {"type": "dmg_taken", "value": 0.90}]},
 
 	# ── A (new) ──
-	{"id": "a_execute", "name": "Culling Blade",  "grade": "A", "desc": "+55% damage to enemies below 30% HP (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.30, "dmg_bonus_pct": 0.55}]},
-	{"id": "a_row",     "name": "Battleline Discipline","grade": "A", "desc": "Front-row heroes deal +45% damage; back-row +10% (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.45, "back_mult": 1.10}]},
-	{"id": "a_opening", "name": "Alpha Strike",    "grade": "A", "desc": "+45% damage for the first 5 seconds of each fight (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.45, "seconds": 5.0}]},
-	{"id": "a_momentum","name": "Overdrive Engine","grade": "A", "desc": "Attack speed ramps up faster the longer a fight goes, capping at +100% (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.05}]},
-	{"id": "a_ultrefund","name": "Reaper's Bargain","grade": "A", "desc": "Killing blows refund 30% of the killer's ultimate charge (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.30}]},
-	{"id": "a_underdog","name": "Martyr's Resolve","grade": "A", "desc": "+15% damage dealt and 10% less damage taken per dead ally this fight (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.15, "res_per_dead": 0.10}]},
-	{"id": "a_goldscale","name": "Midas Touch",    "grade": "A", "desc": "Damage scales strongly with the run's current gold total (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0006}]},
-	{"id": "a_firststrike","name": "Vanguard's Gambit","grade": "A", "desc": "The first attack each fight is a guaranteed crit (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.6}]},
+	{"id": "a_execute", "name": "Culling Blade",  "grade": "A", "desc": "+55% damage to enemies below 30% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.30, "dmg_bonus_pct": 0.55}]},
+	{"id": "a_row",     "name": "Battleline Discipline","grade": "A", "desc": "Front-row heroes deal +45% damage; back-row +10%", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.45, "back_mult": 1.10}]},
+	{"id": "a_opening", "name": "Alpha Strike",    "grade": "A", "desc": "+45% damage for the first 5 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.45, "seconds": 5.0}]},
+	{"id": "a_momentum","name": "Overdrive Engine","grade": "A", "desc": "Attack speed ramps up faster the longer a fight goes, capping at +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.05}]},
+	{"id": "a_ultrefund","name": "Reaper's Bargain","grade": "A", "desc": "Killing blows refund 30% of the killer's ultimate charge", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.30}]},
+	{"id": "a_underdog","name": "Martyr's Resolve","grade": "A", "desc": "+15% damage dealt and 10% less damage taken per dead ally this fight", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.15, "res_per_dead": 0.10}]},
+	{"id": "a_goldscale","name": "Midas Touch",    "grade": "A", "desc": "Damage scales strongly with the run's current gold total", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0006}]},
+	{"id": "a_firststrike","name": "Vanguard's Gambit","grade": "A", "desc": "The first attack each fight is a guaranteed crit", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 2.6}]},
 
 	# ── S (new) ──
-	{"id": "s_execute", "name": "Deathmark",       "grade": "S", "desc": "+80% damage to enemies below 35% HP (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.35, "dmg_bonus_pct": 0.80}]},
-	{"id": "s_row",     "name": "Immortal Formation","grade": "S", "desc": "Front-row heroes deal +60% damage; back-row +25% (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.60, "back_mult": 1.25}]},
-	{"id": "s_opening", "name": "First Light",      "grade": "S", "desc": "+60% damage for the first 6 seconds of each fight (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.60, "seconds": 6.0}]},
-	{"id": "s_momentum","name": "Perpetual Motion", "grade": "S", "desc": "Attack speed ramps up rapidly the longer a fight goes, capping at +100% (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.08}]},
-	{"id": "s_ultrefund","name": "Endless Reaping", "grade": "S", "desc": "Killing blows refund 50% of the killer's ultimate charge (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.50}]},
-	{"id": "s_underdog","name": "Last Light",       "grade": "S", "desc": "+25% damage dealt and 18% less damage taken per dead ally this fight (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.25, "res_per_dead": 0.18}]},
-	{"id": "s_goldscale","name": "Dragon's Avarice","grade": "S", "desc": "Damage scales heavily with the run's current gold total (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0010}]},
-	{"id": "s_firststrike","name": "Alpha Predator","grade": "S", "desc": "The first attack each fight is a guaranteed crit (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 3.0}]},
+	{"id": "s_execute", "name": "Deathmark",       "grade": "S", "desc": "+80% damage to enemies below 35% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.35, "dmg_bonus_pct": 0.80}]},
+	{"id": "s_row",     "name": "Immortal Formation","grade": "S", "desc": "Front-row heroes deal +60% damage; back-row +25%", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.60, "back_mult": 1.25}]},
+	{"id": "s_opening", "name": "First Light",      "grade": "S", "desc": "+60% damage for the first 6 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.60, "seconds": 6.0}]},
+	{"id": "s_momentum","name": "Perpetual Motion", "grade": "S", "desc": "Attack speed ramps up rapidly the longer a fight goes, capping at +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.08}]},
+	{"id": "s_ultrefund","name": "Endless Reaping", "grade": "S", "desc": "Killing blows refund 50% of the killer's ultimate charge", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.50}]},
+	{"id": "s_underdog","name": "Last Light",       "grade": "S", "desc": "+25% damage dealt and 18% less damage taken per dead ally this fight", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.25, "res_per_dead": 0.18}]},
+	{"id": "s_goldscale","name": "Dragon's Avarice","grade": "S", "desc": "Damage scales heavily with the run's current gold total", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0010}]},
+	{"id": "s_firststrike","name": "Alpha Predator","grade": "S", "desc": "The first attack each fight is a guaranteed crit", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 3.0}]},
 	{"id": "s_allstat", "name": "Ascendant Core",   "grade": "S", "desc": "+20% attack damage, magic power, max HP, and attack speed", "category": "combo", "effects": [{"type": "stat_mult_multi", "stats": ["attack_damage", "magic_power", "max_hp", "attack_speed"], "value": 1.20}]},
 
 	# ── Mechanic-ladder low rungs (2026-08-05) — fills D/C beneath the B-S mechanic relics above ──
-	{"id": "d_execute", "name": "Faltering Blow",   "grade": "D", "desc": "+15% damage to enemies below 10% HP (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.10, "dmg_bonus_pct": 0.15}]},
-	{"id": "d_firststrike", "name": "Sudden Strike", "grade": "D", "desc": "The first attack each fight is a guaranteed crit (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 1.8}]},
-	{"id": "d_row",     "name": "Skirmish Line",    "grade": "D", "desc": "Front-row heroes deal +8% damage (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.08, "back_mult": 1.0}]},
-	{"id": "d_opening", "name": "Quickdraw",        "grade": "D", "desc": "+15% damage for the first 3 seconds of each fight (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.15, "seconds": 3.0}]},
-	{"id": "c_opening", "name": "Ambuscade",        "grade": "C", "desc": "+22% damage for the first 3.5 seconds of each fight (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.22, "seconds": 3.5}]},
-	{"id": "d_momentum","name": "Spinup Coil",      "grade": "D", "desc": "Attack speed ramps up the longer a fight goes, capping at +100% (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.015}]},
-	{"id": "c_momentum","name": "Ramping Gear",     "grade": "C", "desc": "Attack speed ramps up the longer a fight goes, capping at +100% (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.022}]},
-	{"id": "d_ultrefund","name": "Faint Echo",      "grade": "D", "desc": "Killing blows refund 6% of the killer's ultimate charge (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.06}]},
-	{"id": "c_ultrefund","name": "Soulspark Blade",  "grade": "C", "desc": "Killing blows refund 10% of the killer's ultimate charge (requires crystal tree unlock)", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.10}]},
+	{"id": "d_execute", "name": "Faltering Blow",   "grade": "D", "desc": "+15% damage to enemies below 10% HP", "category": "mechanic", "effects": [{"type": "execute_pct", "hp_threshold_pct": 0.10, "dmg_bonus_pct": 0.15}]},
+	{"id": "d_firststrike", "name": "Sudden Strike", "grade": "D", "desc": "The first attack each fight is a guaranteed crit", "category": "mechanic", "effects": [{"type": "first_strike_crit", "first_strike_crit_mult": 1.8}]},
+	{"id": "d_row",     "name": "Skirmish Line",    "grade": "D", "desc": "Front-row heroes deal +8% damage", "category": "mechanic", "effects": [{"type": "row_stat_mult", "front_mult": 1.08, "back_mult": 1.0}]},
+	{"id": "d_opening", "name": "Quickdraw",        "grade": "D", "desc": "+15% damage for the first 3 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.15, "seconds": 3.0}]},
+	{"id": "c_opening", "name": "Ambuscade",        "grade": "C", "desc": "+22% damage for the first 3.5 seconds of each fight", "category": "mechanic", "effects": [{"type": "battle_start_dmg_window", "dmg_bonus_pct": 0.22, "seconds": 3.5}]},
+	{"id": "d_momentum","name": "Spinup Coil",      "grade": "D", "desc": "Attack speed ramps up the longer a fight goes, capping at +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.015}]},
+	{"id": "c_momentum","name": "Ramping Gear",     "grade": "C", "desc": "Attack speed ramps up the longer a fight goes, capping at +100%", "category": "mechanic", "effects": [{"type": "momentum", "pct_per_sec": 0.022}]},
+	{"id": "d_ultrefund","name": "Faint Echo",      "grade": "D", "desc": "Killing blows refund 6% of the killer's ultimate charge", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.06}]},
+	{"id": "c_ultrefund","name": "Soulspark Blade",  "grade": "C", "desc": "Killing blows refund 10% of the killer's ultimate charge", "category": "mechanic", "effects": [{"type": "ult_refund_kill", "value": 0.10}]},
 	{"id": "d_goldscale","name": "Penny Pincher",   "grade": "D", "desc": "Damage scales with the run's current gold total", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.00012}]},
 	{"id": "c_goldscale","name": "Coinbiter's Edge","grade": "C", "desc": "Damage scales with the run's current gold total", "category": "mechanic", "effects": [{"type": "gold_scaling_dmg", "value": 0.0002}]},
 	{"id": "d_underdog","name": "Grim Resolve",     "grade": "D", "desc": "+4% damage dealt and 2% less damage taken per dead ally this fight", "category": "mechanic", "effects": [{"type": "underdog", "dmg_per_dead": 0.04, "res_per_dead": 0.02}]},
@@ -426,10 +426,7 @@ static func _draw_one(wave: int, owned_ids: Array, used_ids: Array) -> Dictionar
 				continue
 			if relic["id"] in used_ids:
 				continue
-			# Ladder-bundle relics (2026-08-05) are gated purely by their
-			# ladder's bundle unlock, regardless of any per-id gate; everything
-			# else keeps the original per-id gate (free unless individually
-			# listed in Progression.RELIC_UNLOCK_KEYS).
+			# VD-20: both gates use the run's frozen milestone snapshot.
 			if relic.get("ladder_gated", false):
 				if not Progression.is_ladder_unlocked(relic.get("ladder", "")):
 					continue
@@ -446,20 +443,6 @@ static func _draw_one(wave: int, owned_ids: Array, used_ids: Array) -> Dictionar
 
 # Search the rolled grade first, then fan outward (nearer grades first) so an
 # exhausted tier yields a neighbouring relic instead of an empty card.
-# ── Crystal-tree unlock text ──────────────────────────────────────────────────
-# The tree's relic-unlock nodes describe themselves from the pool rather than
-# carrying their own copy of the wording, so retuning a relic's numbers here
-# updates the shop blurb too (2026-08-05). Progression.display_desc routes any
-# "relic_unlock_*" key through here; a tree/catalogue override still wins.
-
-# The trailing "(requires crystal tree unlock)" is for the player reading the
-# relic in a run. On the unlock node itself it's circular, so it's dropped.
-const _UNLOCK_SUFFIX := " (requires crystal tree unlock)"
-
-# Roughly what fits in CrystalShop's 700x54 word-wrapped detail label at 13px
-# before the text clips. Ladder blurbs longer than this fall back to a summary.
-const _DESC_BUDGET := 200
-
 static func by_id(relic_id: String) -> Dictionary:
 	for r in POOL:
 		if r["id"] == relic_id:
@@ -468,45 +451,6 @@ static func by_id(relic_id: String) -> Dictionary:
 		if r["id"] == relic_id:
 			return r
 	return {}
-
-static func _effect_text(relic: Dictionary) -> String:
-	return String(relic.get("desc", "")).trim_suffix(_UNLOCK_SUFFIX)
-
-# Every relic a ladder bundle actually adds — the pre-existing low rungs are
-# free, so only the ladder_gated ones are what the purchase buys.
-static func ladder_relics(ladder_key: String) -> Array:
-	var out: Array = []
-	for r in POOL:
-		if r.get("ladder", "") == ladder_key and r.get("ladder_gated", false):
-			out.append(r)
-	return out
-
-static func unlock_desc(unlock_key: String) -> String:
-	if not unlock_key.begins_with("relic_unlock_"):
-		return ""
-	if unlock_key.begins_with("relic_unlock_ladder_"):
-		var members := ladder_relics(unlock_key.trim_prefix("relic_unlock_ladder_"))
-		if members.is_empty():
-			return ""
-		var noun := "relic" if members.size() == 1 else "relics"
-		var parts: PackedStringArray = []
-		var grades: PackedStringArray = []
-		for r in members:
-			parts.append("%s (%s) %s" % [r["name"], r["grade"], _effect_text(r)])
-			grades.append(String(r["grade"]))
-		var full := "Adds %d %s to the pool — %s" % [members.size(), noun, " · ".join(parts)]
-		# The shop's detail blurb is a three-line label. Rungs of one ladder all
-		# restate the same stat, so a long list is mostly repetition — past the
-		# line budget, quote the top rung and let the grades carry the rest.
-		if full.length() <= _DESC_BUDGET:
-			return full
-		var top: Dictionary = members[-1]
-		return "Adds %d %s to the pool (%s) — up to %s: %s" % [
-			members.size(), noun, ", ".join(grades), top["name"], _effect_text(top)]
-	var relic := by_id(unlock_key.trim_prefix("relic_unlock_"))
-	if relic.is_empty():
-		return ""
-	return "%s-grade relic — %s" % [relic["grade"], _effect_text(relic)]
 
 static func _grade_search_order(grade: String) -> Array:
 	var i := GRADE_ORDER.find(grade)
