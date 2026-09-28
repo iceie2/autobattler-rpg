@@ -1650,6 +1650,19 @@ one is proposed in a worksheet and approved by the owner before it is built
 - Element synergy is +1 per element (VD-16); element counter passives and
   per-variant weaknesses are the element identity hook.
 
+**Owner on the element options (2026-09-28), verbatim:**
+
+> "A and we can create stuff that the other elements do. maybe do it by tyoe
+> of damage element wise"
+
+**DECIDED:** option A (element pieces where the element's heroes share a move:
+Fire = Burn, built; Lightning = stuns next). **Open - needs the owner's
+meaning:** "create stuff that the other elements do ... by type of damage"
+reads as giving Water, Earth, Air (and Normal?) their own damage type. That is
+close to the per-element status system scrapped 2026-08-02 ("element-wide
+abilities steal identity from individual heroes"). The difference would be
+that it lives in opt-in relic pieces, not on every hero. Asked in chat.
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
