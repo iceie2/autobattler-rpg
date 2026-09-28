@@ -1404,6 +1404,25 @@ tutorial is coming soon, so milestone wording lives in data it can reuse.
 
 ---
 
+### VD-20 implementation decisions (2026-09-27)
+
+- Keep a frozen milestone-pool snapshot in the run checkpoint, including on
+  resume. Legacy checkpoints default to the collected set (empty before VD-20).
+- Pending awards survive a crash independently of the checkpoint. A fresh run
+  first offers any uncollected awards from an interrupted/abandoned run, then
+  snapshots its pool. Collecting never changes an active run's pool.
+- Record boss wins by run ID + wave so replaying a checkpoint cannot count the
+  same boss twice toward the three-boss milestone.
+- Use the fielded, non-summoned starting roster for formation/composition and
+  team-size facts; remember distinct fallen heroes, including revived heroes.
+  Kill timing uses the actual dead enemy's elite flag, not just the wave tier.
+- Conditions without a win requirement also count on defeat. Gold at finish
+  means the held balance at battle end, before round-win rewards. Threshold
+  checks read combat stats before synergy cleanup. No combat rules change.
+- Verification while the owner plays uses a separate disposable APPDATA profile
+  for integration/capture runs; the deterministic milestone smoke never calls
+  a save path. Live-profile VD-18 ceremony verification remains pending.
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
