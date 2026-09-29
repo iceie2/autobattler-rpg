@@ -1682,6 +1682,15 @@ ACCEPTED as drafted; numbers stay tunable in the arena. Still open: Normal
 (skip or pick a type) and the owner's review of the role pieces (T/M/F/R/H).
 Nothing is built yet.
 
+**Owner (2026-09-29), verbatim:** *"1. skip / 2. what are the proposed relics?
+lets look at them after u finish this / 3. agreed with ur idea"*
+
+**DECIDED:** Normal gets no element pieces. Build order Earth -> Lightning ->
+Water -> Air, each with its seed on the first relic screen and in the shop
+like Burn. Role pieces are reviewed after the element build. Seed screen rule
+(from the worksheet, no objection): the first relic screen offers up to three
+seeds, chosen at random among buildable archetypes (2+ unlocked heroes).
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
