@@ -1663,6 +1663,25 @@ close to the per-element status system scrapped 2026-08-02 ("element-wide
 abilities steal identity from individual heroes"). The difference would be
 that it lives in opt-in relic pieces, not on every hero. Asked in chat.
 
+**Owner answer (2026-09-29).** Shown "Water: hits soak the enemy and slow them.
+Earth: hits crack armor. Air: hits have a chance to strike a second target",
+the owner replied, verbatim:
+
+> "earth reduces there armor/mr"
+
+Then, shown the four element piece sets (now in `ARCHETYPE_PIECES.md`):
+
+> "sure i like these"
+
+**DECIDED:** each element gets a damage type delivered only through its own
+relic pieces (opt-in per run, so heroes keep their identity by default,
+unlike the 2026-08-02 scrap). Lightning = stuns, Earth = armor and magic
+resist shred, Water = soak + slow, Air = strike a second target; Fire = Burn
+(built). The 20 drafted element pieces (L1-L5, E1-E5, W1-W5, A1-A5) are
+ACCEPTED as drafted; numbers stay tunable in the arena. Still open: Normal
+(skip or pick a type) and the owner's review of the role pieces (T/M/F/R/H).
+Nothing is built yet.
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of

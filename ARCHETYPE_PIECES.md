@@ -124,7 +124,67 @@ role archetype. Summoner (1 hero) gets none.
 | H4 | **Vigil** (payoff) | Healers' ultimates charge from healing done (1 charge per 20 HP healed). Ult heals give no charge. | Healers with big heals | Healer ult bars glow green | |
 | H5 | **Miracle** (capstone) | Once per fight, the first ally who would die is healed to 30% HP instead. | any Healer | golden flash | |
 
-## Elements - a decision first
+## Elements - ACCEPTED 2026-09-29: each element gets a damage type
+
+Owner: *"A and we can create stuff that the other elements do. maybe do it by
+tyoe of damage element wise"*, then *"earth reduces there armor/mr"*, then on
+these drafts *"sure i like these"*. Every element gets a **damage type**, but
+it lives ONLY in that element's relic pieces. A run that never takes the Earth
+seed never sees armor shred. That is what keeps this clear of the 2026-08-02
+element-status scrap, which put the effect on every hero, always.
+
+The seed turns the damage type on for that element's heroes; later pieces
+deepen it. Same shape as Burn. "Per X hero" = distinct heroes of that element
+fielded, max 3. Numbers are first-pass and tunable in the arena.
+
+### Lightning (6 heroes) - stun
+
+| # | Piece | Draft effect | Cue | State |
+|---|---|---|---|---|
+| L1 | **Static Charge** (seed) | Lightning heroes' stuns last +10% longer per Lightning hero you field. | blue sparks on stunned enemies | accepted |
+| L2 | **Conductive** (enabler) | Stunned enemies take +20% damage from all sources. | enemy outline crackles | accepted |
+| L3 | **Arc** (payoff) | When a stunned enemy dies, a 1 s stun jumps to the nearest enemy. | arc from corpse to next enemy | accepted |
+| L4 | **Overcharge** (payoff) | Lightning heroes' ults charge 25% faster while any enemy is stunned. | ult bars flicker blue | accepted |
+| L5 | **Thunderhead** (capstone) | Every 5th stun you apply strikes every stunned enemy for a lightning burst. | board-wide bolt | accepted |
+
+### Earth (4 heroes) - armor and magic-resist shred
+
+Armor and magic resist are FLAT subtractions from each hit (`resistance`,
+`magic_resist`), so shred is worth most against tanky enemies and bosses.
+
+| # | Piece | Draft effect | Cue | State |
+|---|---|---|---|---|
+| E1 | **Faultline** (seed) | Earth hits reduce the target's armor and magic resist by 2 per Earth hero you field, stacking up to 10 times; lasts 4 s after the last hit. | cracks spread on the enemy | accepted |
+| E2 | **Rubble** (enabler) | The shred helps every hero's hits, and stacks fade one at a time instead of all at once. | stone icon with stack count | accepted |
+| E3 | **Landslide** (payoff) | A target at max shred takes +15% damage from Earth heroes. | enemy glows amber at max | accepted |
+| E4 | **Aftershock** (payoff) | When a max-shred enemy dies, half its stacks move to the nearest enemy. | dust wave to the next enemy | accepted |
+| E5 | **Tectonic** (capstone) | Every 10 s, all enemies lose armor and magic resist equal to 25% of the team's total shred, until the fight ends. | ground tremor | accepted |
+
+### Water (3 heroes) - soak + slow
+
+| # | Piece | Draft effect | Cue | State |
+|---|---|---|---|---|
+| W1 | **Undertow** (seed) | Water hits Soak the target for 3 s: 8% slower attack and move speed per Water hero you field. | drips, blue tint | accepted |
+| W2 | **Saturate** (enabler) | Soak stacks up to 3 times. | droplet pips | accepted |
+| W3 | **Riptide** (payoff) | Soaked enemies take +15% damage from Lightning heroes. | electric ripple | accepted |
+| W4 | **Tidecall** (payoff) | Healing from Water heroes is +20% on allies next to a Soaked enemy. | teal ring under the ally | accepted |
+| W5 | **Deluge** (capstone) | Every 12 s, every Soaked enemy is frozen for 1 s. | frost burst | accepted |
+
+### Air (3 heroes) - strike a second target
+
+| # | Piece | Draft effect | Cue | State |
+|---|---|---|---|---|
+| A1 | **Crosswind** (seed) | Air basic attacks have 10% chance per Air hero you field to also hit a second enemy for 50%. | wind streak | accepted |
+| A2 | **Gust Chain** (enabler) | The extra hit can carry on to a third enemy (same chance). | chained streaks | accepted |
+| A3 | **Slipstream** (payoff) | Each extra hit gives the Air hero +5% attack speed for 3 s (max 5 stacks). | wind swirl | accepted |
+| A4 | **Updraft** (payoff) | Extra hits deal full damage instead of 50%. | brighter streak | accepted |
+| A5 | **Tempest** (capstone) | Every 8 s, each Air hero's next attack hits every enemy in range. | cyclone flash | accepted |
+
+### Normal (5 heroes) - open
+
+No damage type yet: its heroes share no move. Owner call: skip, or pick one.
+
+## Elements - the earlier option list (superseded above)
 
 Rule 3 means an element's pieces can only amplify a move its heroes already
 share. Only two elements have one:
