@@ -1691,6 +1691,17 @@ like Burn. Role pieces are reviewed after the element build. Seed screen rule
 (from the worksheet, no objection): the first relic screen offers up to three
 seeds, chosen at random among buildable archetypes (2+ unlocked heroes).
 
+**Built 2026-09-29 (7f3080bb).** All 20 element pieces, seeds and reserved
+cards (`ElementPieces`, `HeroVerbs` element verbs, 20 entries in
+`Relic.ARCHETYPE_PIECES`). Deviations (in `ARCHETYPE_PIECES.md`): Faultline is
+a percent per stack, Tidecall boosts healing received next to a Soaked enemy,
+Rush's freeze is not lengthened, Tectonic caps shred at 75%.
+`element_pieces_smoke` ALL PASS (101 checks); regressions pass. First arena
+read (B grade, all five pieces vs none, 4 heroes lvl 6, wave 10 x4 HP, not
+repeatable): team damage/s Earth +14%, Water +12%, Lightning +4%, Air +1%.
+**Next:** a numbers pass - Lightning and Air look weak (Burn had the same
+problem, VD-16) - then the owner's review of the role pieces.
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
