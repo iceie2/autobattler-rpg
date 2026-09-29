@@ -296,9 +296,84 @@ const ARCHETYPE_PIECES: Array[Dictionary] = [
 	{"piece": "inferno", "verb": "burn", "name": "Inferno Crown", "type": "burn_flare",
 	 "values": {"D": 1.5, "C": 2.0, "B": 2.6, "A": 3.2, "S": 4.4},
 	 "desc": "Every 8 seconds, every burning enemy takes {secs} seconds of its burn at once."},
+
+	# ── Element pieces (VD-22, ARCHETYPE_PIECES.md, accepted 2026-09-29) ──
+	# Each element's damage type lives only in these; see ElementPieces.
+	# Earth - armor and magic resist shred.
+	{"piece": "faultline", "verb": "earth", "seed": true, "name": "Faultline", "type": "earth_shred_pct",
+	 "values": {"D": 0.010, "C": 0.015, "B": 0.020, "A": 0.025, "S": 0.030},
+	 "desc": "Earth heroes' hits cut the target's armor and magic resist by {pct} per Earth hero you field ({heroes}), stacking 10 times. Stacks fade 4 s after the last Earth hit. Earth heroes show up more often in your shop."},
+	{"piece": "rubble", "verb": "earth", "name": "Rubble", "type": "earth_rubble",
+	 "values": {"D": 0.6, "C": 0.8, "B": 1.0, "A": 1.3, "S": 1.6},
+	 "desc": "Earth shred counts for every hero's hits, and stacks fade one at a time (one every {secs} s) instead of all at once."},
+	{"piece": "landslide", "verb": "earth", "name": "Landslide", "type": "earth_landslide",
+	 "values": {"D": 0.08, "C": 0.11, "B": 0.15, "A": 0.19, "S": 0.25},
+	 "desc": "Enemies at 10 shred stacks take +{pct} damage from Earth heroes."},
+	{"piece": "aftershock", "verb": "earth", "name": "Aftershock", "type": "earth_aftershock",
+	 "values": {"D": 0.30, "C": 0.40, "B": 0.50, "A": 0.65, "S": 0.80},
+	 "desc": "When an enemy at 10 shred stacks dies, {pct} of its stacks jump to the nearest enemy."},
+	{"piece": "tectonic", "verb": "earth", "name": "Tectonic", "type": "earth_tectonic",
+	 "values": {"D": 0.10, "C": 0.15, "B": 0.20, "A": 0.25, "S": 0.35},
+	 "desc": "Every 10 s, every enemy keeps {pct} of the deepest shred on the board as permanent shred for the rest of the fight (shred caps at 75%)."},
+	# Lightning - stuns.
+	{"piece": "staticcharge", "verb": "lightning", "seed": true, "name": "Static Charge", "type": "light_stun_ext",
+	 "values": {"D": 0.06, "C": 0.08, "B": 0.10, "A": 0.12, "S": 0.16},
+	 "desc": "Stuns from Lightning heroes last {pct} longer per Lightning hero you field ({heroes}). Lightning heroes show up more often in your shop."},
+	{"piece": "conductive", "verb": "lightning", "name": "Conductive", "type": "light_conductive",
+	 "values": {"D": 0.08, "C": 0.11, "B": 0.15, "A": 0.19, "S": 0.25},
+	 "desc": "Stunned enemies take +{pct} damage from every source."},
+	{"piece": "arc", "verb": "lightning", "name": "Arc", "type": "light_arc",
+	 "values": {"D": 0.5, "C": 0.7, "B": 1.0, "A": 1.2, "S": 1.5},
+	 "desc": "When a stunned enemy dies, a {secs} s stun jumps to the nearest enemy."},
+	{"piece": "overcharge", "verb": "lightning", "name": "Overcharge", "type": "light_ult_haste",
+	 "values": {"D": 0.12, "C": 0.18, "B": 0.25, "A": 0.32, "S": 0.45},
+	 "desc": "While any enemy is stunned, your Lightning heroes' ultimates charge {pct} faster."},
+	{"piece": "thunderhead", "verb": "lightning", "name": "Thunderhead", "type": "light_thunder",
+	 "values": {"D": 1.0, "C": 1.4, "B": 1.8, "A": 2.3, "S": 3.0},
+	 "desc": "Every 5th stun your heroes land strikes every stunned enemy for {x} your strongest Lightning hero's magic power."},
+	# Water - Soak and slow.
+	{"piece": "undertow", "verb": "water", "seed": true, "name": "Undertow", "type": "water_soak",
+	 "values": {"D": 0.05, "C": 0.065, "B": 0.08, "A": 0.095, "S": 0.12},
+	 "desc": "Water heroes' hits Soak the target for 3 s, slowing its attacks and movement by {pct} per Water hero you field ({heroes}). Water heroes show up more often in your shop."},
+	{"piece": "saturate", "verb": "water", "name": "Saturate", "type": "water_saturate",
+	 "values": {"D": 2.0, "C": 3.0, "B": 4.0, "A": 5.0, "S": 6.0},
+	 "desc": "Soak stacks up to {n} times; each Water hit adds a stack (slow caps at 60%)."},
+	{"piece": "riptide", "verb": "water", "name": "Riptide", "type": "water_riptide",
+	 "values": {"D": 0.08, "C": 0.11, "B": 0.15, "A": 0.19, "S": 0.25},
+	 "desc": "Soaked enemies take +{pct} damage from Lightning heroes."},
+	{"piece": "tidecall", "verb": "water", "name": "Tidecall", "type": "water_tidecall",
+	 "values": {"D": 0.10, "C": 0.15, "B": 0.20, "A": 0.25, "S": 0.35},
+	 "desc": "Your heroes next to a Soaked enemy receive +{pct} healing."},
+	{"piece": "deluge", "verb": "water", "name": "Deluge", "type": "water_deluge",
+	 "values": {"D": 0.5, "C": 0.75, "B": 1.0, "A": 1.25, "S": 1.6},
+	 "desc": "Every 12 s, every Soaked enemy freezes for {secs} s."},
+	# Air - extra hits.
+	{"piece": "crosswind", "verb": "air", "seed": true, "name": "Crosswind", "type": "air_extra_chance",
+	 "values": {"D": 0.04, "C": 0.06, "B": 0.08, "A": 0.10, "S": 0.13},
+	 "desc": "Air heroes' basic attacks have a {pct} chance per Air hero you field ({heroes}) to also hit a second enemy for half damage. Air heroes show up more often in your shop."},
+	{"piece": "gustchain", "verb": "air", "name": "Gust Chain", "type": "air_chain",
+	 "values": {"D": 0.50, "C": 0.65, "B": 0.80, "A": 0.90, "S": 1.00},
+	 "desc": "An extra hit can carry on to a third enemy, at {pct} of the usual chance."},
+	{"piece": "slipstream", "verb": "air", "name": "Slipstream", "type": "air_slip",
+	 "values": {"D": 0.02, "C": 0.03, "B": 0.04, "A": 0.05, "S": 0.065},
+	 "desc": "Each extra hit gives that Air hero +{pct} attack speed for 3 s, stacking 5 times."},
+	{"piece": "updraft", "verb": "air", "name": "Updraft", "type": "air_updraft",
+	 "values": {"D": 0.60, "C": 0.70, "B": 0.80, "A": 0.90, "S": 1.00},
+	 "desc": "Extra hits deal {pct} damage instead of half."},
+	{"piece": "tempest", "verb": "air", "name": "Tempest", "type": "air_tempest",
+	 "values": {"D": 0.30, "C": 0.40, "B": 0.50, "A": 0.65, "S": 0.80},
+	 "desc": "Every 8 s, each Air hero's next attack also hits every enemy in its range for {pct} damage."},
 ]
 
 static var _archetype_cache: Array = []
+
+# A number for relic text: whole numbers with no decimal ("2", not "2.0"),
+# others snapped to `step` ("1.5", "0.75").
+static func _fmt_num(x: float, step: float) -> String:
+	var s := snappedf(x, step)
+	if is_equal_approx(s, roundf(s)):
+		return "%d" % int(roundf(s))
+	return String.num(s)
 
 # Every archetype piece at every grade, as ordinary relic dicts (id "c_kindling").
 static func archetype_relics() -> Array:
@@ -307,9 +382,15 @@ static func archetype_relics() -> Array:
 	for spec: Dictionary in ARCHETYPE_PIECES:
 		for g: String in GRADE_ORDER:
 			var v: float = float(spec["values"][g])
-			var secs := ("%d" % int(v)) if is_equal_approx(v, round(v)) else ("%.1f" % v)
-			var text := String(spec["desc"]).replace("{pct}", "%d%%" % int(round(v * 100.0))) \
-				.replace("{secs}", secs).replace("{heroes}", HeroVerbs.hero_names(spec["verb"]))
+			# Snapped, then String.num trims zeros: 0.75 -> "0.75", 1.5 -> "1.5",
+			# 2 -> "2"; 1.5% and 6.5% keep their decimal instead of rounding to
+			# 2% / 7%. (Unsnapped, 0.02 * 100 printed "2.0".)
+			var text := String(spec["desc"]) \
+				.replace("{pct}", _fmt_num(v * 100.0, 0.1) + "%") \
+				.replace("{secs}", _fmt_num(v, 0.01)) \
+				.replace("{n}", "%d" % int(round(v))) \
+				.replace("{x}", _fmt_num(v, 0.1) + "x") \
+				.replace("{heroes}", HeroVerbs.hero_names(spec["verb"]))
 			_archetype_cache.append({
 				"id": "%s_%s" % [g.to_lower(), spec["piece"]], "name": spec["name"], "grade": g,
 				"desc": text, "category": "archetype", "verb": spec["verb"], "piece": spec["piece"],
@@ -366,7 +447,12 @@ static func roll_offers(wave: int, owned_ids: Array = [], count: int = 3, ctx: D
 	if not seed_verbs.is_empty() or not team_verbs.is_empty():
 		var owned_pieces := _owned_pieces(owned_ids)
 		if not seed_verbs.is_empty():
-			for v in seed_verbs:
+			# VD-22: with Burn plus four elements there can be more buildable
+			# seeds than cards; a random `count` of them take the screen.
+			var seeds: Array = seed_verbs.duplicate()
+			if seeds.size() > count:
+				seeds.shuffle()
+			for v in seeds:
 				if reserved.size() >= count:
 					break
 				var seed := _draw_piece(String(v), roll_grade(wave), owned_pieces, used_ids, true)

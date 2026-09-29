@@ -505,6 +505,27 @@ var relic_burn_ult_haste: float = 0.0    # Tinder Heart: ult charge bonus while 
 var relic_burn_flare_secs: float = 0.0   # Inferno Crown: seconds of burn dealt at once every 8 s
 var burn_haste_active: bool = false      # set each frame by the battle manager for Tinder Heart
 
+# ── Element archetype pieces (VD-22) - see ElementPieces ──
+var relic_arch: Dictionary = {}          # piece type -> value, set by RelicInventory
+var earth_stacks: int = 0                # Faultline shred stacks on this enemy
+var earth_hit_age: float = 0.0           # s since the last Earth hit
+var earth_decay_acc: float = 0.0         # Rubble one-at-a-time fade clock
+var earth_perm: float = 0.0              # Tectonic shred, kept for the fight
+var soak_stacks: int = 0                 # Undertow/Saturate stacks on this enemy
+var soak_time: float = 0.0
+var soak_slow: float = 0.0               # slow per Soak stack
+var air_slip_stacks: int = 0             # Slipstream attack-speed stacks (Air hero)
+var air_slip_time: float = 0.0
+var air_slip_pct: float = 0.0
+var air_tempest_ready: bool = false      # Tempest: next attack hits all in range
+var stun_haste: float = 0.0              # Overcharge ult bonus, set each frame
+
+# The battle's ElementPieces, or null outside a battle / in bare tests.
+func _element_pieces():
+	if battle_manager and "element_pieces" in battle_manager:
+		return battle_manager.element_pieces
+	return null
+
 # True on boss enemies (Orc Brute / The Triarch / future bosses) — read by the
 # Executioner relic's vs-boss damage bonus.
 var is_boss: bool = false
@@ -568,6 +589,11 @@ func speed_modifier() -> float:
 	# Relic "Momentum": attack speed ramps up the longer this fight has gone.
 	if relic_momentum_pct_per_sec > 0.0:
 		m *= (1.0 + minf(relic_momentum_time * relic_momentum_pct_per_sec, 1.0))
+	# Element pieces (VD-22): Water's Soak slows, Air's Slipstream hastes.
+	if soak_stacks > 0 and soak_time > 0.0:
+		m *= 1.0 - minf(ElementPieces.SOAK_SLOW_CAP, soak_stacks * soak_slow)
+	if air_slip_stacks > 0 and air_slip_time > 0.0:
+		m *= 1.0 + air_slip_stacks * air_slip_pct
 	return m
 
 # Multiplier applied to damage this unit deals (buffs, debuffs, Sable momentum).
@@ -779,8 +805,15 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		# (2026-07-16 defense split).
 		var armor: int = magic_resist if is_magic else resistance
 		armor = GearPassives.effective_armor(self, armor)   # Spellguard / Sunder
+		var ep = _element_pieces()
+		if ep:
+			# Earth shred (VD-22): cuts armor AND magic resist alike.
+			armor = int(round(armor * (1.0 - ep.shred_for(self, attacker))))
 		modified_damage = int(modified_damage * (100.0 / (100.0 + float(armor))))
 		modified_damage = int(modified_damage * get_defense_multiplier(element))
+		if ep:
+			# Landslide / Conductive / Riptide.
+			modified_damage = int(modified_damage * ep.damage_mult(self, attacker))
 	# Relic: fragile-but-deadly picks (e.g. Glass Cannon) raise incoming damage.
 	if relic_dmg_taken_mult != 1.0:
 		modified_damage = int(round(modified_damage * relic_dmg_taken_mult))
@@ -877,6 +910,11 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 	if battle_manager and modified_damage > 0 and battle_manager.has_method("propagate_damage_links"):
 		battle_manager.propagate_damage_links(self, modified_damage, attacker)
 
+	# Element pieces (VD-22): Earth hits stack shred, Water hits Soak.
+	var ep_hit = _element_pieces()
+	if ep_hit and modified_damage > 0:
+		ep_hit.on_hit(self, attacker, true_damage)
+
 	if current_hp <= 0:
 		# Balance export (2026-08-05): who/what landed the killing blow, read by
 		# main_game's death-cause tracker so the run export can say what ended it.
@@ -886,6 +924,9 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		# Ashfall (VD-16): the burn jumps while the body still carries it.
 		if burn_time > 0.0 and battle_manager and battle_manager.has_method("burn_ashfall"):
 			battle_manager.burn_ashfall(self)
+		# Aftershock / Arc (VD-22): stacks and stuns jump off the body.
+		if ep_hit:
+			ep_hit.on_enemy_death(self)
 		die()
 	if not gear.is_empty() or (is_instance_valid(attacker) and attacker is UnitBase 			and not attacker.gear.is_empty()):
 		GearPassives.after_hit(self, attacker, mini(modified_damage, gear_pre_hp),
@@ -909,6 +950,10 @@ func heal(amount: int, silent: bool = false) -> void:
 		amount = int(round(float(amount) * AutoBattleManager.DROWNED_HEAL_MULT))
 		if amount <= 0:
 			return
+	# Tidecall (VD-22): more healing next to a Soaked enemy.
+	var ep = _element_pieces()
+	if ep:
+		amount = int(round(amount * ep.heal_mult(self)))
 	# Deep Wound (component equipment) cuts healing received.
 	if not gear.is_empty():
 		amount = GearPassives.heal_received(self, amount)
@@ -1193,6 +1238,9 @@ func _charge_ultimate(amount: int) -> void:
 	# the burner, so the bonus can only ever be a flat multiplier.
 	if burn_haste_active:
 		amount = int(round(amount * (1.0 + relic_burn_ult_haste)))
+	# Overcharge (VD-22): same bounded shape, while any enemy is stunned.
+	if stun_haste > 0.0:
+		amount = int(round(amount * (1.0 + stun_haste)))
 	ultimate_charge = min(ultimate_charge + amount, ultimate_charge_max)
 	if ultimate_charge >= ultimate_charge_max:
 		ultimate_ready = true

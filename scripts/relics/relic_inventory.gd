@@ -161,6 +161,13 @@ func _apply_effect(unit, e: Dictionary) -> void:
 			unit.relic_burn_leap = maxf(unit.relic_burn_leap, float(e.get("value", 0.0)))
 		"burn_ult_haste":
 			unit.relic_burn_ult_haste += float(e.get("value", 0.0))
+		# ── Element pieces (VD-22): one dict, read at battle start by ElementPieces.
+		"earth_shred_pct", "earth_rubble", "earth_landslide", "earth_aftershock", "earth_tectonic", \
+		"light_stun_ext", "light_conductive", "light_arc", "light_ult_haste", "light_thunder", \
+		"water_soak", "water_saturate", "water_riptide", "water_tidecall", "water_deluge", \
+		"air_extra_chance", "air_chain", "air_slip", "air_updraft", "air_tempest":
+			var k: String = e.get("type", "")
+			unit.relic_arch[k] = maxf(float(unit.relic_arch.get(k, 0.0)), float(e.get("value", 0.0)))
 		"burn_flare":
 			unit.relic_burn_flare_secs = maxf(unit.relic_burn_flare_secs, float(e.get("value", 0.0)))
 		# gold_round / shop_slots are run-economy effects (see gold_per_round /

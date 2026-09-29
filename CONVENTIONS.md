@@ -112,6 +112,14 @@ APPDATA=<scratch>/vd21-relic-rules/isolated-profile \
 #      saves and telemetry, so it refuses to run (exit 2) unless APPDATA
 #      points at a disposable folder with that path segment.
 
+# 3j. Element pieces (after touching ElementPieces, HeroVerbs, apply_stun, or
+#     the take_damage / heal / speed_modifier / _charge_ultimate hooks — VD-22):
+"$GODOT" --headless res://scenes/element_pieces_smoke.tscn
+#    → "ELEMENT_PIECES_SMOKE: ALL PASS". Deterministic, touches no save: every
+#      Earth / Lightning / Water / Air piece on real units, that non-element
+#      heroes don't trigger them, a no-piece team is unchanged, and the seed /
+#      reserved-card offer rules. Arena: --relics=b_faultline,b_rubble,...
+
 # 4. Balance sim (after touching stats/numbers):
 "$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=sim \
   --team=SABLE:3,RIOT:3 --enemy=wave:5 --runs=5 --seed=42

@@ -294,8 +294,11 @@ func _test_offers() -> void:
 	var ok_desc := true
 	for r in Relic.archetype_relics():
 		ok_desc = ok_desc and not Relic.by_id(r["id"]).is_empty() and not "{" in String(r["desc"])
-	_check(Relic.archetype_relics().size() == 25 and ok_desc,
-		"25 pieces, all resolve by id, no unfilled {placeholders}")
+	# 25 Burn relics (5 pieces x 5 grades); VD-22's element pieces are checked
+	# in element_pieces_smoke.
+	var burn_n: int = Relic.archetype_relics().filter(func(r): return r["verb"] == "burn").size()
+	_check(burn_n == 25 and ok_desc,
+		"25 Burn pieces, every piece resolves by id, no unfilled {placeholders}")
 	print("    e.g. %s: %s" % [Relic.by_id("c_kindling")["name"], Relic.by_id("c_kindling")["desc"]])
 
 # ── 10 ───────────────────────────────────────────────────────────────────────

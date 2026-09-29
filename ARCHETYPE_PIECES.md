@@ -149,8 +149,20 @@ fielded, max 3. Numbers are first-pass and tunable in the arena.
 
 ### Earth (4 heroes) - armor and magic-resist shred
 
-Armor and magic resist are FLAT subtractions from each hit (`resistance`,
-`magic_resist`), so shred is worth most against tanky enemies and bosses.
+Armor and magic resist scale damage by 100 / (100 + armor) (`resistance`,
+`magic_resist`; 100 armor halves a hit), so shred is worth most against tanky
+enemies and bosses. Built as a PERCENT cut (like gear's Sunder): per stack,
+the seed's % x Earth heroes fielded.
+
+**As built (2026-09-29) - deviations from the drafts:**
+- Faultline is a percent per stack (1-3% by grade), not "2" armor: enemy armor
+  runs from 6 upward, so a flat amount would zero out early enemies.
+- Tidecall: `heal()` does not know who healed, so it is "your heroes next to a
+  Soaked enemy receive +X% healing" (in a Water build most heals are Water).
+- Static Charge lengthens stuns that go through `apply_stun` from a Lightning
+  hero (Static, Riot, Zolt). Rush's freeze is a separate time-stop and is not
+  lengthened.
+- Tectonic caps all shred at 75% (it reads shred and adds shred).
 
 | # | Piece | Draft effect | Cue | State |
 |---|---|---|---|---|

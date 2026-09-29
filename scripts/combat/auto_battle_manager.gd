@@ -268,6 +268,9 @@ var _kindling_mult: float = 1.0      # Kindling: scales burns a player hero LIGH
 var _ashfall_frac: float = 0.0       # Ashfall: share of a dying enemy's burn that jumps
 var _flare_secs: float = 0.0         # Inferno Crown: seconds of burn dealt per flare
 var _flare_timer: float = 0.0
+# Element archetype pieces (VD-22): Earth shred, Lightning stun, Water soak,
+# Air extra hits. Inert unless the player owns one; see ElementPieces.
+var element_pieces := ElementPieces.new()
 
 # ── Freeze watchdog (2026-07-24, diagnosing user report of full mid-battle
 # freezes with no console access) — if real time passes with the sim running
@@ -362,6 +365,7 @@ func start_battle() -> void:
 	collect_units()
 	_init_unit_timers()
 	_setup_burn_pieces()
+	element_pieces.setup(self, player_units, enemy_units)
 	_spawn_khagan_overlay_if_present()
 	_spawn_arena_overlay()
 	print("[Battle] Started — players: %d, enemies: %d" % [player_units.size(), enemy_units.size()])
@@ -573,6 +577,7 @@ func _process(delta: float) -> void:
 	battle_elapsed += dt
 	_tick_global_effects(dt)
 	_tick_burn_pieces(dt)
+	element_pieces.tick(dt)
 	_tick_khagan_possession(dt)
 
 	# Tick every living unit's real-time clocks and let it act.
@@ -1031,6 +1036,8 @@ func _tick_unit(unit: UnitBase, dt: float) -> void:
 					and unit.unit_class != UnitBase.UnitClass.SHEILDOR \
 					and not _has_delayed_auto(unit):
 				_apply_on_hit_passives(unit, target, opponents)
+			# Crosswind / Gust Chain / Tempest (VD-22): Air extra hits.
+			element_pieces.on_basic_attack(unit, target)
 			# Twin Fang relic: chance for the attack to strike a second time.
 			if unit.relic_double_atk_chance > 0.0 and randf() < unit.relic_double_atk_chance and is_instance_valid(target) and target.current_hp > 0:
 				unit.milestone_double_attacks += 1
@@ -1961,7 +1968,7 @@ func _tick_bouncer_reels(dt: float) -> void:
 				var bonus: float = float(caster.get_meta("presence_bonus", 0.0))
 				dmg = int(dmg * (1.0 + bonus))
 				target.take_magic_damage(dmg, caster.current_element, caster)
-				apply_stun(target, _abf(caster, AF_ACTIVE, "stun"))
+				apply_stun(target, _abf(caster, AF_ACTIVE, "stun"), caster)
 				caster.damage_dealt += dmg
 				_bouncer_claim_pull(caster, target, p)
 		if p["state"] == "held" and p.has("to"):
@@ -2314,7 +2321,7 @@ func _bloodhound_resolve_pounce(caster: UnitBase, target: UnitBase) -> void:
 	var dmg := _ab(caster, AF_ULT, "dmg")
 	var hp_before: int = target.current_hp
 	target.take_damage(dmg, caster.current_element, caster)
-	apply_stun(target, _abf(caster, AF_ULT, "stun"))
+	apply_stun(target, _abf(caster, AF_ULT, "stun"), caster)
 	caster.damage_dealt += dmg
 	caster.apply_bloodhound_frenzy_lifesteal(maxi(0, hp_before - target.current_hp))
 	_spawn_skill_effect(SkillEffect.Type.SHADOW_STRIKE, target.global_position)
@@ -6506,8 +6513,12 @@ func apply_slow(target: UnitBase, pct: float, dur: float) -> void:
 # LONG_FALL_BOSS_BUSY recovery, and the off-board portion of the long fall
 # (the victim is physically off the grid for that time — shortening it would
 # let it act from nowhere).
-func apply_stun(target: UnitBase, dur: float) -> void:
+# `source` (VD-22): the hero who stunned, if any. Static Charge lengthens
+# Lightning heroes' stuns and Thunderhead counts hero stuns; sourceless stuns
+# (Arc, Deluge, hazards) are neither.
+func apply_stun(target: UnitBase, dur: float, source = null) -> void:
 	if not (target and is_instance_valid(target)): return
+	dur = element_pieces.on_stun(target, dur, source)
 	target.stun_time = maxf(target.stun_time, target.tenacity_scaled(dur))
 
 func apply_root(target: UnitBase, dur: float) -> void:
@@ -7238,7 +7249,7 @@ func _riot_shield_bash(caster: UnitBase, opponents: Array) -> void:
 	var dmg: int = _ab(caster, AF_ACTIVE, "dmg")
 	tar.take_damage(dmg, caster.current_element, caster)
 	caster.damage_dealt += dmg
-	apply_stun(tar, _abf(caster, AF_ACTIVE, "stun"))
+	apply_stun(tar, _abf(caster, AF_ACTIVE, "stun"), caster)
 	apply_taunt(tar, caster, _abf(caster, AF_ACTIVE, "taunt"))
 	_spawn_skill_effect_sized(SkillEffect.Type.WHIRLWIND, tar.global_position, 36.0)
 
@@ -7524,7 +7535,7 @@ func _static_tripwire(caster: UnitBase, opponents: Array) -> void:
 	if caster.has_method("play_skill_oneshot"):
 		caster.play_skill_oneshot()
 	_spawn_static_point(StaticVFX.Mode.THUNDER_STRIKE, tar.global_position, 0.68)
-	apply_stun(tar, _abf(caster, AF_ACTIVE, "stun"))
+	apply_stun(tar, _abf(caster, AF_ACTIVE, "stun"), caster)
 	var dmg: int = _ab(caster, AF_ACTIVE, "dmg")
 	tar.take_magic_damage(dmg, UnitBase.Element.LIGHTNING, caster)
 	caster.damage_dealt += dmg
@@ -8005,7 +8016,7 @@ func _zolt_thunderhammer(caster: UnitBase, opponents: Array) -> void:
 	var dmg: int = _ab(caster, AF_ULT, "dmg")
 	tar.take_damage(dmg, UnitBase.Element.LIGHTNING, caster)
 	caster.damage_dealt += dmg
-	apply_stun(tar, _abf(caster, AF_ULT, "stun"))
+	apply_stun(tar, _abf(caster, AF_ULT, "stun"), caster)
 	_spawn_zolt_point(ZoltVFX.Mode.ULT_STRIKE, tar.global_position, 0.9, tar)
 	_spawn_zolt_point(ZoltVFX.Mode.STUN_RESIDUE, tar.global_position,
 		_abf(caster, AF_ULT, "stun"), tar)
@@ -8243,7 +8254,7 @@ func _static_grid_lockdown(caster: UnitBase) -> void:
 	var grid_stun_foes: Array = enemy_units if grid_owner_is_player else player_units
 	for u in grid_stun_foes.duplicate():
 		if u and is_instance_valid(u):
-			apply_stun(u, 2.0)
+			apply_stun(u, 2.0, caster)
 	if _static_grid_vfx and is_instance_valid(_static_grid_vfx):
 		_static_grid_vfx.lockdown()
 	_spawn_static_point(StaticVFX.Mode.AUTO_IMPACT, caster.global_position, 0.55)
