@@ -1737,3 +1737,26 @@ and the map track.
   `synergy_tracker.gd`, and the burn functions in `auto_battle_manager.gd` -
   which had uncommitted edits from another session on 2026-09-25, so check
   `git status` before touching it.
+
+---
+
+## VD-24 - Players feel locked into their route, especially Normal - status: ACTIVE
+
+**Owner report (2026-09-30).** "one of the feedbacks i got was people feel too
+locked in to their route. specially normal."
+
+**Measured (2000 maps).** Normal fight nodes average 1.49 ways forward; 62% have
+exactly one, 45% can only continue on Normal (or a side node), 19% can step up.
+Veteran: 1.96 ways, 23% single. Brutal: 1.88, 20% single. Cause: VD-12's
+"always a way down" hands every shared node to the harder lane, and Normal, the
+top lane, is always the one giving nodes away. No-crossing caps the paths, so
+rewiring can only move freedom between lanes, not create it.
+
+**Owner decision: option A.** Every fight node keeps its map tier, and at the
+prep screen the player may shift the fight one tier harder or one tier easier.
+The reward follows the tier actually fought. Free in both directions. The map
+tier is the starting point and range; nobody is locked in.
+
+**Files.** `ui/difficulty_panel.gd` (tier buttons work within a range) and the
+round-start / reward block of `core/main_game.gd`. Both files hold another
+agent's uncommitted edits; only these hunks are committed.
