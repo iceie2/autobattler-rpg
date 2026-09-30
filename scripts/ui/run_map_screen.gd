@@ -162,6 +162,16 @@ const REVEAL_EDGE_DRAW := 0.24    # s for an edge to draw itself to its child
 const REVEAL_RATE := 0.7
 # Choosing a node walks a marker along the path before the fight opens.
 const TRAVEL_SECONDS := 0.55
+# BOSS AURA (owner, 2026-09-30: "yes want this done asap"). Every biome ends at
+# its boss, so the boss node breathes a dark blood-red haze and sends a slow
+# ripple outward: a destination visible from the first row. Drawn under the
+# nodes, so it can never cover a creature, and never dimmed below AURA_FLOOR by
+# the hover cone, because every route ends there anyway.
+const BOSS_AURA_PERIOD := 3.2              # s for one breath / one ripple
+const BOSS_AURA_REACH := 2.1               # haze radius, in boss-disc radii
+const BOSS_AURA_HAZE := Color(0.30, 0.02, 0.07)
+const BOSS_AURA_RIPPLE := Color(0.90, 0.18, 0.22)
+const BOSS_AURA_FLOOR := 0.7
 
 # Fallback glyphs, used until the art above exists. Letterform placeholders on
 # purpose: honest about being placeholders in a way a borrowed icon isn't.
@@ -969,6 +979,9 @@ func _draw_map() -> void:
 			_canvas.draw_circle(tp, mr + 2.5, Color(0, 0, 0, 0.92))
 			_canvas.draw_circle(tp, mr, ROAD_GOLD_HOVER)
 			_canvas.draw_circle(tp, mr * 0.42, Color(1, 1, 1, 0.95))
+
+	# ── Boss aura, under the nodes (see BOSS AURA above) ─────────────────────
+	_draw_boss_aura(reachable)
 
 	# ── Nodes ────────────────────────────────────────────────────────────────
 	var font: Font = ThemeDB.fallback_font
@@ -1834,6 +1847,64 @@ func _draw_flow(pts: PackedVector2Array, phase: float, col: Color, width: float)
 				_canvas.draw_line(a.lerp(b, d / seg), a.lerp(b, d2 / seg), col, width, true)
 			d = d2
 		s += seg
+
+# The boss's haze and ripple. The boss row holds one boss per tier, so the aura
+# is ONE lair around the whole row, an ellipse spanning its nodes: three
+# per-node auras stacked into a single heavy blob. _draw has no blur, so the
+# haze is a stack of ellipses drawn outermost first; each adds a little alpha,
+# so it darkens toward the row and feathers out at the edge. It breathes on one
+# sine and a ripple leaves the row on the same period, so the two read as one
+# heartbeat rather than two effects.
+func _draw_boss_aura(reachable: Dictionary) -> void:
+	var bosses: Array = []
+	for row in _map.rows:
+		for n in row:
+			if int(n["type"]) == RunMap.NodeType.BOSS:
+				bosses.append(n)
+	if bosses.is_empty():
+		return
+	for b in bosses:
+		if _map.cleared.has(String(b["id"])):
+			return                                    # the biome's boss is down
+	# Arrives just after the boss row lands in the reveal, never before it.
+	var arrive: float = _reveal_row(int(bosses[0]["row"]), REVEAL_NODE_POP * 0.6, 0.5)
+	if arrive <= 0.0:
+		return
+	var vis: float = 0.0
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for b in bosses:
+		var p: Vector2 = _node_pos(b)
+		lo = lo.min(p)
+		hi = hi.max(p)
+		vis = maxf(vis, _stage_visibility(b, reachable))
+	var center: Vector2 = (lo + hi) * 0.5
+	var r: float = _node_r * 1.25
+	var fade: float = arrive * maxf(BOSS_AURA_FLOOR, vis)
+	var phase: float = fposmod(_clock / BOSS_AURA_PERIOD, 1.0)
+	var breath: float = 0.5 - 0.5 * cos(TAU * phase)   # 0 at the ripple's birth, 1 mid-cycle
+	# Inner ellipse hugs the row's discs; the haze grows out from it by `grow`.
+	var inner := Vector2((hi.x - lo.x) * 0.5 + r, (hi.y - lo.y) * 0.5 + r)
+	var grow: float = r * (BOSS_AURA_REACH - 1.0 + 0.25 * breath)
+	const LAYERS := 8
+	for i in range(LAYERS):
+		var t: float = float(i) / float(LAYERS - 1)     # 0 = outermost
+		var c := BOSS_AURA_HAZE
+		c.a = (0.05 + 0.03 * breath) * fade
+		_canvas.draw_colored_polygon(_ellipse(center, inner + Vector2.ONE * grow * (1.0 - t)), c)
+	# Ripple: born at the row's edge, spreads past the haze, fades as it goes.
+	var rc := BOSS_AURA_RIPPLE
+	rc.a = 0.5 * pow(1.0 - phase, 2.0) * fade
+	var ring: PackedVector2Array = _ellipse(center, inner + Vector2.ONE * grow * 1.1 * phase)
+	ring.append(ring[0])
+	_canvas.draw_polyline(ring, rc, 2.5, true)
+
+func _ellipse(c: Vector2, radii: Vector2, segments: int = 64) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for i in range(segments):
+		var a: float = TAU * float(i) / float(segments)
+		pts.append(c + Vector2(cos(a) * radii.x, sin(a) * radii.y))
+	return pts
 
 # Ease every lift toward its goal: up for the node under the cursor and the node
 # whose card is open, down for everything else. Exponential, so it is smooth at

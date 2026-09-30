@@ -306,6 +306,13 @@ func _capture_motion(screen: RunMapScreen, map: RunMap, map_seed: int,
 		# the card opening at the one-second mark would cover both.
 		screen._dwell = 0.0
 		await _motion_frame(dir, "hover", i)
+	# 2b. The boss aura over one full breath, at 24 samples per period: the
+	#     hover run above is shorter than a period and never shows a whole cycle.
+	var aura_dt: float = RunMapScreen.BOSS_AURA_PERIOD / 24.0
+	for i in range(24):
+		screen._process(aura_dt)
+		screen._dwell = 0.0
+		await _motion_frame(dir, "aura", i)
 	# 3. Commit to that fork and follow the marker until it arrives.
 	screen.open_dossier(fork)
 	screen._on_node_pressed(fork)
