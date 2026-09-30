@@ -935,6 +935,20 @@ termination ladder and tree pricing (`BALANCE_PLAN.md`).
 for the arena (`BALANCE_PLAN.md` Phase 0 `--meta=`; the existing `--xpbonus/
 --slots/--events` cohort dials cover XP and team size only, not the combat tree).
 
+**Owner answers (2026-09-30), verbatim.** Palette: *"2 A"*. Nemesis: *"idk i
+like nemesis but then we would be at 5 diffifent difficulties ones all is
+added."* Rails: *"lets hold off on this i still think we want a 4th difficulty
+between vet and brutal. but well see"*.
+
+- **DECIDED - palette A** (cream / orange / red, crimson Nemesis). Lands now,
+  independent of Nemesis.
+- **Nemesis: undecided.** The owner likes it but is wary of five tiers once a
+  4th wave tier between Veteran and Brutal is added. Not blocked on this yet
+  (still blocked on VD-04 + arena `--meta`).
+- **Rails (proposed 2026-09-24): HELD.** The owner still leans toward a 4th
+  wave tier between Veteran and Brutal, which would change the row layout
+  anyway. Note VD-24 already lets a Veteran node be fought as Brutal.
+
 **Done when.** A Nemesis node's measured win rate stays inside a stated band
 (e.g. 40-70%) for fresh, mid and high-investment cohorts at waves 1-50, and its
 payout is sized against the termination ladder.
@@ -1242,6 +1256,11 @@ direct damage into their burns, total damage unchanged without relics, then
 retune the pieces to sane values (recommended: the build then visibly IS
 burning); (C) change what the pieces boost to Burn heroes' damage in general -
 drifts back toward the scrapped element-stat pattern.
+
+**DECIDED (owner, 2026-09-30): B.** Verbatim: *"i guess b because a u said
+silly numbers makes me think the logic if off if we need silly numbers"*.
+Shift part of Coal / Sear / Ember's direct damage into their burns (total
+damage unchanged without relics), then retune the pieces to sane values.
 
 ---
 
@@ -1573,6 +1592,12 @@ HP, speed) reach ability damage. Casters and Burn teams get a fraction of what
 the text says. Owner call, tied to item 6: extend damage relics to all damage
 (a large balance swing - re-measure after), or say "basic attacks" in the
 text. Gold Scale's new text already says "Basic attacks".
+
+**DECIDED (owner, 2026-09-30): all damage.** Verbatim: *"yeah these should be
+all"*. Outgoing-damage relics (Glass Cannon, Avatar Engine, Worldbreaker, Boss
+Damage, Row, Execute, Gold Scale, Opening, Underdog) reach skills, ults and
+burn too. Lifesteal stays basic-attack only (decided 2026-09-27). Large
+balance swing: re-measure after.
 
 **Built 2026-09-27 (e47823e3).**
 - `Relic.odds_for_wave`: latest `WAVE_ODDS` row at or before the round.
