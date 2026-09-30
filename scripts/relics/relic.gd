@@ -43,7 +43,16 @@ static func grade_color(grade: String) -> Color:
 const ICON_DIR := "res://assets/icons/Relics/"
 static func icon_path(relic: Dictionary) -> String:
 	var p: String = ICON_DIR + str(relic.get("id", "")) + ".png"
-	return p if ResourceLoader.exists(p) else ""
+	if ResourceLoader.exists(p):
+		return p
+	# Archetype pieces (VD-16/22) share ONE icon across their five grades -
+	# the card already shows the grade: arch_<piece>.png, made by
+	# tools/sprite_pipeline/relic_piece_icons.py.
+	if relic.has("piece"):
+		var q: String = ICON_DIR + "arch_" + str(relic["piece"]) + ".png"
+		if ResourceLoader.exists(q):
+			return q
+	return ""
 
 # ── Relic pool ────────────────────────────────────────────────────────────────
 # Each entry: id, name, grade, desc, effects[ {type, ...}, ... ] (a relic may
