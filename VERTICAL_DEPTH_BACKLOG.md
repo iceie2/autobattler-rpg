@@ -1740,7 +1740,7 @@ and the map track.
 
 ---
 
-## VD-24 - Players feel locked into their route, especially Normal - status: ACTIVE
+## VD-24 - Players feel locked into their route, especially Normal - status: DONE (66a5e44b)
 
 **Owner report (2026-09-30).** "one of the feedbacks i got was people feel too
 locked in to their route. specially normal."
@@ -1760,3 +1760,15 @@ tier is the starting point and range; nobody is locked in.
 **Files.** `ui/difficulty_panel.gd` (tier buttons work within a range) and the
 round-start / reward block of `core/main_game.gd`. Both files hold another
 agent's uncommitted edits; only these hunks are committed.
+
+**Landed 2026-09-30 (66a5e44b).** Tier buttons work within the node's tier +-1
+(all three in classic mode); out-of-range tiers are dimmed and inert, and the
+heading reads "THIS FIGHT · shift one tier". Shifting respawns the wave at the
+new tier and swaps in that tier's own reward. Telemetry `difficulty_committed`
+carries `map_tier`, so shifted fights can be counted in playtest data.
+`map_smoke` presses the real buttons (sabotage-checked).
+
+**Heads-up for the other agent:** your uncommitted edit had deleted the tier
+button row from `difficulty_panel._build_ui` (the old RUN_MAP_PLAN §3.4
+"read-only briefing, no tier buttons"). VD-24 needs that row, so it is back,
+identical to HEAD. Your font and heading hunks in that file are untouched.
