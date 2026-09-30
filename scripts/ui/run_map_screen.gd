@@ -87,14 +87,17 @@ const ICON_SLUGS := {
 # behind the silhouette, so a row still reads as one question at three settings.
 #
 # That splits the row's two questions cleanly across two channels:
-#   ICON COLOUR = how hard  (tier — green / blue / red, the colours the
-#                            difficulty buttons already use)
+#   ICON COLOUR = how hard  (tier — one warm heat ramp, cream → orange → red)
 #   RING COLOUR = how rich  (the node's reward grade, D grey → S gold)
 # The intensity pips stay under the node as a non-colour fallback.
+# Palette A, owner pick 2026-09-30 (VD-13 swatch). The old green / blue tiers
+# merged with the C / B grade rings drawn on the same node; a heat ramp stays
+# clear of the loot-rarity colours. A 4th tier (Nemesis) would be crimson
+# 0.80, 0.16, 0.45 — not added until that tier exists.
 const TIER_COLORS := [
-	Color(0.42, 0.85, 0.40),   # Normal  — green
-	Color(0.38, 0.62, 0.98),   # Veteran — blue
-	Color(0.94, 0.36, 0.32),   # Brutal  — red
+	Color(0.93, 0.89, 0.80),   # Normal  — cream
+	Color(0.98, 0.62, 0.22),   # Veteran — orange
+	Color(0.92, 0.27, 0.24),   # Brutal  — red
 ]
 
 # Reward marks reuse the icons the game ALREADY has — the item's own icon from
