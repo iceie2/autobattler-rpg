@@ -519,6 +519,18 @@ var air_slip_time: float = 0.0
 var air_slip_pct: float = 0.0
 var air_tempest_ready: bool = false      # Tempest: next attack hits all in range
 var stun_haste: float = 0.0              # Overcharge ult bonus, set each frame
+# Role pieces (VD-22 roles) - see ElementPieces.
+var pack_hits: Dictionary = {}           # Pack Hunt: fighter instance id -> s left (on enemies)
+var relentless_target = null             # Relentless: this Fighter's current target
+var relentless_stacks: int = 0
+var bloodrush_time: float = 0.0          # Bloodrush: attack speed after a kill
+var bloodrush_pct: float = 0.0
+var role_aspd: float = 0.0               # Deadeye: Ranged attack speed, set at battle start
+var volley_count: int = 0                # Volley: Ranged attack counter
+var field_hits: Dictionary = {}          # Killing Field: ranged class -> s left (on enemies)
+var field_time: float = 0.0              # Killing Field mark
+var vigil_lock: float = 0.0              # Vigil: no charge right after own ult
+var vigil_bucket: float = 0.0            # Vigil: rate cap
 
 # The battle's ElementPieces, or null outside a battle / in bare tests.
 func _element_pieces():
@@ -594,6 +606,11 @@ func speed_modifier() -> float:
 		m *= 1.0 - minf(ElementPieces.SOAK_SLOW_CAP, soak_stacks * soak_slow)
 	if air_slip_stacks > 0 and air_slip_time > 0.0:
 		m *= 1.0 + air_slip_stacks * air_slip_pct
+	# Role pieces: Bloodrush after a Fighter's kill, Deadeye for Ranged.
+	if bloodrush_time > 0.0:
+		m *= 1.0 + bloodrush_pct
+	if role_aspd > 0.0:
+		m *= 1.0 + role_aspd
 	return m
 
 # Multiplier applied to damage this unit deals (buffs, debuffs, Sable momentum).
@@ -838,7 +855,9 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		modified_damage = int(modified_damage * get_defense_multiplier(element))
 		if ep:
 			# Landslide / Conductive / Riptide.
-			modified_damage = int(modified_damage * ep.damage_mult(self, attacker))
+			modified_damage = int(modified_damage * ep.damage_mult(self, attacker, is_magic))
+			# Shared Burden: part of it moves to the nearest Tank.
+			modified_damage = ep.redirect(self, modified_damage, attacker)
 	# Relic: fragile-but-deadly picks (e.g. Glass Cannon) raise incoming damage.
 	if relic_dmg_taken_mult != 1.0:
 		modified_damage = int(round(modified_damage * relic_dmg_taken_mult))
@@ -925,7 +944,9 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 			battle_manager.spawn_stone_ward(self)
 	times_hit += 1
 	took_damage.emit(modified_damage, attacker)   # drives the hit reaction (flash + recoil)
-	_charge_ultimate(modified_damage)
+	# Iron Will (VD-22): Tanks charge faster from damage taken.
+	var ep_charge = _element_pieces()
+	_charge_ultimate(int(modified_damage * ep_charge.taken_charge_mult(self)) if ep_charge else modified_damage)
 	# Track who dealt damage to us (for Bloodhound ultimate)
 	if attacker != null:
 		var prev: int = damage_taken_from.get(attacker, 0)
@@ -938,7 +959,10 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 	# Element pieces (VD-22): Earth hits stack shred, Water hits Soak.
 	var ep_hit = _element_pieces()
 	if ep_hit and modified_damage > 0:
-		ep_hit.on_hit(self, attacker, true_damage)
+		ep_hit.on_hit(self, attacker, true_damage, modified_damage)
+	# Miracle (VD-22 Healer capstone): heals instead of dying, once per fight.
+	if current_hp <= 0 and ep_hit:
+		ep_hit.try_miracle(self)
 
 	if current_hp <= 0:
 		# Balance export (2026-08-05): who/what landed the killing blow, read by
@@ -951,7 +975,7 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 			battle_manager.burn_ashfall(self)
 		# Aftershock / Arc (VD-22): stacks and stuns jump off the body.
 		if ep_hit:
-			ep_hit.on_enemy_death(self)
+			ep_hit.on_enemy_death(self, attacker)
 		die()
 	if not gear.is_empty() or (is_instance_valid(attacker) and attacker is UnitBase 			and not attacker.gear.is_empty()):
 		GearPassives.after_hit(self, attacker, mini(modified_damage, gear_pre_hp),
@@ -961,7 +985,9 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 # the 2026-07-16 affinity rework — elemental interaction is now entirely
 # "attacker's offensive rating vs target's defensive rating".)
 
-func heal(amount: int, silent: bool = false) -> void:
+# `healer` (VD-22): the hero who healed, when the heal site knows it - the
+# Healer pieces (Mending Circle, Radiance, Vigil) only count heals from Healers.
+func heal(amount: int, silent: bool = false, healer = null) -> void:
 	# Khagan puppet: the possessed hero can't self-sustain while controlled — this
 	# single gate neutralizes regen, lifesteal, drain-heals and skill/ult heals
 	# alike (all sustain routes through heal()), so a geared bruiser/healer can't
@@ -975,10 +1001,10 @@ func heal(amount: int, silent: bool = false) -> void:
 		amount = int(round(float(amount) * AutoBattleManager.DROWNED_HEAL_MULT))
 		if amount <= 0:
 			return
-	# Tidecall (VD-22): more healing next to a Soaked enemy.
+	# Tidecall / Mending Circle (VD-22).
 	var ep = _element_pieces()
 	if ep:
-		amount = int(round(amount * ep.heal_mult(self)))
+		amount = int(round(amount * ep.heal_mult(self, healer)))
 	# Deep Wound (component equipment) cuts healing received.
 	if not gear.is_empty():
 		amount = GearPassives.heal_received(self, amount)
@@ -989,6 +1015,9 @@ func heal(amount: int, silent: bool = false) -> void:
 	var healed: int = current_hp - before
 	if healed > 0 and not silent:
 		spawn_heal_text(healed)
+	# Overflow / Radiance / Vigil (VD-22 Healer pieces).
+	if ep:
+		ep.after_heal(self, healer, healed, amount - healed)
 
 func restore_mana(amount: int) -> void:
 	current_mana = min(max_mana, current_mana + amount)   # setter emits mana_changed

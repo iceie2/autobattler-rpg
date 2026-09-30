@@ -165,7 +165,12 @@ func _apply_effect(unit, e: Dictionary) -> void:
 		"earth_shred_pct", "earth_rubble", "earth_landslide", "earth_aftershock", "earth_tectonic", \
 		"light_stun_ext", "light_conductive", "light_arc", "light_ult_haste", "light_thunder", \
 		"water_soak", "water_saturate", "water_riptide", "water_tidecall", "water_deluge", \
-		"air_extra_chance", "air_chain", "air_slip", "air_updraft", "air_tempest":
+		"air_extra_chance", "air_chain", "air_slip", "air_updraft", "air_tempest", \
+		"role_tank_dr", "role_tank_share", "role_tank_thorns", "role_tank_charge", "role_tank_wall", \
+		"role_mage_dmg", "role_mage_resonance", "role_mage_mana", "role_mage_twincast", "role_mage_overload", \
+		"role_fighter_dmg", "role_fighter_pack", "role_fighter_bloodrush", "role_fighter_relentless", "role_fighter_onslaught", \
+		"role_ranged_aspd", "role_ranged_longshot", "role_ranged_volley", "role_ranged_covered", "role_ranged_field", \
+		"role_healer_heal", "role_healer_overflow", "role_healer_radiance", "role_healer_vigil", "role_healer_miracle":
 			var k: String = e.get("type", "")
 			unit.relic_arch[k] = maxf(float(unit.relic_arch.get(k, 0.0)), float(e.get("value", 0.0)))
 		"burn_flare":

@@ -62,10 +62,29 @@ Burn (VD-16, `BUILD_ARCHETYPES.md`) has a **seed** and four **pieces**:
 A fresh account can build Mage and Fighter from starters alone. Burn still needs
 three tree unlocks.
 
-## Roles - drafts
+## Roles - ACCEPTED 2026-09-30, built
 
-Every role follows the Burn shape: seed, enabler, two payoffs, capstone. "Per X
-hero" always means distinct heroes fielded, max 3 (like Kindling).
+Owner: *"okay we can add those relics"*. Every role follows the Burn shape:
+seed, enabler, two payoffs, capstone. "Per X hero" always means distinct
+heroes fielded, max 3 (like Kindling). Role verbs come from the trait class
+(`HeroVerbs.ROLE_VERBS`); Summoner has none. Rules live beside the element
+pieces in `ElementPieces`.
+
+**As built - deviations from the drafts below:**
+- Arcane Circle is +X% MAGIC DAMAGE from Mages, Warband +X% PHYSICAL damage
+  from Fighters (a damage multiplier, not a stat bake, so it can't go stale).
+- Spell Echo is named **Twincast** (gear already has a "Spell Echo" passive):
+  the skill's target takes half the skill's damage again.
+- Healer pieces count heals whose source is a Healer: Doc (Triage, Inject,
+  Field Surgery), Reed (Cleanse, Confluence), Nemi's Tide. June's healing is a
+  regen aura with no source, so it does not trigger Mending Circle, Radiance
+  or Vigil. Overflow counts every heal.
+- Vigil is rate-capped (at most 10% of an ult per second) and ignores the
+  Healer's heals for 1.5 s after its own ult, so an ult heal can't refill it.
+- Last Wall: heroes whose row is behind any living Tank's row.
+- Covered: an ally in the same column, nearer the front.
+- Miracle needs another living Healer; once per fight.
+- Damage reduction from role pieces caps at 60% total.
 
 ### Tank - leans on: damage taken (tanks absorb most of the enemy's damage)
 

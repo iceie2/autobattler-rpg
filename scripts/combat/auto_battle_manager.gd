@@ -948,11 +948,13 @@ func _tick_unit(unit: UnitBase, dt: float) -> void:
 
 	# ── Active skill (needs cooldown elapsed AND enough mana) ──────────────────
 	if unit.skill_cd_time <= 0.0 and unit.skill_name != "" \
-			and unit.current_mana >= unit.skill_mana_cost \
+			and unit.current_mana >= element_pieces.skill_cost(unit) \
 			and _skill_trigger_ready(unit, opponents):
 		GearPassives.before_cast(unit)   # Empty Reservoir snapshot (before the cost) + skill window
-		if unit.skill_mana_cost > 0:
-			unit.spend_mana(unit.skill_mana_cost)
+		# Mana Tide (VD-22) lowers Mages' cost; otherwise skill_mana_cost.
+		var mana_cost: int = element_pieces.skill_cost(unit)
+		if mana_cost > 0:
+			unit.spend_mana(mana_cost)
 		var skill_before: int = unit.damage_dealt
 		var original_skill_target: UnitBase = unit.target_unit
 		_use_skill(unit, opponents, allies)
@@ -966,6 +968,7 @@ func _tick_unit(unit: UnitBase, dt: float) -> void:
 		unit.action_time = _combat_action_duration(unit, "skill", 0.45)
 		unit_action.emit(unit, "skill")
 		var skill_dmg: int = unit.damage_dealt - skill_before
+		element_pieces.on_skill_cast(unit, original_skill_target, skill_dmg)   # Twincast (VD-22)
 		if skill_dmg > 0:
 			action_logged.emit("%s casts %s (%d dmg)" % [unit.unit_name, unit.skill_name, skill_dmg], unit.is_player_unit)
 		else:
@@ -1362,7 +1365,7 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 					var doc_miss: float = 1.0 - float(doc_tar.current_hp) / float(maxi(doc_tar.max_hp, 1))
 					var doc_lo: float = _abf(unit, AF_PASSIVE, "lo")
 					var doc_amt: int = int(doc_lo + (_abf(unit, AF_PASSIVE, "hi") - doc_lo) * doc_miss)
-					doc_tar.heal(doc_amt)
+					doc_tar.heal(doc_amt, false, unit)
 					unit.combat_healing_done += doc_amt
 					_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, doc_tar.global_position, 26.0)
 			unit.set_meta("triage_t", doc_t)
@@ -1486,6 +1489,7 @@ func _tick_passive(unit: UnitBase, opponents: Array, allies: Array, dt: float) -
 # ── Ultimate implementations ──────────────────────────────────────────────────
 func _use_ultimate(caster: UnitBase, opponents: Array, allies: Array) -> void:
 	caster.milestone_ult_casts += 1
+	element_pieces.on_ult_cast(caster)   # Resonance / Overload / Vigil lock (VD-22)
 	match caster.unit_class:
 		UnitBase.UnitClass.STAT_STEALER:
 			_stat_steal_drain(caster, opponents)
@@ -4559,7 +4563,7 @@ func _tick_nemi_tide_seqs(dt: float) -> void:
 					caster.damage_dealt += seq["dmg"]
 					_spawn_skill_effect_sized(SkillEffect.Type.TIDE_WAVE, pending.global_position, 160.0, TIDE_SPLASH_DUR)
 				else:
-					pending.heal(seq["heal_amt"])
+					pending.heal(seq["heal_amt"], false, caster)
 					_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, pending.global_position, 160.0, TIDE_SPLASH_DUR)
 
 				seq["current"] = pending
@@ -7551,7 +7555,7 @@ func _reed_cleanse(caster: UnitBase, allies: Array) -> void:
 	# and spore; stun in particular is the debuff the tooltip most implies.
 	tar.clear_debuffs()
 	var h: int = _ab(caster, AF_ACTIVE, "heal")
-	tar.heal(h)
+	tar.heal(h, false, caster)
 	caster.combat_healing_done += h
 
 func _vail_updraft(caster: UnitBase, allies: Array) -> void:
@@ -7603,7 +7607,7 @@ func _doc_field_surgery(caster: UnitBase, allies: Array) -> void:
 		for a in allies:
 			if a and is_instance_valid(a):
 				var h: int = int(float(a.max_hp) * _abf(caster, AF_ULT, "fallback"))
-				a.heal(h)
+				a.heal(h, false, caster)
 				caster.combat_healing_done += h
 				_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, a.global_position, 36.0)
 		return
@@ -8289,7 +8293,7 @@ func _reed_confluence(caster: UnitBase, allies: Array) -> void:
 	for a in allies:
 		if a and is_instance_valid(a):
 			var h: int = int(float(a.max_hp) * _abf(caster, AF_ULT, "heal") * mult)
-			a.heal(h)
+			a.heal(h, false, caster)
 			caster.combat_healing_done += h
 			_spawn_skill_effect_sized(SkillEffect.Type.HOLY_LIGHT, a.global_position, 34.0)
 	action_logged.emit("%s channels the confluence! (x%.1f)" % [caster.unit_name, mult], caster.is_player_unit)

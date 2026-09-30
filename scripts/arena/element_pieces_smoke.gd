@@ -42,6 +42,11 @@ func _ready() -> void:
 	_test_lightning()
 	_test_water()
 	_test_air()
+	_test_tank()
+	_test_mage()
+	_test_fighter()
+	_test_ranged()
+	_test_healer()
 	_test_relics()
 
 	print("ELEMENT_PIECES_SMOKE: %s" % ("ALL PASS" if _fails.is_empty()
@@ -370,6 +375,226 @@ func _test_air() -> void:
 	_check(in_range.current_hp < 1000000 and out_range.current_hp == 1000000 and not hh.air_tempest_ready,
 		"Tempest: the next attack hits enemies in range, once")
 
+# ── Roles (VD-22, 2026-09-30) ────────────────────────────────────────────────
+func _placed(cls: int, pos: Vector2i) -> UnitBase:
+	var u := _hero(cls, pos)
+	u.home_position = pos
+	return u
+
+func _test_tank() -> void:
+	print("tank:")
+	var riot := _placed(UnitBase.UnitClass.RIOT, Vector2i(2, 5))
+	var bouncer := _placed(UnitBase.UnitClass.BOUNCER, Vector2i(4, 5))
+	var doc := _placed(UnitBase.UnitClass.DOC, Vector2i(2, 8))
+	var team := [riot, bouncer, doc]
+	var foe := _foe(Vector2i(2, 2))
+	_give(team, "b_bulwark")        # 6% per Tank
+	_begin(team, [foe])
+	_near(ep.damage_mult(riot, foe), 0.88, 0.0001, "Bulwark Oath: 2 Tanks -> Tanks take 12% less")
+	_near(ep.damage_mult(doc, foe), 1.0, 0.0001, "Bulwark Oath: not for non-Tanks")
+	_give(team, "b_lastwall")       # 12% behind a Tank
+	_begin(team, [foe])
+	_near(ep.damage_mult(doc, foe), 0.88, 0.0001, "Last Wall: a hero behind a living Tank takes 12% less")
+	_give(team, "b_sharedburden")   # 20% moves to the nearest Tank
+	_begin(team, [foe])
+	var riot_hp := riot.current_hp
+	var kept := ep.redirect(doc, 1000, foe)
+	_check(kept == 800 and riot_hp - riot.current_hp == 200,
+		"Shared Burden: 200 of 1000 moves to the nearest Tank (kept %d, Tank took %d)" % [kept, riot_hp - riot.current_hp])
+	_check(ep.redirect(riot, 1000, foe) == 1000, "Shared Burden: Tanks never redirect")
+	_give(team, "b_retribution")    # 15% back
+	_begin(team, [foe])
+	riot.max_hp = 1000000
+	riot.current_hp = 1000000
+	var r_before := riot.current_hp
+	var f_before := foe.current_hp
+	riot.take_damage(1000, UnitBase.Element.NORMAL, foe)
+	var taken := r_before - riot.current_hp
+	_check(f_before - foe.current_hp == int(taken * 0.15),
+		"Retribution: the attacker takes 15%% of %d back (got %d)" % [taken, f_before - foe.current_hp])
+	_give(team, "b_ironwill")
+	_begin(team, [foe])
+	_near(ep.taken_charge_mult(riot), 1.30, 0.0001, "Iron Will: Tanks charge +30% from damage taken")
+	_near(ep.taken_charge_mult(doc), 1.0, 0.0001, "Iron Will: not for non-Tanks")
+
+func _test_mage() -> void:
+	print("mage:")
+	var static_h := _placed(UnitBase.UnitClass.STATIC, Vector2i(1, 7))
+	var zolt := _placed(UnitBase.UnitClass.ZOLT, Vector2i(3, 7))
+	var lord := _placed(UnitBase.UnitClass.LORDEE, Vector2i(5, 5))
+	var team := [static_h, zolt, lord]
+	var foe := _foe(Vector2i(2, 2))
+	_give(team, "b_arcanecircle")   # 10% per Mage
+	_begin(team, [foe])
+	_near(ep.damage_mult(foe, static_h, true), 1.20, 0.0001, "Arcane Circle: 2 Mages -> +20% magic damage")
+	_near(ep.damage_mult(foe, static_h, false), 1.0, 0.0001, "Arcane Circle: physical hits unchanged")
+	_give(team, "b_resonance")      # others +10%
+	_begin(team, [foe])
+	zolt.ultimate_ready = false
+	zolt.ultimate_charge = 0
+	static_h.ultimate_ready = false
+	static_h.ultimate_charge = 0
+	ep.on_ult_cast(static_h)
+	_check(zolt.ultimate_charge == int(round(zolt.ultimate_charge_max * 0.10)) and static_h.ultimate_charge == 0,
+		"Resonance: other Mages +10% ult charge, never the caster")
+	_give(team, "b_manatide")       # -25% mana
+	_begin(team, [foe])
+	_check(ep.skill_cost(static_h) == int(round(static_h.skill_mana_cost * 0.75)) \
+		and ep.skill_cost(lord) == lord.skill_mana_cost, "Mana Tide: Mage skills cost 25% less")
+	_give(team, "b_twincast")
+	_begin(team, [foe])
+	ep.v["role_mage_twincast"] = 1.0   # force the roll
+	var hp := foe.current_hp
+	ep.on_skill_cast(static_h, foe, 400)
+	_check(foe.current_hp < hp, "Twincast: the skill's target is hit again")
+	_give(team, "b_overload")
+	_begin(team, [foe])
+	hp = foe.current_hp
+	for _i in range(3):
+		ep.on_ult_cast(lord)
+	_check(foe.current_hp == hp, "Overload: nothing on ults 1-3")
+	ep.on_ult_cast(lord)
+	_check(foe.current_hp < hp, "Overload: the 4th ult (any hero) blasts every enemy")
+
+func _test_fighter() -> void:
+	print("fighter:")
+	var lord := _placed(UnitBase.UnitClass.LORDEE, Vector2i(1, 5))
+	var rush := _placed(UnitBase.UnitClass.RUSH, Vector2i(3, 5))
+	var static_h := _placed(UnitBase.UnitClass.STATIC, Vector2i(2, 7))
+	var team := [lord, rush, static_h]
+	var foe := _foe(Vector2i(2, 2))
+	_give(team, "b_warband")        # 8% per Fighter
+	_begin(team, [foe])
+	_near(ep.damage_mult(foe, lord, false), 1.16, 0.0001, "Warband: 2 Fighters -> +16% physical damage")
+	_near(ep.damage_mult(foe, static_h, false), 1.0, 0.0001, "Warband: not for a Mage")
+	_give(team, "b_packhunt")
+	_begin(team, [foe])
+	ep.on_hit(foe, lord, false, 10)
+	_near(ep.damage_mult(foe, lord, false), 1.16, 0.0001, "Pack Hunt: a Fighter's own hit does not mark for itself")
+	ep.on_hit(foe, rush, false, 10)
+	_near(ep.damage_mult(foe, lord, false), 1.16 * 1.15, 0.0001, "Pack Hunt: +15% after another Fighter's hit")
+	_tick(2.1)
+	_near(ep.damage_mult(foe, lord, false), 1.16, 0.0001, "Pack Hunt: the mark lasts 2 s")
+	_give(team, "b_relentless")     # 3% per hit on the same target
+	var foe2 := _foe(Vector2i(4, 2))
+	_begin(team, [foe, foe2])
+	for _i in range(3):
+		ep.on_hit(foe, lord, false, 10)
+	_near(ep.damage_mult(foe, lord, false), 1.16 * 1.09, 0.0001, "Relentless: 3 hits -> +9%")
+	ep.on_hit(foe2, lord, false, 10)
+	_check(lord.relentless_stacks == 1, "Relentless: a new target resets the stacks")
+	_give(team, "b_bloodrush")      # +30% attack speed 3 s
+	_give(team, "s_onslaught")      # 100% reset
+	_begin(team, [foe, foe2])
+	var s0 := lord.speed_modifier()
+	lord.attack_cooldown = 5.0
+	ep.on_enemy_death(foe, lord)
+	_near(lord.speed_modifier() / s0, 1.30, 0.001, "Bloodrush: a kill gives +30% attack speed")
+	_check(lord.attack_cooldown == 0.0, "Onslaught S: a kill resets the attack timer")
+	_tick(3.1)
+	_near(lord.speed_modifier() / s0, 1.0, 0.001, "Bloodrush ends after 3 s")
+
+func _test_ranged() -> void:
+	print("ranged:")
+	var hh := _placed(UnitBase.UnitClass.HEADHUNTER, Vector2i(2, 8))
+	var sable := _placed(UnitBase.UnitClass.SABLE, Vector2i(4, 8))
+	var ember := _placed(UnitBase.UnitClass.EMBER, Vector2i(6, 8))
+	var riot := _placed(UnitBase.UnitClass.RIOT, Vector2i(2, 5))
+	var team := [hh, sable, ember, riot]
+	var foe := _foe(Vector2i(2, 5 - 3))
+	var foe2 := _foe(Vector2i(3, 2))
+	var s0 := hh.speed_modifier()
+	_give(team, "b_deadeye")        # 8% per Ranged hero
+	_begin(team, [foe, foe2])
+	_near(hh.speed_modifier() / s0, 1.24, 0.001, "Deadeye: 3 Ranged -> +24% attack speed")
+	_near(riot.role_aspd, 0.0, 0.0001, "Deadeye: not for a Tank")
+	_give(team, "b_longshot")       # 4% per tile
+	_begin(team, [foe, foe2])
+	var d: int = mgr._unit_dist(hh, foe)
+	_near(ep.damage_mult(foe, hh, false), 1.0 + 0.04 * d, 0.0001, "Longshot: +4%% per tile (%d tiles)" % d)
+	_give(team, "b_covered")        # 25% with an ally in front
+	_begin(team, [foe, foe2])
+	_near(ep.damage_mult(hh, foe), 0.75, 0.0001, "Covered: Riot in front -> 25% less")
+	_near(ep.damage_mult(sable, foe), 1.0, 0.0001, "Covered: nobody in front -> no cut")
+	_give(team, "b_volley")         # every 5th attack, 75%
+	_begin(team, [foe, foe2])
+	hh.attack_damage = 1000
+	var hp2 := foe2.current_hp
+	for _i in range(4):
+		ep.on_basic_attack(hh, foe)
+	_check(foe2.current_hp == hp2, "Volley: nothing on attacks 1-4")
+	ep.on_basic_attack(hh, foe)
+	_check(foe2.current_hp < hp2, "Volley: the 5th attack also hits a second enemy")
+	_give(team, "b_killingfield")   # +25% for 4 s
+	_begin(team, [foe, foe2])
+	ep.on_hit(foe, hh, false, 10)
+	ep.on_hit(foe, sable, false, 10)
+	_check(foe.field_time <= 0.0, "Killing Field: 2 Ranged heroes are not enough")
+	ep.on_hit(foe, ember, false, 10)
+	_near(ep.damage_mult(foe, riot, false), 1.25, 0.0001, "Killing Field: 3 Ranged heroes -> +25% from anyone")
+	_tick(4.1)
+	_near(ep.damage_mult(foe, riot, false), 1.0, 0.0001, "Killing Field ends after 4 s")
+
+func _test_healer() -> void:
+	print("healer:")
+	var doc := _placed(UnitBase.UnitClass.DOC, Vector2i(2, 8))
+	var reed := _placed(UnitBase.UnitClass.REED, Vector2i(4, 8))
+	var riot := _placed(UnitBase.UnitClass.RIOT, Vector2i(2, 5))
+	var team := [doc, reed, riot]
+	var foe := _foe(Vector2i(2, 3))
+	_give(team, "b_mendingcircle")  # 10% per Healer
+	_begin(team, [foe])
+	riot.max_hp = 100000
+	riot.current_hp = 1000
+	riot.heal(100, true, doc)
+	_check(riot.current_hp == 1120, "Mending Circle: 2 Healers -> heals from Healers +20%% (got %d)" % (riot.current_hp - 1000))
+	riot.current_hp = 1000
+	riot.heal(100, true)
+	_check(riot.current_hp == 1100, "Mending Circle: a heal with no Healer source is unchanged")
+	_give(team, "b_overflow")       # up to 20% max HP shield
+	_begin(team, [foe])
+	riot.current_shield = 0
+	riot.current_hp = riot.max_hp - 100
+	riot.heal(50000, true)
+	_check(riot.current_shield == int(riot.max_hp * 0.20), "Overflow: overheal becomes a shield capped at 20%% (%d)" % riot.current_shield)
+	_give(team, "b_radiance")       # 15% of the heal
+	_begin(team, [foe])
+	riot.current_hp = 1000
+	var fh := foe.current_hp
+	riot.heal(1000, true, doc)
+	_check(foe.current_hp < fh, "Radiance: a Healer's heal also hits the nearest enemy")
+	_give(team, "b_vigil")          # 5% of each heal, 10% of an ult per s
+	_begin(team, [foe])
+	doc.ultimate_ready = false
+	doc.ultimate_charge = 0
+	riot.current_hp = 1000
+	riot.heal(1000, true, doc)
+	_check(doc.ultimate_charge == 0, "Vigil: nothing before the rate bucket fills")
+	_tick(1.0)
+	riot.current_hp = 1000
+	riot.heal(20000, true, doc)
+	var cap := int(doc.ultimate_charge_max * 0.10)
+	_check(doc.ultimate_charge > 0 and doc.ultimate_charge <= cap + 1,
+		"Vigil: charges from healing, at most 10%% of an ult per second (%d / %d)" % [doc.ultimate_charge, cap])
+	ep.on_ult_cast(doc)
+	var after_cast := doc.ultimate_charge
+	_tick(1.0)
+	riot.current_hp = 1000
+	riot.heal(20000, true, doc)
+	_check(doc.ultimate_charge == after_cast, "Vigil: no charge from heals right after its own ult")
+	_give(team, "b_miracle")        # 30% HP, once
+	_begin(team, [foe])
+	riot.current_shield = 0        # Overflow above left Riot a shield
+	reed.current_shield = 0
+	riot.current_hp = 10
+	riot.take_damage(5000, UnitBase.Element.NORMAL, foe, true)
+	_check(riot.current_hp == int(round(riot.max_hp * 0.30)), "Miracle: the first lethal hit heals to 30%% instead (%d)" % riot.current_hp)
+	var reed_saved := false
+	reed.current_hp = 10
+	reed.take_damage(5000, UnitBase.Element.NORMAL, foe, true)
+	reed_saved = reed.current_hp > 0
+	_check(not reed_saved, "Miracle: only once per fight")
+
 # ── relic side ───────────────────────────────────────────────────────────────
 func _test_relics() -> void:
 	print("relics:")
@@ -377,6 +602,25 @@ func _test_relics() -> void:
 		"staticcharge", "conductive", "arc", "overcharge", "thunderhead",
 		"undertow", "saturate", "riptide", "tidecall", "deluge",
 		"crosswind", "gustchain", "slipstream", "updraft", "tempest"]
+	var role_pieces := ["bulwark", "sharedburden", "retribution", "ironwill", "lastwall",
+		"arcanecircle", "resonance", "manatide", "twincast", "overload",
+		"warband", "packhunt", "bloodrush", "relentless", "onslaught",
+		"deadeye", "longshot", "volley", "covered", "killingfield",
+		"mendingcircle", "overflow", "radiance", "vigil", "miracle"]
+	var bad_roles := 0
+	for p in role_pieces:
+		for g in ["d", "c", "b", "a", "s"]:
+			var r := Relic.by_id("%s_%s" % [g, p])
+			if r.is_empty() or r.get("category", "") != "archetype" or "{" in String(r.get("desc", "")):
+				bad_roles += 1
+	_check(bad_roles == 0, "all 25 role pieces resolve at every grade with filled text (%d bad)" % bad_roles)
+	var ur := _hero(UnitBase.UnitClass.RIOT)
+	for p in role_pieces:
+		_give([ur], "c_" + p)
+	_check(ur.relic_arch.size() == 25, "RelicInventory writes all 25 role piece types (%d)" % ur.relic_arch.size())
+	_check(HeroVerbs.has_verb(UnitBase.UnitClass.RIOT, HeroVerbs.TANK) \
+		and HeroVerbs.has_verb(UnitBase.UnitClass.RIOT, HeroVerbs.LIGHTNING) \
+		and not HeroVerbs.has_verb(UnitBase.UnitClass.NECRO, HeroVerbs.MAGE), "HeroVerbs: role verbs by trait class")
 	var missing := 0
 	for p in pieces:
 		for g in ["d", "c", "b", "a", "s"]:

@@ -32,6 +32,21 @@ const ELEMENT_VERBS := {
 	UnitBase.Element.AIR: AIR,
 }
 
+# ROLE verbs (VD-22, owner 2026-09-30): every hero of a trait class carries
+# it. Summoner (one hero, Necro) gets none.
+const TANK := "tank"
+const MAGE := "mage"
+const FIGHTER := "fighter"
+const RANGED := "ranged"
+const HEALER := "healer"
+const ROLE_VERBS := {
+	UnitBase.TraitClass.TANK: TANK,
+	UnitBase.TraitClass.MAGE: MAGE,
+	UnitBase.TraitClass.FIGHTER: FIGHTER,
+	UnitBase.TraitClass.RANGED: RANGED,
+	UnitBase.TraitClass.HEALER: HEALER,
+}
+
 # Summons carry an element but are not heroes.
 const NOT_HEROES := [UnitBase.UnitClass.ZOMBIE, UnitBase.UnitClass.BAT, UnitBase.UnitClass.ANT]
 
@@ -48,7 +63,15 @@ static func class_verbs(unit_class: int) -> Array:
 	var ev = ELEMENT_VERBS.get(UnitFactory.element_for_class(unit_class))
 	if ev != null:
 		out.append(ev)
+	var rv = _role_verb(unit_class)
+	if rv != null:
+		out.append(rv)
 	return out
+
+static func _role_verb(unit_class: int):
+	if not UnitFactory.TRAIT_CLASS_MAP.has(unit_class):
+		return null
+	return ROLE_VERBS.get(UnitFactory.TRAIT_CLASS_MAP[unit_class])
 
 # Verbs a live UNIT carries: element verbs follow its current element.
 static func unit_verbs(u) -> Array:
@@ -58,6 +81,9 @@ static func unit_verbs(u) -> Array:
 	var ev = ELEMENT_VERBS.get(u.current_element)
 	if ev != null:
 		out.append(ev)
+	var rv = _role_verb(u.unit_class)
+	if rv != null:
+		out.append(rv)
 	return out
 
 static func has_verb(unit_class: int, verb: String) -> bool:
@@ -89,7 +115,7 @@ static func verbs_on_team(units: Array) -> Array:
 # Every hero class, kit or element, that carries at least one verb.
 static func _verb_classes() -> Array:
 	var out: Array = VERBS.keys()
-	for cls in UnitFactory.NATURAL_ASPECT:
+	for cls in UnitFactory.NATURAL_ASPECT.keys() + UnitFactory.TRAIT_CLASS_MAP.keys():
 		if not cls in out and not cls in NOT_HEROES:
 			out.append(cls)
 	return out
