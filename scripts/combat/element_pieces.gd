@@ -214,7 +214,7 @@ func heal_mult(unit: UnitBase) -> float:
 func on_basic_attack(unit: UnitBase, target: UnitBase) -> void:
 	if not active or not _is(unit, HeroVerbs.AIR) or not mgr._is_alive(target):
 		return
-	var base := float(unit.attack_damage) * unit.outgoing_damage_multiplier() * unit.relic_outgoing_mult
+	var base := float(unit.attack_damage) * unit.outgoing_damage_multiplier()   # relics: take_damage applies them
 	var frac: float = val("air_updraft") if val("air_updraft") > 0.0 else AIR_BASE_FRAC
 	var chance: float = val("air_extra_chance") * counts.get(HeroVerbs.AIR, 0)
 	if chance > 0.0 and randf() < chance:

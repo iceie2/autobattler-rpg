@@ -612,12 +612,32 @@ func outgoing_damage_multiplier() -> float:
 	var mob_dmg_bonus: float = get_meta("mob_dmg_bonus", 0.0)
 	if mob_dmg_bonus != 0.0:
 		m *= (1.0 + mob_dmg_bonus)
-	# Relic "Opening Burst": bonus damage for a short window at the start of each fight.
-	if relic_opening_burst_remaining > 0.0:
-		m *= (1.0 + relic_opening_burst_pct)
-	# Relic "Underdog": bonus damage scaling with dead teammates this fight.
+	# Opening Burst and Underdog moved to relic_damage_mult() (2026-09-30): they
+	# apply to ALL damage now, in take_damage, not just basic attacks.
+	return m
+
+# Every outgoing-damage RELIC in one place (VD-21 item 6, owner 2026-09-30: "yeah
+# these should be all"). Applied ONCE per landed hit, in take_damage, so basic
+# attacks, skills, ultimates, projectiles and burn all get it. Lifesteal is
+# deliberately NOT here: it stays basic-attack only (owner, 2026-09-27).
+# Must never also be applied where the damage is built (attack(), skill code):
+# that double-counts.
+func relic_damage_mult(target) -> float:
+	var m: float = 1.0
+	if relic_outgoing_mult != 1.0:                       # Glass Cannon, Avatar Engine, ...
+		m *= relic_outgoing_mult
+	if relic_vs_boss_mult != 1.0 and target is UnitBase and target.is_boss:
+		m *= relic_vs_boss_mult                          # Boss Damage ladder, Worldbreaker
+	if relic_row_front_mult != 1.0 or relic_row_back_mult != 1.0:
+		m *= relic_row_front_mult if is_front_row() else relic_row_back_mult
+	if relic_execute_bonus > 0.0 and target is UnitBase and target.max_hp > 0 			and float(target.current_hp) / float(target.max_hp) <= relic_execute_threshold:
+		m *= 1.0 + relic_execute_bonus
+	if relic_gold_scaling_dmg > 0.0 and battle_manager and battle_manager.game_state:
+		m *= 1.0 + relic_gold_scaling_dmg * float(battle_manager.game_state.gold)
+	if relic_opening_burst_remaining > 0.0:              # Opening Burst
+		m *= 1.0 + relic_opening_burst_pct
 	if relic_underdog_dmg_per_dead > 0.0 and battle_manager:
-		m *= (1.0 + relic_underdog_dmg_per_dead * battle_manager.fallen_allies.size())
+		m *= 1.0 + relic_underdog_dmg_per_dead * battle_manager.fallen_allies.size()
 	return m
 
 # Row position at battle start (home_position.y), used by row_stat_mult relics.
@@ -798,6 +818,11 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 	# (2026-07-17) so every non-true damage source scales the same way.
 	if not true_damage and attacker != null and attacker is UnitBase:
 		modified_damage = int(modified_damage * attacker.get_attack_multiplier(current_element))
+	# Outgoing-damage relics reach EVERY hit, true damage (burn) included
+	# (VD-21 item 6, owner 2026-09-30). is_instance_valid first: a projectile or
+	# a burn tick can outlive its source.
+	if is_instance_valid(attacker) and attacker is UnitBase and attacker != self:
+		modified_damage = int(modified_damage * attacker.relic_damage_mult(self))
 	if not true_damage:
 		# League-style diminishing-returns curve (2026-07-10, replaces flat
 		# subtraction): 100 armor = 50% reduction, 200 = 66.7%, asymptotic —
@@ -1056,21 +1081,10 @@ func attack(target) -> void:
 	# and projectiles all ride the same off-vs-def affinity rule exactly once.)
 	var damage := attack_damage
 	damage = int(damage * outgoing_damage_multiplier())
-	# Relic outgoing multipliers (Glass Cannon, element relics, Executioner vs bosses).
-	if relic_outgoing_mult != 1.0:
-		damage = int(damage * relic_outgoing_mult)
-	if relic_vs_boss_mult != 1.0 and target is UnitBase and target.is_boss:
-		damage = int(damage * relic_vs_boss_mult)
-	# Relic "Row" mult: front-row vs back-row heroes hit differently.
-	if relic_row_front_mult != 1.0 or relic_row_back_mult != 1.0:
-		damage = int(damage * (relic_row_front_mult if is_front_row() else relic_row_back_mult))
-	# Relic "Execute": bonus damage while the target is below an HP% threshold.
-	if relic_execute_bonus > 0.0 and target is UnitBase and target.max_hp > 0 \
-			and float(target.current_hp) / float(target.max_hp) <= relic_execute_threshold:
-		damage = int(damage * (1.0 + relic_execute_bonus))
-	# Relic "Gold-scaling": bonus damage scaling with the run's current gold total.
-	if relic_gold_scaling_dmg > 0.0 and battle_manager and battle_manager.game_state:
-		damage = int(damage * (1.0 + relic_gold_scaling_dmg * float(battle_manager.game_state.gold)))
+	# Outgoing-damage relics (Glass Cannon, Boss Damage, Row, Execute, Gold Scale,
+	# Opening, Underdog) are NOT applied here any more: take_damage applies them to
+	# every hit through relic_damage_mult(), so autos, skills, ults and burn share
+	# one rule (VD-21 item 6, 2026-09-30). Applying them here too would double-count.
 	# Ant Hill swarm (2026-07-24 rework): the bonus is now a GLOBAL swarm-rage
 	# counter (AutoBattleManager.ant_swarm_stacks), not a per-victim one. Every
 	# landed Ant bite — on ANY target — ramps up EVERY Ant's damage against

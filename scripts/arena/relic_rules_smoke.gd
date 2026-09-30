@@ -9,6 +9,9 @@ extends Node
 #      merchants (rounds like 13) used to fall back to wave-1 odds all run.
 #   2. on-kill: linear per kill with a fractional carry, through the real
 #      apply_relic_on_hit hook (a D relic on a 20-attack hero now pays out).
+#   3. damage relics reach ALL damage (owner 2026-09-30): a skill hit, a burn
+#      tick (true damage) and a basic attack each get the multiplier exactly
+#      once. Lifesteal is not part of this and stays basic-attack only.
 #
 # The main_game halves (bench heroes, the synergy revert, save/resume, the
 # relic node's round in the real flow) live in
@@ -33,6 +36,7 @@ func _near(got: float, want: float, tol: float, label: String) -> void:
 func _ready() -> void:
 	_test_odds()
 	_test_on_kill()
+	_test_damage_relics_reach_all_damage()
 	print("RELIC_RULES_SMOKE: %s" % ("ALL PASS" if _fails.is_empty()
 		else "%d FAILED -> %s" % [_fails.size(), ", ".join(_fails)]))
 	get_tree().quit(0 if _fails.is_empty() else 1)
@@ -149,3 +153,70 @@ func _test_on_kill() -> void:
 	n.apply_relic_on_hit(dead, 10, false)
 	_check(n.attack_damage == 20 and n.relic_kill_atk_gain == 0.0,
 		"a hit that does not kill, or a target already dead, grants nothing")
+
+# ── 3. damage relics reach all damage ────────────────────────────────────────
+# HP lost by a fresh dummy from one call. Ratios against an un-relic'd hero are
+# used instead of absolute numbers so the element affinity between the two units
+# (which take_damage also applies) cancels out.
+func _lost(fn: Callable) -> int:
+	var d := _dummy()
+	var before: int = d.current_hp
+	fn.call(d)
+	var lost: int = before - d.current_hp
+	d.queue_free()
+	return lost
+
+func _test_damage_relics_reach_all_damage() -> void:
+	var plain := _hero()
+	var boosted := _hero()
+	boosted.relic_outgoing_mult = 1.5
+	var skill_plain: int = _lost(func(d): d.take_damage(1000, plain.current_element, plain))
+	var skill_boost: int = _lost(func(d): d.take_damage(1000, boosted.current_element, boosted))
+	_near(float(skill_boost) / float(skill_plain), 1.5, 0.02,
+		"a SKILL hit gets the outgoing relic (x1.5) exactly once")
+	var burn_plain: int = _lost(func(d): d.take_damage(1000, UnitBase.Element.FIRE, plain, true))
+	var burn_boost: int = _lost(func(d): d.take_damage(1000, UnitBase.Element.FIRE, boosted, true))
+	_near(float(burn_boost) / float(burn_plain), 1.5, 0.02,
+		"a BURN tick (true damage) gets the outgoing relic exactly once")
+	var auto_plain: int = _lost(func(d): plain.attack(d))
+	var auto_boost: int = _lost(func(d): boosted.attack(d))
+	_check(auto_plain > 0, "the plain hero's basic attack lands")
+	_near(float(auto_boost) / float(maxi(1, auto_plain)), 1.5, 0.02,
+		"a BASIC attack gets it once, not twice (attack() no longer applies it too)")
+	# Execute: only below its HP threshold, and on skills too.
+	var exec := _hero()
+	exec.relic_execute_bonus = 1.0
+	exec.relic_execute_threshold = 0.5
+	var hi_plain: int = _lost(func(d): d.take_damage(1000, plain.current_element, plain))
+	var hi_exec: int = _lost(func(d): d.take_damage(1000, exec.current_element, exec))
+	_near(float(hi_exec) / float(hi_plain), 1.0, 0.02, "execute is off while the target is healthy")
+	var lo_a := _dummy()
+	lo_a.current_hp = int(lo_a.max_hp * 0.4)
+	var lo_a0: int = lo_a.current_hp
+	lo_a.take_damage(1000, plain.current_element, plain)
+	var lo_plain: int = lo_a0 - lo_a.current_hp
+	var lo_b := _dummy()
+	lo_b.current_hp = int(lo_b.max_hp * 0.4)
+	var lo_b0: int = lo_b.current_hp
+	lo_b.take_damage(1000, exec.current_element, exec)
+	_near(float(lo_b0 - lo_b.current_hp) / float(lo_plain), 2.0, 0.02,
+		"execute doubles a SKILL hit on a target below its threshold")
+	# Boss Damage only vs bosses.
+	var slayer := _hero()
+	slayer.relic_vs_boss_mult = 2.0
+	var vs_normal: int = _lost(func(d): d.take_damage(1000, slayer.current_element, slayer))
+	var vs_boss: int = _lost(func(d):
+		d.is_boss = true
+		d.take_damage(1000, slayer.current_element, slayer))
+	_near(float(vs_normal) / float(skill_plain), 1.0, 0.02, "boss damage is off against a normal enemy")
+	_near(float(vs_boss) / float(skill_plain), 2.0, 0.02, "boss damage applies to a boss SKILL hit")
+	# A unit's own hit on itself (self-damage) is not boosted by its own relics.
+	var selfhit := _hero()
+	selfhit.relic_outgoing_mult = 3.0
+	var hp0: int = selfhit.current_hp
+	selfhit.take_damage(100, selfhit.current_element, selfhit)
+	var self_lost: int = hp0 - selfhit.current_hp
+	var ref := _hero()
+	var hp1: int = ref.current_hp
+	ref.take_damage(100, ref.current_element, ref)
+	_check(self_lost == hp1 - ref.current_hp, "self-damage ignores the unit's own damage relics")
