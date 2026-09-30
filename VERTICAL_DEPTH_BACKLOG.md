@@ -1765,7 +1765,7 @@ and the map track.
 
 ---
 
-## VD-24 - Players feel locked into their route, especially Normal - status: DONE (66a5e44b)
+## VD-24 - Players feel locked into their route, especially Normal - status: OPEN (option A built then REVERTED 2026-09-30; fix belongs on the map)
 
 **Owner report (2026-09-30).** "one of the feedbacks i got was people feel too
 locked in to their route. specially normal."
@@ -1777,6 +1777,18 @@ Veteran: 1.96 ways, 23% single. Brutal: 1.88, 20% single. Cause: VD-12's
 top lane, is always the one giving nodes away. No-crossing caps the paths, so
 rewiring can only move freedom between lanes, not create it.
 
+**CORRECTION 2026-09-30 - option A was wrong and is reverted (7a2b6a23).**
+The run map REPLACED the old prep-screen difficulty picker: difficulty is chosen
+by route, on the map. The prep panel is meant to be a read-only briefing with NO
+tier buttons (another agent had deleted them on purpose). Option A put the
+buttons back, which undid that. The owner picked "A" from a menu I wrote while
+the panel was in the middle of being changed; I should have said plainly that A
+reverses the map's job. The lock-in feedback stands and is still open, but the
+answer has to be on the MAP, not at prep. Do not re-add tier buttons to
+`difficulty_panel.gd`. Option B (difficulty out of the map) is rejected for the
+same reason. Map-side ideas are being put to the owner; nothing is built.
+
+(Original record below, kept for the measurements.)
 **Owner decision: option A.** Every fight node keeps its map tier, and at the
 prep screen the player may shift the fight one tier harder or one tier easier.
 The reward follows the tier actually fought. Free in both directions. The map
