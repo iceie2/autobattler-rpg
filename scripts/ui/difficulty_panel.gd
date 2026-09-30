@@ -221,33 +221,12 @@ func _build_ui() -> void:
 	_build_tooltip()
 
 func _on_difficulty_button_pressed(diff: int) -> void:
-	if diff == current_difficulty or diff < tier_range.x or diff > tier_range.y:
+	if briefing_only or diff == current_difficulty:
 		return
 	current_difficulty = diff
 	_update_button_colors()
 	_refresh_reward_display()
 	difficulty_selected.emit(diff)
-
-# ── Shift one tier at the fight (VD-24, owner 2026-09-30) ────────────────────
-# "people feel too locked in to their route, specially normal." Under the map a
-# fight keeps the tier its node was drawn at, but the player may push it one
-# tier harder or ease it one tier easier here; the reward follows what they
-# actually fight. main_game sets the range per round: the node's tier +-1 on
-# the map, all three tiers in classic mode. Out-of-range tiers stay visible
-# (they are how the player reads the ladder) but dimmed and inert.
-var tier_range := Vector2i(0, 2)
-
-func set_tier_range(lo: int, hi: int) -> void:
-	tier_range = Vector2i(clampi(lo, 0, 2), clampi(hi, 0, 2))
-	for i in range(_diff_btns.size()):
-		var b: Button = _diff_btns[i]
-		if b:
-			var live: bool = i >= tier_range.x and i <= tier_range.y
-			b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if live \
-				else Control.CURSOR_ARROW
-	if _heading_lbl and briefing_only:
-		_heading_lbl.text = "THIS FIGHT  ·  shift one tier"
-	_update_button_colors()
 
 # ── Briefing mode (2026-09-19, RUN_MAP_PLAN §3.4) ─────────────────────────────
 # When the run map is driving, INTENSITY IS A PATHING CHOICE: you picked it on
@@ -462,8 +441,6 @@ func _update_button_colors() -> void:
 	for i in range(_diff_btns.size()):
 		var btn: Button = _diff_btns[i]
 		var selected: bool = (i == current_difficulty)
-		var reachable: bool = i >= tier_range.x and i <= tier_range.y
-		btn.modulate = Color(1, 1, 1) if selected \
-			else (Color(0.6, 0.6, 0.6) if reachable else Color(0.3, 0.3, 0.3, 0.55))
+		btn.modulate = Color(1, 1, 1) if selected else Color(0.6, 0.6, 0.6)
 		btn.button_pressed = selected
 		btn.text = "%d" % int(_power_by_diff.get(i, 0.0))

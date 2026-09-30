@@ -1173,12 +1173,6 @@ func _on_battle_round_started(round_number: int) -> void:
 			info_label.text = "The bounty pays at %s rates." % \
 				WaveScaler.Difficulty.keys()[int(_next_wave_mods["reward_tier"])].capitalize()
 		_rolled_rewards = {chosen_tier: node_reward}
-		# VD-24 (owner, 2026-09-30): the fight can be shifted one tier either
-		# way at prep, and the reward follows the tier fought. Neighbouring
-		# tiers roll on their own odds; the node's own reward stays its own.
-		for shifted in [chosen_tier - 1, chosen_tier + 1]:
-			if shifted >= WaveScaler.Difficulty.NORMAL and shifted <= WaveScaler.Difficulty.BRUTAL:
-				_rolled_rewards[shifted] = RoundReward.roll(shifted, round_number)
 	else:
 		_rolled_rewards = {
 			WaveScaler.Difficulty.NORMAL:   RoundReward.roll(WaveScaler.Difficulty.NORMAL, round_number),
@@ -1188,11 +1182,6 @@ func _on_battle_round_started(round_number: int) -> void:
 	if difficulty_panel:
 		difficulty_panel.set_briefing_only(map_battle)
 		difficulty_panel.current_difficulty = current_difficulty
-		# VD-24: on the map, the node's tier +-1; classic mode, all three.
-		if map_battle:
-			difficulty_panel.set_tier_range(chosen_tier - 1, chosen_tier + 1)
-		else:
-			difficulty_panel.set_tier_range(WaveScaler.Difficulty.NORMAL, WaveScaler.Difficulty.BRUTAL)
 		difficulty_panel.update_display(_all_difficulty_power(), _rolled_rewards)
 		difficulty_panel.set_panel_visible(true)
 		_refresh_wave_dossier()
@@ -3705,9 +3694,6 @@ func _on_ready_pressed() -> void:
 	_telemetry_decision("difficulty_committed", {
 		"difficulty": _locked_difficulty,
 		"difficulty_name": WaveScaler.Difficulty.keys()[_locked_difficulty].capitalize(),
-		# VD-24: the tier the map node was drawn at, so a report can tell a
-		# shifted fight (map_tier != difficulty) from one taken as drawn.
-		"map_tier": int(_map_node.get("difficulty", -1)) if not _map_node.is_empty() else -1,
 		"player": _telemetry_units(player_units),
 	})
 	# Readable label, not the raw enum int (2026-08-07). The first tester export

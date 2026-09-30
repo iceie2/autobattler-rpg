@@ -22,7 +22,6 @@ extends Node
 const DOSSIER_DWELL_S := RunMapScreen.DOSSIER_DWELL
 
 var _fails: Array = []
-var _shift_checked: bool = false   # VD-24 check runs on the first Normal fight only
 var _checked: int = 0
 
 # Keep the player's real mid-run save out of the blast radius (2026-09-26: this
@@ -478,33 +477,6 @@ func _ready() -> void:
 			if mg._locked_difficulty != int(node["difficulty"]):
 				_fails.append("battle node %s is tier %d but the wave locked tier %d"
 					% [node["id"], int(node["difficulty"]), mg._locked_difficulty])
-			# VD-24: at prep the fight may shift ONE tier either way, and only one.
-			# Checked once, on the first Normal fight: Normal can go up to
-			# Veteran but not jump to Brutal, and the shifted tier must have a
-			# reward of its own to pay.
-			if not _shift_checked and int(node["difficulty"]) == WaveScaler.Difficulty.NORMAL:
-				_shift_checked = true
-				var panel = mg.difficulty_panel
-				if panel.tier_range != Vector2i(0, 1):
-					_fails.append("a Normal node's shift range is %s, expected (0, 1)"
-						% str(panel.tier_range))
-				# Press the real buttons, not the handler: the shift is worthless
-				# if the panel has no tier buttons to click.
-				if panel._diff_btns.size() != 3:
-					_fails.append("the prep panel has %d tier buttons, expected 3"
-						% panel._diff_btns.size())
-				else:
-					panel._diff_btns[WaveScaler.Difficulty.BRUTAL].pressed.emit()
-					if mg.current_difficulty != WaveScaler.Difficulty.NORMAL:
-						_fails.append("a Normal fight jumped two tiers to Brutal")
-					panel._diff_btns[WaveScaler.Difficulty.VETERAN].pressed.emit()
-					if mg.current_difficulty != WaveScaler.Difficulty.VETERAN:
-						_fails.append("a Normal fight could not be pushed to Veteran")
-					if not mg._rolled_rewards.has(WaveScaler.Difficulty.VETERAN):
-						_fails.append("the shifted Veteran fight has no reward rolled for it")
-					panel._diff_btns[WaveScaler.Difficulty.NORMAL].pressed.emit()
-					if mg.current_difficulty != WaveScaler.Difficulty.NORMAL:
-						_fails.append("the fight could not be eased back to Normal")
 			# Nothing fights here; step past it as if it had been cleared.
 			map.cleared[String(node["id"])] = true
 		else:
