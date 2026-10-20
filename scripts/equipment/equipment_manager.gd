@@ -146,11 +146,9 @@ static func _roll_rarity(_round: int, max_rarity: int = EquipmentItem.Rarity.RAR
 		return EquipmentItem.Rarity.UNCOMMON
 	return EquipmentItem.Rarity.COMMON
 
-# Round-scaling halved 2026-08-04 (BALANCE_PLAN.md §1.8): was round*0.5, which
-# made a round-25 common worth 5x a round-1 common and let late-run loot alone
-# outscale the whole crystal tree. Now round*0.25.
-static func _roll_stat_value(rarity: int, round: int) -> int:
-	var base_value = 3 + (round * 0.25)
+# Fixed former wave-one range. Wave affects neither newly rolled nor held stats.
+static func _roll_stat_value(rarity: int, _round: int) -> int:
+	var base_value = 3.25
 	var roll = base_value * (0.8 + randf() * 0.4)
 	var multiplier = 1.0 + (rarity * 0.3)
 	return int(roll * multiplier)
@@ -165,12 +163,9 @@ static func _roll_crit_stat_value(stat: String, rarity: int) -> float:
 	return snappedf((0.15 + randf() * 0.15) * multiplier, 0.01)
 
 # Small-magnitude version for attack_speed/hp_regen/mana_regen bonuses.
-# Round-scaling halved 2026-08-04 alongside _roll_stat_value. This one mattered
-# MOST: 3 of the 12 item templates roll aspd as their primary, and a fused Epic
-# was measuring +1.3 attack speed against a 0.62-0.90 hero base — on its own a
-# ~2.7x attack-rate multiplier. Watch this number after any retune.
-static func _roll_float_stat_value(rarity: int, round: int) -> float:
-	var base_value = 0.05 + (round * 0.005)
+# Fixed former wave-one range, like the integer stat rolls above.
+static func _roll_float_stat_value(rarity: int, _round: int) -> float:
+	var base_value = 0.055
 	var roll = base_value * (0.8 + randf() * 0.4)
 	var multiplier = 1.0 + (rarity * 0.3)
 	return snappedf(roll * multiplier, 0.01)

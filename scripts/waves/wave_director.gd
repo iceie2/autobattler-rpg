@@ -42,7 +42,7 @@ func score_code(code: String, round: int) -> float:
 	if _code_score_cache.has(key):
 		return float(_code_score_cache[key])
 	var score: float = 0.0
-	var type_name: String = EnemyFactory.CODE_TO_TYPE.get(code, "")
+	var type_name: String = EnemyFactory.CODE_TO_TYPE.get(WaveScaler.original_code(code), "")
 	if type_name != "":
 		# The entry is built the SAME way the three branches of generate_wave_spec
 		# build theirs. Anything less and the price describes a unit that never
@@ -51,13 +51,16 @@ func score_code(code: String, round: int) -> float:
 		# it by two thirds, and every Brutal wave that drew one came in 15-20%
 		# under target — rounds 9, 11, 13, 14 and 16-19, all measured 2026-09-20.
 		var entry: Dictionary = {"type": type_name, "code": code}
-		if WaveScaler.is_boss_round(round):
+		if code.begins_with(WaveScaler.PAST_ELITE_PREFIX):
+			entry["level"] = WaveScaler.past_elite_level(code, round)
+			entry["past_elite"] = true
+		elif WaveScaler.is_boss_round(round):
 			entry["level"] = WaveScaler.boss_level(round) \
 				if code == WaveScaler.boss_code_for(round) \
 				else WaveScaler.enemy_level_for_round(round, false)
 		elif WaveScaler.is_elite_round(round):
 			entry["level"] = WaveScaler.elite_level(round) \
-				if code in WaveScaler.ELITE_POOL \
+				if code in WaveScaler.ELITE_POOL or (code == "ANT" and WaveScaler.elite_code_for(round) == "AH") \
 				else WaveScaler.enemy_level_for_round(round, false)
 		else:
 			# Ordinary wave: waves 1-10 spawn at level 1 (their compositions carry
@@ -101,19 +104,21 @@ func lead_code(round: int, difficulty: int, wave_seed: int) -> String:
 # the one in hand, which is exactly how the arena's first lead column came back
 # naming bodies that were not in the roster beside it.
 func lead_of_spec(spec: Array, round: int) -> String:
-	var counts: Dictionary = {}
+	var weights: Dictionary = {}
 	for entry: Dictionary in spec:
 		var code: String = String(entry.get("code", ""))
-		if code != "":
-			counts[code] = int(counts.get(code, 0)) + 1
+		var unit: VisualUnit = create_enemy_for_entry(entry, round)
+		if unit:
+			weights[code] = float(weights.get(code, 0.0)) + WaveScaler.score_unit(unit)
+			unit.free()
 	var best: String = ""
 	var best_weight: float = -1.0
-	for code: String in counts:
+	for code: String in weights:
 		# TOTAL WEIGHT, not the single biggest body (owner rule, 2026-09-20):
 		# "1 enemy at 5000 power beats 2 at 2000 each but loses to 8 of 1k each."
 		# What the node is warning you about is where the wave's mass actually
 		# sits — a lone heavy in a swarm of goblins is not what kills you.
-		var weight: float = score_code(code, round) * float(int(counts[code]))
+		var weight: float = float(weights[code])
 		if weight > best_weight or (is_equal_approx(weight, best_weight) and code < best):
 			best = code
 			best_weight = weight
@@ -158,13 +163,13 @@ func generate_wave_spec(round: int, difficulty: int, grid_width: int,
 		var boss_code: String = WaveScaler.boss_code_for(round, chosen_element)
 		for entry: Dictionary in placed:
 			var code: String = entry["code"]
-			var t: String = EnemyFactory.CODE_TO_TYPE.get(code, "")
+			var t: String = EnemyFactory.CODE_TO_TYPE.get(WaveScaler.original_code(code), "")
 			if t == "":
 				continue
 			var lvl: int = boss_lvl if code == boss_code \
 					else WaveScaler.enemy_level_for_round(round, false)
 			spec.append({"type": t, "level": lvl, "pos": entry["pos"], "code": code})
-		return spec
+		return _resolve_past_elites(spec, round)
 
 	# ── Elite rounds (5 / 15 / 25): a mini-boss + light fodder support. ──
 	if WaveScaler.is_elite_round(round):
@@ -173,13 +178,13 @@ func generate_wave_spec(round: int, difficulty: int, grid_width: int,
 		var elite_lvl: int = WaveScaler.elite_level(round)
 		for entry: Dictionary in placed:
 			var code: String = entry["code"]
-			var t: String = EnemyFactory.CODE_TO_TYPE.get(code, "")
+			var t: String = EnemyFactory.CODE_TO_TYPE.get(WaveScaler.original_code(code), "")
 			if t == "":
 				continue
-			var lvl: int = elite_lvl if code in WaveScaler.ELITE_POOL \
+			var lvl: int = elite_lvl if code in WaveScaler.ELITE_POOL or code == "ANT" \
 					else WaveScaler.enemy_level_for_round(round, false)
 			spec.append({"type": t, "level": lvl, "pos": entry["pos"], "code": code})
-		return spec
+		return _resolve_past_elites(spec, round)
 
 	var formation_data: Array = WaveScaler.build_formation(round, difficulty, grid_width, wave_seed, score_code)
 
@@ -191,14 +196,14 @@ func generate_wave_spec(round: int, difficulty: int, grid_width: int,
 			var is_last := (i == count - 1)
 			var lvl := WaveScaler.enemy_level_for_round(round, is_last)
 			spec.append({"type": "random", "level": lvl})
-		return spec
+		return _resolve_past_elites(spec, round)
 
 	# Fixed waves 1-9 spawn at level 1 (their compositions carry the early curve).
 	# Fixed waves 11+ ride the same level ramp the old procedural rounds used —
 	# composition power AND unit level climb together (see WaveData's header).
 	for entry: Dictionary in formation_data:
 		var code: String = entry["code"]
-		var type: String = EnemyFactory.CODE_TO_TYPE.get(code, "")
+		var type: String = EnemyFactory.CODE_TO_TYPE.get(WaveScaler.original_code(code), "")
 		if type == "":
 			continue
 		var lvl: int = 1 if round <= 10 else WaveScaler.enemy_level_for_round(round, false)
@@ -214,6 +219,15 @@ func generate_wave_spec(round: int, difficulty: int, grid_width: int,
 		if code in WaveScaler.ELITE_POOL:
 			e["heavy"] = true
 		spec.append(e)
+	return _resolve_past_elites(spec, round)
+
+func _resolve_past_elites(spec: Array, round: int) -> Array:
+	for entry: Dictionary in spec:
+		var code: String = str(entry.get("code", ""))
+		if code.begins_with(WaveScaler.PAST_ELITE_PREFIX):
+			entry["level"] = WaveScaler.past_elite_level(code, round)
+			entry["past_elite"] = true
+			entry["code"] = WaveScaler.original_code(code)
 	return spec
 
 # Create the enemy described by one wave-spec entry. "random" = procedural
@@ -232,12 +246,20 @@ func create_enemy_for_entry(entry: Dictionary, round: int) -> VisualUnit:
 		UnitFactory.apply_recruit_rolls(unit, UnitFactory.generate_recruit_rolls(bias))
 	else:
 		unit = EnemyFactory.create_by_type(type)
+		# Owner correction: the round-5 Groundbreaker elite is FIRE.
+		# Later Earth anchors still use the existing factory and demotion.
+		if unit and type == "hill_giant" and (round == 5 or entry.get("past_elite", false)):
+			unit.current_element = UnitBase.Element.FIRE
+			unit.unit_name = "Fire Giant"
+
 	# Role badge tag (2026-07-27) — stamped from the wave CODE here because this
 	# is the only place that still knows it (the spec's "type" has already lost
 	# the elemental-variant grouping the role tables are keyed on). Purely
 	# cosmetic; VisualUnit._setup_role_badge reads it. Same classifier the prep
 	# panel's dossier uses, so badge and dossier can never disagree.
 	if unit:
+		if type == "ant":
+			unit.set_meta("ant_hill_guard", true)
 		var code: String = String(entry.get("code", ""))
 		if code != "":
 			unit.set_meta("role_tag", WaveScaler.role_tag_for_code(code))
@@ -255,12 +277,16 @@ func create_enemy_for_entry(entry: Dictionary, round: int) -> VisualUnit:
 		unit.crystal_reward = 0
 		unit.xp_reward = mini(unit.xp_reward, HEAVY_XP_CAP)
 		unit.set_meta("wave_heavy", true)
+		# The Groundbreaker loop is the round-5 elite's alone (owner 2026-10-06).
+		if str(unit.get_meta("mob_skill", "")) == "hill_giant_smash":
+			EnemyFactory.demote_hill_giant(unit)
 	if unit and lvl > 1:
 		unit.set_level(lvl)
 	# Late-game stat multiplier (round 11+, see Balance) — applied AFTER
 	# leveling so it scales the leveled stats. Keeps current/max HP ratio
 	# (Khagan deliberately spawns at half HP).
-	if unit and round > Balance.ENEMY_LATE_SCALE_START_ROUND:
+	# Ant guards match the hill's combat summons, which scale by level alone.
+	if unit and type != "ant" and not entry.get("past_elite", false) and round > Balance.ENEMY_LATE_SCALE_START_ROUND:
 		var hp_mult: float = Balance.enemy_late_hp_mult(round)
 		var dmg_mult: float = Balance.enemy_late_dmg_mult(round)
 		unit.max_hp        = maxi(1, int(unit.max_hp * hp_mult))

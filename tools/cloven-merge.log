@@ -1,0 +1,10 @@
+00:00.047  reports          | WARNING Unable to open 'C:\Users\iceie\AppData\Roaming\Blender Foundation\Blender\5.2\config\userpref.blend': Permission denied
+Blender 5.2.1 LTS (hash 9e2066aef7ef built 2026-08-25 02:38:20)
+base: 00_base.glb
+  kept animation 'attack' (72 channels)
+  + skill          (72 channels)  <- skill.glb
+
+  NOTE: clips with no NAME_MAP entry (kept under a generated name):
+    clip0   <- add to NAME_MAP if this is one of the game's clips
+
+wrote assets/3d pipeline/enemy/cloven_heart/cloven_heart_v001.glb  (2.5 MB, 9 animations)

@@ -6,8 +6,10 @@ extends Node2D
 ## across its length — so the rig can be eyeballed without opening the editor.
 ## Same pattern as the other capture tools in this folder (see CONVENTIONS.md).
 ##
-##   GODOT --headless --path . --script res://scenes/tools/model3d_probe.tscn
-##   (run the SCENE, not this script; it needs a 2D tree to render into)
+##   GODOT --path . res://scenes/tools/model3d_probe.tscn
+##   (WINDOWED, not headless: it waits on real rendered frames for the contact
+##   sheet, so a --headless run never finishes. Checked 2026-09-28 — the old
+##   `--headless --script <scene>` line here failed to load at all.)
 ##
 ## Optional CLI args (after --):
 ##   model=res://assets/3d pipeline/hero/bouncer/bouncer.glb

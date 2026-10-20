@@ -1,0 +1,119 @@
+00:00.047  reports          | WARNING Unable to open 'C:\Users\iceie\AppData\Roaming\Blender Foundation\Blender\5.2\config\userpref.blend': Permission denied
+Blender 5.2.1 LTS (hash 9e2066aef7ef built 2026-08-25 02:38:20)
+C:\Users\iceie\Documents\coding\rpg-autobattler\autobattler-rpg\tools\model3d\build_tempest_living_storm.py:14: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  m=bpy.data.materials.new(name); m.use_nodes=True
+00:01.453  image.write      | ERROR OpenImageIO write failed: Could not open file "\.thumbnails\large\blender_35664_16c53d1bc1d7cafce23ba008525e557a.png.png"
+Extensions: writing cache failed ([WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\iceie\\AppData\\Roaming\\Blender Foundation\\Blender\\5.2\\extensions\\.cache').
+Info: Saved as "tempest_conduit_v003.blend"
+INFO Draco is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_draco_bridge.dll
+INFO MeshOptimizer is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_meshopt_bridge.dll
+09:13:46 | INFO: Starting glTF 2.0 export
+09:13:46 | INFO: Extracting primitive: AngularSkullMesh
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.033
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.029
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Cone.010
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.030
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.026
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.001
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.005
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.009
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.013
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.017
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.021
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Cone
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Cone.001
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Cone.002
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Cone.003
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Cone.004
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Cone.005
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.031
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.027
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Cone.009
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Cone.007
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.004
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.008
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.012
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.016
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.020
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.032
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.028
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Cone.008
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Cone.006
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.025
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: CurrentMesh_0
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: CurrentMesh_1
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: CurrentMesh_2
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: CurrentMesh_3
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: CurrentMesh_4
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: CurrentMesh_5
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.024
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.003
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.002
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.007
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.006
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.011
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.010
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.015
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.014
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.019
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.018
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.023
+09:13:46 | INFO: Primitives created: 1
+09:13:46 | INFO: Extracting primitive: Sphere.022
+09:13:46 | INFO: Primitives created: 1
+09:13:47 | INFO: Finished glTF 2.0 export in 0.3194577693939209 s
+
+LIVING_STORM_BUILD: {"segments": 6, "head": 1, "current_links": 6, "clips": ["idle", "walk", "attack", "skill", "ult", "hurt", "death"]}
+
+Blender quit

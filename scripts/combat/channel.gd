@@ -28,6 +28,7 @@ var on_stun: int = OnStun.INTERRUPT
 var on_complete: Callable
 var on_interrupt: Callable        # optional
 var on_tick: Callable             # optional, called with (dt) every live frame
+var recap_action: int = 0         # the caster's skill / ult tag when it began (run recap)
 
 func progress() -> float:
 	return clampf(1.0 - remaining / maxf(duration, 0.001), 0.0, 1.0)

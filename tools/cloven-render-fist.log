@@ -1,0 +1,43 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+OpenGL API 3.3.0 NVIDIA 610.62 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 3080
+
+board check biome: earth (round 40)
+board check hero: BOUNCER
+board check monster: cloven_fist
+=== 3D board check ===
+  idle     model=Cloven Fist  sprite_scale=0.557 offset=(0.0, -0.861567) clip=idle
+  walk     model=Cloven Fist  sprite_scale=0.557 offset=(0.0, -3.841976) clip=walk
+  attack   model=Cloven Fist  sprite_scale=0.557 offset=(0.0, -1.174474) clip=attack
+  hurt     model=Cloven Fist  sprite_scale=0.557 offset=(0.0, -2.819097) clip=hurt
+  death    model=Cloven Fist  sprite_scale=0.557 offset=(0.0, -0.873923) clip=death
+
+=== hero visual-path audit ===
+  BLOODHOUND   3d       attack,attack_overhead_v001,death,hurt,idle,idle_frozen_v002,run,run_and_jump,ult,ult_flip_v001,walk,walk_slow
+  BOUNCER      3d       attack,attack_stretch_v001,death,hurt,idle,ult,ult_swell_v001,victory,walk
+  HEADHUNTER   animated attack,death,hurt,idle_south,walk_east,walk_north,walk_south,walk_west
+  SHAUNA       animated attack,death,hurt,idle_south,walk_east,walk_north,walk_south,walk_west
+  NEMI         animated attack,death,hurt,idle_south,walk_east,walk_north,walk_south,walk_west
+  SHEILDOR     3d       attack,attack_flat_depth_only_v031,attack_ik_partial_v034,attack_ik_partial_v034_001,attack_scale_cue_v032,attack_tilted_v030,attack_undertravel_v033,attack_v025,death,hurt,idle,skill,ult,walk,walk_slow
+  LORDEE       3d       attack,death,hurt,idle,skill,ult,walk,walk_slow
+  NECRO        animated attack,death,hurt,idle_south,walk_east,walk_north,walk_south,walk_west
+  DOC          3d       attack,death,hurt,idle,run,skill,ult,walk
+  RIOT         3d       attack,death,hurt,idle,skill,ult,walk,walk_slow
+  PASTOR       3d       attack,death,hurt,idle,skill,ult,walk
+  SABLE        static   
+  RUSH         animated attack,death,hurt,idle_south,walk_east,walk_north,walk_west
+  STITCH       3d       attack,death,hurt,idle,skill,ult,walk,walk_slow
+  COAL         3d       attack,death,hurt,idle,skill,ult,walk,walk_slow
+  JUNE         3d       attack,death,hurt,idle,skill,ult,walk,walk_slow
+  CROSS        3d       attack,death,hurt,idle,skill,ult,walk,walk_slow
+  SEAR         3d       attack,death,hurt,idle,skill,ult,walk,walk_slow
+  EMBER        3d       attack,death,hurt,idle,skill,ult,walk,walk_slow
+  RIFT         3d       attack,death,hurt,idle,skill,ult,walk,walk_slow
+  ZOLT         3d       attack,death,hurt,idle,skill,ult,walk,walk_slow
+  LUMEN        3d       attack,death,hurt,idle,skill,ult,walk,walk_slow
+  STATIC       3d       attack,death,hurt,idle,rest_reference,skill,ult,walk,walk_slow
+  REED         3d       attack,death,hurt,idle,skill,ult,walk
+  VAIL         3d       attack,death,hurt,idle,skill,ult,walk
+  SPORE        3d       attack,death,hurt,idle,skill,ult,walk
+  totals: { "3d": 20, "animated": 5, "static": 1, "none": 0 }
+
+wrote C:/Users/iceie/Documents/coding/rpg-autobattler/captures/renders/earth/_model3d_board_cloven_fist.png

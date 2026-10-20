@@ -77,7 +77,8 @@ const EXPECTED_SILENT := {
 	"COAL":      {"passive": "Stoke charges are on-hit — verified in on_hit phase"},
 	"EMBER":     {"passive": "burn application is on-hit — verified in on_hit phase"},
 	"ZOLT":      {"passive": "on-hit shock — verified in on_hit phase"},
-	"LUMEN":     {"passive": "on-hit refraction — verified in on_hit phase"},
+	"LUMEN":     {"passive": "Focused Light ramp is on-hit — verified in on_hit phase",
+		"ultimate": "Dawnbreaker channels for 2s (shared start_channel); its ticks land via the unit's channel tick, which the probe's settle does not drive -- same as HEADHUNTER's Snipe. Verified in a live sim instead"},
 	"RIOT":      {"passive": "retaliation — verified in on_being_hit phase"},
 	"CROSS":     {"passive": "retaliation heal — verified in on_being_hit phase"},
 	"RIFT":      {"passive": "Backlash damage-redirect — verified in on_being_hit phase"},
@@ -137,13 +138,8 @@ const EXPECTED_SILENT := {
 	"rat": {"passive": "Infestation needs 2+ other Rats within 2 tiles — silent for a lone probe unit"},
 	"hill_giant": {"passive": "no passive by design"},
 	"triarch": {"passive": "phase mechanics live in die(), not passives"},
+	"drowned_maw": {"on_being_hit": "The low-HP passive fixture has already submerged the Maw; incoming hits are intentionally lost during Abyssal Breach."},
 	"khagan": {"passive": "phase mechanics live in die(), not passives"},
-	"hydra_normal": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
-	"hydra_fire": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
-	"hydra_water": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
-	"hydra_earth": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
-	"hydra_air": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
-	"hydra_lightning": {"passive": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick"},
 	"stat_stealer": {"passive": "kit is skill+ult only"},
 	# Elemental elites (2026-07-27).
 	# Ant Hill: PROBE-ENVIRONMENT limitation, not a broken kit (traced 2026-07-27).
@@ -153,6 +149,7 @@ const EXPECTED_SILENT := {
 	# In a real wave the hill is placed in rows 1-2 (Role.BOSS) and spawns normally.
 	# Verify this one in sim, not probe.
 	"ant_hill": {"passive": "spawn cells are gated by _in_team_zone (enemy y<4) and the probe places the subject at y=5 — no legal spawn cell exists in the probe env; verified in sim instead"},
+	"ant": {"passive": "Swarm rage grows on successful bites in the ANT on-hit hook; there is no per-frame passive to tick (see on_hit probe)"},
 	# on_being_hit is PROBABILISTIC here, not absent: the probe lands one test hit
 	# and the Warden's evasion can simply dodge it, leaving no world-state change.
 	# It therefore flickers between OK and SILENT depending on where the RNG
@@ -161,7 +158,10 @@ const EXPECTED_SILENT := {
 	# stays meaningful; if evasion is ever removed, delete this line.
 	"gale_warden": {"passive": "evasion is a flat equipment_passives stat rolled inside take_damage, not a per-frame passive — its kit is the Cyclone Shove skill",
 		"on_being_hit": "evasion can dodge the probe's single test hit — genuinely intermittent, not a missing kit"},
-	"tempest_conduit": {"passive": "no passive by design — its whole kit is the Chain Discharge skill (verified in the skill phase)"},
+	"tempest_conduit": {
+		"passive": "Living Storm is its continuous six-cell movement/circuit loop; verified by tempest_circuit_probe",
+		"skill": "Always active from combat start, so forcing a second cast has no independent effect; continuous travel, warnings, tail attacks and surge are verified by tempest_circuit_probe"
+	},
 	"mirrorplate_warden": {"passive": "Mirrorplate is a reactive reflect read off the mob_reflect meta in propagate_damage_links — verified in the on_being_hit phase, not a per-frame passive"},
 	# Beast tier (2026-07-24) — reuses orc_normal/bear_normal/hill_giant's exact
 	# EXPECTED_SILENT reasons since these mobs reuse those same mob_passive keys.
@@ -191,9 +191,9 @@ const EXPECTED_SILENT := {
 		"on_being_hit": "12% evasion can dodge the probe's single test hit — genuinely intermittent, not a missing kit"},
 	"coral_husk": {"passive": "Slow Tide (reused from Wind-Up Bot's Overclock) ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff"},
 	"gravekeeper": {"passive": "no per-frame passive by design — Grave Call is an on-DEATH hook on the OTHER side (gravekeeper meta → AutoBattleManager.gravekeeper_raise_shade, fired from VisualUnit.die()), and nothing dies in a passive probe window; verified instead by the dedicated shade test (raises detuned shades, caps at GRAVE_SHADE_MAX, shades never re-raise)"},
-	"arcfang": {"passive": "Thunder Run fires on a ARCFANG_BLINK_INTERVAL (10s) timer — far longer than this probe's fixed 3-second passive window, so the first blink legitimately hasn't happened yet; verified instead by the dedicated blink test (2×2 body teleports beside the highest-damage hero, all 4 footprint cells stay registered)"},
+	"arcfang": {"passive": "Eye of the Storm opens after 10 combat seconds, beyond this probe's 3-second window. arcfang_hunt_probe verifies recent-damage prey selection, full warnings, 2×2 teleport occupancy, taunt, both Thunderjaw contacts and shields, live recovery defenses/UI, Last Howl, pause/speed and reset/death cleanup."},
 	"emberhollow": {"passive": "its kit is the on-death revive gate (emberhollow_revive meta → AutoBattleManager.emberhollow_hearts_alive, checked in VisualUnit.die) — a passive window that never kills the subject can't see it; verified instead by the dedicated revive-gate test (revives at 50% with a Heart alive, stays down with both out, never twice)"},
-	"ember_heart": {"passive": "no per-frame passive by design — its entire job is EXISTING, since Emberhollow's revive checks for a living Heart. Damage comes from the Cinder Spit skill (verified in the skill phase)"},
+	"ember_heart": {"passive": "Kindling gates Emberhollow's revival; the Heart's retreat is driven by its own half-health signal, not a per-frame passive. Independent retreat, fixed tiles and retained HP are verified by ember_heart_layout_probe."},
 	"cloven_titan": {"passive": "its whole kit IS the on-death split (spawn_cloven_halves via the cloven_split meta in VisualUnit.die) — not observable in a passive window that never kills the subject, same as the slimes above; verified instead by the dedicated split test"},
 	"skyrender": {"passive": "Cyclone Ascent opens with a SKYRENDER_GROUND_TIME (8s) grounded window — longer than this probe's fixed 3-second passive test, so the first ascent legitimately hasn't fired yet; verified instead by the wave-20 sim (melee-vs-ranged win-rate split)"},
 }
@@ -554,6 +554,11 @@ func _spawn_wave(round: int, difficulty: int) -> Array:
 	for entry: Dictionary in director.generate_wave_spec(round, difficulty, grid.grid_width):
 		var u: VisualUnit = director.create_enemy_for_entry(entry, round)
 		if u:
+			# `--gb-off` (2026-10-06): A/B baseline -- the round-5 elite Hill
+			# Giant back on its pre-Groundbreaker Boulder Smash, exactly as the
+			# heavy-wave Giants run it, so before/after compare on one build.
+			if "--gb-off" in OS.get_cmdline_user_args() and str(u.get_meta("mob_skill", "")) == "hill_giant_smash":
+				EnemyFactory.demote_hill_giant(u)
 			out.append(u)
 	return out
 
@@ -644,6 +649,7 @@ func _run_sims(args: Dictionary) -> Dictionary:
 			"invalid_reasons": suspect,
 			"enemy_deaths": _deaths.filter(func(d): return String(d["side"]) == "enemy").size(),
 			"sim_seconds": snappedf(_sim_elapsed, 0.1),
+			"triarch_highest_phase": mgr.triarch_kit.highest_phase,
 			"team": _unit_stats(team),
 			"survivors_player": mgr.player_units.size(),
 			"survivors_enemy": mgr.enemy_units.size(),
@@ -651,6 +657,13 @@ func _run_sims(args: Dictionary) -> Dictionary:
 			# the after-action report. Read BEFORE teardown; unlike _unit_stats
 			# this survives heroes dying, since the manager snapshots it live.
 			"after_action": mgr.after_action_rows(),
+			# Final-battle report (defeat screen, 2026-10-07), compacted. The
+			# cross-check for the recorder: its effective numbers against the
+			# legacy counters above, in a real fight.
+			"final_report": _compact_report(mgr.last_report),
+			# Run-recap damage breakdown (2026-10-07): each hero's dealt_hp by
+			# source x type, to measure how much lands in "other".
+			"damage_split": _split_summary(mgr.last_recap, mgr.last_report),
 		})
 		await _teardown_env()
 	if stalls > 0:
@@ -662,6 +675,47 @@ func _run_sims(args: Dictionary) -> Dictionary:
 		"stalls": stalls, "win_rate": snappedf(float(wins) / float(runs), 0.01),
 		"results": run_results,
 	}
+
+# One row per hero: RecapFightTap's split folded into sources and types, next
+# to the recorder's dealt_hp (split_sum must equal it).
+func _split_summary(tap: Dictionary, r: Dictionary) -> Array:
+	var out: Array = []
+	var split: Dictionary = tap.get("split", {})
+	var names := ["auto", "skill", "ult", "dot", "summon", "other", "passive"]   # RecapFightTap.SRC_* order
+	for h in r.get("heroes", []):
+		var cells: Array = split.get(int(h["id"]), [])
+		var by_src := {}
+		var by_type := [0, 0, 0]
+		var sum := 0
+		for si in range(RecapFightTap.SOURCES):
+			var v := 0
+			for t in range(RecapFightTap.TYPES):
+				var c: int = int(cells[si * RecapFightTap.TYPES + t]) if not cells.is_empty() else 0
+				v += c
+				by_type[t] += c
+			by_src[names[si]] = v
+			sum += v
+		out.append({"name": h["name"], "dealt_hp": int(h["dealt_hp"]), "split_sum": sum, "by_source": by_src,
+			"by_type": {"physical": by_type[0], "magic": by_type[1], "true": by_type[2]}})
+	return out
+
+# Report minus the bulky lists - what a human or script needs to sanity-check it.
+func _compact_report(r: Dictionary) -> Dictionary:
+	if r.is_empty():
+		return {}
+	var rows: Array = []
+	for h in r.get("heroes", []):
+		rows.append({"name": h["name"], "dealt_hp": h["dealt_hp"], "dealt_shield": h["dealt_shield"],
+			"taken_hp": h["taken_hp"], "taken_shield": h["taken_shield"], "heal_out": h["heal_out"],
+			"heal_self": h["heal_self"], "overheal": h["overheal"], "alive_time": snappedf(h["alive_time"], 0.01),
+			"deaths": h["deaths"], "revives": h["revives"], "survived": h["survived"]})
+	var en: Dictionary = r.get("enemies", {})
+	return {"won": r.get("won"), "duration": snappedf(float(r.get("duration", 0.0)), 0.01),
+		"heroes": rows, "team": r.get("team", {}), "unattributed_taken": r.get("unattributed_taken", 0),
+		"events": r.get("events", []).size(),
+		"enemies": {"seen": en.get("seen"), "remaining": en.get("remaining"),
+			"hp": en.get("hp"), "max_hp": en.get("max_hp")},
+		"takeaway": r.get("takeaway", "")}
 
 func _unit_stats(units: Array) -> Array:
 	var out: Array = []
@@ -1645,10 +1699,13 @@ func _probe_one(make_unit: Callable, subject_is_player: bool,
 	# ── Passive (normally 3 simulated seconds; Sheildor's first correctly
 	# delayed Guardian Aura pulse requires crossing its stated 4s interval) ──
 	var before: Dictionary = _world_snapshot()
-	var passive_frames := 50 if subject.unit_class == UnitBase.UnitClass.SHEILDOR else 30
+	var passive_frames := 50 if subject.unit_class == UnitBase.UnitClass.SHEILDOR or label == "magma_heart" else 30
+	if label == "aspect_devourer": passive_frames = 70 # full 6s phase plus pounce/breath
 	for i in range(passive_frames):
 		if not is_instance_valid(subject) or subject._is_dying: break
 		mgr._tick_passive(subject, opponents, allies, 0.1)
+	if label.begins_with("hydra_"): await _settle(60) # resolve the elemental wind-up
+	if label == "magma_heart": await _settle(60) # 4s first eruption + expanding wave; measure its landed hit.
 	report["passive"] = _diff_report(before, _world_snapshot(), label, "passive")
 
 	# ── On-hit passives (subject attacks the near dummy, real attack flow).
@@ -1673,6 +1730,10 @@ func _probe_one(make_unit: Callable, subject_is_player: bool,
 	#    Stitch link propagation, thorns-style responses). Damage scales to what
 	#    the subject can survive — it's already at ~35% HP from the preconditions.
 	d_near.attack_damage = clampi(int(subject.current_hp * 0.4), 15, 300)
+	if label == "aspect_devourer":
+		# The six-second probe has advanced its aspect. Test a legal hit here;
+		# blocked HP/shield/true-damage hits are covered by aspect_kit_check.
+		d_near.current_element = subject.current_element
 	before = _world_snapshot()
 	d_near.attack(subject)
 	await _settle()
@@ -1680,6 +1741,24 @@ func _probe_one(make_unit: Callable, subject_is_player: bool,
 	d_near.attack_damage = 1
 
 	# ── Active skill ──
+	# Gale Sweep moved its victims out of melee range in the passive test.
+	# Put a dummy beside Hydra to test Serpent Strike independently.
+	if label.begins_with("hydra_"):
+		var bite_cell := mgr._nearest_open_adjacent(subject.grid_position)
+		if bite_cell != Vector2i(-1, -1):
+			grid.purge_unit(d_near)
+			assert(grid.place_unit(d_near, bite_cell))
+			d_near.grid_position = bite_cell
+			d_near.position = mgr._world_pos_for(d_near, bite_cell)
+			subject.target_unit = d_near
+	# The low-HP precondition makes an Ember Heart retreat to the rear. Put
+	# it back beside the dummy so the independent Cinder Spit test has a target
+	# in reach; its real retreat is covered by ember_heart_layout_probe.
+	if is_instance_valid(subject) and subject.has_meta("ember_heart"):
+		grid.purge_unit(subject)
+		assert(grid.place_unit(subject, Vector2i(4, 5)))
+		subject.grid_position = Vector2i(4, 5)
+		subject.position = mgr._world_pos_for(subject, subject.grid_position)
 	if not (subject and is_instance_valid(subject)) or subject._is_dying:
 		report["error"] = "subject died during probe preconditions"
 	elif subject.skill_name == "":
@@ -1709,9 +1788,10 @@ func _probe_one(make_unit: Callable, subject_is_player: bool,
 		# 0.6875s in (POUNCE_IMPACT) — just past the default 0.67s settle.
 		# Bouncer's Gravity Drop lands on the exhale, 0.66s in (GD_IMPACT).
 		# Cross's Judgment lands on his mace slam, 0.79s in (CROSS_JUDGMENT_IMPACT).
+		# Doc's Field Surgery resolves when his heartbeat line arrives, 0.84s in.
 		await _settle(30 if subject.unit_class in [UnitBase.UnitClass.SHEILDOR,
 				UnitBase.UnitClass.BLOODHOUND, UnitBase.UnitClass.BOUNCER,
-				UnitBase.UnitClass.CROSS] else 20)
+				UnitBase.UnitClass.CROSS, UnitBase.UnitClass.DOC] else 20)
 		report["ultimate"] = _diff_report(before, _world_snapshot(), label, "ultimate")
 
 	await _teardown_env()
@@ -1726,6 +1806,11 @@ func _settle(frames: int = 20) -> void:
 		# well as waiting for Node-owned projectiles/frees.
 		if mgr:
 			mgr._tick_global_effects(1.0 / 30.0)
+			mgr._tick_magma_waves(1.0 / 30.0)
+			# Triarch telegraphs use the shared channel, not a global effect timer.
+			for u in mgr.player_units + mgr.enemy_units:
+				if is_instance_valid(u) and u.channel and u.channel.id.begins_with("triarch_"):
+					mgr._tick_channel(u, 1.0 / 30.0)
 		await get_tree().process_frame
 
 # Snapshot every observable gameplay-relevant number in the env.

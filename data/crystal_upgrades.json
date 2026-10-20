@@ -72,50 +72,6 @@
       "name": "Max Hero Level"
     },
     {
-      "cost": 150,
-      "cost_mult": 15.0,
-      "desc": "Adds Pastor to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_pastor",
-      "max_level": 1,
-      "name": "Unlock Pastor"
-    },
-    {
-      "cost": 240,
-      "cost_mult": 24.0,
-      "desc": "Adds Coal to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_coal",
-      "max_level": 1,
-      "name": "Unlock Coal"
-    },
-    {
-      "cost": 384,
-      "cost_mult": 38.4,
-      "desc": "Adds Sear to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_sear",
-      "max_level": 1,
-      "name": "Unlock Sear"
-    },
-    {
-      "cost": 614,
-      "cost_mult": 61.4,
-      "desc": "Adds Ember to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_ember",
-      "max_level": 1,
-      "name": "Unlock Ember"
-    },
-    {
       "cost": 10,
       "cost_mult": 1.0,
       "desc": "+1 fire defensive affinity for all heroes per level.",
@@ -733,50 +689,6 @@
       "name": "Max Hero Level"
     },
     {
-      "cost": 150,
-      "cost_mult": 15.0,
-      "desc": "Adds Rush to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_rush",
-      "max_level": 1,
-      "name": "Unlock Rush"
-    },
-    {
-      "cost": 240,
-      "cost_mult": 24.0,
-      "desc": "Adds Rift to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_rift",
-      "max_level": 1,
-      "name": "Unlock Rift"
-    },
-    {
-      "cost": 384,
-      "cost_mult": 38.4,
-      "desc": "Adds Zolt to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_zolt",
-      "max_level": 1,
-      "name": "Unlock Zolt"
-    },
-    {
-      "cost": 614,
-      "cost_mult": 61.4,
-      "desc": "Adds Lumen to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_lumen",
-      "max_level": 1,
-      "name": "Unlock Lumen"
-    },
-    {
       "cost": 10,
       "cost_mult": 1.0,
       "desc": "+1 lightning defensive affinity for all heroes per level.",
@@ -1325,61 +1237,6 @@
       "name": "Max Hero Level"
     },
     {
-      "cost": 150,
-      "cost_mult": 15.0,
-      "desc": "Adds Lordee to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_lordee",
-      "max_level": 1,
-      "name": "Unlock Lordee"
-    },
-    {
-      "cost": 240,
-      "cost_mult": 24.0,
-      "desc": "Adds Necro to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_necro",
-      "max_level": 1,
-      "name": "Unlock Necro"
-    },
-    {
-      "cost": 384,
-      "cost_mult": 38.4,
-      "desc": "Adds Riot to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_riot",
-      "max_level": 1,
-      "name": "Unlock Riot"
-    },
-    {
-      "cost": 614,
-      "cost_mult": 61.4,
-      "desc": "Adds Stitch to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_stitch",
-      "max_level": 1,
-      "name": "Unlock Stitch"
-    },
-    {
-      "cost": 983,
-      "cost_mult": 98.3,
-      "desc": "Adds Cross to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_cross",
-      "max_level": 1,
-      "name": "Unlock Cross"
-    },
-    {
       "cost": 10,
       "cost_mult": 1.0,
       "desc": "+1 normal defensive affinity for all heroes per level.",
@@ -1864,39 +1721,6 @@
       "key": "max_level_armory_5",
       "max_level": 1,
       "name": "Max Hero Level"
-    },
-    {
-      "cost": 150,
-      "cost_mult": 15.0,
-      "desc": "Adds Sheildor to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_sheildor",
-      "max_level": 1,
-      "name": "Unlock Sheildor"
-    },
-    {
-      "cost": 240,
-      "cost_mult": 24.0,
-      "desc": "Adds June to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_june",
-      "max_level": 1,
-      "name": "Unlock June"
-    },
-    {
-      "cost": 384,
-      "cost_mult": 38.4,
-      "desc": "Adds Spore to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_spore",
-      "max_level": 1,
-      "name": "Unlock Spore"
     },
     {
       "cost": 10,
@@ -2808,28 +2632,6 @@
       "name": "Max Hero Level"
     },
     {
-      "cost": 150,
-      "cost_mult": 15.0,
-      "desc": "Adds Sable to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_sable",
-      "max_level": 1,
-      "name": "Unlock Sable"
-    },
-    {
-      "cost": 240,
-      "cost_mult": 24.0,
-      "desc": "Adds Vail to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_vail",
-      "max_level": 1,
-      "name": "Unlock Vail"
-    },
-    {
       "cost": 10,
       "cost_mult": 1.0,
       "desc": "+1 air defensive affinity for all heroes per level.",
@@ -3544,28 +3346,6 @@
       "key": "max_level_scholar_5",
       "max_level": 1,
       "name": "Max Hero Level"
-    },
-    {
-      "cost": 150,
-      "cost_mult": 15.0,
-      "desc": "Adds Doc to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_doc",
-      "max_level": 1,
-      "name": "Unlock Doc"
-    },
-    {
-      "cost": 240,
-      "cost_mult": 24.0,
-      "desc": "Adds Reed to the recruitment pool.",
-      "effect": "Unlocked",
-      "effect_per_level": 0,
-      "family": "hero_unlock",
-      "key": "hero_unlock_reed",
-      "max_level": 1,
-      "name": "Unlock Reed"
     },
     {
       "cost": 10,

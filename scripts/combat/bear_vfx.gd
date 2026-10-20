@@ -18,6 +18,17 @@ const BLOOD := Color(0.72, 0.10, 0.12)
 const DARK := Color(0.26, 0.03, 0.05)
 const HOT := Color(1.0, 0.55, 0.45)
 
+static func body_colors(element: int) -> Array[Color]:
+	match element:
+		UnitBase.Element.FIRE: return [Color("352725"), Color("be6239")]
+		UnitBase.Element.WATER: return [Color("244956"), Color("6eabb7")]
+		UnitBase.Element.EARTH: return [Color("50422b"), Color("9f8852")]
+		UnitBase.Element.AIR: return [Color("657d74"), Color("b4cec0")]
+		UnitBase.Element.LIGHTNING: return [Color("433852"), Color("9b80bb")]
+	return [Color("514d43"), Color("8c8775")]
+
+var _element: int = UnitBase.Element.NORMAL
+
 var mode: Mode = Mode.SWIPE_IMPACT
 var elapsed := 0.0
 var lifetime := 0.45
@@ -45,6 +56,8 @@ func setup_point(kind: Mode, world_pos: Vector2, size: float, life: float) -> vo
 	queue_redraw()
 
 func setup_on(kind: Mode, unit, size: float, life: float) -> void:
+	if unit and bool(unit.get_meta("bear", false)):
+		_element = unit.current_element
 	mode = kind
 	host = unit
 	reach = size
@@ -63,6 +76,8 @@ func set_rage(v: float) -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	if host and is_instance_valid(host) and host.has_method("_battle_clock"):
+		delta *= host._battle_clock()
 	elapsed += delta
 	_t += delta
 	if host != null:
@@ -94,6 +109,8 @@ func _draw() -> void:
 		Mode.SWIPE_IMPACT: _draw_impact(t)
 		Mode.BLEED:        _draw_bleed()
 		Mode.FURY:         _draw_fury()
+	if mode in [Mode.SWIPE_WINDUP, Mode.SWIPE_IMPACT]:
+		LizardVFX.draw_accent(self, _element, Vector2(12, -reach * 0.08), reach * 0.10, _t, 0.65 * (1.0 - t))
 
 # ── The paw draws back ─────────────────────────────────────────────────────
 func _draw_windup(t: float) -> void:

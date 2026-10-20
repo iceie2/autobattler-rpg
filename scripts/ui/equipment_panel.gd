@@ -20,6 +20,8 @@ var _fuse_btn: Button
 # a result preview, replacing the old invisible selection set whose only feedback
 # was an "n/3 selected" line.
 var _slot_boxes: Array[Panel] = []
+var _hero_empty_lbl: Label
+var _equipped_head: Label
 
 func _component_mode() -> bool:
 	return inventory is ComponentEquipmentInventory
@@ -47,10 +49,9 @@ var _pick_is_auto: bool = false
 var _pick_title: Label
 # Component merge menu (EQUIPMENT_GREEN_PAIRS.md): both inputs' passives are
 # pooled and the player removes levels until the pool fits the result's budget.
-var _rm_active: bool = false
-var _rm_pool: Dictionary = {}
-var _rm_removed: Dictionary = {}
-var _rm_need: int = 0
+var _rm_removed: Dictionary = {}          # handed to combine_components by _commit_fuse
+var _removal_panel: LevelRemovalPanel
+var _removal_sources: Array[EquipmentItem] = []
 
 const ICON_PX := 34
 
@@ -65,25 +66,30 @@ func _build_ui() -> void:
 	add_child(overlay)
 
 	_panel = Panel.new()
-	_panel.size = Vector2(1000, 700)
-	# UI theme pass 2026-07-04: dobo card panel instead of flat navy box.
-	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+	# 2026-09-27 screen audit: moved onto the shared menu chrome (banner +
+	# menu_surface_box, dark and light). The banner costs 34px, so every
+	# absolute y below the title moved down by TOP (was 70 → 104 etc).
+	_panel.size = Vector2(1000, 734)
+	_panel.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 	overlay.add_child(_panel)
+	UITheme.menu_header(_panel, Rect2(18, 12, 964, 84))
 
 	# Title
-	_lbl(_panel, "EQUIPMENT MANAGEMENT", 32, Color(0.85, 0.85, 1.0),
-		Vector2(20, 18), Vector2(960, 40), true)
+	_lbl(_panel, "EQUIPMENT", 32, UITheme.menu_title_color(),
+		Vector2(20, 30), Vector2(960, 48), true)
 
 	# Three-column layout: inventory, heroes, hero equipment
 	var left_x = 20
 	var mid_x = 340
 	var right_x = 660
 	var col_width = 300
-	var content_y = 70
+	var content_y = 104
 	var content_h = 600
+	var col_head: Color = UITheme.menu_title_color() if UITheme.is_light() \
+		else Color(0.95, 0.82, 0.52)
 
 	# Left column: inventory
-	_lbl(_panel, "INVENTORY", 16, Color(1.0, 1.0, 0.5),
+	_lbl(_panel, "INVENTORY", 16, col_head,
 		Vector2(left_x, content_y), Vector2(col_width, 24), true)
 
 	var inv_scroll = ScrollContainer.new()
@@ -100,7 +106,7 @@ func _build_ui() -> void:
 	# ── Combine tray under the inventory ──
 	# Three real slots, so "what have I picked and what will it make" is visible
 	# at a glance instead of living in a status string.
-	_combine_toggle_btn = _btn("⚗  Combine Mode", Rect2(left_x, 504, col_width - 96, 28))
+	_combine_toggle_btn = _btn("⚗  Combine Mode", Rect2(left_x, 538, col_width - 96, 28))
 	_combine_toggle_btn.pressed.connect(_toggle_combine_mode)
 	_panel.add_child(_combine_toggle_btn)
 
@@ -109,9 +115,9 @@ func _build_ui() -> void:
 	# auto-picking the strongest passives when a fusion exceeds the cap. Explicit
 	# button press, not on-pickup, so nothing gets consumed without the player
 	# choosing to sweep.
-	var auto_btn := _btn("Auto", Rect2(left_x + col_width - 92, 504, 92, 28))
+	var auto_btn := _btn("Auto", Rect2(left_x + col_width - 92, 538, 92, 28))
 	UITheme.apply_font(auto_btn, UITheme.FONT_HEADER)
-	auto_btn.tooltip_text = "Fuse every possible triple of same-rarity items"
+	auto_btn.tooltip_text = "Fuse every possible match of same-rarity items"
 	auto_btn.pressed.connect(_auto_combine_sweep)
 	_panel.add_child(auto_btn)
 
@@ -120,32 +126,50 @@ func _build_ui() -> void:
 	var slot_gap := 12
 	for i in range(3):
 		var box := Panel.new()
-		box.position = Vector2(left_x + i * (slot_w + slot_gap), 538)
+		box.position = Vector2(left_x + i * (slot_w + slot_gap), 572)
 		box.size = Vector2(slot_w, 88)
 		box.add_theme_stylebox_override("panel", UITheme.slot_box())
 		_panel.add_child(box)
 		_slot_boxes.append(box)
 
-	_combine_status_lbl = _lbl(_panel, "", 13, Color(0.7, 0.7, 0.85),
-		Vector2(left_x, 628), Vector2(col_width, 24), true)
+	_combine_status_lbl = _lbl(_panel, "", 13, UITheme.menu_subtitle_color(),
+		Vector2(left_x, 662), Vector2(col_width, 24), true)
+	_combine_status_lbl.clip_text = true
+	_combine_status_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 
-	_fuse_btn = _btn("Fuse ×3", Rect2(left_x, 654, col_width, 30))
+	_fuse_btn = _btn("Fuse", Rect2(left_x, 688, col_width, 32))
 	_fuse_btn.pressed.connect(_fuse_selected)
 	_fuse_btn.visible = false
 	_panel.add_child(_fuse_btn)
 
 	# Middle column: hero list
-	_lbl(_panel, "HEROES", 16, Color(1.0, 0.5, 1.0),
+	_lbl(_panel, "HEROES", 16, col_head,
 		Vector2(mid_x, content_y), Vector2(col_width, 24), true)
 
 	_hero_list = ItemList.new()
 	_hero_list.position = Vector2(mid_x, content_y + 28)
 	_hero_list.size = Vector2(col_width, content_h - 60)
 	_hero_list.item_selected.connect(_on_hero_selected)
+	UITheme.apply_font(_hero_list, UITheme.FONT_VALUE)
+	# Godot's default ItemList box is a flat grey slab that sat badly on both
+	# surfaces; a faint inset matching the inventory rows instead.
+	var list_box := StyleBoxFlat.new()
+	list_box.bg_color = Color(0, 0, 0, 0.08) if UITheme.is_light() else Color(0.10, 0.10, 0.15, 0.8)
+	list_box.border_color = Color(UITheme.menu_subtitle_color(), 0.4)
+	list_box.set_border_width_all(1)
+	list_box.set_corner_radius_all(4)
+	list_box.set_content_margin_all(6)
+	_hero_list.add_theme_stylebox_override("panel", list_box)
+	_hero_list.add_theme_color_override("font_color", UITheme.menu_body_color())
 	_panel.add_child(_hero_list)
+	# Empty state — a blank grey box read as "broken" in the audit.
+	_hero_empty_lbl = _lbl(_panel, "No heroes on your team yet", 16,
+		UITheme.menu_subtitle_color(), Vector2(mid_x, content_y + 60),
+		Vector2(col_width, 24), true)
+	_hero_empty_lbl.visible = false
 
 	# Right column: hero equipment
-	_lbl(_panel, "EQUIPPED (6 max)", 14, Color(0.5, 1.0, 1.0),
+	_equipped_head = _lbl(_panel, "EQUIPPED", 16, col_head,
 		Vector2(right_x, content_y), Vector2(col_width, 24), true)
 
 	var eq_scroll = ScrollContainer.new()
@@ -159,7 +183,7 @@ func _build_ui() -> void:
 
 	# Close button — moved right (2026-08-04) so the taller combine tray in the
 	# left column has room; the right column's scroll ends at y=638.
-	var close_btn = _btn("Close", Rect2(830, 652, 140, 32))
+	var close_btn = _btn("Close", Rect2(830, 686, 140, 34))
 	close_btn.pressed.connect(func(): visible = false)
 	_panel.add_child(close_btn)
 
@@ -167,6 +191,13 @@ func _build_ui() -> void:
 	# pick overlay earlier let the hero list / right column paint straight over
 	# the top of it.
 	_build_pick_overlay()
+
+	# The merge menu (level removal) is its own control, added after everything
+	# else so it draws over the whole panel.
+	_removal_panel = LevelRemovalPanel.new()
+	add_child(_removal_panel)
+	_removal_panel.confirmed.connect(_on_removal_confirmed)
+	_removal_panel.cancelled.connect(_on_removal_cancelled)
 
 	visible = false
 	_center_panel()
@@ -192,7 +223,8 @@ func _refresh_inventory() -> void:
 	if inventory.items.size() == 0:
 		var label = Label.new()
 		label.text = "No items"
-		label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		UITheme.apply_font(label, UITheme.FONT_BODY)
+		label.add_theme_color_override("font_color", UITheme.menu_subtitle_color())
 		_inventory_list.add_child(label)
 		return
 
@@ -205,6 +237,10 @@ func _refresh_hero_list() -> void:
 		if unit and is_instance_valid(unit):
 			var eq_count = inventory.get_hero_equipment(unit).size()
 			_hero_list.add_item("%s (%d/%d)" % [unit.unit_name, eq_count, inventory.hero_item_cap()])
+	_hero_empty_lbl.visible = _hero_list.item_count == 0
+	# The cap is per-run (crystal tree / relics), so the header reads it live
+	# instead of the old hard-coded "(6 max)".
+	_equipped_head.text = "EQUIPPED (%d max)" % inventory.hero_item_cap()
 
 func _refresh_hero_equipment() -> void:
 	for child in _hero_items_list.get_children():
@@ -213,7 +249,8 @@ func _refresh_hero_equipment() -> void:
 	if not _selected_hero:
 		var label = Label.new()
 		label.text = "Select a hero"
-		label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		UITheme.apply_font(label, UITheme.FONT_BODY)
+		label.add_theme_color_override("font_color", UITheme.menu_subtitle_color())
 		_hero_items_list.add_child(label)
 		return
 
@@ -221,7 +258,8 @@ func _refresh_hero_equipment() -> void:
 	if hero_items.size() == 0:
 		var label = Label.new()
 		label.text = "No equipment"
-		label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		UITheme.apply_font(label, UITheme.FONT_BODY)
+		label.add_theme_color_override("font_color", UITheme.menu_subtitle_color())
 		_hero_items_list.add_child(label)
 		return
 
@@ -352,11 +390,30 @@ func _refresh_slots() -> void:
 			plate.size = Vector2(88, 34)
 			plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			box.add_child(plate)
-			var nm := _lbl(box, item.name, 12, item.icon_color.lightened(0.35),
-				Vector2(2, 51), Vector2(88, 16), true)
+			# Exact type-scale steps, clipped to the 88px tile. The old 12/10 bases
+			# went through body_font() and came out at 20px, which overflowed the
+			# tile and stacked the rarity on top of the name (2026-09-27 audit).
+			var nm := Label.new()
+			nm.text = item.name
+			nm.position = Vector2(2, 50)
+			nm.size = Vector2(88, 18)
+			nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			nm.clip_text = true
-			_lbl(box, item.get_rarity_name(), 10, Color(0.72, 0.72, 0.82),
-				Vector2(2, 66), Vector2(88, 14), true)
+			nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			UITheme.apply_font(nm, UITheme.FONT_BODY)
+			nm.add_theme_color_override("font_color", item.icon_color.lightened(0.35))
+			nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			box.add_child(nm)
+			var rar := Label.new()
+			rar.text = item.get_rarity_name()
+			rar.position = Vector2(2, 68)
+			rar.size = Vector2(88, 14)
+			rar.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			rar.clip_text = true
+			UITheme.apply_font(rar, UITheme.FONT_CAPTION)
+			rar.add_theme_color_override("font_color", Color(0.78, 0.78, 0.86))
+			rar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			box.add_child(rar)
 			# Click a filled slot to pull that item back out.
 			var clear_btn := Button.new()
 			clear_btn.flat = true
@@ -388,6 +445,8 @@ func _update_combine_ui() -> void:
 		_fuse_btn.disabled = false
 	else:
 		_combine_status_lbl.text = "%d/%d selected — %s" % [_combine_sel.size(), width, ready_reason]
+		# Was left at its build-time "Fuse ×3" — wrong for 2-item component merges.
+		_fuse_btn.text = "Fuse ×%d" % width
 		_fuse_btn.visible = true
 		_fuse_btn.disabled = true
 
@@ -404,7 +463,9 @@ func _combine_ready() -> String:
 	if _component_mode():
 		if not (_combine_sel[0] is ComponentEquipmentItem) \
 				or not (_combine_sel[1] is ComponentEquipmentItem):
-			return "requires component items"
+			# Legacy items from before the equipment redesign can sit in a
+			# component-mode bag (old saves); say so in player terms.
+			return "old-style items can't be fused"
 		if not ComponentEquipmentRules.can_combine(
 				_combine_sel[0] as ComponentEquipmentItem,
 				_combine_sel[1] as ComponentEquipmentItem):
@@ -513,7 +574,6 @@ func _build_pick_overlay() -> void:
 func _close_pick() -> void:
 	_pick_panel.visible = false
 	_pick_scrim.visible = false
-	_rm_active = false
 	if _pick_is_auto and inventory:
 		# Cancelled without choosing — leave the triple untouched in the bag;
 		# Auto-Combine will offer it again on the next pickup.
@@ -544,9 +604,6 @@ func _open_passive_pick(sources: Array[EquipmentItem], candidates: Array, cap: i
 	_pick_panel.visible = true
 
 func _refresh_pick() -> void:
-	if _rm_active:
-		_refresh_level_removal()
-		return
 	_pick_title.text = "CHOOSE PASSIVES TO KEEP"
 	_pick_hint.text = "This fusion can carry %d of %d — pick %d." % [
 		_pick_cap, _pick_candidates.size(), _pick_cap]
@@ -584,13 +641,6 @@ func _toggle_pick(nm: String) -> void:
 	_refresh_pick()
 
 func _confirm_pick() -> void:
-	if _rm_active:
-		var rm_sources := _pick_sources.duplicate()
-		var picked := _rm_removed.duplicate()
-		_close_pick()   # also clears _rm_active; _rm_removed survives for the commit
-		_rm_removed = picked
-		_commit_fuse(rm_sources, [])
-		return
 	if _pick_chosen.size() != _pick_cap or _pick_sources.is_empty():
 		return
 	var sources := _pick_sources.duplicate()
@@ -605,68 +655,52 @@ func _confirm_pick() -> void:
 		_commit_fuse(sources, keep)
 
 # ── Component merge menu: remove levels until the pool fits ──────────────────
+# The menu itself is LevelRemovalPanel (scripts/ui/level_removal_panel.gd); this
+# panel only feeds it a pool and performs the merge it reports back.
 # Public entry for the bag's drag-to-combine (main_game._drop_combine).
-func open_level_removal(sources: Array[EquipmentItem]) -> void:
+#
+# close_when_done: the caller opened this panel ONLY to host the removal menu
+# (a drag-to-combine in the bag), so put the player back where they were as soon
+# as the merge is confirmed or cancelled instead of leaving the Equipment menu
+# open. Left false when the player was already in the panel.
+var _close_after_removal := false
+
+func open_level_removal(sources: Array[EquipmentItem], close_when_done: bool = false) -> void:
+	_close_after_removal = close_when_done
 	_open_level_removal(sources)
+
+func _finish_removal_session() -> void:
+	if _close_after_removal:
+		_close_after_removal = false
+		visible = false
 
 func _open_level_removal(sources: Array[EquipmentItem]) -> void:
 	var a := sources[0] as ComponentEquipmentItem
 	var b := sources[1] as ComponentEquipmentItem
-	_pick_sources = sources
-	_rm_pool = ComponentEquipmentRules.pooled_levels(a, b)
-	_rm_need = ComponentEquipmentRules.levels_to_remove(a, b)
+	_removal_sources = sources
+	_removal_panel.open(ComponentEquipmentRules.pooled_levels(a, b),
+		ComponentEquipmentRules.levels_to_remove(a, b))
+
+func removal_menu_open() -> bool:
+	return _removal_panel != null and _removal_panel.is_open()
+
+# Escape / hiding this panel while the menu is up: same as pressing Cancel.
+func cancel_removal_menu() -> void:
+	if removal_menu_open():
+		_removal_panel.cancel()
+
+func _on_removal_confirmed(removals: Dictionary) -> void:
+	var sources := _removal_sources.duplicate()
+	_removal_sources.clear()
+	_rm_removed = removals.duplicate()
+	_commit_fuse(sources, [])
+	_finish_removal_session()
+
+func _on_removal_cancelled() -> void:
+	# Nothing was merged and nothing changes: both items stay in the bag.
+	_removal_sources.clear()
 	_rm_removed.clear()
-	_rm_active = true
-	_refresh_pick()
-	_pick_scrim.visible = true
-	_pick_panel.visible = true
-
-func _rm_total() -> int:
-	var n := 0
-	for v in _rm_removed.values():
-		n += int(v)
-	return n
-
-func _refresh_level_removal() -> void:
-	_pick_title.text = "REMOVE %d LEVEL%s" % [_rm_need, "" if _rm_need == 1 else "S"]
-	_pick_hint.text = "Click a passive to drop one level. Click again once done to undo."
-	for c in _pick_list.get_children():
-		c.queue_free()
-	for key in _rm_pool:
-		var have := int(_rm_pool[key])
-		var gone := int(_rm_removed.get(key, 0))
-		var left := have - gone
-		var pips := "●".repeat(left) + "○".repeat(gone)
-		var b := Button.new()
-		b.icon = GearIcons.emblem(str(key))
-		b.expand_icon = true
-		b.add_theme_constant_override("icon_max_width", 28)
-		var effect := GearCatalog.describe(str(key), left) if left > 0 else "removed"
-		b.text = "%s %s  %s" % [GearCatalog.display_name(str(key)), pips, effect]
-		b.tooltip_text = b.text
-		UITheme.apply_font(b, UITheme.body_font(13))
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.clip_text = true
-		b.custom_minimum_size = Vector2(410, 38)
-		var tint := Color(0.9, 0.55, 0.5) if gone > 0 else Color(0.8, 0.8, 0.9)
-		b.add_theme_color_override("font_color", tint)
-		b.add_theme_stylebox_override("normal", _flat(Color(0.1, 0.1, 0.16, 0.85), tint.darkened(0.45), 1, 4))
-		b.add_theme_stylebox_override("hover",  _flat(Color(0.16, 0.16, 0.24, 0.85), tint, 1, 4))
-		var k := str(key)
-		b.pressed.connect(func(): _toggle_level_removal(k))
-		_pick_list.add_child(b)
-	_pick_confirm.text = "Merge (%d/%d removed)" % [_rm_total(), _rm_need]
-	_pick_confirm.disabled = _rm_total() != _rm_need
-
-func _toggle_level_removal(key: String) -> void:
-	var gone := int(_rm_removed.get(key, 0))
-	if _rm_total() < _rm_need and gone < int(_rm_pool.get(key, 0)):
-		_rm_removed[key] = gone + 1
-	elif gone > 0:
-		_rm_removed[key] = gone - 1
-		if int(_rm_removed[key]) == 0:
-			_rm_removed.erase(key)
-	_refresh_level_removal()
+	_finish_removal_session()
 
 func _add_equipped_item_button(parent: VBoxContainer, item: EquipmentItem) -> void:
 	var btn = Button.new()

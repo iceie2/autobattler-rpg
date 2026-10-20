@@ -1,0 +1,459 @@
+class_name BattleRecorder
+extends RefCounted
+# ══════════════════════════════════════════════════════════════════════════════
+# FINAL-BATTLE RECORDER (defeat report, 2026-10-07)
+#
+# One per AutoBattleManager. It watches the SHARED application points - the end
+# of UnitBase.take_damage (after shields, so only real HP loss and real shield
+# absorption reach it) and UnitBase.heal (after the HP clamp, so only HP that
+# actually landed counts) - plus the manager's death / revive / cast signals.
+# It never reads human-readable log text and never inspects UI.
+#
+# WHAT EACH NUMBER MEANS (the tooltips on the report repeat this):
+#   dealt_hp      HP removed from ENEMIES by this hero (summons credited to their
+#                 owner). Excludes overkill and excludes what enemy shields soaked.
+#   dealt_shield  damage this hero threw into enemy shields (not HP damage).
+#   taken_hp      HP this hero actually lost. Overkill on the killing blow is cut.
+#   taken_shield  damage this hero's shields soaked (item shield, shield, mana
+#                 shield). Shields that expired unused are not counted anywhere.
+#   heal_out      HP restored on OTHER allies (effective: capped at their max HP,
+#                 after healing-reduction effects).
+#   heal_self     HP this hero restored on itself (regen, lifesteal, self-heals).
+#   overheal      healing this hero's casts offered that the target could not
+#                 take. Informational; never added to heal_out.
+#
+# ATTRIBUTION POLICY for sources with no hero owner:
+#   * Damage from an enemy, DoT whose source was freed, or the environment still
+#     counts as "taken" by the victim hero; it just has no hero to be "dealt" by.
+#     The total of such HP loss is kept as `unattributed_taken`.
+#   * A player summon credits its summon_owner when that owner is a hero.
+#   * Heals with no known caster (regen, item lifesteal, passives) credit the
+#     recipient as heal_self - they are by definition self-sustain.
+#   * Friendly damage (same side) is "taken" by the victim, never "dealt".
+#
+# HONEST LIMITS (also surfaced in the report's `notes`):
+#   * Revival via a death-cheat (Phoenix Pact etc.) is not a death, so it makes no
+#     timeline entry; the hero simply never died.
+#   * Shield GRANTED is not credited to its caster (the shield layers have no
+#     source tracking) - only what each shield absorbed on its holder.
+#   * Memory is bounded: per-hero counters plus capped event lists.
+#
+# Time is the manager's `battle_elapsed` (simulation seconds). It already stops
+# when paused and scales with 0.25x..4x, so the recorder never touches wall time.
+# ══════════════════════════════════════════════════════════════════════════════
+
+const MAX_MAJOR_HEALS := 24
+const MAX_CASTS := 36
+const MAX_EVENTS_HARD := 160          # deaths + revives are always kept, up to this
+const MAJOR_HEAL_PCT := 0.20          # a heal is "major" at >= 20% of the target's max HP
+const SAME_MOMENT := 0.05             # seconds: deaths closer than this are "together"
+
+var now: float = 0.0                  # set by the manager every frame
+
+var _heroes: Dictionary = {}          # instance_id -> record Dictionary
+var _order: Array = []                # instance ids in roster order
+var _units: Dictionary = {}           # instance_id -> UnitBase (valid only until snapshot)
+var _events: Array = []               # {t, kind, hero, name, ...}
+var _enemy_start_max: Dictionary = {} # instance_id -> max_hp when first seen
+var _enemy_seen: int = 0
+var _enemy_units: Dictionary = {}
+var _enemy_records: Dictionary = {}
+var _unattributed_taken: int = 0
+var _heal_events: int = 0
+var _cast_events: int = 0
+var _active: bool = false
+
+func is_active() -> bool:
+	return _active
+
+# ── Lifecycle ─────────────────────────────────────────────────────────────────
+
+# Fresh slate at every battle start - this is what makes "next battle reset"
+# a property of the object, not of whoever remembers to clear it.
+func begin(player_units: Array, enemy_units: Array) -> void:
+	_heroes.clear()
+	_order.clear()
+	_units.clear()
+	_events.clear()
+	_enemy_start_max.clear()
+	_enemy_units.clear()
+	_enemy_records.clear()
+	_enemy_seen = 0
+	_unattributed_taken = 0
+	_heal_events = 0
+	_cast_events = 0
+	now = 0.0
+	_active = true
+	for u in player_units:
+		if _is_hero(u):
+			_ensure_hero(u)
+	for u in enemy_units:
+		note_enemy(u)
+
+func note_enemy(u) -> void:
+	if not is_instance_valid(u):
+		return
+	var id: int = u.get_instance_id()
+	if _enemy_start_max.has(id):
+		return
+	_enemy_start_max[id] = int(u.max_hp)
+	_enemy_units[id] = u
+	_enemy_records[id] = _enemy_record(u)
+	var death_callback := on_death.bind(u)
+	if not u.died.is_connected(death_callback):
+		u.died.connect(death_callback)
+	_enemy_seen += 1
+
+func _enemy_record(u) -> Dictionary:
+	return {
+		"name": String(u.unit_name),
+		"portrait": BattleRecorder.portrait_path(u),
+		"hp": maxi(int(u.current_hp), 0),
+		"max_hp": int(u.max_hp),
+		"start_max_hp": int(_enemy_start_max.get(u.get_instance_id(), u.max_hp)),
+		"summoned": bool(u.is_summoned),
+	}
+
+# ── Identity ──────────────────────────────────────────────────────────────────
+
+func _is_hero(u) -> bool:
+	return is_instance_valid(u) and u is UnitBase and u.is_player_unit and not u.is_summoned
+
+# The hero a unit's actions are credited to: itself, or its owner for a summon.
+func _credit_hero(u) -> Variant:
+	if not (is_instance_valid(u) and u is UnitBase):
+		return null
+	var o: UnitBase = u
+	if u.is_summoned and is_instance_valid(u.summon_owner):
+		o = u.summon_owner
+	return o if _is_hero(o) else null
+
+func _ensure_hero(u: UnitBase) -> Dictionary:
+	var id: int = u.get_instance_id()
+	if _heroes.has(id):
+		return _heroes[id]
+	var rec := {
+		"id": id,
+		"name": String(u.unit_name),
+		"cls": int(u.unit_class),
+		"dealt_hp": 0, "dealt_shield": 0, "dealt_by_summons": 0,
+		"taken_hp": 0, "taken_shield": 0,
+		"heal_out": 0, "heal_self": 0, "overheal": 0, "healed_in": 0,
+		# [start, end]; end < 0 while that stretch is still open.
+		"intervals": [[now, -1.0]],
+		"deaths": 0, "revives": 0, "ults": 0,
+	}
+	_heroes[id] = rec
+	_order.append(id)
+	_units[id] = u
+	return rec
+
+func _hero_rec(u) -> Variant:
+	if not _is_hero(u):
+		return null
+	return _ensure_hero(u)
+
+# ── Damage ────────────────────────────────────────────────────────────────────
+
+func on_hit(victim, attacker, shield_absorbed: int, hp_lost: int) -> void:
+	if not _active or not is_instance_valid(victim):
+		return
+	var v_rec = _hero_rec(victim)
+	if v_rec != null:
+		v_rec["taken_hp"] += hp_lost
+		v_rec["taken_shield"] += shield_absorbed
+	var a_hero = _credit_hero(attacker)
+	var opposing: bool = a_hero != null and victim is UnitBase and victim.is_player_unit != a_hero.is_player_unit
+	if opposing:
+		var a_rec: Dictionary = _ensure_hero(a_hero)
+		a_rec["dealt_hp"] += hp_lost
+		a_rec["dealt_shield"] += shield_absorbed
+		if attacker != a_hero:
+			a_rec["dealt_by_summons"] += hp_lost
+	elif v_rec != null and not is_instance_valid(attacker):
+		# No source at all (freed DoT owner, environment): enemy attackers are
+		# attributed to their side, so only a missing attacker lands here.
+		_unattributed_taken += hp_lost
+
+# ── Healing ───────────────────────────────────────────────────────────────────
+
+# `credit` null -> self-sustain of the target. `wasted` is what the target could
+# not take (overheal), already net of any healing-reduction.
+func on_heal(target, credit, healed: int, wasted: int) -> void:
+	if not _active or not is_instance_valid(target) or not (target is UnitBase):
+		return
+	if not target.is_player_unit:
+		return
+	var t_rec = _hero_rec(target)
+	if t_rec != null:
+		t_rec["healed_in"] += healed
+	var c_hero = _credit_hero(credit) if credit != null else null
+	if c_hero == null:
+		if target.is_summoned:
+			return                       # a summon's own regen is nobody's hero stat
+		c_hero = _credit_hero(target)    # self-sustain
+	if c_hero == null:
+		return
+	var c_rec: Dictionary = _ensure_hero(c_hero)
+	var is_self: bool = c_hero == target
+	if is_self:
+		c_rec["heal_self"] += healed
+	else:
+		c_rec["heal_out"] += healed
+	c_rec["overheal"] += maxi(0, wasted)
+	if healed > 0 and not is_self and float(healed) >= MAJOR_HEAL_PCT * float(maxi(1, target.max_hp)):
+		_add_major_heal(c_rec, target, healed)
+
+func _add_major_heal(c_rec: Dictionary, target, healed: int) -> void:
+	var ev := {"t": now, "kind": "heal", "hero": c_rec["id"], "name": c_rec["name"],
+		"target": String(target.unit_name), "amount": healed}
+	if _heal_events < MAX_MAJOR_HEALS:
+		_events.append(ev)
+		_heal_events += 1
+		return
+	# Full: replace the smallest kept heal if this one is larger.
+	var smallest := -1
+	var smallest_amt := healed
+	for i in range(_events.size()):
+		var e: Dictionary = _events[i]
+		if e["kind"] == "heal" and int(e["amount"]) < smallest_amt:
+			smallest = i
+			smallest_amt = int(e["amount"])
+	if smallest >= 0:
+		_events[smallest] = ev
+
+# ── Deaths, revivals, casts ───────────────────────────────────────────────────
+
+func on_death(unit) -> void:
+	if not _active:
+		return
+	if is_instance_valid(unit) and _enemy_records.has(unit.get_instance_id()):
+		var enemy: Dictionary = _enemy_record(unit)
+		enemy["hp"] = 0
+		_enemy_records[unit.get_instance_id()] = enemy
+	var rec = _hero_rec(unit)
+	if rec == null:
+		return
+	var open: Array = _open_interval(rec)
+	if open.is_empty():
+		return   # already recorded as down (double signal)
+	open[1] = now
+	rec["deaths"] += 1
+	var killer := ""
+	if is_instance_valid(unit.last_killer) and unit.last_killer is UnitBase:
+		killer = String(unit.last_killer.unit_name)
+	_push_event({"t": now, "kind": "death", "hero": rec["id"], "name": rec["name"], "by": killer})
+
+func on_revive(unit) -> void:
+	if not _active:
+		return
+	var rec = _hero_rec(unit)
+	if rec == null:
+		return
+	if not _open_interval(rec).is_empty():
+		return   # was never recorded down; nothing to restart
+	rec["intervals"].append([now, -1.0])
+	rec["revives"] += 1
+	_push_event({"t": now, "kind": "revive", "hero": rec["id"], "name": rec["name"]})
+
+func on_cast(unit, kind: String, ability: String) -> void:
+	if not _active or kind != "ultimate":
+		return
+	var rec = _hero_rec(unit)
+	if rec == null:
+		return
+	rec["ults"] += 1
+	if _cast_events >= MAX_CASTS:
+		return
+	_cast_events += 1
+	_push_event({"t": now, "kind": "ultimate", "hero": rec["id"], "name": rec["name"], "ability": ability})
+
+func _open_interval(rec: Dictionary) -> Array:
+	var iv: Array = rec["intervals"]
+	if not iv.is_empty() and float(iv[iv.size() - 1][1]) < 0.0:
+		return iv[iv.size() - 1]
+	return []
+
+func _push_event(ev: Dictionary) -> void:
+	if _events.size() < MAX_EVENTS_HARD:
+		_events.append(ev)
+
+# ── Snapshot ──────────────────────────────────────────────────────────────────
+
+# The immutable report. Everything the screen shows comes from here, and it is
+# plain data (no node refs), so freeing / resetting units afterwards is harmless.
+# `enemy_units` are the enemies still standing; `portrait_for` maps unit -> path.
+func snapshot(player_won: bool, enemy_units: Array) -> Dictionary:
+	var duration: float = now
+	var heroes: Array = []
+	var team := {"dealt_hp": 0, "dealt_shield": 0, "taken_hp": 0, "taken_shield": 0,
+		"heal_out": 0, "heal_self": 0}
+	for id in _order:
+		var rec: Dictionary = _heroes[id]
+		var u = _units.get(id)
+		var valid: bool = is_instance_valid(u)
+		var hp_now: int = int(u.current_hp) if valid else 0
+		var iv: Array = []
+		var alive_time := 0.0
+		for pair in rec["intervals"]:
+			var s: float = float(pair[0])
+			var e: float = float(pair[1])
+			if e < 0.0:
+				# Still open at the final whistle: standing heroes are alive until
+				# the end; a node that reads dead with no recorded death is closed
+				# now rather than credited with surviving.
+				e = duration
+			e = clampf(e, s, maxf(duration, s))
+			iv.append([s, e])
+			alive_time += e - s
+		var survived: bool = valid and hp_now > 0
+		var out := rec.duplicate()
+		out["intervals"] = iv
+		out["alive_time"] = alive_time
+		out["survived"] = survived
+		out["level"] = int(u.level) if valid else 0
+		out["portrait"] = BattleRecorder.portrait_path(u) if valid else ""
+		out["hp_end"] = hp_now
+		out["max_hp_end"] = int(u.max_hp) if valid else 0
+		heroes.append(out)
+		for k in team.keys():
+			team[k] += int(rec[k])
+	var survivors: Array = []
+	var all_enemies: Array = []
+	var hp_sum := 0
+	var max_sum := 0
+	for e in enemy_units:
+		if not (is_instance_valid(e) and e.current_hp > 0):
+			continue
+		var eid: int = e.get_instance_id()
+		var start_max: int = int(_enemy_start_max.get(eid, e.max_hp))
+		survivors.append({
+			"name": String(e.unit_name),
+			"portrait": BattleRecorder.portrait_path(e),
+			"hp": int(e.current_hp),
+			"max_hp": int(e.max_hp),          # combat-effective max HP, read live
+			"start_max_hp": start_max,         # what it was when first seen
+			"summoned": bool(e.is_summoned),
+		})
+		hp_sum += int(e.current_hp)
+		max_sum += int(e.max_hp)
+	for eid in _enemy_records:
+		var enemy_unit = _enemy_units.get(eid)
+		var enemy: Dictionary = _enemy_record(enemy_unit) if is_instance_valid(enemy_unit) else _enemy_records[eid]
+		all_enemies.append(enemy)
+	var report := {
+		"version": 1,
+		"won": player_won,
+		"duration": duration,
+		"heroes": heroes,
+		"events": _sorted_events(),
+		"enemies": {
+			"seen": _enemy_seen, "remaining": survivors.size(),
+			"hp": hp_sum, "max_hp": max_sum, "survivors": survivors,
+			"all": all_enemies,
+		},
+		"team": team,
+		"unattributed_taken": _unattributed_taken,
+		"notes": [
+			"Damage and healing are effective amounts: overkill, overheal and expired shields are excluded.",
+			"Shields are credited to the hero they protected, not to whoever cast them.",
+		],
+	}
+	report["takeaway"] = BattleRecorder.build_takeaway(report)
+	_active = false
+	_units.clear()    # drop node refs; the report is plain data from here on
+	_enemy_units.clear()
+	return report
+
+func _sorted_events() -> Array:
+	var out: Array = _events.duplicate(true)
+	out.sort_custom(func(a, b): return float(a["t"]) < float(b["t"]))
+	return out
+
+# ── Portraits ─────────────────────────────────────────────────────────────────
+
+# A res:// texture path (static art, never a live node), or "" when the unit has
+# no registered picture - the screen then draws an initial instead.
+static func portrait_path(u) -> String:
+	if not is_instance_valid(u) or not (u is UnitBase):
+		return ""
+	if u.is_player_unit and VisualUnit.HERO_SPRITE_PATHS.has(u.unit_class):
+		return String(VisualUnit.HERO_SPRITE_PATHS[u.unit_class])
+	var folder := ""
+	if u.has_meta("sprite_folder"):
+		folder = str(u.get_meta("sprite_folder"))
+	elif u.has_method("get_class_sprite_folder"):
+		folder = str(u.get_class_sprite_folder())
+	if VisualUnit.MONSTER_SPRITE_PATHS.has(folder):
+		return String(VisualUnit.MONSTER_SPRITE_PATHS[folder])
+	return ""
+
+# ── Takeaway ──────────────────────────────────────────────────────────────────
+
+static func fmt_time(t: float) -> String:
+	if t < 100.0:
+		return "%.1fs" % t
+	return "%dm %02ds" % [int(t) / 60, int(t) % 60]
+
+# ONE factual sentence, every clause backed by a recorded timestamp or count.
+# No causal claims ("because"), no advice. Returns "" when nothing is verifiable.
+static func build_takeaway(r: Dictionary) -> String:
+	var heroes: Array = r.get("heroes", [])
+	var team: Dictionary = r.get("team", {})
+	if heroes.is_empty():
+		return ""
+	if int(team.get("dealt_hp", 0)) + int(team.get("taken_hp", 0)) + int(team.get("heal_out", 0)) == 0:
+		return "No damage or healing was recorded in this fight."
+	var deaths: Array = []
+	for e in r.get("events", []):
+		if e["kind"] == "death":
+			deaths.append(e)
+	var parts: Array = []
+	if bool(r.get("won", false)):
+		if deaths.is_empty():
+			parts.append("Every hero stood through the whole %s fight." % fmt_time(float(r["duration"])))
+		else:
+			parts.append("%d hero fall%s during the fight, the first at %s (%s)." % [
+				deaths.size(), "" if deaths.size() == 1 else "s",
+				fmt_time(float(deaths[0]["t"])), deaths[0]["name"]])
+	elif deaths.is_empty():
+		return ""
+	else:
+		var first: Dictionary = deaths[0]
+		var last: Dictionary = deaths[deaths.size() - 1]
+		var t1: float = float(first["t"])
+		var t2: float = float(last["t"])
+		if heroes.size() == 1:
+			parts.append("%s fell at %s." % [first["name"], fmt_time(t1)])
+		elif t2 - t1 < SAME_MOMENT:
+			parts.append("Your team fell together at %s." % fmt_time(t1))
+		elif first["hero"] == last["hero"]:
+			parts.append("%s fell first at %s and again at %s." % [first["name"], fmt_time(t1), fmt_time(t2)])
+		else:
+			parts.append("%s fell first at %s; %s held on for %s more." % [
+				first["name"], fmt_time(t1), last["name"], fmt_time(t2 - t1)])
+	var en: Dictionary = r.get("enemies", {})
+	if not bool(r.get("won", false)) and int(en.get("remaining", 0)) > 0:
+		parts.append("%d of %d enemy unit%s still stood." % [
+			int(en["remaining"]), int(en["seen"]), "" if int(en["seen"]) == 1 else "s"])
+	return " ".join(parts)
+
+# Secondary, optional observation. Share of effective damage only.
+static func damage_share_note(r: Dictionary) -> String:
+	var total: int = int(r.get("team", {}).get("dealt_hp", 0))
+	if total <= 0 or r.get("heroes", []).size() < 2:
+		return ""
+	var best: Dictionary = {}
+	var tie := false
+	for h in r["heroes"]:
+		if best.is_empty() or int(h["dealt_hp"]) > int(best["dealt_hp"]):
+			best = h
+			tie = false
+		elif int(h["dealt_hp"]) == int(best["dealt_hp"]):
+			tie = true
+	if tie or best.is_empty():
+		return ""
+	var pct: int = int(round(100.0 * float(best["dealt_hp"]) / float(total)))
+	if pct < 60:
+		return ""
+	return "%s dealt %d%% of the team's recorded damage." % [best["name"], pct]

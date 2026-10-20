@@ -16,6 +16,7 @@ func _fresh() -> Dictionary:
 	add_child(grid); add_child(mgr); add_child(fx)
 	mgr.initialize(grid, null)
 	mgr.skill_effect_container = fx
+	var shots := Node2D.new(); add_child(shots); mgr.projectile_container = shots
 	return {"grid": grid, "mgr": mgr}
 
 func _mk(mgr, grid, unit, cell: Vector2i, player: bool):
@@ -101,12 +102,12 @@ func _test_shot_is_not_instant() -> void:
 	mgr._tick_lizard_aims(AutoBattleManager.LIZARD_AIM_TIME + 0.01)
 	_check(vic.current_hp == hp0,
 		"damage landed the instant the aim finished — the bolt must travel")
-	_check(mgr.projectiles.size() >= 1 or _count_bolts(mgr) >= 1,
+	_check(_count_bolts(mgr) >= 1,
 		"no travelling bolt was spawned after the aim completed")
 
 func _count_bolts(mgr) -> int:
 	var n := 0
-	for p in mgr.projectiles:
+	for p in mgr.projectile_container.get_children():
 		if p and is_instance_valid(p) and p.pierce_row >= 0:
 			n += 1
 	return n

@@ -30,26 +30,29 @@ func _build_ui() -> void:
 	_panel = Panel.new()
 	# 620 → 660 (2026-08-04) to fit the export button row + its status line
 	# without the label overhanging the panel's bottom edge.
-	_panel.size = Vector2(760, 660)
-	_panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+	# 2026-09-27 screen audit: shared menu chrome (banner + flat surface, dark
+	# and light); everything below the banner moved down 20px (660 -> 680).
+	_panel.size = Vector2(760, 680)
+	_panel.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 	overlay.add_child(_panel)
+	UITheme.menu_header(_panel, Rect2(14, 12, 732, 88))
 	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
 	_panel.position = (vp - _panel.size) / 2.0
 
-	_lbl(_panel, "RUN HISTORY", 24, Color(0.95, 0.82, 0.5), Vector2(0, 18), Vector2(760, 36), true)
-	_stats_lbl = _lbl(_panel, "", 15, Color(0.72, 0.78, 0.92), Vector2(24, 60), Vector2(712, 26), true)
-	var sep := HSeparator.new(); sep.position = Vector2(24, 92); sep.size = Vector2(712, 4)
+	_lbl(_panel, "RUN HISTORY", 24, UITheme.menu_title_color(), Vector2(0, 14), Vector2(760, 40), true)
+	_stats_lbl = _lbl(_panel, "", 15, UITheme.menu_subtitle_color(), Vector2(24, 54), Vector2(712, 26), true)
+	var sep := HSeparator.new(); sep.position = Vector2(24, 112); sep.size = Vector2(712, 4)
 	_panel.add_child(sep)
 
 	# Column header
-	_lbl(_panel, "Result", 12, Color(0.6, 0.6, 0.72), Vector2(40, 100), Vector2(120, 20))
-	_lbl(_panel, "Wave", 12, Color(0.6, 0.6, 0.72), Vector2(210, 100), Vector2(80, 20))
-	_lbl(_panel, "Kills", 12, Color(0.6, 0.6, 0.72), Vector2(320, 100), Vector2(80, 20))
-	_lbl(_panel, "Damage", 12, Color(0.6, 0.6, 0.72), Vector2(430, 100), Vector2(110, 20))
-	_lbl(_panel, "When", 12, Color(0.6, 0.6, 0.72), Vector2(570, 100), Vector2(160, 20))
+	_lbl(_panel, "Result", 12, UITheme.menu_subtitle_color(), Vector2(40, 120), Vector2(120, 20))
+	_lbl(_panel, "Wave", 12, UITheme.menu_subtitle_color(), Vector2(210, 120), Vector2(80, 20))
+	_lbl(_panel, "Kills", 12, UITheme.menu_subtitle_color(), Vector2(320, 120), Vector2(80, 20))
+	_lbl(_panel, "Damage", 12, UITheme.menu_subtitle_color(), Vector2(430, 120), Vector2(110, 20))
+	_lbl(_panel, "When", 12, UITheme.menu_subtitle_color(), Vector2(570, 120), Vector2(160, 20))
 
 	var scroll := ScrollContainer.new()
-	scroll.position = Vector2(24, 128)
+	scroll.position = Vector2(24, 148)
 	scroll.size = Vector2(712, 428)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_panel.add_child(scroll)
@@ -61,17 +64,17 @@ func _build_ui() -> void:
 	# Export (2026-08-04): external testers can't be asked to dig a JSON out of
 	# %APPDATA%, so this drops a dated copy on their Desktop and opens the folder.
 	var export_btn := Button.new()
-	export_btn.text = "⇩  Export Run Data"; export_btn.position = Vector2(150, 566); export_btn.size = Vector2(220, 40)
+	export_btn.text = "⇩  Export Run Data"; export_btn.position = Vector2(150, 586); export_btn.size = Vector2(220, 40)
 	UITheme.apply_font(export_btn, UITheme.FONT_HEADER)
 	export_btn.tooltip_text = "Save run summaries and detailed decision telemetry to your Desktop."
 	UITheme.style_button(export_btn)
 	export_btn.pressed.connect(_on_export)
 	_panel.add_child(export_btn)
 
-	_export_lbl = _lbl(_panel, "", 12, Color(0.6, 0.85, 0.65), Vector2(24, 616), Vector2(712, 22), true)
+	_export_lbl = _lbl(_panel, "", 12, Color(0.6, 0.85, 0.65), Vector2(24, 636), Vector2(712, 22), true)
 
 	var close_btn := Button.new()
-	close_btn.text = "✕  Close"; close_btn.position = Vector2(390, 566); close_btn.size = Vector2(220, 40)
+	close_btn.text = "✕  Close"; close_btn.position = Vector2(390, 586); close_btn.size = Vector2(220, 40)
 	UITheme.apply_font(close_btn, UITheme.FONT_HEADER)
 	UITheme.style_button(close_btn)
 	close_btn.pressed.connect(_close)
@@ -121,16 +124,27 @@ func _refresh() -> void:
 		_list.add_child(_row(e))
 
 func _row(e: Dictionary) -> Control:
-	var row := Control.new()
-	row.custom_minimum_size = Vector2(700, 26)
+	var row := Panel.new()
+	row.custom_minimum_size = Vector2(700, 28)
+	# Faint alternating stripe so a long list can be scanned across its columns.
+	var stripe := StyleBoxFlat.new()
+	stripe.bg_color = Color(0, 0, 0, 0.0)
+	if _list.get_child_count() % 2 == 1:
+		stripe.bg_color = Color(0, 0, 0, 0.06) if UITheme.is_light() else Color(1, 1, 1, 0.04)
+	row.add_theme_stylebox_override("panel", stripe)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var won: bool = bool(e.get("won", false))
+	var light := UITheme.is_light()
+	var win_col := Color(0.14, 0.50, 0.20) if light else Color(0.5, 0.95, 0.55)
+	var loss_col := Color(0.66, 0.16, 0.12) if light else Color(0.95, 0.5, 0.5)
 	var res := _lbl(row, "✔ Victory" if won else "✕ Defeat", 13,
-		Color(0.5, 0.95, 0.55) if won else Color(0.95, 0.5, 0.5), Vector2(16, 0), Vector2(150, 26))
+		win_col if won else loss_col, Vector2(16, 0), Vector2(150, 28))
 	res.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_lbl(row, "%d" % int(e.get("wave", 0)), 13, Color(0.9, 0.9, 0.95), Vector2(186, 0), Vector2(80, 26))
-	_lbl(row, "%d" % int(e.get("kills", 0)), 13, Color(0.9, 0.9, 0.95), Vector2(296, 0), Vector2(80, 26))
-	_lbl(row, "%d" % int(e.get("damage", 0)), 13, Color(0.9, 0.9, 0.95), Vector2(406, 0), Vector2(110, 26))
-	_lbl(row, str(e.get("when", "")), 12, Color(0.6, 0.6, 0.72), Vector2(546, 0), Vector2(160, 26))
+	var val_col := UITheme.menu_body_color()
+	_lbl(row, "%d" % int(e.get("wave", 0)), 13, val_col, Vector2(186, 0), Vector2(80, 28))
+	_lbl(row, "%d" % int(e.get("kills", 0)), 13, val_col, Vector2(296, 0), Vector2(80, 28))
+	_lbl(row, "%d" % int(e.get("damage", 0)), 13, val_col, Vector2(406, 0), Vector2(110, 28))
+	_lbl(row, str(e.get("when", "")), 12, UITheme.menu_subtitle_color(), Vector2(546, 0), Vector2(160, 28))
 	return row
 
 func _close() -> void:

@@ -20,6 +20,8 @@ enum Mode {
 	TEAR_SEAM,       # Tear: space splits open at a cell (origin AND destination)
 	COLLAPSE_WELL,   # Collapse: the centre void well, telegraph -> implosion
 	COLLAPSE_DRAG,   # Collapse: one enemy's streak from where it stood to centre
+	PORTAL_IN,       # Tear: the mouth the victim FALLS INTO, at the old tile
+	PORTAL_OUT,      # Tear: the mouth the victim DROPS OUT OF, at the new tile
 }
 
 const VOID  := Color(0.10, 0.01, 0.24)   # near-black indigo — the broad body
@@ -48,7 +50,10 @@ func setup_point(kind: Mode, world_pos: Vector2, life: float = 0.4,
 	global_position = world_pos
 	lifetime = life
 	target = follow
-	z_index = 7
+	# House layering: ground marks sit at z 1 (over the grass, UNDER the units,
+	# matching JuneVFX.GROUND_Z) so the body visibly sinks INTO the mouth instead
+	# of the mouth being painted over the body. Everything else stays at 7.
+	z_index = 1 if kind in [Mode.PORTAL_IN, Mode.PORTAL_OUT] else 7
 	queue_redraw()
 
 func setup_pair(kind: Mode, from: Node2D, to: Node2D, life: float = 0.34) -> void:
@@ -75,10 +80,25 @@ func setup_streak(kind: Mode, start: Vector2, finish: Vector2, life: float = 0.3
 func pulse() -> void:
 	_pulse = 1.0
 
+## Battle clock, matching CrossVFX/DocVFX/BouncerInhaleVFX. RiftVFX ran on RAW
+## delta until 2026-10-01, so every effect played at real speed no matter what
+## the pace control said: at 0.25x the board crawled and the Tear portals still
+## flashed past in a third of a second, which is exactly how the owner found it.
+## Returns 0 while paused so an effect cannot age behind a pause screen either.
+func _clock() -> float:
+	var src: Node2D = source if source and is_instance_valid(source) else target
+	var bm = src.get("battle_manager") if src and is_instance_valid(src) else null
+	if bm == null:
+		return 1.0
+	if bm.get("paused"):
+		return 0.0
+	return float(bm.get("time_scale")) if bm.get("time_scale") != null else 1.0
+
 func _process(delta: float) -> void:
-	elapsed += delta
+	var dt: float = delta * _clock()
+	elapsed += dt
 	if _pulse > 0.0:
-		_pulse = maxf(0.0, _pulse - delta * 3.2)
+		_pulse = maxf(0.0, _pulse - dt * 3.2)
 	if mode == Mode.BACKLASH_AURA:
 		# Self-freeing: the aura advertises a passive that only a living Rift has.
 		if not (target and is_instance_valid(target)) or target.current_hp <= 0:
@@ -125,6 +145,8 @@ func _draw() -> void:
 		Mode.BACKLASH_AURA: _draw_backlash_aura()
 		Mode.BACKLASH_ARC:  _draw_backlash_arc()
 		Mode.TEAR_SEAM:     _draw_tear_seam()
+		Mode.PORTAL_IN:     _draw_portal(true)
+		Mode.PORTAL_OUT:    _draw_portal(false)
 		Mode.COLLAPSE_WELL: _draw_collapse_well()
 		Mode.COLLAPSE_DRAG: _draw_collapse_drag()
 
@@ -224,6 +246,56 @@ func _draw_tear_seam() -> void:
 		_bolt(Vector2(off, -h * 0.5), Vector2(off, h * 0.5), 1.5,
 				a * (0.55 + 0.45 * open), float(i) * 13.0, 6.0 * open)
 	draw_line(Vector2(0, -h * 0.5), Vector2(0, h * 0.5), Color(CORE.r, CORE.g, CORE.b, a), 1.6)
+
+## Tear's two mouths (owner 2026-10-01: "a portal under the enemy, they fall in,
+## then fall out a new portal at the new location"). A flat ellipse on the GROUND,
+## not the old vertical seam -- you have to believe a body can go DOWN through it.
+##
+## The ellipse is foreshortened to 0.42 of its width because the board fakes a
+## 28 deg downward tilt (BoardPerspective.PITCH_DEG); a true circle would read as
+## a disc standing upright in the grass.
+##
+## IN opens fast and holds while the victim is still falling through it; OUT
+## holds, then snaps shut behind them. An iris curve drives the radius, so the
+## mouth DILATES rather than fading in -- that is what reads as an opening.
+func _draw_portal(is_entry: bool) -> void:
+	var a := _fade()
+	var t := clampf(elapsed / lifetime, 0.0, 1.0)
+	var iris: float
+	if is_entry:
+		iris = sin(clampf(t / 0.22, 0.0, 1.0) * PI * 0.5) - clampf((t - 0.70) / 0.30, 0.0, 1.0)
+	else:
+		iris = sin(clampf(t / 0.16, 0.0, 1.0) * PI * 0.5) - clampf((t - 0.74) / 0.26, 0.0, 1.0)
+	iris = clampf(iris, 0.0, 1.0)
+	if iris <= 0.01:
+		return
+	# Sized against the board, not by eye: BackgroundLayer.CELL is 110, and a mouth
+	# a whole unit drops through has to read as most of the tile it is under. 30.0
+	# was 55% of a cell wide and the owner could not pick it out at 0.25x pace.
+	var rx: float = 46.0 * iris
+	var ry: float = rx * 0.42
+	var ring := PackedVector2Array()
+	for i in range(29):
+		var th := TAU * float(i) / 28.0
+		ring.append(Vector2(cos(th) * rx, sin(th) * ry))
+	# The mouth is a HOLE, so its body is the broad near-black void.
+	draw_colored_polygon(ring, Color(VOID.r, VOID.g, VOID.b, 0.92 * a))
+	draw_polyline(ring, Color(DEEP.r, DEEP.g, DEEP.b, 0.95 * a), 3.0)
+	# An inset hot lip, so the rim reads as depth rather than a flat disc.
+	var lip := PackedVector2Array()
+	for i in range(29):
+		var th2 := TAU * float(i) / 28.0
+		lip.append(Vector2(cos(th2) * rx * 0.62, sin(th2) * ry * 0.62))
+	draw_polyline(lip, Color(ARC.r, ARC.g, ARC.b, 0.55 * a), 2.0)
+	# Forked discharge spitting off the rim -- the house language, kept sparse so
+	# the mouth stays the subject.
+	for i in range(5):
+		var th3 := TAU * (float(i) / 5.0) + (0.6 if is_entry else -0.6)
+		var p0 := Vector2(cos(th3) * rx * 0.9, sin(th3) * ry * 0.9)
+		var p1 := Vector2(cos(th3) * rx * 1.5, sin(th3) * ry * 1.5 - 11.0 * iris)
+		_bolt(p0, p1, 1.6, a * 0.8 * iris, float(i) * 7.0, 5.0 * iris)
+	draw_line(Vector2(-rx * 0.5, 0.0), Vector2(rx * 0.5, 0.0),
+			Color(CORE.r, CORE.g, CORE.b, 0.5 * a * iris), 1.4)
 
 # ── Ultimate: Collapse ────────────────────────────────────────────────────────
 # Telegraph -> convergence -> implosion. The footprint is honestly board-wide

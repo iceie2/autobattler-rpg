@@ -258,6 +258,102 @@ NAME_MAP = {
     # dying_backwards is doubly right here: it keeps the legs together through
     # the fall (kind to the coat), and a hollow suit of clothes dropping flat
     # when the soul leaves it is the death this character should have.
+    # Sear / Spore / Pastor (2026-10-01), built as one batch on the last of an
+    # expiring credit pot. EVERY ability key below carries a per-hero suffix,
+    # renamed in each hero's raw/_merge staged copy. That is not caution for its
+    # own sake: `mage_soell_cast_5` is used by Sear AND Pastor in this very batch
+    # (as attack and skill respectively), and _7/_8/Charged_Spell_Cast are
+    # already Vail's, Reed's and Cross's. NAME_MAP is one dict, so unsuffixed
+    # keys would have silently overwritten each other -- the exact failure that
+    # broke Lumen's re-merge when Reed landed.
+    #
+    # Clip picks follow the cloth rule. Sear and Pastor wear mid-shin robes, so
+    # they get PLANTED casts only; Spore is solid bark plates with root legs and
+    # no cloth at all, so he takes the lunging ones (131/133/135) that Vail's
+    # report rejected for gowns. Measured hand travel over the trimmed window:
+    #     spore  attack 6.30  skill 4.56  ult 6.96   <- punchy, as intended
+    #     pastor attack 2.05  skill 1.32  ult 5.87
+    #     sear   attack 0.95  skill 0.84  ult 2.78   <- see the open item
+    "mage_soell_cast_5_sear": "attack",     # action 134, trimmed f79-f103. The
+                                            # ONLY non-lunging cast still free;
+                                            # 275 frames of a planted gesture
+                                            # loop, so the window is a pick from
+                                            # a long low-travel stretch.
+    "mage_soell_cast_8_sear": "skill",      # action 137, trimmed f2-f26. A
+                                            # sustained channel -- right for a
+                                            # damage-over-time burn, which is
+                                            # what his ACTIVE actually applies.
+    "mage_soell_cast_1_sear": "ult",        # action 130, trimmed f13-f37.
+                                            # REPLACEMENT. Action 125 was tried
+                                            # first (the window Lumen uses) and
+                                            # REJECTED: it tore Sear's mid-shin
+                                            # robe at 2.84x with 10 frames past
+                                            # the 2.6 torn line. Freezing the
+                                            # legs barely helped (2.84 -> 2.79)
+                                            # because the tear is driven by the
+                                            # TORSO pitching, and Hips is
+                                            # excluded from that tool's set --
+                                            # the same wall Vail's ult hit. 130
+                                            # gathers low then flings WIDE,
+                                            # which is also the better read for
+                                            # Conflagration: it SPREADS the burn
+                                            # to every enemy rather than
+                                            # dropping something on one.
+    "mage_soell_cast_4_spore": "attack",    # action 133, trimmed f11-f35
+    "mage_soell_cast_6_spore": "skill",     # action 135, trimmed f18-f42
+    "mage_soell_cast_2_spore": "ult",       # action 131, trimmed f8-f32 -- leap
+                                            # into both arms overhead, which is
+                                            # "burst every spore cloud".
+    "mage_soell_cast_7_pastor": "attack",   # action 136, trimmed f2-f26
+    "mage_soell_cast_5_pastor": "skill",    # action 134, a DIFFERENT window of
+                                            # the same long clip Sear attacks
+                                            # from (f222-f246 vs f79-f103).
+    "walking_man_pastor": "walk",           # see the WALK note below
+    "walking_man_spore": "walk",            # see the WALK note below
+    "Shouting_Angrily_pastor": "ult",       # action 51, trimmed f10-f34. He is a
+                                            # preacher: both arms thrown wide in
+                                            # a proclamation, and his ult weakens
+                                            # EVERY enemy for the round. Riot
+                                            # maps the unsuffixed key to "ult"
+                                            # too, so this one would not have
+                                            # collided -- suffixed anyway so the
+                                            # batch is uniform.
+    # "Hit_Reaction_1" -> hurt and "dying_backwards" -> death are already mapped
+    # above and apply unchanged.
+    #
+    # WALK, and why Pastor and Spore break the house "run IS walk" rule: measured
+    # on skirt_stress, the RUN cycle tears both of them -- Pastor 2.74x and Spore
+    # 3.36x, against a 2.6 "torn" threshold -- while their WALK cycle sits safely
+    # under it (2.23x and 2.28x). Both are move 2, the slowest tier, so a walking
+    # gait is the honest read for them anyway. Their staged _merge directories
+    # therefore OMIT the running export, and "walking_man" lands on `walk`.
+    # Sear keeps the run (2.42x, marginal but not torn) and is move 3.
+    # None of the three has an idle: all three are synthesized with
+    # freeze_pose.py after the merge, from the tightest-stance frame of
+    # walk_slow. The engine adds a procedural bob + breathe on top of every
+    # clip (visual_unit.gd _bob_offset / _breathe_scale), so a frozen idle is
+    # not a dead-still pose on the board -- which is why this is an acceptable
+    # saving and not a corner cut.
+    #
+    # Ember (2026-10-04): molten-glass fire-sprite archer, no cloth at all, so
+    # lunging/wide-stance archery actions are safe. Suffixed like the batch
+    # above -- unsuffixed "Charged_Spell_Cast" already maps to "skill" for
+    # another hero, which would have landed her ult as a second skill.
+    # Run stays the walk (house rule; move 3, nothing to tear).
+    "Archery_Shot_1_ember": "attack",              # action 225, f1-f25: reach, nock, draw
+    "Draw_and_Shoot_from_Back_ember": "skill",     # action 222, f78-f120: raise to full draw
+    "Charged_Spell_Cast_ember": "ult",             # action 125, f18-f60: crouch-charge, arms up
+    "Hit_Reaction_with_Bow_ember": "hurt",         # action 150, f2-f21
+    "Shot_and_Slow_Fall_Backward_ember": "death",  # action 185, f44-f94: stagger to lying
+    #
+    # Rush (2026-10-05): cheetah-man street brawler, move 15. Picks read FAST so
+    # he never looks like Bouncer/Riot's heavy swings. No cloth; tail is 100%
+    # Hips-weighted (measured: zero leg weight), so the run stays the walk.
+    "Punch_Combo_1_rush": "attack",                # action 200, f16-f40: jab-cross flurry
+    "Lunge_Roundhouse_Kick_rush": "skill",         # action 208, f18-f56: Blitz, sweeps the row
+    "360_Power_Spin_Jump_rush": "ult",             # action 397, f14-f62: Afterimage blur-spin
+    "Face_Punch_Reaction_rush": "hurt",            # action 174, f12-f33
+    "Shot_and_Fall_Backward_rush": "death",        # action 183, f30-f76: stagger to lying
 }
 
 

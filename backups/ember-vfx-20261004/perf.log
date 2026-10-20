@@ -1,0 +1,38 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+Vulkan 1.4.341 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 3080
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2548)
+AUDIT_SETUP: players=2 enemies=12 stats=bb2255ea4ab26c45
+AUDIT_INVENTORY: hero_3d_viewports=2 monster_3d_viewports=12 2d_units=0
+  EMBER          3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=140
+  RIOT           3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=140
+  goblin         3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=115
+  goblin         3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=115
+  goblin         3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=115
+  goblin         3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=115
+  goblin         3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=115
+  goblin         3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=115
+  goblin         3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=115
+  goblin         3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=115
+  goblin         3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=115
+  goblin         3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=115
+  goblin         3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=115
+  goblin         3D vp=(256, 256) msaa=2 toon=false outline_pbr=true outline_px=1.5 soft=true nearest=false render_h=115
+[Battle] occupied_cells count: 14
+[Battle] Started — players: 2, enemies: 12
+AUDIT_STATE warmup_opening   battle_active=true enemies_alive=12
+AUDIT_FRAME warmup_opening   frame= 11.16 = script  1.18 + deferred  7.90 + render_pass  1.77 + rest  0.31 | nodes=1449
+AUDIT_DRAWS warmup_opening   hero vis=8 shadow=0 canvas=0 objs=8 | monster vis=36 shadow=0 canvas=0 objs=36 | main vis=0 canvas=1339
+AUDIT_PHASE warmup_opening   frames=359 avg= 11.16 p50= 10.69 p95= 12.47 p99= 26.46 max= 28.62 >33ms= 0.0% >50ms= 0.0% fps~90
+AUDIT_SPLIT warmup_opening   script= 1.18 process_mon=56.11 | hero cpu= 0.09 gpu= 0.13 | monster cpu= 0.26 gpu= 0.91 | main cpu= 0.50 gpu= 0.26 | draws=1398
+AUDIT_SPIKE warmup_opening   worst17 avg_frame= 20.13 script= 6.02 deferred= 9.79 render_pass= 2.12 rest= 2.20
+AUDIT_AB all_3d_frozen               -0.82ms ( -7.0%) | base n=774 avg= 11.67 p50= 10.72 p95= 12.60 >33= 2.3% [scr  1.5 def  8.1 rnd  1.8] | test n=835 avg= 10.85 p50=  9.98 p95= 11.89 >33= 1.4% [scr  1.4 def  8.0 rnd  1.1]
+AUDIT_AB vfx_hidden                  -0.90ms ( -7.7%) | base n=771 avg= 11.71 p50= 10.65 p95= 13.55 >33= 3.0% [scr  1.5 def  8.2 rnd  1.8] | test n=838 avg= 10.81 p50=  9.95 p95= 11.46 >33= 2.4% [scr  1.5 def  7.4 rnd  1.6]
+AUDIT_AB right_panel_hidden          -1.26ms (-10.6%) | base n=764 avg= 11.85 p50= 10.64 p95= 16.57 >33= 3.4% [scr  1.6 def  8.2 rnd  1.8] | test n=853 avg= 10.59 p50= 10.53 p95= 11.35 >33= 0.0% [scr  0.9 def  7.8 rnd  1.7]
+AUDIT_AB bars_hidden                 -0.93ms ( -7.6%) | base n=737 avg= 12.26 p50= 11.03 p95= 16.76 >33= 3.3% [scr  1.6 def  8.5 rnd  1.8] | test n=796 avg= 11.33 p50= 10.24 p95= 13.61 >33= 2.8% [scr  1.5 def  8.0 rnd  1.6]
+AUDIT_DONE battle_active=true
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

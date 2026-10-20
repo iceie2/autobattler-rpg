@@ -47,19 +47,29 @@ func _ready() -> void:
 	var xp_before: float = alive.current_xp
 	var heal_amt: int = int(alive.max_hp * 0.25)
 
-	# ── Casualty: down at 0 HP, revived by the ceremony, earns XP but no heal ─
+	# ── Casualty: revives at 10% HP, then receives the back-row 40% heal ─────
 	var downed = heroes[1] if heroes.size() > 1 else null
 	if downed:
 		mg.player_units.erase(downed)
 		downed.current_hp = 0
+		downed.home_position.y = 8
 		mg._downed_heroes.append(downed)
+		mg._snapshot_between_round_bonuses()
+		var back_heal: int = int(downed.max_hp * 0.40)
+		var snap_heal: int = -1
+		for entry in mg._pending_row_bonuses:
+			if entry.get("unit") == downed:
+				snap_heal = int(entry.get("heal", -1))
+		_check(snap_heal == back_heal,
+				"downed back-row hero earns 40%% heal (%d vs %d)" % [snap_heal, back_heal])
 
 	mg._pending_row_bonuses = [{
 		"unit": alive, "heal": heal_amt, "xp": 5.0, "front_t": 1.0, "revive": false,
 	}]
 	if downed:
 		mg._pending_row_bonuses.append({
-			"unit": downed, "heal": 0, "xp": 5.0, "front_t": 0.0, "revive": true,
+			"unit": downed, "heal": int(downed.max_hp * 0.40),
+			"xp": 5.0, "front_t": 0.0, "revive": true,
 		})
 
 	await mg._play_round_start_ceremony()
@@ -70,9 +80,12 @@ func _ready() -> void:
 			"row XP granted (%.1f → %.1f)" % [xp_before, alive.current_xp])
 	if downed:
 		_check(downed.current_hp > 0, "downed hero revived (%d HP)" % downed.current_hp)
-		_check(downed.current_hp <= int(downed.max_hp * 0.15),
-				"revive lands at ~10%% HP, not 10%% + a row heal (%d/%d)" % [
-					downed.current_hp, downed.max_hp])
+		var expected_hp: int = mini(downed.max_hp,
+				maxi(1, int(round(downed.max_hp * mg.REVIVE_HP_PCT)))
+				+ int(downed.max_hp * 0.40))
+		_check(downed.current_hp == expected_hp,
+				"revive plus back-row heal reaches 50%% HP (%d vs %d)" % [
+					downed.current_hp, expected_hp])
 		_check(downed in mg.player_units, "revived hero rejoined the roster")
 		_check(mg._downed_heroes.is_empty(), "downed list drained")
 

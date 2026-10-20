@@ -1,0 +1,26 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+[Battle] occupied_cells count: 2
+  ok  — victim parked in _downed_heroes
+  ok  — victim erased from player_units on death
+  ok  — committed Field Surgery prevents battle-end cleanup
+  ok  — revived hero is still on the player side
+  ok  — Field Surgery revived into the PLAYER zone, not the divider/enemy half (at (1, 5))
+  ok  — home_position stayed inside the player zone (was (1, 5), now (1, 5))
+  ok  — Doc-revived hero is in the run save (saved: ["Water Doc", "Normal Bouncer"])
+  ok  — victim node survived the round transition
+  ok  — Doc-revived hero rejoined player_units
+  ok  — downed list drained
+  ok  — revived hero is visible
+  ok  — revived hero is alive (698 HP)
+  ok  — revived hero is draggable in prep
+  ok  — revived hero stands in the player zone (at (1, 5))
+  ok  — revived hero is on its home cell ((1, 5) vs home (1, 5))
+  ok  — revived hero is registered on the grid cell it stands on
+  ok  — _clear_middle_row relocated the hero instead of freeing it
+  ok  — swept hero was put back in the player zone (at (0, 5))
+DOC_REVIVE_TEST: ALL PASS
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 4 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

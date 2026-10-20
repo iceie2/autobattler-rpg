@@ -263,9 +263,10 @@ func try_miracle(u: UnitBase) -> bool:
 
 # ── Roles: casts (AutoBattleManager) ─────────────────────────────────────────
 func skill_cost(u: UnitBase) -> int:
+	var cost := u.skill_mana_cost_before_modifiers()
 	if active and val("role_mage_mana") > 0.0 and _is(u, HeroVerbs.MAGE):
-		return int(round(u.skill_mana_cost * (1.0 - val("role_mage_mana"))))
-	return u.skill_mana_cost
+		return int(round(cost * (1.0 - val("role_mage_mana"))))
+	return cost
 
 # Twincast: a Mage skill's damage lands again at half on its target.
 func on_skill_cast(u: UnitBase, target, skill_dmg: int) -> void:

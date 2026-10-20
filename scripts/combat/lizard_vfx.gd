@@ -16,9 +16,52 @@ class_name LizardVFX
 
 enum Mode { AIM, ROW_WARNING, ROW_IMPACT, COLD_BLOOD }
 
-const COLD := Color(0.42, 0.82, 0.90)
-const DEEP := Color(0.16, 0.24, 0.40)
-const CORE := Color(0.88, 0.99, 1.0)
+var COLD := Color(0.42, 0.82, 0.90)
+var DEEP := Color(0.16, 0.24, 0.40)
+var CORE := Color(0.88, 0.99, 1.0)
+var element := UnitBase.Element.NORMAL
+
+static func body_colors(elem: UnitBase.Element) -> Array[Color]:
+	match elem:
+		UnitBase.Element.FIRE: return [Color(0.24,0.20,0.18), Color(0.61,0.32,0.12), Color(0.9,0.28,0.04)]
+		UnitBase.Element.WATER: return [Color(0.15,0.54,0.72), Color(0.48,0.82,0.84), Color(0.06,0.28,0.45)]
+		UnitBase.Element.EARTH: return [Color(0.55,0.43,0.22), Color(0.81,0.70,0.41), Color(0.28,0.23,0.12)]
+		UnitBase.Element.AIR: return [Color(0.58,0.80,0.65), Color(0.82,0.92,0.76), Color(0.28,0.52,0.40)]
+		UnitBase.Element.LIGHTNING: return [Color(0.49,0.31,0.70), Color(0.74,0.64,0.85), Color(0.87,0.73,0.30)]
+		_: return [Color(0.46,0.71,0.27), Color(0.70,0.85,0.44), Color(0.20,0.42,0.15)]
+
+static func effect_colors(elem: UnitBase.Element) -> Array[Color]:
+	if elem == UnitBase.Element.NORMAL:
+		return [Color(0.42,0.82,0.90), Color(0.88,0.99,1.0)]
+	return GoblinShamanVFX.element_colors(elem)
+
+func _palette(elem: UnitBase.Element) -> void:
+	element = elem
+	var colors := effect_colors(elem)
+	COLD = colors[0]
+	CORE = colors[1]
+	DEEP = COLD.darkened(0.65)
+
+static func draw_accent(canvas: CanvasItem, elem: UnitBase.Element, pos: Vector2, size: float, time: float, alpha: float = 1.0) -> void:
+	var core: Color = effect_colors(elem)[1]
+	core.a = alpha
+	match elem:
+		UnitBase.Element.WATER:
+			pos.y -= fmod(time * 20.0 + pos.x, 7.0)
+			canvas.draw_arc(pos, size * 0.7, 0, TAU, 12, core, 1.3, true)
+			canvas.draw_arc(pos + Vector2(-1,-1), size * 0.4, PI, PI * 1.5, 5, core, 1.0, true)
+		UnitBase.Element.FIRE:
+			var sway := sin(time * 18.0 + pos.x) * size * 0.25
+			canvas.draw_colored_polygon(PackedVector2Array([pos + Vector2(-size * 0.6,size * 0.4), pos + Vector2(-size * 0.4,-size * 0.4), pos + Vector2(sway,-size * 1.5), pos + Vector2(size * 0.6,size * 0.2)]), Color(1,0.3,0.03,alpha))
+			canvas.draw_line(pos, pos + Vector2(sway,-size * 0.6), core, 2.0, true)
+		UnitBase.Element.EARTH:
+			canvas.draw_colored_polygon(PackedVector2Array([pos + Vector2(-size * 0.6,0), pos + Vector2(-size * 0.2,-size * 0.7), pos + Vector2(size * 0.6,-size * 0.3), pos + Vector2(size * 0.3,size * 0.5)]), Color(0.76,0.59,0.3,alpha))
+		UnitBase.Element.AIR:
+			canvas.draw_arc(pos, size, time * 5, time * 5 + PI * 1.5, 12, core, 1.3, true)
+		UnitBase.Element.LIGHTNING:
+			canvas.draw_polyline(PackedVector2Array([pos + Vector2(-size * 0.3,-size), pos + Vector2(size * 0.4,0), pos + Vector2(-size * 0.4,0), pos + Vector2(size * 0.3,size)]), core, 1.5, true)
+		_:
+			canvas.draw_line(pos - Vector2(size * 0.6,0), pos + Vector2(size * 0.6,0), core, 1.5, true)
 
 var mode: Mode = Mode.AIM
 var elapsed := 0.0
@@ -31,14 +74,17 @@ var _spin := 0.0
 func setup_aim(caster, life: float) -> void:
 	mode = Mode.AIM
 	host = caster
+	_palette(caster.current_element)
 	lifetime = life
 	z_index = 3
 	queue_redraw()
 
-func setup_row(kind: Mode, world_origin: Vector2, points: PackedVector2Array, life: float) -> void:
+func setup_row(kind: Mode, world_origin: Vector2, points: PackedVector2Array, life: float, elem: UnitBase.Element = UnitBase.Element.NORMAL, clock_owner = null) -> void:
 	mode = kind
 	global_position = world_origin
 	row_points = points
+	host = clock_owner
+	_palette(elem)
 	lifetime = life
 	z_index = 0 if kind == Mode.ROW_WARNING else 4
 	queue_redraw()
@@ -49,11 +95,14 @@ func setup_row(kind: Mode, world_origin: Vector2, points: PackedVector2Array, li
 func setup_cold_blood(unit) -> void:
 	mode = Mode.COLD_BLOOD
 	host = unit
+	_palette(unit.current_element)
 	lifetime = INF
 	z_index = 3
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	if is_instance_valid(host) and host.has_method("_battle_clock"):
+		delta *= host._battle_clock()
 	elapsed += delta
 	_spin += delta * 2.0
 	if mode in [Mode.AIM, Mode.COLD_BLOOD]:
@@ -88,6 +137,9 @@ func _draw_aim(t: float) -> void:
 		draw_line(d * r * 1.5, d * r * 1.05,
 			Color(COLD.r, COLD.g, COLD.b, 0.35 + 0.55 * t), 2.4)
 	draw_circle(Vector2.ZERO, 2.5 + 3.5 * t, Color(CORE.r, CORE.g, CORE.b, 0.5 + 0.5 * t))
+	for i in range(3):
+		var angle := float(i) * TAU / 3.0 + elapsed
+		draw_accent(self, element, Vector2(cos(angle), sin(angle)) * (r + 6.0), 5.0, elapsed, 0.55 + t * 0.3)
 
 # ── The row it is ABOUT to pierce ───────────────────────────────────────────
 # Drawn from the real cell quads, so the highlight is the hit box, not an
@@ -127,6 +179,7 @@ func _draw_row_impact(t: float) -> void:
 			var n := (b - a).normalized().orthogonal()
 			var len: float = (10.0 + 14.0 * t) * (1.0 if i % 2 == 0 else -1.0)
 			draw_line(p, p + n * len, Color(COLD.r, COLD.g, COLD.b, 0.75 * fade), 2.2)
+			if i % 2 == 0: draw_accent(self, element, p + n * len, 6.0 * fade, elapsed, fade)
 
 # ── Persistent: it is healing because you left it alone ─────────────────────
 func _draw_cold_blood() -> void:

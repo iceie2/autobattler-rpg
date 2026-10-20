@@ -1,47 +1,47 @@
 extends CanvasLayer
 class_name ShopScreen
-# ══════════════════════════════════════════════════════════════════════════════
-# EVENT SHOP screen (2026-07-20, user spec) — the merchant's storefront.
-#
-# A full-screen modal (like relic_screen / round_reward_screen) opened at a
-# prep-phase merchant round. Renders a pre-rolled ShopGenerator stock as a row
-# of grade-tinted, priced cards. Hovering a card shows exactly what you'd get
-# (hero stat rolls / item stats / stat-upgrade value / relic effect). Buying
-# emits a per-kind signal that main_game fulfils; the card then reads "SOLD".
-# Reroll and a single discounted "sale" slot round out the services.
-#
-# ── LAYERED SHOPKEEPER (art plan) ─────────────────────────────────────────────
-# The backdrop is assets/using/gold_shop.png (goblin behind a counter, one flat
-# image). To bring it to LIFE we draw the keeper as a SEPARATE optional layer on
-# top so it can move independently of the room:
-#   BG_PATH        — the room. Ideally a keeper-LESS regen (empty counter).
-#   KEEPER_PATH    — a transparent-PNG cutout of just the shopkeeper.
-# If KEEPER_PATH exists it's layered over BG and given an idle bob + reactive
-# "bark" wobble on buy/reroll. If it's absent we simply show the flat gold_shop
-# and animate cheap room effects (lantern-glow pulse) instead — so this works
-# TODAY and upgrades to a real animated keeper the moment the two art files drop
-# in, with zero code changes. See the gen prompts in the chat / memory.
-# ══════════════════════════════════════════════════════════════════════════════
+# Traveling Merchant: responsive two-row storefront; all rewards remain pre-rolled.
 
-# Buy signals carry the slot index so main_game can call mark_sold(idx) after a
-# successful purchase (a hero blocked by a full roster, say, won't be marked).
 signal buy_hero(idx: int, cls: int, element: int, rolls: Dictionary)
 signal buy_stat(idx: int, perk: Dictionary)
 signal buy_item(idx: int, item: EquipmentItem)
 signal buy_relic(idx: int, relic: Dictionary)
 signal reroll_requested()
 signal closed()
+signal service_requested(kind: String, target: Variant, modifier: String)
+var services: MerchantWorkshop
+var _service_overlay: Control
+var _services_btn: Button
 
-# Art. The keeper-less bg + cutout are optional upgrades over the flat image.
-const BG_PATH        := "res://assets/using/gold_shop.png"
-const BG_EMPTY_PATH  := "res://assets/using/gold_shop_bg.png"      # optional: room without keeper
-const KEEPER_PATH    := "res://assets/using/gold_shop_keeper.png"  # optional: transparent keeper cutout
+const BG_PATH := "res://assets/using/gold_shop.png"
+const BG_EMPTY_PATH := "res://assets/using/traveling_merchant_v2/room.png"
+const KEEPER_PATH := "res://assets/using/traveling_merchant_v2/merchant.png"
+const PANEL_W := 1920.0
+const PANEL_H := 1080.0
+const CARD_W := 310.0
+const CARD_H := 354.0
+const BRASS := Color("8e7145")
+const CREAM := Color("f3e5c9")
+const MUTED := Color("bcb4a4")
+const COIN_PATH := "res://assets/UI/generated/coin_label.png"
 
-const PANEL_W := 1500.0
-const PANEL_H := 940.0
-const CARD_W  := 196.0
-const CARD_H  := 300.0
-const CARD_GAP := 14.0
+class ShelfBackdrop extends Control:
+	func _draw() -> void:
+		draw_rect(Rect2(0, 0, 1348, 835), Color(0.075, 0.045, 0.025, 0.86))
+		for top in [0.0, 414.0]:
+			for n in range(9):
+				var y: float = top + 30.0 + n * 40.0
+				draw_line(Vector2(12, y), Vector2(1336, y + (n % 3 - 1) * 5), Color(0.48, 0.34, 0.20, 0.08), 2.0)
+			draw_rect(Rect2(-4, top + 380, 1356, 32), Color(0, 0, 0, 0.65))
+			draw_rect(Rect2(-4, top + 380, 1356, 14), Color("674727"))
+			draw_rect(Rect2(-4, top + 394, 1356, 14), Color("352217"))
+			draw_line(Vector2(-4, top + 380), Vector2(1352, top + 380), Color("b28c55"), 3.0)
+var _groups: Dictionary = {}
+var _tip_body: RichTextLabel
+var _tip_scroll: ScrollContainer
+var _reaction: Tween
+var _tip_revision := 0
+var _keyboard_details := false
 
 var _panel:      Control
 var _title_lbl:  Label
@@ -76,10 +76,13 @@ func _ready() -> void:
 # ── Public entry ──────────────────────────────────────────────────────────────
 func open(round: int, gold: int, stock: Array) -> void:
 	_round = round
+	_service_overlay.hide()
+	services.hide()
+	if _keeper: _keeper.position.x = 36
 	_gold = gold
 	_reroll_n = 0
 	_stock = stock
-	_title_lbl.text = "THE TRAVELING MERCHANT  ·  Round %d" % round
+	_title_lbl.text = "TRAVELING MERCHANT    /    ROUND %d" % round
 	_refresh_gold(gold)
 	_rebuild_cards()
 	_set_bark("Step in, step in — finest wares this side of the wastes!")
@@ -110,346 +113,339 @@ func current_reroll_cost() -> int:
 func _build_ui() -> void:
 	var overlay := ColorRect.new()
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.color = Color(0, 0, 0, 0.86)
-	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.color = Color("100e0c")
 	add_child(overlay)
-
 	_panel = Control.new()
 	_panel.size = Vector2(PANEL_W, PANEL_H)
+	_panel.theme = Theme.new()
+	_panel.theme.default_font = preload("res://assets/Fonts/Merchant-NotoSans-Regular.ttf")
 	overlay.add_child(_panel)
-
-	# ── Background art (the room) ───────────────────────────────────────────────
 	var bg := TextureRect.new()
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	bg.texture = load(BG_EMPTY_PATH if ResourceLoader.exists(BG_EMPTY_PATH) else BG_PATH)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var bg_path := BG_EMPTY_PATH if ResourceLoader.exists(BG_EMPTY_PATH) else BG_PATH
-	bg.texture = load(bg_path) as Texture2D
-	# Soft rounded frame via a bordered panel behind, so the art reads as a card.
-	var frame := Panel.new()
-	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	frame.add_theme_stylebox_override("panel", _frame_box())
-	_panel.add_child(frame)
 	_panel.add_child(bg)
-
-	# ── Optional layered shopkeeper (animated) ──────────────────────────────────
-	# Positioned over roughly where the goblin sits in the reference art. If the
-	# cutout is absent this stays null and we animate the flat bg's glow instead.
+	_start_glow_pulse(bg)
+	_add_lantern_glow(Vector2(282, 222), Vector2(135, 190), 1.7)
+	_add_lantern_glow(Vector2(1814, 198), Vector2(170, 235), 2.3)
 	if ResourceLoader.exists(KEEPER_PATH):
 		_keeper = TextureRect.new()
-		_keeper.texture = load(KEEPER_PATH) as Texture2D
+		_keeper.texture = load(KEEPER_PATH)
 		_keeper.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		_keeper.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		_keeper.size = Vector2(PANEL_W * 0.42, PANEL_H * 0.52)
-		_keeper.position = Vector2(PANEL_W * 0.30, PANEL_H * 0.02)
-		_keeper.pivot_offset = _keeper.size * Vector2(0.5, 1.0)
+		_keeper.position = Vector2(36, 240)
+		_keeper.size = Vector2(490, 570)
+		_keeper.pivot_offset = Vector2(245, 560)
 		_keeper.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_panel.add_child(_keeper)
 		_start_keeper_idle()
-	else:
-		# Cheap life on the flat image: a slow lantern-glow pulse overlay.
-		_start_glow_pulse(bg)
-
-	# Darken the lower third so the card row + text stay readable over the art.
-	var scrim := ColorRect.new()
-	scrim.position = Vector2(0, PANEL_H * 0.52)
-	scrim.size = Vector2(PANEL_W, PANEL_H * 0.48)
-	scrim.color = Color(0.04, 0.03, 0.06, 0.72)
-	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_panel.add_child(scrim)
-
-	# ── Header ──────────────────────────────────────────────────────────────────
-	UITheme.menu_header(_panel, Rect2(205, 10, PANEL_W - 410, 135))
-	_title_lbl = _mk_label("THE TRAVELING MERCHANT", 30, UITheme.menu_title_color(),
-		Vector2(205, 47), Vector2(PANEL_W - 410, 48), true)
-	_title_lbl.add_theme_constant_override("shadow_offset_x", 2)
-	_title_lbl.add_theme_constant_override("shadow_offset_y", 2)
-	_title_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
-
-	# ── Shopkeeper bark line (reactive flavor) ──────────────────────────────────
-	_bark_lbl = _mk_label("", 19, Color(0.95, 0.92, 0.75),
-		Vector2(PANEL_W * 0.06, PANEL_H * 0.44), Vector2(PANEL_W * 0.88, 30), true)
-	_bark_lbl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
-	_bark_lbl.add_theme_constant_override("shadow_offset_x", 1)
-	_bark_lbl.add_theme_constant_override("shadow_offset_y", 1)
-
-	# ── Card row ────────────────────────────────────────────────────────────────
-	_card_row = Control.new()
-	_card_row.position = Vector2(0, PANEL_H * 0.54)
-	_card_row.size = Vector2(PANEL_W, CARD_H)
-	_card_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var header := Panel.new()
+	header.position = Vector2(32, 24)
+	header.size = Vector2(1856, 86)
+	header.add_theme_stylebox_override("panel", _flat(Color("191510"), BRASS, 1, 8))
+	_panel.add_child(header)
+	_title_lbl = _mk_label("TRAVELING MERCHANT", 32, CREAM, Vector2(58, 40), Vector2(1300, 52), false)
+	_gold_lbl = _mk_label("", 30, Color("ffce70"), Vector2(1490, 40), Vector2(360, 52), false)
+	_gold_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var dialogue := Panel.new()
+	dialogue.position = Vector2(40, 820)
+	dialogue.size = Vector2(478, 116)
+	dialogue.add_theme_stylebox_override("panel", _flat(Color("1c1813"), BRASS, 1, 8))
+	_panel.add_child(dialogue)
+	_bark_lbl = _clabel(dialogue, "", 20, CREAM, Vector2(22, 18), Vector2(434, 84), true, true)
+	_mk_label("CURIOS & COMPANY", 22, Color("d8b879"), Vector2(50, 778), Vector2(460, 40), true)
+	var shelves := ShelfBackdrop.new()
+	shelves.position = Vector2(545, 120)
+	shelves.size = Vector2(1348, 812)
+	shelves.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(shelves)
+	_card_row = VBoxContainer.new()
+	_card_row.position = Vector2(558, 128)
+	_card_row.size = Vector2(1322, 808)
+	_card_row.add_theme_constant_override("separation", 22)
 	_panel.add_child(_card_row)
-
-	# ── Footer buttons ──────────────────────────────────────────────────────────
-	_gold_lbl = _mk_label("", 24, Color(1.0, 0.85, 0.3),
-		Vector2(PANEL_W * 0.06, PANEL_H - 66), Vector2(300, 34), false)
-
-	_reroll_btn = _mk_button("↻ Reroll", Rect2(PANEL_W * 0.5 - 320, PANEL_H - 70, 300, 46))
-	_reroll_btn.pressed.connect(func(): reroll_requested.emit())
+	for row_kinds in [["hero", "item"], ["stat", "relic"]]:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 24)
+		row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_card_row.add_child(row)
+		for kind in row_kinds:
+			var section := VBoxContainer.new()
+			section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			section.add_theme_constant_override("separation", 10)
+			row.add_child(section)
+			var heading := Label.new()
+			heading.text = {"hero": "HEROES", "item": "EQUIPMENT", "stat": "STAT UPGRADES", "relic": "RELIC"}[kind]
+			UITheme.apply_font(heading, 22)
+			heading.add_theme_color_override("font_color", Color("d8b879"))
+			section.add_child(heading)
+			var offers := HBoxContainer.new()
+			offers.add_theme_constant_override("separation", 16)
+			offers.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			section.add_child(offers)
+			_groups[kind] = offers
+	var footer := Panel.new()
+	footer.position = Vector2(32, 966)
+	footer.size = Vector2(1856, 86)
+	footer.add_theme_stylebox_override("panel", _flat(Color("191510"), BRASS, 1, 8))
+	_panel.add_child(footer)
+	var service_button := _mk_button("Merchant Services", Rect2(58, 982, 330, 54))
+	_services_btn = service_button
+	service_button.pressed.connect(func():
+		_hide_tooltip()
+		if _keeper: create_tween().tween_property(_keeper, "position:x", -85.0, 0.3)
+		_service_overlay.show()
+		services.open())
+	_panel.add_child(service_button)
+	_mk_label("Reforge · Enchant", 20, MUTED, Vector2(410, 991), Vector2(680, 32), false)
+	_reroll_btn = _mk_button("", Rect2(1110, 982, 430, 54))
+	_reroll_btn.pressed.connect(func():
+		_hide_tooltip()
+		reroll_requested.emit())
 	_panel.add_child(_reroll_btn)
-
-	_leave_btn = _mk_button("Leave Shop", Rect2(PANEL_W * 0.5 + 20, PANEL_H - 70, 300, 46))
+	_leave_btn = _mk_button("Leave Shop  ›", Rect2(1560, 982, 300, 54))
 	_leave_btn.pressed.connect(_on_leave)
 	_panel.add_child(_leave_btn)
-
-	# ── Floating tooltip (built once, shown on hover) ───────────────────────────
+	for action in [_services_btn, _reroll_btn, _leave_btn]:
+		action.mouse_entered.connect(_hide_tooltip)
+		action.focus_entered.connect(_hide_tooltip)
 	_tooltip = Panel.new()
-	_tooltip.add_theme_stylebox_override("panel", UITheme.panel_box())
+	_tooltip.position = Vector2(40, 140)
+	_tooltip.size = Vector2(478, 598)
+	_tooltip.add_theme_stylebox_override("panel", _flat(Color("171b1a"), Color("c4a66a"), 2, 10))
 	_tooltip.visible = false
-	_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tooltip.z_index = 10
-	add_child(_tooltip)
-
+	_panel.add_child(_tooltip)
+	_tip_scroll = ScrollContainer.new()
+	_tip_scroll.position = Vector2(22, 22)
+	_tip_scroll.size = Vector2(434, 554)
+	_tip_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_tooltip.add_child(_tip_scroll)
+	_tip_body = RichTextLabel.new()
+	_tip_body.bbcode_enabled = false
+	_tip_body.fit_content = true
+	_tip_body.scroll_active = false
+	_tip_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UITheme.apply_rich_font(_tip_body, 20)
+	_tip_body.add_theme_color_override("default_color", CREAM)
+	_tip_scroll.add_child(_tip_body)
+	_service_overlay = Control.new()
+	_service_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_service_overlay.z_index = 20
+	_panel.add_child(_service_overlay)
+	var shade := ColorRect.new()
+	shade.position = Vector2(375, 110)
+	shade.size = Vector2(1535, 950)
+	shade.color = Color(0, 0, 0, 0.76)
+	_service_overlay.add_child(shade)
+	services = MerchantWorkshop.new()
+	_service_overlay.add_child(services)
+	services.purchase_requested.connect(func(kind, target, modifier): service_requested.emit(kind, target, modifier))
+	services.closed.connect(func():
+		_service_overlay.hide()
+		if _keeper: create_tween().tween_property(_keeper, "position:x", 36.0, 0.3)
+		service_button.grab_focus())
+	_service_overlay.hide()
+	get_viewport().size_changed.connect(_center_panel)
 	_center_panel()
 
 func _center_panel() -> void:
-	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
-	_panel.position = (vp - _panel.size) / 2.0
+	var vp := get_viewport().get_visible_rect().size
+	var ratio := minf(vp.x / PANEL_W, vp.y / PANEL_H)
+	_panel.scale = Vector2.ONE * ratio
+	_panel.position = (vp - Vector2(PANEL_W, PANEL_H) * ratio) * 0.5
 
-# ── Cards ─────────────────────────────────────────────────────────────────────
 func _rebuild_cards() -> void:
-	for c in _card_row.get_children():
-		c.queue_free()
+	_hide_tooltip()
+	for group in _groups.values():
+		for c in group.get_children():
+			group.remove_child(c)
+			c.queue_free()
 	_card_nodes.clear()
-
-	var n := _stock.size()
-	var total_w := n * CARD_W + (n - 1) * CARD_GAP
-	var start_x := (PANEL_W - total_w) / 2.0
-	var sections := [
-		["HEROES", 0, 2], ["STAT UPGRADES", 2, 2],
-		["EQUIPMENT", 4, 2], ["RELICS", 6, 1],
-	]
-	for section in sections:
-		var first: int = section[1]
-		var count: int = mini(section[2], n - first)
-		if count <= 0:
-			continue
-		var sx := start_x + first * (CARD_W + CARD_GAP)
-		var sw := count * CARD_W + (count - 1) * CARD_GAP
-		var heading := Label.new()
-		heading.text = section[0]
-		heading.position = Vector2(sx, -26)
-		heading.size = Vector2(sw, 24)
-		heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		heading.add_theme_font_size_override("font_size", 18)
-		heading.add_theme_color_override("font_color", Color(1.0, 0.88, 0.60))
-		heading.add_theme_color_override("font_shadow_color", Color.BLACK)
-		heading.add_theme_constant_override("shadow_offset_y", 2)
-		_card_row.add_child(heading)
-	for i in range(n):
-		var x := start_x + i * (CARD_W + CARD_GAP)
-		var card := _build_card(_stock[i], i, Vector2(x, 6))
-		_card_row.add_child(card)
+	for i in range(_stock.size()):
+		var card := _build_card(_stock[i], i, Vector2.ZERO)
+		_groups[_stock[i]["kind"]].add_child(card)
 		_card_nodes.append(card)
+		_update_card_affordability(card)
+	# Follow the visual reading order, independently of generator slot indices.
+	var focus_order: Array[Control] = []
+	for index in [0, 1, 4, 5, 2, 3, 6]:
+		if index < _card_nodes.size(): focus_order.append(_card_nodes[index])
+	focus_order.append_array([_services_btn, _reroll_btn, _leave_btn])
+	for i in range(focus_order.size()):
+		focus_order[i].focus_next = focus_order[(i + 1) % focus_order.size()].get_path()
+		focus_order[i].focus_previous = focus_order[(i - 1 + focus_order.size()) % focus_order.size()].get_path()
 
-func _build_card(slot: Dictionary, idx: int, pos: Vector2) -> Button:
-	var kind: String = slot.get("kind", "")
-	var grade_col := _slot_grade_color(slot)
-
-	var btn := Button.new()
-	btn.position = pos
-	btn.size = Vector2(CARD_W, CARD_H)
-	btn.pivot_offset = btn.size * 0.5
-	btn.text = ""
-	btn.clip_contents = false
-	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	btn.set_meta("slot_idx", idx)
-	# Starts on a neutral grey box — the roll (below) swaps in the grade-tinted
-	# styleboxes the instant it settles, so the border color itself is part of
-	# the reveal instead of spoiling the grade before the spin even starts.
-	var neutral := Color(0.5, 0.5, 0.55)
-	btn.add_theme_stylebox_override("normal", _flat(neutral.darkened(0.80), neutral, 3, 12))
-	btn.add_theme_stylebox_override("hover", _flat(neutral.darkened(0.70), neutral.lightened(0.25), 4, 12))
-	btn.add_theme_stylebox_override("pressed", _flat(neutral.darkened(0.72), neutral.lightened(0.1), 4, 12))
-	btn.add_theme_stylebox_override("focus", _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
-	btn.add_theme_stylebox_override("disabled", _flat(neutral.darkened(0.85), neutral.darkened(0.3), 2, 12))
-	btn.disabled = true   # re-enabled by _settle_card once the roll lands
-
-	# Kind ribbon at top.
-	_clabel(btn, _kind_title(kind).to_upper(), 12, grade_col.lightened(0.35),
-		Vector2(6, 8), Vector2(CARD_W - 12, 18), true)
-
-	# Icon/portrait — starts blank, the roll cycles through decoy icons.
+func _build_card(slot: Dictionary, idx: int, _pos: Vector2) -> Button:
+	var card := Button.new()
+	card.custom_minimum_size = Vector2(0, CARD_H)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card.set_meta("slot_idx", idx)
+	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	card.focus_mode = Control.FOCUS_ALL
+	card.add_theme_stylebox_override("normal", _flat(Color.TRANSPARENT, Color.TRANSPARENT, 0, 8))
+	card.add_theme_stylebox_override("hover", _flat(Color(0.7, 0.5, 0.25, 0.10), Color(0.8, 0.65, 0.4, 0.32), 1, 8))
+	card.add_theme_stylebox_override("pressed", _flat(Color(0, 0, 0, 0.20), Color.TRANSPARENT, 0, 8))
+	card.add_theme_stylebox_override("focus", _flat(Color.TRANSPARENT, Color("8ad2cc"), 2, 8))
+	var inset := MarginContainer.new()
+	inset.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		inset.add_theme_constant_override("margin_" + side, 14)
+	inset.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(inset)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 5)
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inset.add_child(stack)
+	var well := Panel.new()
+	well.custom_minimum_size.y = 164
+	well.add_theme_stylebox_override("panel", _flat(Color.TRANSPARENT, Color.TRANSPARENT, 0, 5))
+	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(well)
 	var icon := TextureRect.new()
-	icon.position = Vector2((CARD_W - 128) / 2.0, 28)
-	icon.size = Vector2(128, 128)
+	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	icon.offset_top = 24
+	icon.offset_bottom = -4
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture = _slot_icon(slot)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	btn.add_child(icon)
-
-	# Grade badge (top-right) — starts blank, filled in by the spin.
-	var bl := _clabel(btn, "", 22, Color.WHITE, Vector2(CARD_W - 46, 26), Vector2(38, 30), true)
-	bl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
-	bl.add_theme_constant_override("shadow_offset_x", 1)
-	bl.add_theme_constant_override("shadow_offset_y", 1)
-
-	# Name / label — "???" until the roll settles.
-	var name_lbl := _clabel(btn, "???", 16, Color(0.95, 0.95, 1.0),
-		Vector2(6, 162), Vector2(CARD_W - 12, 44), true, true)
-
-	# Short summary line (stats teaser) — blank until settled.
-	var summary_lbl := _clabel(btn, "", 12, Color(0.78, 0.80, 0.92),
-		Vector2(8, 210), Vector2(CARD_W - 16, 34), true, true)
-
-	# Price tag. On sale, show the original price crossed into the new one plus
-	# the discount percent (e.g. "9g → 5g  -45%") instead of just the sale price,
-	# so the deal actually reads as a deal. Price is already fixed at generation,
-	# so it's shown from the start — only the ITEM itself is rolled in front of
-	# the player.
-	var on_sale: bool = slot.get("on_sale", false)
+	well.add_child(icon)
+	var grade := Label.new()
+	grade.text = slot["item"].get_rarity_name().to_upper() if slot["kind"] == "item" else "GRADE " + _slot_grade_letter(slot)
+	UITheme.apply_font(grade, 17)
+	grade.add_theme_color_override("font_color", _slot_grade_color(slot).lightened(0.2))
+	grade.position = Vector2(0, 0)
+	grade.size = Vector2(190, 25)
+	grade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	well.add_child(grade)
 	var price: int = slot.get("price", 0)
-	var orig_price: int = slot.get("original_price", price)
-	var price_col := Color(1.0, 0.85, 0.3) if not on_sale else Color(1.0, 0.45, 0.4)
-	var price_txt: String
-	var price_font_sz: int
-	if on_sale and orig_price > price:
-		var pct: int = int(round((1.0 - float(price) / float(orig_price)) * 100.0))
-		price_txt = "%dg → %dg  (-%d%%)" % [orig_price, price, pct]
-		price_font_sz = 15
-	else:
-		price_txt = "%dg" % price
-		price_font_sz = 20
-	var pl := _clabel(btn, price_txt, price_font_sz, price_col,
-		Vector2(6, CARD_H - 40), Vector2(CARD_W - 12, 30), true)
-	pl.set_meta("price_lbl", true)
+	var original: int = slot.get("original_price", price)
+	if original > price:
+		var seal := Label.new()
+		seal.text = "-%d%%" % roundi(100.0 * (original - price) / original)
+		seal.position = Vector2(-76, 5)
+		seal.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		seal.size = Vector2(66, 38)
+		seal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		seal.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		seal.add_theme_stylebox_override("normal", _flat(Color("7b392d"), Color("d7ab68"), 2, 20))
+		UITheme.apply_font(seal, 18)
+		seal.add_theme_color_override("font_color", CREAM)
+		seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		well.add_child(seal)
+	var claimed := Label.new()
+	claimed.text = "SOLD"
+	claimed.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	claimed.position = Vector2(-74, -18)
+	claimed.size = Vector2(148, 36)
+	claimed.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	claimed.add_theme_stylebox_override("normal", _flat(Color("382d25"), Color("c39c6b"), 2, 4))
+	UITheme.apply_font(claimed, 23)
+	claimed.add_theme_color_override("font_color", CREAM)
+	claimed.rotation = -0.08
+	claimed.visible = false
+	claimed.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	well.add_child(claimed)
+	card.set_meta("claimed", claimed)
+	var title := Label.new()
+	title.text = _slot_name(slot)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UITheme.apply_font(title, 22)
+	title.add_theme_color_override("font_color", CREAM)
+	title.custom_minimum_size.y = 44
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.max_lines_visible = 2
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_WORD_ELLIPSIS
+	stack.add_child(title)
+	var benefit := Label.new()
+	benefit.text = _card_benefit(slot)
+	benefit.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	benefit.max_lines_visible = 1
+	benefit.custom_minimum_size.y = 26
+	benefit.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	benefit.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	benefit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	UITheme.apply_font(benefit, 20)
+	benefit.add_theme_color_override("font_color", MUTED)
+	stack.add_child(benefit)
+	var sale := Label.new()
+	sale.text = "WAS %dg  ·  SAVE %d%%" % [original, roundi(100.0 * (original - price) / original)] if original > price else " "
+	UITheme.apply_font(sale, 16)
+	sale.add_theme_color_override("font_color", Color("8bd3b2"))
+	sale.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(sale)
+	var plate := Panel.new()
+	plate.custom_minimum_size.y = 42
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(plate)
+	var coin := TextureRect.new()
+	# Ignore the source texture's minimum size before assigning it or sizing.
+	coin.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	coin.texture = load(COIN_PATH)
+	coin.position = Vector2(13, 11)
+	coin.size = Vector2(21, 21)
+	coin.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	coin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.add_child(coin)
+	var purchase := Label.new()
+	purchase.custom_minimum_size.y = 42
+	purchase.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	purchase.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	purchase.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	UITheme.apply_font(purchase, 22)
+	purchase.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.add_child(purchase)
+	card.set_meta("purchase", purchase)
+	card.set_meta("plate", plate)
+	card.set_meta("coin", coin)
+	for child in stack.get_children():
+		child.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.mouse_entered.connect(_on_card_hover.bind(idx, card))
+	card.mouse_exited.connect(_on_card_unhover)
+	card.focus_entered.connect(func():
+		_keyboard_details = true
+		_show_tooltip(_stock[idx], card))
+	card.focus_exited.connect(_hide_tooltip)
+	card.pressed.connect(_on_card_pressed.bind(idx))
+	card.modulate.a = 0.7
+	card.create_tween().tween_property(card, "modulate:a", 1.0, 0.16)
+	return card
 
-	# Hover → tooltip; press → buy.
-	btn.mouse_entered.connect(_on_card_hover.bind(idx, btn))
-	btn.mouse_exited.connect(_on_card_unhover)
-	btn.pressed.connect(_on_card_pressed.bind(idx))
-
-	_play_card_roll(btn, slot, idx, icon, bl, name_lbl, summary_lbl,
-		_slot_icon(slot), _slot_grade_letter(slot), grade_col, _slot_name(slot), _slot_summary(slot))
-	return btn
-
-# ── Roll reveal (2026-07-21, user spec: "add a sense of randomness") ─────────
-# Every card is already fully pre-rolled the instant ShopGenerator builds the
-# stock — this animation is purely a REVEAL, not a re-roll: it cycles the icon/
-# grade/name through random decoys (slot-machine deceleration) before landing
-# on the exact value the player already bought into. Cards stagger their start
-# so the whole row cascades instead of popping at once.
-const _SPIN_STEP_DELAYS: Array[float] = [0.03, 0.035, 0.04, 0.05, 0.06, 0.075, 0.095, 0.12, 0.16, 0.22]
-const _SPIN_GRADES_BY_KIND := {
-	"hero": ["F", "D", "C", "B", "A", "S"],
-	"stat": ["F", "D", "C", "B", "A", "S"],
-	"item": ["D", "C", "B", "A", "S"],
-	"relic": ["D", "C", "B", "A", "S"],
-}
-var _icon_pool_cache: Dictionary = {}
-
-func _play_card_roll(card: Button, slot: Dictionary, idx: int, icon: TextureRect,
-		badge_lbl: Label, name_lbl: Label, summary_lbl: Label,
-		final_icon: Texture2D, final_grade: String, final_color: Color,
-		final_name: String, final_summary: String) -> void:
-	var kind: String = slot.get("kind", "")
-	var pool: Array = _icon_pool_for_kind(kind)
-	var grades: Array = _SPIN_GRADES_BY_KIND.get(kind, ["D", "C", "B", "A", "S"])
-
-	var tw := create_tween()
-	tw.tween_interval(idx * 0.10)   # cascading stagger across the row
-	for d in _SPIN_STEP_DELAYS:
-		tw.tween_callback(_spin_frame.bind(icon, badge_lbl, pool, grades, kind))
-		tw.tween_interval(d)
-	tw.tween_callback(_settle_card.bind(card, icon, badge_lbl, name_lbl, summary_lbl,
-		final_icon, final_grade, final_color, final_name, final_summary, slot))
-
-func _spin_frame(icon: TextureRect, badge_lbl: Label, pool: Array, grades: Array, kind: String) -> void:
-	var g: String = grades[randi() % grades.size()]
-	if is_instance_valid(badge_lbl):
-		badge_lbl.text = g
-		badge_lbl.add_theme_color_override("font_color", _grade_color_for_kind(kind, g))
-	if is_instance_valid(icon) and not pool.is_empty():
-		icon.texture = pool[randi() % pool.size()]
-
-func _settle_card(card: Button, icon: TextureRect, badge_lbl: Label, name_lbl: Label, summary_lbl: Label,
-		final_icon: Texture2D, final_grade: String, final_color: Color,
-		final_name: String, final_summary: String, slot: Dictionary = {}) -> void:
-	if is_instance_valid(icon):
-		icon.texture = final_icon
-		# Heroes with a generated idle animation play it in place of the
-		# static portrait once the slot-machine reveal settles.
-		if slot.get("kind", "") == "hero" and is_instance_valid(card):
-			icon.visible = false
-			var anim := HeroPortrait.new()
-			anim.position = icon.position
-			anim.size = icon.size
-			anim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			card.add_child(anim)
-			anim.setup(slot["class"])
-	if is_instance_valid(badge_lbl):
-		badge_lbl.text = final_grade
-		badge_lbl.add_theme_color_override("font_color", final_color)
-	if is_instance_valid(name_lbl):
-		name_lbl.text = final_name
-	if is_instance_valid(summary_lbl):
-		summary_lbl.text = final_summary
-	if not is_instance_valid(card):
-		return
-	var bg_base: Color = final_color.darkened(0.80)
-	card.add_theme_stylebox_override("normal", _flat(bg_base, final_color, 3, 12))
-	card.add_theme_stylebox_override("hover", _flat(bg_base.lightened(0.10), final_color.lightened(0.25), 4, 12))
-	card.add_theme_stylebox_override("pressed", _flat(bg_base.darkened(0.12), final_color.lightened(0.1), 4, 12))
-	card.add_theme_stylebox_override("disabled", _flat(bg_base.darkened(0.35), final_color.darkened(0.3), 2, 12))
-	var tw := create_tween()
-	tw.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	card.scale = Vector2(1.16, 1.16)
-	tw.tween_property(card, "scale", Vector2.ONE, 0.30)
-	_update_card_affordability(card)   # also clears the forced-disabled roll state
-
-func _grade_color_for_kind(kind: String, letter: String) -> Color:
-	if kind == "relic":
-		return Relic.grade_color(letter)
-	return UnitFactory.GRADE_COLORS.get(letter, Color.WHITE)
-
-# Cached per shop instance — same textures get reused across rerolls, and
-# Godot's own resource cache means the load() calls inside are cheap after
-# the first build anyway.
-func _icon_pool_for_kind(kind: String) -> Array:
-	if _icon_pool_cache.has(kind):
-		return _icon_pool_cache[kind]
-	var pool: Array = []
-	match kind:
-		"hero":
-			for p in VisualUnit.HERO_SPRITE_PATHS.values():
-				var t := load(p) as Texture2D
-				if t:
-					pool.append(t)
-		"stat":
-			for p in UnitFactory.STAT_ICONS.values():
-				var t := load(p) as Texture2D
-				if t:
-					pool.append(t)
+func _card_benefit(slot: Dictionary) -> String:
+	match slot["kind"]:
+		"hero": return "Recruit this %s hero" % _elem_name(slot["element"]).to_lower()
+		"stat": return _slot_summary(slot)
+		"relic": return str(slot["relic"].get("desc", ""))
 		"item":
-			for p in EquipmentManager.ITEM_ICONS.values():
-				var t := load(p) as Texture2D
-				if t:
-					pool.append(t)
-		"relic":
-			for r in Relic.POOL:
-				var rp := Relic.icon_path(r)
-				if rp != "":
-					var t := load(rp) as Texture2D
-					if t:
-						pool.append(t)
-	_icon_pool_cache[kind] = pool
-	return pool
+			var bits: Array[String] = []
+			for row in EquipmentItem._STAT_DISPLAY + [["magic_resist", "MARM", "int"], ["cdr", "Haste", "int"], ["ten", "Tenacity", "int"]]:
+				var val := float(slot["item"].stat_bonus.get(row[0], 0))
+				if val > 0: bits.append(EquipmentItem.format_bonus(row, val))
+			return " · ".join(bits)
+	return ""
 
 func _update_card_affordability(card: Button) -> void:
 	var idx: int = card.get_meta("slot_idx", -1)
-	if idx < 0 or idx >= _stock.size():
-		return
+	if idx < 0 or idx >= _stock.size(): return
 	var slot: Dictionary = _stock[idx]
 	var sold: bool = slot.get("sold", false)
 	var price: int = slot.get("price", 0)
-	card.disabled = sold or _gold < price
-	if sold:
-		for child in card.get_children():
-			if child is Label and child.get_meta("price_lbl", false):
-				child.text = "SOLD"
-				child.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
-		card.modulate = Color(0.55, 0.55, 0.6, 0.9)
+	# Keep every card focusable, including sold/unaffordable rewards, for details.
+	var label: Label = card.get_meta("purchase")
+	label.text = "SOLD" if sold else ("Buy  ·  %dg" % price if _gold >= price else "Need %dg  ·  %dg" % [price - _gold, price])
+	label.add_theme_color_override("font_color", Color("c0b6a4") if sold else (Color("ffda8a") if _gold >= price else Color("e6a393")))
+	var plate: Panel = card.get_meta("plate")
+	plate.add_theme_stylebox_override("panel", _flat(Color("171511") if sold or _gold < price else Color("49391f"), BRASS, 1, 5))
+	var coin: TextureRect = card.get_meta("coin")
+	coin.visible = not sold
+	coin.modulate.a = 0.45 if _gold < price else 1.0
+	var claimed: Label = card.get_meta("claimed")
+	claimed.visible = sold
+	card.add_theme_stylebox_override("normal", _flat(Color(0, 0, 0, 0.12) if sold else Color.TRANSPARENT, Color.TRANSPARENT, 0, 8))
 
 # ── Buy flow ──────────────────────────────────────────────────────────────────
 func _on_card_pressed(idx: int) -> void:
@@ -470,6 +466,9 @@ func _on_card_pressed(idx: int) -> void:
 		"relic": buy_relic.emit(idx, slot["relic"])
 
 # main_game calls this after a successful purchase.
+func purchase_rejected(message: String) -> void:
+	_set_bark(message)
+
 func mark_sold(idx: int) -> void:
 	if idx < 0 or idx >= _stock.size():
 		return
@@ -482,60 +481,52 @@ func mark_sold(idx: int) -> void:
 
 # ── Tooltip (hover preview: exactly what you'd get) ───────────────────────────
 func _on_card_hover(idx: int, card: Button) -> void:
+	if _keyboard_details and get_viewport().gui_get_focus_owner() != card: return
 	if idx < 0 or idx >= _stock.size():
 		return
 	_show_tooltip(_stock[idx], card)
 
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion and event.relative.length_squared() > 0:
+		_keyboard_details = false
+
 func _on_card_unhover() -> void:
-	_hide_tooltip()
+	# Details stay available for scrolling until another offer is inspected or
+	# a footer action is entered. This avoids a pointer-travel race at 1920px.
+	pass
 
 func _hide_tooltip() -> void:
-	if _tooltip:
-		_tooltip.visible = false
+	_tip_revision += 1
+	if _tooltip: _tooltip.visible = false
 
 func _show_tooltip(slot: Dictionary, card: Button) -> void:
-	for c in _tooltip.get_children():
-		c.queue_free()
-
+	_tip_revision += 1
+	var revision := _tip_revision
 	var lines := _tooltip_lines(slot)
-	var tip_w := 300.0
-	var inner_w := tip_w - 24.0
-	var y := 12.0
-	var title := _mk_label_on(_tooltip, lines[0], 18, Color(1.0, 0.9, 0.55),
-		Vector2(12, y), Vector2(inner_w, 26), false)
-	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	y += _wrapped_h(title, inner_w) + 6.0
+	var text := str(lines[0]) + "\n\n"
 	for i in range(1, lines.size()):
-		var entry: Array = lines[i]
-		var l := _mk_label_on(_tooltip, entry[0], 15, entry[1],
-			Vector2(12, y), Vector2(inner_w, 22), false)
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		y += _wrapped_h(l, inner_w) + 2.0
-	_tooltip.size = Vector2(tip_w, y + 12.0)
-
-	# Position above the card, clamped to viewport.
-	var card_global := card.get_global_rect()
-	var tx: float = card_global.position.x + (CARD_W - tip_w) / 2.0
-	var ty: float = card_global.position.y - _tooltip.size.y - 8.0
-	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1920, 1080)
-	tx = clampf(tx, 8.0, vp.x - tip_w - 8.0)
-	if ty < 8.0:
-		ty = card_global.position.y + CARD_H + 8.0
-	_tooltip.position = Vector2(tx, ty)
+		text += str(lines[i][0]) + "\n"
+	text += "\n" + ("Sold — this offer has been claimed." if slot.get("sold", false) else "Price: %dg" % slot.get("price", 0))
+	_tip_body.text = text
+	_tip_scroll.scroll_vertical = 0
 	_tooltip.visible = true
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if revision != _tip_revision or not is_instance_valid(card): return
+	var body_height := minf(490.0, _tip_body.get_content_height())
+	_tooltip.size = Vector2(478, body_height + 44)
+	_tip_scroll.size = Vector2(434, body_height)
+	var card_pos := _panel.get_global_transform().affine_inverse() * card.global_position
+	_tooltip.position = Vector2(40, clampf(card_pos.y, 128, 770 - _tooltip.size.y))
 
-# Height a wrapping label actually needs at `w` px, and resize it to match.
-# Fixed row steps let a two-line description print on top of the next line.
-func _wrapped_h(l: Label, w: float) -> float:
-	var f := l.get_theme_font("font")
-	var fs := l.get_theme_font_size("font_size")
-	var h: float = float(fs) + 4.0
-	if f:
-		h = f.get_multiline_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, w, fs, -1,
-			TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_TRIM_EDGE_SPACES).y
-	h = maxf(h, float(fs))
-	l.size = Vector2(w, h)
-	return h
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not visible or not _tooltip.visible: return
+	if event.is_action_pressed("ui_page_down"):
+		_tip_scroll.scroll_vertical += 180
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_page_up"):
+		_tip_scroll.scroll_vertical -= 180
+		get_viewport().set_input_as_handled()
 
 # Returns [title_string, [line, color], [line, color], ...]
 func _tooltip_lines(slot: Dictionary) -> Array:
@@ -572,6 +563,9 @@ func _tooltip_lines(slot: Dictionary) -> Array:
 				var val: float = float(item.stat_bonus.get(row[0], 0))
 				if val > 0.0:
 					out.append([EquipmentItem.format_bonus(row, val), Color(0.82, 0.86, 0.96)])
+			for extra in [["magic_resist", "MARM", "int"], ["cdr", "Haste", "int"], ["ten", "Tenacity", "int"]]:
+				var value := float(item.stat_bonus.get(extra[0], 0))
+				if value > 0: out.append([EquipmentItem.format_bonus(extra, value), Color(0.82, 0.86, 0.96)])
 			for line in item.get_passive_lines():
 				out.append(["◆ %s" % line, Color(1.0, 0.85, 0.30)])
 			out.append(["Goes to your bag — equip from the Equipment panel.", Color(0.7, 0.72, 0.85)])
@@ -627,6 +621,7 @@ func _slot_icon(slot: Dictionary) -> Texture2D:
 			var itex: Texture2D = GearIcons.icon_for(item)   # legacy art or component composite
 			if itex:
 				return itex
+			return load(EquipmentManager.ITEM_ICONS["Sword"]) as Texture2D
 		"relic":
 			var rpath: String = Relic.icon_path(slot["relic"])
 			if rpath != "":
@@ -723,10 +718,10 @@ func _start_keeper_idle() -> void:
 func _keeper_react() -> void:
 	if not _keeper:
 		return
-	var tw := create_tween()
-	tw.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(_keeper, "scale", Vector2(1.06, 1.06), 0.10)
-	tw.tween_property(_keeper, "scale", Vector2(1.0, 1.0), 0.22)
+	if _reaction: _reaction.kill()
+	_reaction = create_tween()
+	_reaction.tween_property(_keeper, "rotation", -0.025, 0.10)
+	_reaction.tween_property(_keeper, "rotation", 0.0, 0.22)
 
 func _animate_keeper_intro() -> void:
 	if not _keeper:
@@ -735,12 +730,35 @@ func _animate_keeper_intro() -> void:
 	var tw := create_tween()
 	tw.tween_property(_keeper, "modulate", Color.WHITE, 0.35)
 
+func _add_lantern_glow(center: Vector2, extent: Vector2, period: float) -> void:
+	var gradient := Gradient.new()
+	gradient.colors = PackedColorArray([Color(1.0, 0.62, 0.16, 0.15), Color(1.0, 0.5, 0.1, 0.0)])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = 128
+	texture.height = 128
+	texture.fill = GradientTexture2D.FILL_RADIAL
+	texture.fill_from = Vector2(0.5, 0.5)
+	texture.fill_to = Vector2(1.0, 0.5)
+	var glow := TextureRect.new()
+	glow.texture = texture
+	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	glow.size = extent
+	glow.position = center - extent * 0.5
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(glow)
+	var flicker := glow.create_tween().set_loops()
+	flicker.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	flicker.tween_property(glow, "modulate:a", 0.35, period * 0.4)
+	flicker.tween_property(glow, "modulate:a", 0.9, period * 0.15)
+	flicker.tween_property(glow, "modulate:a", 0.6, period * 0.45)
+
 func _start_glow_pulse(bg: TextureRect) -> void:
 	# Gentle warm-light breathing on the flat image so it isn't dead-static.
 	var tw := create_tween().set_loops()
 	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_property(bg, "modulate", Color(1.06, 1.02, 0.96), 2.4)
-	tw.tween_property(bg, "modulate", Color(0.96, 0.97, 1.0), 2.4)
+	tw.tween_property(bg, "modulate", Color(1.015, 1.005, 0.99), 2.4)
+	tw.tween_property(bg, "modulate", Color(0.985, 0.98, 0.97), 2.4)
 
 # ── Close ─────────────────────────────────────────────────────────────────────
 func _on_leave() -> void:
@@ -750,10 +768,10 @@ func _on_leave() -> void:
 
 func _refresh_gold(gold: int) -> void:
 	if _gold_lbl:
-		_gold_lbl.text = "Gold: %dg" % gold
+		_gold_lbl.text = "%d  GOLD" % gold
 	if _reroll_btn:
 		var cost := current_reroll_cost()
-		_reroll_btn.text = "↻ Reroll (%dg)" % cost
+		_reroll_btn.text = "Refresh Stock  ·  %dg" % cost
 		_reroll_btn.disabled = gold < cost
 
 # ── Small widget factories ────────────────────────────────────────────────────
@@ -765,7 +783,7 @@ func _mk_label_on(parent: Node, text: String, sz: int, col: Color, pos: Vector2,
 	l.text = text
 	l.position = pos
 	l.size = size
-	UITheme.apply_font(l, UITheme.body_font(sz))
+	UITheme.apply_font(l, sz)
 	l.add_theme_color_override("font_color", col)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if center:
@@ -785,8 +803,13 @@ func _mk_button(text: String, rect: Rect2) -> Button:
 	b.text = text
 	b.position = rect.position
 	b.size = rect.size
-	UITheme.style_button(b)
-	UITheme.apply_font(b, UITheme.body_font(18))
+	b.add_theme_stylebox_override("normal", _flat(Color("483820"), BRASS, 1, 6))
+	b.add_theme_stylebox_override("hover", _flat(Color("624c2a"), CREAM, 2, 6))
+	b.add_theme_stylebox_override("pressed", _flat(Color("261f16"), BRASS, 1, 6))
+	b.add_theme_stylebox_override("disabled", _flat(Color("24211d"), Color("62594c"), 1, 6))
+	b.add_theme_stylebox_override("focus", _flat(Color.TRANSPARENT, Color("8ad2cc"), 3, 6))
+	b.add_theme_color_override("font_color", CREAM)
+	UITheme.apply_font(b, 22)
 	return b
 
 func _flat(bg: Color, border: Color, bw: int, radius: int) -> StyleBoxFlat:

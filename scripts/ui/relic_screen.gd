@@ -64,6 +64,10 @@ func set_offers(offers: Array, charges_left: int) -> void:
 
 func _rebuild_cards(offers: Array) -> void:
 	for c in _card_row.get_children():
+		# Detach immediately: queued children still contribute their old minimum
+		# height to the container until the frame ends, preventing shorter offers
+		# from shrinking the row and leaving cards over the reroll/footer.
+		_card_row.remove_child(c)
 		c.queue_free()
 	# All three cards share the tallest description's height. A fixed 58 px box
 	# held two lines of the old display face; the Inter reading face runs taller
@@ -169,7 +173,7 @@ func _make_card(relic: Dictionary, idx: int) -> Button:
 	var desc := Label.new()
 	desc.position             = Vector2(24, DESC_Y)
 	desc.size                 = Vector2(DESC_W, _card_h - DESC_Y - DESC_PAD)
-	UITheme.apply_font(desc, UITheme.FONT_VALUE + 2)
+	UITheme.apply_read_font(desc)   # prose → Inter (2026-09-27)
 	desc.add_theme_color_override("font_color", Color(0.82, 0.82, 0.92))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.vertical_alignment   = VERTICAL_ALIGNMENT_TOP

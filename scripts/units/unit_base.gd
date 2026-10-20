@@ -56,7 +56,34 @@ enum UnitClass {
 	STAT_STEALER,
 	ANT_HILL,
 	# ── Bosses (enemy-only, not recruitable) ──
-	HYDRA
+	HYDRA,
+	# Basic enemies: one class shared by all elemental variants.
+	LIZARD,
+	GOBLIN,
+	GOBLIN_ARCHER,
+	GOBLIN_SHAMAN,
+	ORC,
+	SLIME,
+	BEAR,
+	TROLL,
+	WINDUP_BOT,
+	SKELETON,
+	RAT,
+	OGRE,
+	MINOTAUR,
+	GARGOYLE,
+	STONE_GOLEM,
+	CRYSTAL_CRAB,
+	ROOT_WALKER,
+	FIRE_GIANT,
+	HELLHOUND,
+	EMBER_PHOENIX,
+	STORM_GIANT,
+	STORM_CROW,
+	SKY_WYVERN,
+	TIDEPOOL_HORROR,
+	HARPY,
+	CORAL_HUSK
 }
 
 # Trait classes for synergies (Tank, Mage, Fighter, Ranged, Healer, Summoner)
@@ -89,9 +116,13 @@ enum TraitClass {
 		health_changed.emit(current_hp, max_hp)
 @export var current_hp: int = 100:
 	set(value):
+		if get_meta("hydra_head_pool_active", false):
+			value = mini(value, HydraKit.health_cap(self))
 		if value == current_hp:
 			return
 		current_hp = value
+		if get_meta("hydra_head_pool_active", false):
+			HydraKit.sync_heads(self)
 		health_changed.emit(current_hp, max_hp)
 @export var max_mana: int = 50:
 	set(value):
@@ -226,6 +257,10 @@ var gear_items: Array = []         # equipped ComponentEquipmentItems (persisten
 var gear: Dictionary = {}          # per-fight passive state, reset by GearPassives.battle_start
 var gear_shield: int = 0           # item shields (#1/#3/#5): violet, absorbed before current_shield
 var gear_basic_hit: bool = false   # true only while this unit's basic attack resolves
+# Run recap damage breakdown (2026-10-07): 1 while this unit's active skill
+# resolves, 2 for its ultimate, 0 otherwise. Read-only for combat - only the
+# recap's RecapFightTap looks at it. Carried into projectiles and channels.
+var recap_action: int = 0
 var ability_haste: int = 0         # League-style haste: skill cooldown x 100/(100+haste)
 # Shared channel system (VD-15): the ability this unit is channelling, if any.
 # Owned by AutoBattleManager.start_channel / _tick_channel / cancel_channel.
@@ -234,9 +269,103 @@ var channel: Channel = null
 # Multi-cell size (1 = normal 1×1, 2 = 2×2 boss)
 var cell_size: int = 1
 
+# A segmented enemy is still ONE unit. Every occupied section resolves to this
+# owner; roster, damage, statuses, death and rewards therefore happen once.
+var segment_cells: Array[Vector2i] = []
+var segment_previous_cells: Array[Vector2i] = []
+var combat_grid: BattleGrid
+var combat_hit_section: int = -1
+var tempest_food_eaten: int = 0
+var tempest_move_bonus: float = 0.0
+
+func reset_tempest_growth() -> void:
+	tempest_food_eaten = 0
+	tempest_move_bonus = 0.0
+	if not get_meta("segmented_snake", false) or segment_cells.size() <= 6: return
+	var registered: bool = is_instance_valid(combat_grid) and combat_grid.get_all_units().has(self)
+	if registered: combat_grid.purge_unit(self)
+	segment_cells = segment_cells.slice(0, 6)
+	segment_previous_cells = segment_previous_cells.slice(0, 6)
+	if registered: combat_grid.place_unit(self, grid_position)
+	segment_length_changed.emit()
+
+func overlaps_cells(cells) -> bool:
+	# Hazards store cell membership as either an Array or Dictionary/set.
+	for cell in combat_cells():
+		if cells.has(cell): return true
+	return false
+
+func combat_cells() -> Array[Vector2i]:
+	if not segment_cells.is_empty(): return segment_cells.duplicate()
+	var cells: Array[Vector2i] = []
+	for y in cell_size:
+		for x in cell_size: cells.append(grid_position + Vector2i(x, y))
+	return cells
+
+func footprint_at(origin: Vector2i) -> Array[Vector2i]:
+	var cells := combat_cells()
+	var anchor: Vector2i = segment_cells[0] if not segment_cells.is_empty() else grid_position
+	for i in cells.size(): cells[i] += origin - anchor
+	return cells
+
+func nearest_combat_cell(from: Vector2i) -> Vector2i:
+	var best := grid_position
+	var distance := INF
+	for cell in combat_cells():
+		var d := from.distance_squared_to(cell)
+		if d < distance: best = cell; distance = d
+	return best
+
+func grid_distance_to(cell: Vector2i) -> float:
+	# Preserve existing single-body AoE rules; snake AoE covers any section.
+	return nearest_combat_cell(cell).distance_to(cell) if not segment_cells.is_empty() else grid_position.distance_to(cell)
+
+func combat_distance_to(other: UnitBase) -> float:
+	if segment_cells.is_empty() and other.segment_cells.is_empty():
+		return grid_position.distance_to(other.grid_position)
+	var d := INF
+	for a in combat_cells():
+		for b in other.combat_cells(): d = minf(d, a.distance_to(b))
+	return d
+
+func occupies_row(row: int) -> bool:
+	for cell in combat_cells():
+		if cell.y == row: return true
+	return false
+
+func occupies_column(column: int) -> bool:
+	for cell in combat_cells():
+		if cell.x == column: return true
+	return false
+
+func section_canvas_position(index: int) -> Vector2:
+	if segment_cells.is_empty() or not is_instance_valid(combat_grid): return global_position
+	index = clampi(index, 0, segment_cells.size()-1)
+	var point := combat_grid.to_global(combat_grid.grid_to_world(segment_cells[index]))
+	if is_moving and segment_previous_cells.size() == segment_cells.size():
+		var old := combat_grid.to_global(combat_grid.grid_to_world(segment_previous_cells[index]))
+		point = old.lerp(point, move_progress)
+	elif not is_moving:
+		# Forced pull/teleport slides move the root between grid reservations.
+		# Carry the whole body with that visual offset, keeping it connected.
+		point += global_position-combat_grid.to_global(combat_grid.grid_to_world(segment_cells[0]))
+	return point
+
+func nearest_section_index(from: Vector2) -> int:
+	var best := 0
+	var d := INF
+	for i in segment_cells.size():
+		var next := from.distance_squared_to(section_canvas_position(i))
+		if next < d: best = i; d = next
+	return best
+
+func combat_aim_position(from: Vector2) -> Vector2:
+	return section_canvas_position(nearest_section_index(from))
+
 # Gacha rolls applied at recruit time
 var recruit_rolls: Dictionary = {}   # {stat_key: {flat, growth}}
-var recruit_grade: String     = ""   # "S" "A" "B" "C" "D"
+var recruit_grade: String     = ""   # "S+" "S" "A" "B" "C" "D" (S+ is merge-only)
+var merge_progress: int       = 0    # partial merges toward the next grade, in D-units (UnitFactory.GRADE_VALUE)
 
 # ── Per-level stat growth (additive, not %) ───────────────────────────────────
 # Every level, each stat gains growth_base[stat] + growth_bonus[stat]:
@@ -282,6 +411,11 @@ func status_duration_mult() -> float:
 # Convenience: the duration `dur` as this unit actually experiences it.
 func tenacity_scaled(dur: float) -> float:
 	return dur * status_duration_mult()
+
+# Shared by incoming-stun application and the live unit-details display.
+# Cinematic/action holds that use stun_time internally are not incoming stuns.
+func is_stun_immune() -> bool:
+	return Balance.BOSS_ELITE_STUN_IMMUNITY_TEST and (is_boss or is_elite)
 
 func stat_growth(stat_key: String) -> float:
 	var total: float = growth_base.get(stat_key, 0.0) + growth_bonus.get(stat_key, 0.0)
@@ -332,6 +466,26 @@ var skill_damage_multiplier: float = 1.5
 var skill_range: int = 2
 var skill_cooldown_max: int = 4   # seconds between casts (see skill_cd_time)
 var skill_mana_cost: int = 0      # 0 = free (legacy classes); >0 = costs mana
+
+func living_owned_zombies() -> int:
+	if not (battle_manager and is_instance_valid(battle_manager)):
+		return 0
+	var count := 0
+	var allies: Array = battle_manager.player_units if is_player_unit else battle_manager.enemy_units
+	for summon in allies:
+		if summon and is_instance_valid(summon) and summon.current_hp > 0 \
+				and summon.is_summoned and summon.summon_owner == self \
+				and summon.unit_class == UnitClass.ZOMBIE:
+			count += 1
+	return count
+
+func skill_mana_cost_before_modifiers() -> int:
+	return skill_mana_cost + 100 * living_owned_zombies() if unit_class == UnitClass.NECRO else skill_mana_cost
+
+func effective_skill_mana_cost() -> int:
+	if battle_manager and is_instance_valid(battle_manager) and battle_manager.element_pieces:
+		return battle_manager.element_pieces.skill_cost(self)
+	return skill_mana_cost_before_modifiers()
 var skill_description: String = ""
 
 # Ultimate (charged by dealing and taking damage)
@@ -443,6 +597,54 @@ var weakened_time: float = 0.0
 # live on it. Purely presentational, never touches the multiplier or duration.
 # "" = no dedicated visual (Coal's existing behaviour, unchanged).
 var weaken_flavor: String = ""
+
+# Khagan's Ink Cloud (2026-10-03): a blinded unit's direct hits miss BLIND_MISS
+# of the time. Ticked down in AutoBattleManager next to weakened_time.
+const BLIND_MISS := 0.5
+var blind_time: float = 0.0
+var ink_poison_time: float = 0.0
+var ink_poison_stacks: int = 0
+var ink_poison_accum: float = 0.0
+var ink_poison_source = null
+
+func ink_poison_dps() -> float:
+	return float(ink_poison_stacks) * AutoBattleManager.KHAGAN_INK_POISON_PER_STACK if ink_poison_time > 0.0 else 0.0
+
+func ink_poison_description() -> String:
+	return "Ink Poison: %d stacks · %.0f damage/s · %.1fs remaining. Shields absorb poison damage." % [ink_poison_stacks, ink_poison_dps(), maxf(ink_poison_time, 0.0)]
+
+func clear_ink_poison() -> void:
+	ink_poison_time = 0.0
+	ink_poison_stacks = 0
+	ink_poison_accum = 0.0
+	ink_poison_source = null
+
+# EXPOSED (Hill Giant's Stuck Club, 2026-10-06): for exposed_time seconds this
+# unit's armor AND magic resist are cut by exposed_pct (1.0 = to zero). Read
+# ONLY through effective_armor()/effective_magic_resist(), which take_damage
+# and the Unit Details panel both use -- so what the panel shows is what hits
+# actually meet. Ticked in AutoBattleManager._tick_statuses; zeroed at battle
+# start (_init_unit_timers).
+var exposed_time: float = 0.0
+var exposed_pct: float = 0.0
+
+## The armor / magic resist hits actually meet from THIS unit's own state:
+## the base stat minus the Cloven Titan's stolen defense, then any Exposed cut.
+## Attacker-dependent modifiers (Earth shred, gear Sunder) are applied on top
+## in take_damage and shown as context in the UI, not folded in here.
+func effective_armor() -> int:
+	return _effective_defense(resistance)
+
+func effective_magic_resist() -> int:
+	return _effective_defense(magic_resist)
+
+func _effective_defense(base: int) -> int:
+	var v: int = maxi(0, base - int(get_meta("cloven_defense_loss", 0)))
+	if exposed_time > 0.0:
+		v = int(round(float(v) * (1.0 - clampf(exposed_pct, 0.0, 1.0))))
+	if float(get_meta("arcfang_recovery_remaining", 0.0)) > 0.0:
+		v = roundi(float(v) * (1.0 - ArcfangHunt.DEFENSE_CUT))
+	return v
 
 var spore_stacks: float = 0.0      # Spore passive accumulation
 var spore_tick_accum: float = 0.0
@@ -566,6 +768,17 @@ var drain_snapshot: float = 0.0
 # Ant Hill's periodic-spawn clock (generic name so any future "summons over
 # time" unit could reuse it). Counts down in _tick_passive; reset at battle start.
 var summon_spawn_timer: float = 0.0
+var ant_hill_spawn_count: int = 0
+
+func ant_hill_spawn_interval() -> float:
+	return maxf(Balance.ANT_HILL_MIN_SPAWN_INTERVAL,
+		Balance.ANT_HILL_SPAWN_INTERVAL - Balance.ANT_HILL_SPAWN_REDUCTION * ant_hill_spawn_count)
+
+func ant_hill_swarm_description() -> String:
+	return "Spawns an Ant at the hill's current level. Starts at %.2fs; every Ant spawned (including opening guards) permanently shortens the next interval by %.2fs, down to %.2fs. Current interval: %.2fs (%d Ants spawned). Up to %d alive. Every Ant bite makes every Ant hit harder, with no cap." % [
+		Balance.ANT_HILL_SPAWN_INTERVAL, Balance.ANT_HILL_SPAWN_REDUCTION,
+		Balance.ANT_HILL_MIN_SPAWN_INTERVAL, ant_hill_spawn_interval(), ant_hill_spawn_count,
+		Balance.ANT_HILL_MAX_ANTS]
 
 # Battle state
 var grid_position: Vector2i = Vector2i.ZERO
@@ -612,6 +825,14 @@ func speed_modifier() -> float:
 	if role_aspd > 0.0:
 		m *= 1.0 + role_aspd
 	return m
+
+# Shared by movement interpolation and live Unit Details. Keep the base integer
+# stat intact, so 5% food stacks are precise and reset without rounding drift.
+func effective_movement_speed() -> float:
+	var speed: float = move_speed_override if move_speed_override > 0 else movement_speed
+	if move_speed_override <= 0 and unit_class == UnitClass.BLOODHOUND and frenzy_active:
+		speed += int(AbilityFormulas.value_of(self, AbilityFormulas.PASSIVE, "move"))
+	return maxf(0.0, speed * speed_modifier() * (1.0 + tempest_move_bonus))
 
 # Multiplier applied to damage this unit deals (buffs, debuffs, Sable momentum).
 func outgoing_damage_multiplier() -> float:
@@ -681,21 +902,28 @@ func get_attack_multiplier(target_element: Element = Element.NORMAL) -> float:
 # cause. Set in take_damage() right before die(); "" if never damaged fatally
 # by a tracked attacker (e.g. a DoT tick with no attacker ref).
 var last_killed_by: String = ""
+# The unit that landed the killing blow (or null). A live reference, so readers
+# must is_instance_valid() it — the Gale Warden flock marks its killer from this.
+var last_killer = null
 
 # Signals
 signal health_changed(current: int, maximum: int)
+signal segment_length_changed()
 signal died()
 signal element_changed(new_element: Element)
 signal leveled_up(new_level: int)
 signal attacked(target)
 signal mana_changed(current: int, maximum: int)
-signal took_damage(amount: int, attacker)   # fires only on damage (not heals) → hit reaction
+signal took_damage(amount: int, attacker, animate_impact: bool)   # damage feedback; DoT can omit recoil/squash
 signal shield_changed(current: int)        # shield value changed (absorbed damage or granted)
 signal ward_changed(hits: int, maximum: int)  # hit-count ward changed (Gargoyle Stone Ward)
 
 # Hit-count ward: each hit is fully blocked and spends one charge, whatever its
 # damage. Separate from current_shield (an HP pool) on purpose.
 const STONE_WARD_HITS := 4
+# Terracotta Colossus: a Water or Air hit strips this much of its STACKED armour
+# (the "wet clay crumbles" weakness — its counter elements per ELEMENT_COUNTERS.md).
+const TERRACOTTA_ERODE_ARMOR := 6.0
 # Element counters (ELEMENT_COUNTERS.md): which hit elements block a troll_regen
 # user's regen, keyed by ITS element. Never its own element; across the 6 Trolls
 # every element appears exactly twice. Update the doc's tally when editing.
@@ -739,10 +967,12 @@ func _ready():
 const DEBUFF_TIMERS: Array[String] = [
 	"stun_time", "burn_time", "bleed_time", "slow_time", "root_time",
 	"taunt_time", "weakened_time", "heal_cut_time", "drain_time", "puppet_time",
+	"blind_time", "ink_poison_time",
 ]
 
 ## Remove every negative effect. Used by any "cleanse" ability.
 func clear_debuffs() -> void:
+	clear_ink_poison()
 	for t in DEBUFF_TIMERS:
 		set(t, 0.0)
 	# Companion fields. A timer at 0 with a live dps/pct behind it is a bug
@@ -807,23 +1037,60 @@ func recompute_burn_total() -> void:
 func take_magic_damage(amount: int, element: Element = Element.NORMAL, attacker = null) -> void:
 	take_damage(amount, element, attacker, false, 0, true)
 
-func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null, true_damage: bool = false, bonus_true_damage: int = 0, is_magic: bool = false, is_crit: bool = false) -> void:
+func accepts_damage_element(element: int) -> bool:
+	return get_meta("mob_passive", "") != "aspect_devour" or element == current_element
+
+func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null, true_damage: bool = false, bonus_true_damage: int = 0, is_magic: bool = false, is_crit: bool = false, animate_impact: bool = true) -> void:
+	# DoTs/projectiles can outlive their source. Keep the damage, but never pass
+	# a freed object into reactive hooks, signals, or kill attribution.
+	if not is_instance_valid(attacker):
+		attacker = null
 	# Already dead (e.g. a projectile/skill landed after a prior hit killed this
 	# unit) — skip entirely so we don't re-run die(), on-hit passives, etc. on a corpse.
 	if current_hp <= 0:
 		return
+	if not accepts_damage_element(element):
+		if damage_text_container:
+			var immune := DamageText.new()
+			damage_text_container.add_child(immune)
+			immune.setup(0, element, global_position + Vector2(0, -48))
+			immune.custom_text = "Immune"
+		return
+	if not segment_cells.is_empty():
+		combat_hit_section = int(get_meta("projectile_hit_section", nearest_section_index(attacker.global_position) if attacker else 0))
+	if has_meta("triarch_transition"):
+		return
+	# Each Ember Heart leaves the board briefly when it reaches half health.
+	if has_meta("ember_heart_shifting"):
+		return
 	# Phoenix Rebirth: nothing lands while it is rebuilding.
 	if rebirth_time > 0.0:
 		return
+	# Drowned Maw Abyssal Breach: it is under the board — area hits can't reach it
+	# either (untargetable_time only stops it being SELECTED as a target).
+	if has_meta("maw_submerged"):
+		return
 	# Evasion: chance to dodge the hit entirely (only applies to direct hits, not DoT/true damage)
 	if not true_damage and amount > 0:
-		var ev: float = equipment_passives.get("Evasion", 0.0)
+		var ev: float = effective_evasion()
 		if ev > 0.0 and randf() < ev:
 			# Announce it. This used to be a bare `return`: no damage number, no
 			# flash, nothing — so a dodged hit was indistinguishable from a bug.
 			if battle_manager and battle_manager.has_method("spawn_evade"):
 				battle_manager.spawn_evade(self)
 			return
+	# Ink Cloud blind: the ATTACKER can't see, so its direct hits whiff.
+	if not true_damage and amount > 0 and is_instance_valid(attacker) and attacker is UnitBase \
+			and attacker.blind_time > 0.0 and randf() < BLIND_MISS:
+		if battle_manager and battle_manager.has_method("spawn_blind_miss"):
+			battle_manager.spawn_blind_miss(attacker, self)
+		return
+	# Khagan's Dread Gaze stares down whoever has hurt it most — tally by attacker.
+	if has_meta("khagan_phase") and amount > 0 and is_instance_valid(attacker) and attacker is UnitBase:
+		var kt: Dictionary = get_meta("kh_dmg_by", {})
+		var kid: int = attacker.get_instance_id()
+		kt[kid] = int(kt.get(kid, 0)) + amount
+		set_meta("kh_dmg_by", kt)
 
 	var modified_damage := amount
 	# Component equipment: Empty Reservoir / Arcane Precision on skill damage.
@@ -833,7 +1100,7 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		modified_damage = GearPassives.skill_damage_mult(attacker, self, modified_damage, true_damage)
 	# Attacker's offensive affinity vs THIS unit's element — applied centrally
 	# (2026-07-17) so every non-true damage source scales the same way.
-	if not true_damage and attacker != null and attacker is UnitBase:
+	if not true_damage and is_instance_valid(attacker) and attacker is UnitBase:
 		modified_damage = int(modified_damage * attacker.get_attack_multiplier(current_element))
 	# Outgoing-damage relics reach EVERY hit, true damage (burn) included
 	# (VD-21 item 6, owner 2026-09-30). is_instance_valid first: a projectile or
@@ -845,7 +1112,8 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		# subtraction): 100 armor = 50% reduction, 200 = 66.7%, asymptotic —
 		# never reaches 100%. Armor vs magic armor picked by the damage type
 		# (2026-07-16 defense split).
-		var armor: int = magic_resist if is_magic else resistance
+		# Shared with the Unit Details panel -- see effective_armor().
+		var armor: int = effective_magic_resist() if is_magic else effective_armor()
 		armor = GearPassives.effective_armor(self, armor)   # Spellguard / Sunder
 		var ep = _element_pieces()
 		if ep:
@@ -887,6 +1155,10 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		if enrage > 1.0:
 			modified_damage = int(modified_damage * enrage)
 
+	# A landed Titan hit scars defenses even if a shield absorbs all damage.
+	# Mitigation above used the pre-hit defenses; this scar affects later hits.
+	if amount > 0 and battle_manager and battle_manager.has_method("apply_cloven_fracture"):
+		battle_manager.apply_cloven_fracture(self, attacker)
 	# Stone Ward: a whole hit is blocked and spends one charge, big or small.
 	if ward_hits > 0 and modified_damage > 0:
 		ward_hits -= 1
@@ -898,21 +1170,28 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		return
 
 	# Component equipment: Bulwark block, then the violet item-shield pool.
+	# `shield_mark` lets every exit below tell the defeat report how much of THIS
+	# hit the three shield layers soaked (item shield, current_shield, mana shield).
+	var shield_mark: int = milestone_shield_absorbed
+	var pool_absorbed := 0   # what current_shield took (run recap caster credit)
 	if not gear.is_empty():
 		var shield_before := gear_shield
 		modified_damage = GearPassives.pre_shield(self, modified_damage, attacker, true_damage)
 		milestone_shield_absorbed += maxi(0, shield_before - gear_shield)
 		if modified_damage <= 0:
+			_record_hit(attacker, milestone_shield_absorbed - shield_mark, 0)
 			return
 	# Shield absorbs damage before HP
 	if current_shield > 0:
 		var absorbed: int = mini(current_shield, modified_damage)
+		pool_absorbed = absorbed
 		milestone_shield_absorbed += absorbed
 		current_shield -= absorbed
 		modified_damage -= absorbed
 		shield_changed.emit(current_shield)
 		if modified_damage <= 0:
 			spawn_damage_text(absorbed, element)
+			_record_hit(attacker, milestone_shield_absorbed - shield_mark, 0, pool_absorbed)
 			return   # fully blocked — no HP lost, no signals
 
 	if not gear_levels.is_empty():
@@ -920,11 +1199,15 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		modified_damage = GearPassives.post_shield(self, modified_damage, attacker, true_damage)
 		milestone_shield_absorbed += maxi(0, before_mana_shield - modified_damage)
 		if modified_damage <= 0:
+			_record_hit(attacker, milestone_shield_absorbed - shield_mark, 0, pool_absorbed)
 			return
 	spawn_damage_text(modified_damage, element, is_crit)
 
 	var gear_pre_hp: int = current_hp
 	current_hp = max(0, current_hp - modified_damage)   # setter emits health_changed
+	# HP actually removed: overkill on a killing blow is not "damage taken".
+	_record_hit(attacker, milestone_shield_absorbed - shield_mark, gear_pre_hp - current_hp, pool_absorbed,
+		is_magic, true_damage)
 	# Troll "Regeneration" counterplay: a hit of one of its two REGEN_COUNTERS
 	# elements (per Troll element) shuts its passive
 	# regen off for a couple seconds (ticked down in AutoBattleManager). Element is
@@ -932,6 +1215,30 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 	if not true_damage and has_meta("mob_passive") and str(get_meta("mob_passive")) == "troll_regen" \
 			and element in REGEN_COUNTERS.get(current_element, []):
 		set_meta("troll_regen_block_t", 2.0)
+	# Terracotta Colossus: Water/Air hits erode its stacked armour (the passive tick
+	# re-applies the lower total next frame), and every hit gets clay-chip / steel-
+	# spark / erosion feedback keyed to how hardened it is.
+	if not true_damage and has_meta("mob_passive") and str(get_meta("mob_passive")) == "terracotta_harden":
+		var tc_eroded := false
+		if element == Element.WATER or element == Element.AIR:
+			var tc_gain: float = float(get_meta("terracotta_armor", 0.0))
+			if tc_gain > 0.0:
+				set_meta("terracotta_armor", maxf(0.0, tc_gain - TERRACOTTA_ERODE_ARMOR))
+				tc_eroded = true
+				# Who has done the eroding — its ranged skill hurls a boulder at the
+				# hero with the highest count (AutoBattleManager._terracotta_slam_target).
+				# Keyed by attacker instance id; the dict is a reference, so mutating
+				# it in place persists.
+				if attacker != null and attacker is UnitBase:
+					var tally: Dictionary = get_meta("tc_eroders", {})
+					var aid: int = attacker.get_instance_id()
+					tally[aid] = int(tally.get(aid, 0)) + 1
+					set_meta("tc_eroders", tally)
+		if battle_manager and battle_manager.has_method("spawn_terracotta_hit"):
+			battle_manager.spawn_terracotta_hit(self, tc_eroded)
+	# Skyrender: feathers knocked loose by a landed hit (rate-limited in the manager).
+	if has_meta("hit_feathers") and battle_manager and battle_manager.has_method("spawn_hit_feathers"):
+		battle_manager.spawn_hit_feathers(self)
 	# Stone Ward trigger: the hit that crosses 50% still lands in full; the ward
 	# covers the NEXT hits. A hit that kills outright never raises it.
 	if current_hp > 0 and current_hp * 2 <= max_hp and not has_meta("ward_used") \
@@ -943,7 +1250,7 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		if battle_manager and battle_manager.has_method("spawn_stone_ward"):
 			battle_manager.spawn_stone_ward(self)
 	times_hit += 1
-	took_damage.emit(modified_damage, attacker)   # drives the hit reaction (flash + recoil)
+	took_damage.emit(modified_damage, attacker, animate_impact)
 	# Iron Will (VD-22): Tanks charge faster from damage taken.
 	var ep_charge = _element_pieces()
 	_charge_ultimate(int(modified_damage * ep_charge.taken_charge_mult(self)) if ep_charge else modified_damage)
@@ -969,6 +1276,7 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		# main_game's death-cause tracker so the run export can say what ended it.
 		if attacker != null and attacker is UnitBase:
 			last_killed_by = str(attacker.unit_name)
+		last_killer = attacker if attacker is UnitBase else null
 		GearPassives.on_death(self)
 		# Ashfall (VD-16): the burn jumps while the body still carries it.
 		if burn_time > 0.0 and battle_manager and battle_manager.has_method("burn_ashfall"):
@@ -981,13 +1289,33 @@ func take_damage(amount: int, element: Element = Element.NORMAL, attacker = null
 		GearPassives.after_hit(self, attacker, mini(modified_damage, gear_pre_hp),
 			modified_damage, gear_pre_hp, is_crit, true_damage)
 
+# Defeat-report hook, called from every exit of take_damage that resolved a hit
+# (shield-only exits pass hp_lost 0). Ward blocks, dodges and blinds record
+# nothing: no damage landed. The recorder decides what the numbers mean.
+#
+# `pool_absorbed` (run recap, 2026-10-07) is the part of `shield_absorbed` the
+# ordinary shield pool took; the rest was this unit's own item shields / Mana
+# Shield. RecapFightTap credits the pool part to whoever supplied that shield.
+func _record_hit(attacker, shield_absorbed: int, hp_lost: int, pool_absorbed: int = 0,
+		is_magic: bool = false, true_damage: bool = false) -> void:
+	if battle_manager is AutoBattleManager and (shield_absorbed > 0 or hp_lost > 0):
+		battle_manager.recorder.on_hit(self, attacker, shield_absorbed, hp_lost)
+		battle_manager.recap_tap.on_shield_hit(self, shield_absorbed, pool_absorbed)
+		battle_manager.recap_tap.on_dealt(self, attacker, hp_lost, is_magic, true_damage)
+
 # (The old hardcoded 1.5x rock-paper-scissors matchup table lived here until
 # the 2026-07-16 affinity rework — elemental interaction is now entirely
 # "attacker's offensive rating vs target's defensive rating".)
 
 # `healer` (VD-22): the hero who healed, when the heal site knows it - the
 # Healer pieces (Mending Circle, Radiance, Vigil) only count heals from Healers.
-func heal(amount: int, silent: bool = false, healer = null) -> void:
+#
+# `credit` (defeat report, 2026-10-07): who the report should credit with the
+# heal. It is deliberately SEPARATE from `healer`, which gates balance hooks
+# (Healer-only pieces) - passing the caster as `healer` at a site that never did
+# would change those fights. Falls back to `healer`, then to the target itself
+# (regen, lifesteal and other self-sustain), see BattleRecorder.on_heal.
+func heal(amount: int, silent: bool = false, healer = null, credit = null) -> void:
 	# Khagan puppet: the possessed hero can't self-sustain while controlled — this
 	# single gate neutralizes regen, lifesteal, drain-heals and skill/ult heals
 	# alike (all sustain routes through heal()), so a geared bruiser/healer can't
@@ -1013,11 +1341,22 @@ func heal(amount: int, silent: bool = false, healer = null) -> void:
 	var before: int = current_hp
 	current_hp = min(max_hp, current_hp + amount)   # setter emits health_changed
 	var healed: int = current_hp - before
+	if battle_manager is AutoBattleManager and amount > 0:
+		# `amount` is post-reduction here (Riptide / Deep Wound / Tidecall), so the
+		# overheal is exactly what the HP bar could not take.
+		battle_manager.recorder.on_heal(self, credit if credit != null else healer,
+			healed, amount - healed)
 	if healed > 0 and not silent:
 		spawn_heal_text(healed)
 	# Overflow / Radiance / Vigil (VD-22 Healer pieces).
 	if ep:
+		var shield_pre: int = current_shield
 		ep.after_heal(self, healer, healed, amount - healed)
+		# Overflow turns overheal into shield: the run recap credits it to whoever's
+		# heal it was (the same credit rule as the heal itself; self-sustain = self).
+		if current_shield > shield_pre and battle_manager is AutoBattleManager:
+			var giver = credit if credit != null else (healer if healer != null else self)
+			battle_manager.recap_tap.note_shield_grant(self, giver, current_shield - shield_pre)
 
 func restore_mana(amount: int) -> void:
 	current_mana = min(max_mana, current_mana + amount)   # setter emits mana_changed
@@ -1085,9 +1424,11 @@ func level_up(allow_past_cap: bool = false) -> void:
 		return
 	level += 1
 	apply_stat_growth()
-	# Leveling restores half of missing health instead of fully refilling it.
+	# Leveling restores half of missing health AND mana instead of fully refilling
+	# them. Mana used to refill to full, which silently undid the biome-long mana
+	# drain about three times a biome (VD-23, owner 2026-09-28: "50% like hp").
 	current_hp += int(ceil(float(max_hp - current_hp) * 0.5))
-	current_mana = max_mana
+	current_mana += int(ceil(float(max_mana - current_mana) * 0.5))
 	leveled_up.emit(level)
 
 
@@ -1102,6 +1443,14 @@ func equip_accessory(accessory) -> void:
 
 func attack(target) -> void:
 	if not (target and target.has_method("take_damage")):
+		return
+	if str(get_meta("mob_skill", "")) == "tempest_circuit":
+		var payload := maxi(1, int(magic_power * outgoing_damage_multiplier()))
+		gear_basic_hit = true
+		spawn_projectile(target, payload, true, false, false, false, section_canvas_position(segment_cells.size()-1))
+		gear_basic_hit = false
+		pending_attack_log_damage += payload
+		attacked.emit(target)
 		return
 
 	var target_element: Element = target.current_element if target is UnitBase else Element.NORMAL
@@ -1213,6 +1562,18 @@ func attack(target) -> void:
 
 	# Headhunter active bonus range already applied by battle manager
 
+	# Magic-scaled ranged autos (`magic_auto` meta — Khagan's dismounted ink spit,
+	# 2026-10-03): damage from magic_power × magic_auto_mult, mitigated by magic resist.
+	if bool(get_meta("magic_auto", false)) and attack_range > 1:
+		var mdmg: int = int(float(magic_power) * float(get_meta("magic_auto_mult", 1.0)) * outgoing_damage_multiplier())
+		if did_crit:
+			mdmg = int(mdmg * (crit_damage + GearPassives.crit_damage_bonus(self)))
+		gear_basic_hit = true
+		spawn_projectile(target, maxi(1, mdmg), true, did_crit)
+		gear_basic_hit = false
+		pending_attack_log_damage += mdmg
+		attacked.emit(target)
+		return
 	# Bouncer is a melee brawler despite having range 2 (grab/pull reach) — no projectile.
 	if attack_range > 1 and unit_class != UnitClass.BOUNCER:
 		gear_basic_hit = true   # stamps the projectile as a basic attack
@@ -1304,8 +1665,17 @@ func grant_xp(amount: float) -> void:
 
 func set_level(target_level: int) -> void:
 	var cap := Progression.hero_level_cap() if is_player_unit else 999999
+	# level_up() refills only HALF the missing HP/mana (the VD-23 hero rule), so
+	# scaling a freshly built ENEMY to its wave level left it spawning wounded
+	# (Khagan 4375/4600, 2026-10-03). A unit that was full stays full — heroes
+	# too: set_level() only builds units (Veteran Recruits headstart, summons,
+	# arena teams); real XP level-ups call level_up() and keep the half refill.
+	var hp_full: bool = current_hp >= max_hp
+	var mana_full: bool = current_mana >= max_mana
 	while level < target_level and level < cap:
 		level_up()
+	if hp_full: current_hp = max_hp
+	if mana_full: current_mana = max_mana
 
 # Per-hero delay between the attack call and the bullet actually leaving the
 # muzzle, so it launches on the attack sheet's fire frame instead of the
@@ -1326,6 +1696,12 @@ const SEAR_MUZZLE_FRAC := 0.30
 ## combat runs at time_scale), hence goblin_shot_seconds() divides it out.
 const GOBLIN_ARROW_RELEASE_FRAC := 0.5
 
+const EMBER_ARROW_RELEASE_FRAC := 0.90
+
+func ember_shot_seconds() -> float:
+	var haste: float = equipment_passives.get("Haste", 0.0)
+	return GearPassives.attack_wait_mult(self) / maxf(attacks_per_second * (1.0 + haste), 0.01)
+
 ## Battle seconds from Bouncer's attack to the glove landing — must equal
 ## RubberArm launch_delay + out_time (0.19 + 0.07).
 const BOUNCER_PUNCH_CONTACT := 0.26
@@ -1336,15 +1712,16 @@ func goblin_shot_seconds() -> float:
 
 const PROJECTILE_MUZZLE_DELAY := {
 	UnitClass.HEADHUNTER: 0.83,   # attack.json: 12fps, flash starts ~frame 10
+	UnitClass.DOC: 0.25,          # v002 attack flick releases on f6 (24 fps)
 }
 
-func spawn_projectile(target, damage: int, is_magic: bool = false, is_crit: bool = false, is_seventh_shot: bool = false, is_true_dmg: bool = false) -> void:
+func spawn_projectile(target, damage: int, is_magic: bool = false, is_crit: bool = false, is_seventh_shot: bool = false, is_true_dmg: bool = false, origin: Vector2 = Vector2.INF) -> void:
 	if not battle_manager:
 		return
 
 	var projectile := Projectile.new()
-	var start_pos: Vector2 = global_position
-	var end_pos:   Vector2 = target.global_position if target else global_position
+	var start_pos: Vector2 = global_position if origin == Vector2.INF else origin
+	var end_pos: Vector2 = target.combat_aim_position(start_pos) if target is UnitBase else (target.global_position if target else start_pos)
 
 	projectile.setup(start_pos, end_pos, damage, current_element, target)
 	projectile.is_magic = is_magic
@@ -1352,9 +1729,13 @@ func spawn_projectile(target, damage: int, is_magic: bool = false, is_crit: bool
 	projectile.is_seventh_shot = is_seventh_shot
 	projectile.is_true_damage = is_true_dmg
 	projectile.caster = self   # so on_reach_target can credit damage_dealt
+	if target is UnitBase: projectile.target_section = target.nearest_section_index(start_pos)
 	projectile.is_basic_auto = gear_basic_hit
+	projectile.recap_action = recap_action   # skill / ult tag rides with the shot (run recap)
 	projectile.is_goblin_arrow = str(get_meta("sprite_folder", "")) == "goblin_archer"
 	projectile.is_goblin_shaman_orb = str(get_meta("sprite_folder", "")).begins_with("goblin_shaman_")
+	projectile.is_lizard_spit = unit_class == UnitClass.LIZARD
+	projectile.is_ember_arrow = unit_class == UnitClass.EMBER
 	projectile.is_vail_gust = unit_class == UnitClass.VAIL
 	if projectile.is_vail_gust:
 		# Muzzle beat at Vail herself. Spawned here rather than in the battle
@@ -1368,9 +1749,17 @@ func spawn_projectile(target, damage: int, is_magic: bool = false, is_crit: bool
 			muzzle.setup_point(VailVFX.Mode.GUST_MUZZLE, global_position, 0.30, self)
 	projectile.focus_stacks = int(get_meta("ff_stacks", 0)) if projectile.is_goblin_arrow else 0
 	projectile.spawn_delay = PROJECTILE_MUZZLE_DELAY.get(unit_class, 0.0)
+	if str(get_meta("mob_skill", "")) == "tempest_circuit":
+		projectile.is_zolt_arc = true
+		projectile.is_tempest_bolt = true
+		projectile.speed = 780.0
+		projectile.projectile_color = Color(0.25, 0.95, 1.0)
 	if projectile.is_goblin_arrow:
 		projectile.spawn_delay = goblin_shot_seconds() * GOBLIN_ARROW_RELEASE_FRAC
-	if unit_class == UnitClass.STATIC:
+	if unit_class == UnitClass.EMBER:
+		projectile.spawn_delay = ember_shot_seconds() * EMBER_ARROW_RELEASE_FRAC
+		projectile.speed = 820.0
+	elif unit_class == UnitClass.STATIC:
 		projectile.is_static_arc = true
 		projectile.speed = 900.0
 		projectile.spawn_delay = 0.22
@@ -1391,6 +1780,11 @@ func spawn_projectile(target, damage: int, is_magic: bool = false, is_crit: bool
 		projectile.is_rift_void = true
 		projectile.speed = 720.0
 		projectile.spawn_delay = (1.0 / attacks_per_second) * 0.34
+	elif unit_class == UnitClass.LUMEN:
+		# Light, not a missile: damage lands at once, the visible beam is
+		# LumenVFX (lit by the manager's on-hit Focused Light branch).
+		projectile.is_lumen_beam = true
+		projectile.speed = 6000.0
 
 	# Per-hero auto-attack sprite override — see Projectile.sprite_tex. Every
 	# other hero keeps the plain colored circle.
@@ -1444,6 +1838,13 @@ func spawn_crippling_arrow(target, damage: int, slow_pct: float, slow_duration: 
 		call("play_goblin_bow_shot", target)
 		projectile.spawn_delay = goblin_shot_seconds() * GOBLIN_ARROW_RELEASE_FRAC
 	battle_manager.add_projectile(projectile)
+
+## Live dodge chance: the ONE number take_damage rolls and the details panel
+## shows. Gale Warden "Scatter" zeroes it while a flockmate's death is fresh.
+func effective_evasion() -> float:
+	if float(get_meta("scatter_t", 0.0)) > 0.0:
+		return 0.0
+	return float(equipment_passives.get("Evasion", 0.0))
 
 func die() -> void:
 	# Khagan's puppet: bursting it to 0 HP frees it EARLY (clamps to 1 HP instead
@@ -1499,6 +1900,58 @@ func get_class_name_string() -> String:
 			return "Warrior"
 		UnitClass.RANGER:
 			return "Ranger"
+		UnitClass.GOBLIN:
+			return "Goblin"
+		UnitClass.GOBLIN_ARCHER:
+			return "Goblin Archer"
+		UnitClass.GOBLIN_SHAMAN:
+			return "Goblin Shaman"
+		UnitClass.ORC:
+			return "Orc"
+		UnitClass.SLIME:
+			return "Slime"
+		UnitClass.BEAR:
+			return "Bear"
+		UnitClass.TROLL:
+			return "Troll"
+		UnitClass.WINDUP_BOT:
+			return "Windup Bot"
+		UnitClass.SKELETON:
+			return "Skeleton"
+		UnitClass.RAT:
+			return "Rat"
+		UnitClass.OGRE:
+			return "Ogre"
+		UnitClass.MINOTAUR:
+			return "Minotaur"
+		UnitClass.GARGOYLE:
+			return "Gargoyle"
+		UnitClass.STONE_GOLEM:
+			return "Stone Golem"
+		UnitClass.CRYSTAL_CRAB:
+			return "Crystal Crab"
+		UnitClass.ROOT_WALKER:
+			return "Root Walker"
+		UnitClass.FIRE_GIANT:
+			return "Fire Giant"
+		UnitClass.HELLHOUND:
+			return "Hellhound"
+		UnitClass.EMBER_PHOENIX:
+			return "Ember Phoenix"
+		UnitClass.STORM_GIANT:
+			return "Storm Giant"
+		UnitClass.STORM_CROW:
+			return "Storm Crow"
+		UnitClass.SKY_WYVERN:
+			return "Sky Wyvern"
+		UnitClass.TIDEPOOL_HORROR:
+			return "Tidepool Horror"
+		UnitClass.HARPY:
+			return "Harpy"
+		UnitClass.CORAL_HUSK:
+			return "Coral Husk"
+		UnitClass.LIZARD:
+			return "Lizard"
 		UnitClass.MONK:
 			return "Monk"
 		UnitClass.THIEF:
@@ -1601,7 +2054,8 @@ func spawn_damage_text(damage: int, element: Element, is_crit: bool = false) -> 
 	var damage_text = DamageText.new()
 	# Spawn ABOVE the HP-bar zone with a little horizontal jitter so numbers
 	# clear the bar and don't stack on top of each other (2026-07-17).
-	var spawn_pos = global_position + Vector2(randf_range(-16.0, 16.0), -48.0)
+	var impact := section_canvas_position(combat_hit_section) if combat_hit_section >= 0 else global_position
+	var spawn_pos = impact + Vector2(randf_range(-16.0, 16.0), -48.0)
 	# add_child BEFORE setup so setup()'s global_position is resolved against the
 	# container's real (battle_grid_node-offset) transform. Setting it while the
 	# node was still orphaned stored the value as a LOCAL position, so once

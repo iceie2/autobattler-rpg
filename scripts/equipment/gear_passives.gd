@@ -16,6 +16,7 @@ const SKILL_WINDOW := 1.5        # seconds a cast's delayed hits still count as 
 const SUMMON_KILL_CAP := 5       # #27: summoned kills that count per fight (proposed)
 const WARD_CAP := 0.24           # #3 pool cap, fraction of max HP
 const RHYTHM_CAP := 0.16         # #5 pool cap
+const DEEP_WOUND_CUT := 0.50     # #13 flat healing cut, does not scale with level
 const POOL_ORDER := ["bastion", "ward", "rhythm"]
 
 static func lv(u, key: String) -> float:
@@ -507,14 +508,17 @@ static func after_hit(victim: UnitBase, attacker, hp_dmg: int, raw: int, pre_hp:
 				ag["focus"] = 0
 			else:
 				ag["focus"] = mini(5, int(ag.get("focus", 0)) + 1)
-		if is_crit:
-			if lv(att, "deep_wound") > 0.0 and not killed:                            # #13
-				var vg := victim.gear
-				var cut := _v(att, "deep_wound", "cut")
-				if _t(vg, "wound_t") <= 0.0 or float(vg.get("wound_cut", 0.0)) < cut:
-					vg["wound_cut"] = cut
-				vg["wound_t"] = 4.0
+		# #13 Deep Wound — anti-heal (owner call 2026-09-26): every landed basic
+		# hit cuts the target's healing by a flat 50% for 4s. It used to be
+		# crit-only and level-scaled (~40% ceiling), too unreliable to counter
+		# a healer.
+		if lv(att, "deep_wound") > 0.0 and not killed:
+			var vg := victim.gear
+			if _t(vg, "wound_t") <= 0.0 and GearFX.can(victim, "wound", 0.5):
 				GearFX.mark(victim, "✚", GearFX.BLOOD)
+			vg["wound_cut"] = DEEP_WOUND_CUT
+			vg["wound_t"] = 4.0
+		if is_crit:
 			if lv(att, "vital_precision") > 0.0 and _t(ag, "vital_t") <= 0.0:         # #33
 				ag["vital_t"] = 1.0
 				att.heal(int(round(att.max_hp * _v(att, "vital_precision", "hp_pct"))))

@@ -42,11 +42,21 @@ tooltip text is built from it. `troll_kit_probe` checks rules 2 and 3.
 | Troll | Fire | Air | Normal |
 | Troll | Lightning | Normal | Fire |
 
+## Elite counters (2026-09-30)
+
+Not a passive-shutoff like the Trolls: a hit of a counter element ERODES a stat.
+
+| Enemy | Element | Effect | Counter A | Counter B |
+|---|---|---|---|---|
+| Terracotta Colossus (elite) | Earth | each hit strips 6 of its stacked armor ("wet clay crumbles") | Water | Air |
+
 ## Tally (times each element appears as a counter)
 
 | Normal | Air | Water | Earth | Fire | Lightning |
 |---|---|---|---|---|---|
-| 2 | 2 | 2 | 2 | 2 | 2 |
+| 2 | 3 | 3 | 2 | 2 | 2 |
+
+(Tally = the six Trolls plus the Colossus row above: Air and Water each +1.)
 
 ## Not in this system (own passives, 2026-09-24)
 

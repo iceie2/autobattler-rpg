@@ -1,0 +1,35 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2548)
+  ok  — downed back-row hero earns 40% heal (564 vs 564)
+  ok  — row heal applied (475 → 772, wanted +297)
+  ok  — row XP granted (0.0 → 5.0)
+  ok  — downed hero revived (705 HP)
+  ok  — revive plus back-row heal reaches 50% HP (705 vs 705)
+  ok  — revived hero rejoined the roster
+  ok  — downed list drained
+  ok  — pending payouts consumed
+  ok  — ceremony released the board
+  ok  — temporary XP bars cleaned up (0 left)
+  ok  — empty ceremony is a no-op
+  ok  — Quick Learner staged in memory (x2.00)
+  ok  — damage XP carries Quick Learner (280.0, want 280.0)
+  ok  — the levelled hero's perk screen came up after the fight
+  ok  — the map did NOT open before the level-up screen
+  ok  — the level-up screen and the map were never up together
+  ok  — the map opened once the perk was picked
+  ok  — the fight was paid out before the map
+  ok  — round-start ceremony is a no-op after a map payout
+  ok  — roll() promises only a kind, never a specific item/perk (0 did)
+  ok  — item reward opened the pick screen
+  ok  — pick screen shows 3 items
+  ok  — exactly one item went into the bag (0 -> 1)
+  ok  — stat reward opened the pick screen
+  ok  — the picked stat went on to the hero screen
+  ok  — the hero screen was handed the picked perk
+CEREMONY_SMOKE: ALL PASS
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 5 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

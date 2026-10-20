@@ -1,0 +1,4568 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2548)
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 4, enemies: 2
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 14
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 5
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 5
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 9
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+[Battle] occupied_cells count: 6
+[Battle] Started — players: 2, enemies: 4
+ARENA_RESULT_BEGIN
+{
+  "errors": 0,
+  "mode": "probe",
+  "probed": 113,
+  "results": [
+    {
+      "kind": "hero",
+      "name": "BLOODHOUND",
+      "on_being_hit": {
+        "changes": [
+          "Earth Bloodhound#95026153556.hp: 418 -> 246",
+          "Earth Bloodhound#95026153556.ult_charge: 252 -> 300",
+          "DummyNear#95042930771.dmg_dealt: 0 -> 172"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Earth Bloodhound#95026153556.hp: 415 -> 418",
+          "Earth Bloodhound#95026153556.dmg_dealt: 0 -> 30",
+          "Earth Bloodhound#95026153556.ult_charge: 245 -> 252",
+          "DummyNear#95042930771.hp: 50000 -> 49970"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Earth Bloodhound#95026153556.frenzy: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Earth Bloodhound#95026153556.hp: 246 -> 256",
+          "Earth Bloodhound#95026153556.dmg_dealt: 30 -> 57",
+          "DummyNear#95042930771.hp: 49970 -> 49937"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Bite",
+      "ultimate": {
+        "changes": [
+          "Earth Bloodhound#95026153556.hp: 256 -> 263",
+          "Earth Bloodhound#95026153556.dmg_dealt: 57 -> 110",
+          "DummyNear#95042930771.hp: 49937 -> 49871",
+          "DummyNear#95042930771.stun: false -> true"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Pounce"
+    },
+    {
+      "kind": "hero",
+      "name": "BOUNCER",
+      "on_being_hit": {
+        "changes": [
+          "Normal Bouncer#109722994772.hp: 494 -> 344",
+          "Normal Bouncer#109722994772.ult_charge: 220 -> 350",
+          "DummyNear#109739771592.dmg_dealt: 0 -> 150"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Normal Bouncer#109722994772.dmg_dealt: 0 -> 21",
+          "Normal Bouncer#109722994772.ult_charge: 215 -> 220",
+          "DummyNear#109739771592.hp: 50000 -> 49979"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Normal Bouncer#109722994772.presence: 0.0 -> 0.15"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Normal Bouncer#109722994772.dmg_dealt: 21 -> 42",
+          "DummyNear#109739771592.hp: 49979 -> 49945",
+          "DummyNear#109739771592.stun: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Reel In",
+      "ultimate": {
+        "changes": [
+          "Normal Bouncer#109722994772.dmg_dealt: 42 -> 108",
+          "DummyNear#109739771592.hp: 49945 -> 49890",
+          "DummyFar#109756549153.hp: 50000 -> 49945",
+          "DummyFar#109756549153.pos: (4, 2) -> (5, 4)"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Gravity Drop"
+    },
+    {
+      "kind": "hero",
+      "name": "HEADHUNTER",
+      "on_being_hit": {
+        "changes": [
+          "Air Headhunter#122255574828.hp: 224 -> 134",
+          "Air Headhunter#122255574828.ult_charge: 139 -> 229",
+          "DummyNear#122272351949.dmg_dealt: 0 -> 90"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Air Headhunter#122255574828.dmg_dealt: 0 -> 38",
+          "Air Headhunter#122255574828.ult_charge: 130 -> 139",
+          "DummyNear#122272351949.hp: 50000 -> 49962"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "crit logic lives inside attack() — see on_hit",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Air Headhunter#122255574828.rapid: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Rapid Fire",
+      "ultimate": {
+        "changes": [],
+        "reason": "Snipe now channels for HEADHUNTER_AIM_DURATION before firing (shared channel system: start_channel / _tick_channel); damage lands via _headhunter_fire_snipe on a later tick, not within the single force-cast frame the probe measures",
+        "status": "EXPECTED"
+      },
+      "ultimate_name": "Snipe"
+    },
+    {
+      "kind": "hero",
+      "name": "SHAUNA",
+      "on_being_hit": {
+        "changes": [
+          "Fire Shauna#140408522870.hp: 261 -> 157",
+          "Fire Shauna#140408522870.ult_charge: 169 -> 273",
+          "DummyNear#140425299744.dmg_dealt: 0 -> 104"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Fire Shauna#140408522870.dmg_dealt: 0 -> 73",
+          "Fire Shauna#140408522870.ult_charge: 151 -> 169",
+          "DummyNear#140425299744.hp: 50000 -> 49927"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "kite logic reacts to enemy proximity while moving",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Fire Shauna#140408522870.pos: (4, 5) -> (2, 7)"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Kite",
+      "ultimate": {
+        "changes": [
+          "Fire Shauna#140408522870.overdrive: false -> true"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Overdrive"
+    },
+    {
+      "kind": "hero",
+      "name": "NEMI",
+      "on_being_hit": {
+        "changes": [
+          "Water Nemi#158293034829.hp: 282 -> 164",
+          "Water Nemi#158293034829.ult_charge: 175 -> 293",
+          "DummyNear#158309811928.dmg_dealt: 0 -> 118"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Water Nemi#158293034829.dmg_dealt: 0 -> 22",
+          "Water Nemi#158293034829.ult_charge: 170 -> 175",
+          "DummyNear#158309811928.hp: 50000 -> 49978"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyAlly#158343366774.move: 0 -> 1",
+          "DummyAlly#158343366774.resonance: false -> true",
+          "DummyAlly2#158360143936.move: 0 -> 1",
+          "DummyAlly2#158360143936.resonance: false -> true",
+          "DummyNear#158309811928.move: 0 -> 1",
+          "DummyNear#158309811928.resonance: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Water Nemi#158293034829.dmg_dealt: 22 -> 48",
+          "DummyNear#158309811928.hp: 49978 -> 49945"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Tide",
+      "ultimate": {
+        "changes": [
+          "Water Nemi#158293034829.hp: 164 -> 190",
+          "Water Nemi#158293034829.dmg_dealt: 48 -> 96",
+          "DummyNear#158309811928.hp: 49945 -> 49885",
+          "DummyNear#158309811928.pos: (4, 4) -> (4, 3)"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Tidal Wave"
+    },
+    {
+      "kind": "hero",
+      "name": "SHEILDOR",
+      "on_being_hit": {
+        "changes": [
+          "Earth Sheildor#177905600717.hp: 515 -> 295",
+          "Earth Sheildor#177905600717.ult_charge: 319 -> 350",
+          "DummyNear#177922377171.dmg_dealt: 0 -> 220"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Earth Sheildor#177905600717.dmg_dealt: 0 -> 17",
+          "Earth Sheildor#177905600717.ult_charge: 315 -> 319",
+          "DummyNear#177922377171.hp: 50000 -> 49983"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyAlly#177955931778.shield: 0 -> 7"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Earth Sheildor#177905600717.hp: 295 -> 368",
+          "Earth Sheildor#177905600717.shield: 0 -> 236"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Iron Bulwark",
+      "ultimate": {
+        "changes": [
+          "Earth Sheildor#177905600717.shield: 236 -> 5375",
+          "Earth Sheildor#177905600717.pos: (4, 5) -> (2, 5)",
+          "DummyAlly#177955931778.shield: 7 -> 10285"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Guardian Leap"
+    },
+    {
+      "kind": "hero",
+      "name": "LORDEE",
+      "on_being_hit": {
+        "changes": [
+          "Normal Lordee#189918087263.hp: 363 -> 258",
+          "Normal Lordee#189918087263.ult_charge: 161 -> 266",
+          "DummyNear#189934864589.dmg_dealt: 0 -> 105"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Normal Lordee#189918087263.dmg_dealt: 8 -> 53",
+          "Normal Lordee#189918087263.ult_charge: 150 -> 161",
+          "DummyNear#189934864589.hp: 49992 -> 49947"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Normal Lordee#189918087263.dmg_dealt: 0 -> 8",
+          "DummyNear#189934864589.hp: 50000 -> 49992"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Normal Lordee#189918087263.dmg_dealt: 53 -> 105",
+          "DummyNear#189934864589.hp: 49947 -> 49900",
+          "DummyFar#189951641426.hp: 50000 -> 49953"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Ground Slam",
+      "ultimate": {
+        "changes": [
+          "Normal Lordee#189918087263.dmg_dealt: 105 -> 138",
+          "Normal Lordee#189918087263.pos: (4, 5) -> (5, 4)",
+          "DummyNear#189934864589.hp: 49900 -> 49840"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Parasite Lunge"
+    },
+    {
+      "kind": "hero",
+      "name": "NECRO",
+      "on_being_hit": {
+        "changes": [
+          "Normal Necro#202668771564.hp: 294 -> 207",
+          "Normal Necro#202668771564.ult_charge: 130 -> 217",
+          "DummyNear#202685548581.dmg_dealt: 0 -> 87"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Normal Necro#202668771564.dmg_dealt: 0 -> 16",
+          "Normal Necro#202668771564.ult_charge: 126 -> 130",
+          "DummyNear#202685548581.hp: 50000 -> 49984"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Soul Harvest needs living summons nearby",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Normal Zombie#212298892795 appeared",
+          "__mgr__.n_player: 3 -> 4"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Raise Zombie",
+      "ultimate": {
+        "changes": [
+          "Normal Necro#202668771564.dmg_dealt: 16 -> 46",
+          "DummyNear#202685548581.hp: 49984 -> 49959",
+          "DummyFar#202702325340.hp: 50000 -> 49975"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Bat Swarm"
+    },
+    {
+      "kind": "hero",
+      "name": "DOC",
+      "on_being_hit": {
+        "changes": [
+          "Water Doc#215251683564.hp: 388 -> 222",
+          "Water Doc#215251683564.ult_charge: 197 -> 363",
+          "DummyNear#215268460785.dmg_dealt: 0 -> 166"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Water Doc#215251683564.dmg_dealt: 0 -> 14",
+          "Water Doc#215251683564.ult_charge: 194 -> 197",
+          "DummyNear#215268460785.hp: 50000 -> 49986"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Water Doc#215251683564.hp: 317 -> 388",
+          "Water Doc#215251683564.healing: 0 -> 71"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Water Doc#215251683564.hp: 222 -> 281",
+          "Water Doc#215251683564.healing: 71 -> 130"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Inject",
+      "ultimate": {
+        "changes": [
+          "DummyFallen#215335569326 appeared",
+          "__mgr__.n_player: 3 -> 4",
+          "__mgr__.fallen: 1 -> 0"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Field Surgery"
+    },
+    {
+      "kind": "hero",
+      "name": "RIOT",
+      "on_being_hit": {
+        "changes": [
+          "Lightning Riot#227264169642.hp: 553 -> 323",
+          "Lightning Riot#227264169642.ult_charge: 332 -> 350",
+          "DummyNear#227280947436.dmg_dealt: 0 -> 230"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Lightning Riot#227264169642.dmg_dealt: 0 -> 19",
+          "Lightning Riot#227264169642.ult_charge: 328 -> 332",
+          "DummyNear#227280947436.hp: 50000 -> 49981"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "retaliation — verified in on_being_hit phase",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Lightning Riot#227264169642.dmg_dealt: 19 -> 36",
+          "DummyNear#227280947436.hp: 49981 -> 49963",
+          "DummyNear#227280947436.stun: false -> true",
+          "DummyNear#227280947436.taunt: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Shield Bash",
+      "ultimate": {
+        "changes": [
+          "DummyFar#227297724135.taunt: false -> true"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Kettle"
+    },
+    {
+      "kind": "hero",
+      "name": "PASTOR",
+      "on_being_hit": {
+        "changes": [
+          "Fire Pastor#239209547866.hp: 334 -> 55",
+          "Fire Pastor#239209547866.ult_charge: 204 -> 400",
+          "DummyNear#239226324650.dmg_dealt: 0 -> 279"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Fire Pastor#239209547866.dmg_dealt: 0 -> 19",
+          "Fire Pastor#239209547866.ult_charge: 200 -> 204",
+          "DummyNear#239226324650.hp: 50000 -> 49981"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Fire Pastor#239209547866.dmg_buff: false -> true",
+          "DummyAlly#239259879110.dmg_buff: false -> true",
+          "DummyAlly2#239276656560.dmg_buff: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyAlly#239259879110.aspd_buff: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Sermon",
+      "ultimate": {
+        "changes": [
+          "DummyNear#239226324650.dmg_buff: false -> true",
+          "DummyFar#239243101872.dmg_buff: false -> true"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Damnation"
+    },
+    {
+      "kind": "hero",
+      "name": "SABLE",
+      "on_being_hit": {
+        "changes": [
+          "Air Sable#251087816676.hp: 242 -> 47",
+          "Air Sable#251087816676.ult_charge: 149 -> 344",
+          "DummyNear#251104593845.dmg_dealt: 0 -> 195"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Air Sable#251087816676.dmg_dealt: 0 -> 37",
+          "Air Sable#251087816676.momentum: 0 -> 1",
+          "Air Sable#251087816676.ult_charge: 140 -> 149",
+          "DummyNear#251104593845.hp: 50000 -> 49963"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Momentum is on-hit — verified in on_hit phase",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Air Sable#251087816676.dmg_dealt: 37 -> 109",
+          "DummyNear#251104593845.hp: 49963 -> 49912",
+          "DummyFar#251121371060.hp: 50000 -> 49949"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Bolt",
+      "ultimate": {
+        "changes": [
+          "Air Sable#251087816676.dmg_dealt: 109 -> 211",
+          "Air Sable#251087816676.momentum: 1 -> 0",
+          "DummyNear#251104593845.hp: 49912 -> 49763"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Headshot"
+    },
+    {
+      "kind": "hero",
+      "name": "RUSH",
+      "on_being_hit": {
+        "changes": [
+          "Lightning Rush#263033194565.hp: 306 -> 182",
+          "Lightning Rush#263033194565.ult_charge: 196 -> 320",
+          "DummyNear#263049971786.dmg_dealt: 0 -> 124"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Lightning Rush#263033194565.dmg_dealt: 0 -> 76",
+          "Lightning Rush#263033194565.ult_charge: 177 -> 196",
+          "DummyNear#263049971786.hp: 50000 -> 49924"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "momentum builds from movement",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Lightning Rush#263033194565.dmg_dealt: 76 -> 103",
+          "Lightning Rush#263033194565.pos: (4, 5) -> (5, 4)",
+          "DummyNear#263049971786.hp: 49924 -> 49888"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Blitz",
+      "ultimate": {
+        "changes": [
+          "Lightning Rush#263033194565.dmg_dealt: 103 -> 161",
+          "DummyNear#263049971786.hp: 49888 -> 49849",
+          "DummyFar#263066748970.hp: 50000 -> 49961",
+          "__mgr__.afterimage: false -> true"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Afterimage"
+    },
+    {
+      "kind": "hero",
+      "name": "STITCH",
+      "on_being_hit": {
+        "changes": [
+          "Normal Stitch#275414779797.hp: 291 -> 205",
+          "Normal Stitch#275414779797.ult_charge: 136 -> 222",
+          "DummyNear#275431557041.dmg_dealt: 0 -> 86"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Normal Stitch#275414779797.dmg_dealt: 0 -> 53",
+          "Normal Stitch#275414779797.ult_charge: 123 -> 136",
+          "DummyNear#275431557041.hp: 50000 -> 49947"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Threadguard converts transferred and rupture damage into shield",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#275431557041.linked: false -> true",
+          "DummyFar#275448334405.linked: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Link",
+      "ultimate": {
+        "changes": [
+          "Normal Stitch#275414779797.shield: 0 -> 16",
+          "Normal Stitch#275414779797.dmg_dealt: 53 -> 109",
+          "DummyNear#275431557041.hp: 49947 -> 49890",
+          "DummyNear#275431557041.stun: false -> true",
+          "DummyNear#275431557041.linked: true -> false",
+          "DummyFar#275448334405.hp: 50000 -> 49943",
+          "DummyFar#275448334405.stun: false -> true",
+          "DummyFar#275448334405.linked: true -> false"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Unravel"
+    },
+    {
+      "kind": "hero",
+      "name": "COAL",
+      "on_being_hit": {
+        "changes": [
+          "Fire Coal#288534563042.hp: 433 -> 254",
+          "Fire Coal#288534563042.ult_charge: 265 -> 400",
+          "DummyNear#288551339890.dmg_dealt: 0 -> 179"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Fire Coal#288534563042.dmg_dealt: 0 -> 37",
+          "Fire Coal#288534563042.ult_charge: 256 -> 265",
+          "DummyNear#288551339890.hp: 50000 -> 49963",
+          "DummyNear#288551339890.burn: false -> true"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Stoke charges are on-hit — verified in on_hit phase",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Fire Coal#288534563042.stoke: 0 -> 3"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Stoke",
+      "ultimate": {
+        "changes": [
+          "Fire Coal#288534563042.meltdown: false -> true"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Meltdown"
+    },
+    {
+      "kind": "hero",
+      "name": "JUNE",
+      "on_being_hit": {
+        "changes": [
+          "Earth June#299909515367.hp: 330 -> 190",
+          "Earth June#299909515367.ult_charge: 203 -> 343",
+          "DummyNear#299926292554.dmg_dealt: 0 -> 140"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Earth June#299909515367.dmg_dealt: 0 -> 14",
+          "Earth June#299909515367.ult_charge: 200 -> 203",
+          "DummyNear#299926292554.hp: 50000 -> 49986"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyAlly#299959846869.regen_bank: 0.0 -> 4.83",
+          "DummyAlly2#299976624021.regen_bank: 0.0 -> 4.83"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Earth June#299909515367.dmg_dealt: 14 -> 20",
+          "DummyNear#299926292554.hp: 49986 -> 49980",
+          "DummyNear#299926292554.root: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Root",
+      "ultimate": {
+        "changes": [
+          "Earth June#299909515367.dmg_dealt: 20 -> 38",
+          "DummyNear#299926292554.hp: 49980 -> 49971",
+          "DummyFar#299943069798.hp: 50000 -> 49991",
+          "DummyFar#299943069798.root: false -> true",
+          "__mgr__.thorns: false -> true"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Bloom"
+    },
+    {
+      "kind": "hero",
+      "name": "CROSS",
+      "on_being_hit": {
+        "changes": [
+          "Normal Cross#311771006830.hp: 496 -> 363",
+          "Normal Cross#311771006830.healing: 33 -> 56",
+          "Normal Cross#311771006830.ult_charge: 231 -> 387",
+          "DummyNear#311787784211.dmg_dealt: 0 -> 133"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Normal Cross#311771006830.dmg_dealt: 0 -> 31",
+          "Normal Cross#311771006830.ult_charge: 224 -> 231",
+          "DummyNear#311787784211.hp: 50000 -> 49969"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "retaliation heal — verified in on_being_hit phase",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Normal Cross#311771006830.hp: 363 -> 672",
+          "Normal Cross#311771006830.healing: 56 -> 365"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Absolution",
+      "ultimate": {
+        "changes": [
+          "Normal Cross#311771006830.dmg_dealt: 31 -> 59",
+          "DummyNear#311787784211.hp: 49969 -> 49923"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Judgment"
+    },
+    {
+      "kind": "hero",
+      "name": "SEAR",
+      "on_being_hit": {
+        "changes": [
+          "Fire Sear#324253255503.hp: 337 -> 199",
+          "Fire Sear#324253255503.ult_charge: 204 -> 342",
+          "DummyNear#324270032814.dmg_dealt: 0 -> 138"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Fire Sear#324253255503.dmg_dealt: 0 -> 31",
+          "Fire Sear#324253255503.ult_charge: 197 -> 204",
+          "DummyNear#324270032814.hp: 50000 -> 49969"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "fire trail only spawns while moving",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Fire Sear#324253255503.dmg_dealt: 31 -> 57",
+          "DummyNear#324270032814.hp: 49969 -> 49933",
+          "DummyNear#324270032814.burn: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Ignite",
+      "ultimate": {
+        "changes": [
+          "Fire Sear#324253255503.dmg_dealt: 57 -> 81",
+          "DummyNear#324270032814.hp: 49933 -> 49921",
+          "DummyFar#324286810022.hp: 50000 -> 49988",
+          "DummyFar#324286810022.burn: false -> true"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Conflagration"
+    },
+    {
+      "kind": "hero",
+      "name": "EMBER",
+      "on_being_hit": {
+        "changes": [
+          "Fire Ember#336433514336.hp: 239 -> 143",
+          "Fire Ember#336433514336.ult_charge: 137 -> 233",
+          "DummyNear#336450291535.dmg_dealt: 0 -> 96"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#336450291535.burn: false -> true"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "burn application is on-hit — verified in on_hit phase",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Fire Ember#336433514336.dmg_dealt: 0 -> 44",
+          "DummyNear#336450291535.hp: 50000 -> 49968",
+          "DummyFar#336467068800.hp: 50000 -> 49968",
+          "DummyFar#336467068800.burn: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Cinder Shot",
+      "ultimate": {
+        "changes": [
+          "Fire Ember#336433514336.dmg_dealt: 44 -> 82",
+          "DummyNear#336450291535.hp: 49968 -> 49949",
+          "DummyFar#336467068800.hp: 49968 -> 49949"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Wildfire"
+    },
+    {
+      "kind": "hero",
+      "name": "RIFT",
+      "on_being_hit": {
+        "changes": [
+          "Lightning Rift#348412446940.hp: 356 -> 208",
+          "Lightning Rift#348412446940.dmg_dealt: 89 -> 133",
+          "Lightning Rift#348412446940.ult_charge: 220 -> 368",
+          "DummyNear#348429223830.hp: 49911 -> 49867",
+          "DummyNear#348429223830.dmg_dealt: 0 -> 148"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Lightning Rift#348412446940.dmg_dealt: 64 -> 89",
+          "Lightning Rift#348412446940.ult_charge: 214 -> 220",
+          "DummyNear#348429223830.hp: 49936 -> 49911"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Backlash damage-redirect — verified in on_being_hit phase",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Lightning Rift#348412446940.dmg_dealt: 133 -> 163",
+          "DummyNear#348429223830.hp: 49867 -> 49827",
+          "DummyNear#348429223830.pos: (4, 4) -> (8, 1)"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Tear",
+      "ultimate": {
+        "changes": [
+          "Lightning Rift#348412446940.dmg_dealt: 163 -> 259",
+          "DummyNear#348429223830.hp: 49827 -> 49762",
+          "DummyNear#348429223830.pos: (8, 1) -> (6, 2)",
+          "DummyFar#348446000794.hp: 50000 -> 49935",
+          "DummyFar#348446000794.pos: (4, 2) -> (5, 1)"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Collapse"
+    },
+    {
+      "kind": "hero",
+      "name": "ZOLT",
+      "on_being_hit": {
+        "changes": [
+          "Lightning Zolt#361549006983.hp: 266 -> 158",
+          "Lightning Zolt#361549006983.ult_charge: 160 -> 268",
+          "DummyNear#361565784005.dmg_dealt: 0 -> 108"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Lightning Zolt#361549006983.dmg_dealt: 0 -> 16",
+          "Lightning Zolt#361549006983.ult_charge: 156 -> 160",
+          "DummyNear#361565784005.hp: 50000 -> 49984"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "on-hit shock — verified in on_hit phase",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "__mgr__.storms: 0 -> 1"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Thunderstorm",
+      "ultimate": {
+        "changes": [
+          "Lightning Zolt#361549006983.dmg_dealt: 16 -> 148",
+          "DummyFar#361582560762.hp: 50000 -> 49801",
+          "DummyFar#361582560762.stun: false -> true"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Thunderhammer"
+    },
+    {
+      "kind": "hero",
+      "name": "LUMEN",
+      "on_being_hit": {
+        "changes": [
+          "Lightning Lumen#373460830199.hp: 259 -> 154",
+          "Lightning Lumen#373460830199.ult_charge: 155 -> 260",
+          "DummyNear#373477607279.dmg_dealt: 0 -> 105"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Lightning Lumen#373460830199.dmg_dealt: 0 -> 16",
+          "Lightning Lumen#373460830199.ult_charge: 151 -> 155",
+          "DummyNear#373477607279.hp: 50000 -> 49984"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Focused Light ramp is on-hit — verified in on_hit phase",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Lightning Lumen#373460830199.dmg_dealt: 16 -> 27",
+          "DummyNear#373477607279.hp: 49984 -> 49968"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Flare",
+      "ultimate": {
+        "changes": [],
+        "reason": "Dawnbreaker channels for 2s (shared start_channel); its ticks land via the unit's channel tick, which the probe's settle does not drive -- same as HEADHUNTER's Snipe. Verified in a live sim instead",
+        "status": "EXPECTED"
+      },
+      "ultimate_name": "Dawnbreaker"
+    },
+    {
+      "kind": "hero",
+      "name": "STATIC",
+      "on_being_hit": {
+        "changes": [
+          "Lightning Static#384852559863.hp: 305 -> 178",
+          "Lightning Static#384852559863.dmg_dealt: 34 -> 45",
+          "Lightning Static#384852559863.ult_charge: 186 -> 313",
+          "DummyNear#384869336942.hp: 49966 -> 49955",
+          "DummyNear#384869336942.dmg_dealt: 0 -> 127"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Lightning Static#384852559863.dmg_dealt: 16 -> 34",
+          "Lightning Static#384852559863.ult_charge: 182 -> 186",
+          "DummyNear#384869336942.hp: 49984 -> 49966"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Live Wire triggers on being ATTACKED (propagate_damage_links) — untestable statically, verify in sim",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Lightning Static#384852559863.dmg_dealt: 45 -> 59",
+          "DummyNear#384869336942.hp: 49955 -> 49937",
+          "DummyNear#384869336942.stun: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Tripwire",
+      "ultimate": {
+        "changes": [
+          "__mgr__.grid_field: false -> true"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Grid"
+    },
+    {
+      "kind": "hero",
+      "name": "REED",
+      "on_being_hit": {
+        "changes": [
+          "Water Reed#396932155406.hp: 322 -> 185",
+          "Water Reed#396932155406.ult_charge: 201 -> 338",
+          "DummyNear#396948932764.dmg_dealt: 0 -> 137"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Water Reed#396932155406.dmg_dealt: 0 -> 14",
+          "Water Reed#396932155406.ult_charge: 198 -> 201",
+          "DummyNear#396948932764.hp: 50000 -> 49986"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyAlly#396982487095.regen_bank: 0.0 -> 6.09",
+          "DummyAlly2#396999264322.regen_bank: 0.0 -> 6.09"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Water Reed#396932155406.hp: 185 -> 213",
+          "Water Reed#396932155406.healing: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Cleanse",
+      "ultimate": {
+        "changes": [
+          "Water Reed#396932155406.hp: 213 -> 444",
+          "Water Reed#396932155406.healing: 28 -> 25459",
+          "DummyAlly#396982487095.hp: 26416 -> 39016"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Confluence"
+    },
+    {
+      "kind": "hero",
+      "name": "VAIL",
+      "on_being_hit": {
+        "changes": [
+          "Air Vail#408776870093.hp: 306 -> 178",
+          "Air Vail#408776870093.ult_charge: 191 -> 319",
+          "DummyNear#408793647187.dmg_dealt: 0 -> 128"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Air Vail#408776870093.dmg_dealt: 0 -> 31",
+          "Air Vail#408776870093.ult_charge: 184 -> 191",
+          "DummyNear#408793647187.hp: 50000 -> 49969"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyAlly#408827201646.aspd_buff: false -> true",
+          "DummyAlly2#408843978823.aspd_buff: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyAlly#408827201646.untargetable: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Updraft",
+      "ultimate": {
+        "changes": [
+          "DummyNear#408793647187.slow: false -> true",
+          "DummyFar#408810424334.slow: false -> true"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Downburst"
+    },
+    {
+      "kind": "hero",
+      "name": "SPORE",
+      "on_being_hit": {
+        "changes": [
+          "Earth Spore#421493999459.hp: 289 -> 169",
+          "Earth Spore#421493999459.ult_charge: 177 -> 297",
+          "DummyNear#421510776651.dmg_dealt: 0 -> 120"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Earth Spore#421493999459.dmg_dealt: 0 -> 15",
+          "Earth Spore#421493999459.ult_charge: 174 -> 177",
+          "DummyNear#421510776651.hp: 50000 -> 49985"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyNear#421510776651.spore: 0.0 -> 3.0"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#421510776651.spore: 3.0 -> 9.0"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Bloom",
+      "ultimate": {
+        "changes": [
+          "Earth Spore#421493999459.dmg_dealt: 15 -> 107",
+          "DummyNear#421510776651.hp: 49985 -> 49924",
+          "DummyNear#421510776651.spore: 9.0 -> 1.5",
+          "DummyFar#421527553493.hp: 50000 -> 49969"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Release"
+    },
+    {
+      "kind": "enemy",
+      "name": "goblin",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#433456154606.dmg_dealt: 0 -> 15",
+          "Goblin#433439377203.hp: 52 -> 37"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#433456154606.hp: 50000 -> 49971",
+          "Goblin#433439377203.dmg_dealt: 0 -> 29"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Pack Courage needs other Goblins within 3 tiles — silent for a lone probe unit",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#433456154606.hp: 49971 -> 49912",
+          "Goblin#433439377203.dmg_dealt: 29 -> 88"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Shank",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "goblin_archer",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#443908360081.dmg_dealt: 0 -> 11",
+          "Goblin Archer#443891582997.hp: 42 -> 31"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#443908360081.hp: 50000 -> 49972",
+          "Goblin Archer#443891582997.dmg_dealt: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Focus Fire is on-hit (see on_hit result), not a per-frame passive",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#443908360081.hp: 49972 -> 49939",
+          "DummyNear#443908360081.slow: false -> true",
+          "Goblin Archer#443891582997.dmg_dealt: 28 -> 61"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Crippling Arrow",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "hill_giant",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#454293456848.dmg_dealt: 0 -> 281",
+          "Hill Giant#454276679514.hp: 1372 -> 1091"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#454293456848.hp: 50000 -> 49850",
+          "Hill Giant#454276679514.dmg_dealt: 0 -> 150"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "no passive by design",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#454293456848.hp: 49850 -> 49428",
+          "DummyNear#454293456848.pos: (4, 4) -> (4, 3)",
+          "Hill Giant#454276679514.dmg_dealt: 150 -> 572"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Groundbreaker",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "skeleton",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#465332865051.dmg_dealt: 0 -> 10",
+          "Skeleton#465316087832.hp: 38 -> 28"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#465332865051.hp: 50000 -> 49961",
+          "Skeleton#465316087832.dmg_dealt: 0 -> 39"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Undying is on-death — not observable in the passive probe window",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Skeleton#465316087832.shield: 0 -> 27"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Bone Shield",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "rat",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#475348862872.dmg_dealt: 0 -> 10",
+          "Rat#475332085395.hp: 26 -> 16"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#475348862872.hp: 50000 -> 49967",
+          "Rat#475332085395.dmg_dealt: 0 -> 33"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Infestation needs 2+ other Rats within 2 tiles — silent for a lone probe unit",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#475348862872.hp: 49967 -> 49931",
+          "DummyNear#475348862872.burn: false -> true",
+          "Rat#475332085395.dmg_dealt: 33 -> 69"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Infected Bite",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "triarch",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#485683627667.dmg_dealt: 0 -> 396",
+          "The Triarch — Melee Form#485666850789.hp: 1064 -> 668"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#485683627667.hp: 50000 -> 49918",
+          "The Triarch — Melee Form#485666850789.dmg_dealt: 0 -> 82"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "phase mechanics live in die(), not passives",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#485683627667.hp: 49918 -> 49813",
+          "The Triarch — Melee Form#485666850789.dmg_dealt: 82 -> 157"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Cleaving Strike",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "stat_stealer",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#496857253915.dmg_dealt: 0 -> 198",
+          "Stat Stealer#496840476883.hp: 1014 -> 816"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#496857253915.hp: 50000 -> 49879",
+          "Stat Stealer#496840476883.dmg_dealt: 0 -> 121"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "kit is skill+ult only",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Stat Stealer#496840476883.shield: 0 -> 725"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Siphon Ward",
+      "ultimate": {
+        "changes": [
+          "DummyNear#496857253915.drain: false -> true"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Essence Drain"
+    },
+    {
+      "kind": "enemy",
+      "name": "ant_hill",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#508030879602.dmg_dealt: 0 -> 263",
+          "Ant Hill#508014102580.hp: 1330 -> 1067"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#508030879602.hp: 50000 -> 49948",
+          "Ant Hill#508014102580.dmg_dealt: 0 -> 52"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "spawn cells are gated by _in_team_zone (enemy y<4) and the probe places the subject at y=5 — no legal spawn cell exists in the probe env; verified in sim instead",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "skill_name": "",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "khagan",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#517560338036.dmg_dealt: 0 -> 266",
+          "Khagan — Mounted#517543561285.hp: 2310 -> 2044"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#517560338036.hp: 50000 -> 49899",
+          "Khagan — Mounted#517543561285.dmg_dealt: 0 -> 101"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "phase mechanics live in die(), not passives",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#517560338036.hp: 49899 -> 49727",
+          "Khagan — Mounted#517543561285.dmg_dealt: 101 -> 284"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Shell Slam",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "skyrender",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#528331311173.dmg_dealt: 0 -> 269",
+          "Skyrender#528314533729.hp: 1924 -> 1655"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#528331311173.hp: 50000 -> 49921",
+          "Skyrender#528314533729.dmg_dealt: 0 -> 79"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Cyclone Ascent opens with a SKYRENDER_GROUND_TIME (8s) grounded window — longer than this probe's fixed 3-second passive test, so the first ascent legitimately hasn't fired yet; verified instead by the wave-20 sim (melee-vs-ranged win-rate split)",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#528331311173.hp: 49921 -> 49833",
+          "DummyFar#528348088421.hp: 50000 -> 49912",
+          "Skyrender#528314533729.dmg_dealt: 79 -> 255"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Gale Lance",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "drowned_maw",
+      "on_being_hit": {
+        "changes": [],
+        "status": "SILENT"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#539253278539.hp: 50000 -> 49806",
+          "The Drowned Maw#539236501354.dmg_dealt: 0 -> 194"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyNear#539253278539.heal_cut: false -> true",
+          "DummyFar#539270055918.heal_cut: false -> true",
+          "The Drowned Maw#539236501354.stun: false -> true",
+          "The Drowned Maw#539236501354.untargetable: false -> true",
+          "The Drowned Maw#539236501354.atk: 82 -> 103",
+          "The Drowned Maw#539236501354.res: 36 -> 50"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#539253278539.hp: 49806 -> 49564",
+          "The Drowned Maw#539236501354.dmg_dealt: 194 -> 451"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Undertow",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "cloven_titan",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#550343018469.dmg_dealt: 0 -> 252",
+          "Cloven Titan#550326240771.hp: 2506 -> 2254"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#550343018469.hp: 50000 -> 49933",
+          "Cloven Titan#550326240771.dmg_dealt: 0 -> 67"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "its whole kit IS the on-death split (spawn_cloven_halves via the cloven_split meta in VisualUnit.die) — not observable in a passive window that never kills the subject, same as the slimes above; verified instead by the dedicated split test",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#550343018469.hp: 49933 -> 49818",
+          "Cloven Titan#550326240771.dmg_dealt: 67 -> 182"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Fault Line",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "emberhollow",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#561264986193.dmg_dealt: 0 -> 264",
+          "Emberhollow#561248209137.hp: 2240 -> 1976"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#561264986193.hp: 50000 -> 49927",
+          "Emberhollow#561248209137.dmg_dealt: 0 -> 73"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "its kit is the on-death revive gate (emberhollow_revive meta → AutoBattleManager.emberhollow_hearts_alive, checked in VisualUnit.die) — a passive window that never kills the subject can't see it; verified instead by the dedicated revive-gate test (revives at 50% with a Heart alive, stays down with both out, never twice)",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#561264986193.hp: 49927 -> 49817",
+          "Emberhollow#561248209137.dmg_dealt: 73 -> 190"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Backdraft",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "ember_heart",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#572103067479.dmg_dealt: 0 -> 159",
+          "Ember Heart#572086290180.hp: 406 -> 247"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#572103067479.hp: 50000 -> 49976",
+          "Ember Heart#572086290180.dmg_dealt: 0 -> 24",
+          "Ember Heart#572086290180.pos: (4, 5) -> (7, 1)",
+          "Ember Heart#572086290180.untargetable: true -> false"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Kindling gates Emberhollow's revival; the Heart's retreat is driven by its own half-health signal, not a per-frame passive. Independent retreat, fixed tiles and retained HP are verified by ember_heart_layout_probe.",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#572103067479.hp: 49976 -> 49950",
+          "Ember Heart#572086290180.dmg_dealt: 24 -> 52"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Cinder Spit",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "arcfang",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#582890817475.dmg_dealt: 0 -> 273",
+          "Arcfang#582874040390.hp: 2029 -> 1756"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#582890817475.hp: 50000 -> 49916",
+          "Arcfang#582874040390.dmg_dealt: 0 -> 84"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Thunder Run fires on a ARCFANG_BLINK_INTERVAL (10s) timer — far longer than this probe's fixed 3-second passive window, so the first blink legitimately hasn't happened yet; verified instead by the dedicated blink test (2×2 body teleports beside the highest-damage hero, all 4 footprint cells stay registered)",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#582890817475.hp: 49916 -> 49794",
+          "Arcfang#582874040390.dmg_dealt: 84 -> 214"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Sunder Bite",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "gravekeeper",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#593494017888.dmg_dealt: 0 -> 381",
+          "The Gravekeeper#593477240798.hp: 2394 -> 2013"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#593494017888.hp: 50000 -> 49887",
+          "The Gravekeeper#593477240798.dmg_dealt: 0 -> 113"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "no per-frame passive by design — Grave Call is an on-DEATH hook on the OTHER side (gravekeeper meta → AutoBattleManager.gravekeeper_raise_shade, fired from VisualUnit.die()), and nothing dies in a passive probe window; verified instead by the dedicated shade test (raises detuned shades, caps at GRAVE_SHADE_MAX, shades never re-raise)",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#593494017888.hp: 49887 -> 49718",
+          "The Gravekeeper#593477240798.dmg_dealt: 113 -> 233"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Grave Toll",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "the_architect",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#604835415957.dmg_dealt: 0 -> 177",
+          "The Architect#604818638917.hp: 3919 -> 3742"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#604835415957.hp: 50000 -> 49850",
+          "The Architect#604818638917.dmg_dealt: 0 -> 150"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyNear#604835415957.heal_cut: false -> true",
+          "DummyFar#604852193151.heal_cut: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#604835415957.hp: 49850 -> 49596",
+          "The Architect#604818638917.dmg_dealt: 150 -> 330"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Cornerstone",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "gale_warden",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#615908378777.dmg_dealt: 0 -> 229",
+          "Gale Warden#615891601176.hp: 682 -> 453"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#615908378777.hp: 50000 -> 49979",
+          "Gale Warden#615891601176.dmg_dealt: 0 -> 21"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "evasion is a flat equipment_passives stat rolled inside take_damage, not a per-frame passive — its kit is the Cyclone Shove skill",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#615908378777.hp: 49979 -> 49949",
+          "DummyNear#615908378777.pos: (4, 4) -> (4, 3)",
+          "Gale Warden#615891601176.dmg_dealt: 21 -> 53"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Cyclone Shove",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "tidecaller",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#626561910624.dmg_dealt: 0 -> 261",
+          "Tidecaller#626545133488.hp: 1924 -> 1663",
+          "Tidecaller#626545133488.ult_charge: 4965 -> 5226"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#626561910624.hp: 50000 -> 49968",
+          "Tidecaller#626545133488.dmg_dealt: 0 -> 32",
+          "Tidecaller#626545133488.ult_charge: 4957 -> 4965"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Tidecaller#626545133488.regen_bank: 0.0 -> 206.25",
+          "DummyAlly#626595465298.regen_bank: 0.0 -> 1875.0",
+          "DummyFallen#626629019654.regen_bank: 0.0 -> 1875.0"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Tidecaller#626545133488.shield: 0 -> 1100"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Tidal Ward",
+      "ultimate": {
+        "changes": [
+          "Coral Husk#636745681141 appeared",
+          "Coral Husk#637601318371 appeared",
+          "Coral Husk#638154966997 appeared",
+          "Coral Husk#638708614996 appeared",
+          "__mgr__.n_enemy: 4 -> 8"
+        ],
+        "status": "OK"
+      },
+      "ultimate_name": "Call of the Reef"
+    },
+    {
+      "kind": "enemy",
+      "name": "terracotta_colossus",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#639916574873.dmg_dealt: 0 -> 212",
+          "Terracotta Colossus#639899797376.hp: 3290 -> 3078"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#639916574873.hp: 50000 -> 49872",
+          "Terracotta Colossus#639899797376.dmg_dealt: 0 -> 128"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Terracotta Colossus#639899797376.res: 38 -> 62"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#639916574873.hp: 49872 -> 49583",
+          "Terracotta Colossus#639899797376.dmg_dealt: 128 -> 435"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Weight of Stone",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "magma_heart",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#650972760168.dmg_dealt: 0 -> 478",
+          "Magma Heart#650955982749.hp: 4003 -> 3525"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#650972760168.hp: 50000 -> 49999",
+          "Magma Heart#650955982749.dmg_dealt: 0 -> 1"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "status": "SILENT"
+      },
+      "skill": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "skill_name": "",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "tempest_conduit",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#660854540189.dmg_dealt: 0 -> 242",
+          "Tempest Conduit#660837763028.hp: 4319 -> 4077"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "Tempest Conduit#660837763028.pos: (4, 5) -> (4, 6)"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Living Storm is its continuous six-cell movement/circuit loop; verified by tempest_circuit_probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [],
+        "reason": "Always active from combat start, so forcing a second cast has no independent effect; continuous travel, warnings, tail attacks and surge are verified by tempest_circuit_probe",
+        "status": "EXPECTED"
+      },
+      "skill_name": "Lay the Circuit",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "mirrorplate_warden",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#676339910342.hp: 49475 -> 49428",
+          "DummyNear#676339910342.dmg_dealt: 0 -> 317",
+          "Mirrorplate Warden#676323133543.hp: 7147 -> 6830",
+          "Mirrorplate Warden#676323133543.dmg_dealt: 525 -> 572"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#676339910342.hp: 49750 -> 49475",
+          "Mirrorplate Warden#676323133543.dmg_dealt: 250 -> 525"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Mirrorplate is a reactive reflect read off the mob_reflect meta in propagate_damage_links — verified in the on_being_hit phase, not a per-frame passive",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "skill_name": "",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "aspect_devourer",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#686674675577.dmg_dealt: 0 -> 216",
+          "Aspect Devourer#686657898599.hp: 10640 -> 10424"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#686674675577.hp: 50000 -> 49727",
+          "Aspect Devourer#686657898599.dmg_dealt: 0 -> 273"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Aspect Devourer#686657898599.element: 0 -> 1"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "skill_name": "",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "goblin_shaman_fire",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#696371906407.dmg_dealt: 0 -> 42",
+          "Fire Goblin Shaman#696355129447.hp: 105 -> 63",
+          "Fire Goblin Shaman#696355129447.ult_charge: 62 -> 104"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#696371906407.hp: 50000 -> 49992",
+          "Fire Goblin Shaman#696355129447.dmg_dealt: 0 -> 8",
+          "Fire Goblin Shaman#696355129447.ult_charge: 60 -> 62"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyAlly#696405460729.regen_bank: 0.0 -> 1.25",
+          "DummyAlly2#696422238027.regen_bank: 0.0 -> 1.25",
+          "DummyFallen#696439014772.regen_bank: 0.0 -> 1.25"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Fire Goblin Shaman#696355129447.hp: 63 -> 91",
+          "Fire Goblin Shaman#696355129447.healing: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Mend",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "goblin_shaman_normal",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#706488567662.dmg_dealt: 0 -> 62",
+          "Normal Goblin Shaman#706471790418.hp: 105 -> 43",
+          "Normal Goblin Shaman#706471790418.ult_charge: 47 -> 109"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#706488567662.hp: 50000 -> 49988",
+          "Normal Goblin Shaman#706471790418.dmg_dealt: 0 -> 12",
+          "Normal Goblin Shaman#706471790418.ult_charge: 44 -> 47"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyAlly#706522122479.regen_bank: 0.0 -> 1.25",
+          "DummyAlly2#706538899429.regen_bank: 0.0 -> 1.25",
+          "DummyFallen#706555676632.regen_bank: 0.0 -> 1.25"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Normal Goblin Shaman#706471790418.hp: 43 -> 71",
+          "Normal Goblin Shaman#706471790418.healing: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Mend",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "goblin_shaman_water",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#716974327678.dmg_dealt: 0 -> 42",
+          "Water Goblin Shaman#716957550204.hp: 105 -> 63",
+          "Water Goblin Shaman#716957550204.ult_charge: 62 -> 104"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#716974327678.hp: 50000 -> 49992",
+          "Water Goblin Shaman#716957550204.dmg_dealt: 0 -> 8",
+          "Water Goblin Shaman#716957550204.ult_charge: 60 -> 62"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyAlly#717007882087.regen_bank: 0.0 -> 1.25",
+          "DummyAlly2#717024659433.regen_bank: 0.0 -> 1.25",
+          "DummyFallen#717041436502.regen_bank: 0.0 -> 1.25"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Water Goblin Shaman#716957550204.hp: 63 -> 91",
+          "Water Goblin Shaman#716957550204.healing: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Mend",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "goblin_shaman_earth",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#727107766174.dmg_dealt: 0 -> 85",
+          "Earth Goblin Shaman#727090988646.hp: 105 -> 20",
+          "Earth Goblin Shaman#727090988646.ult_charge: 62 -> 147"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#727107766174.hp: 50000 -> 49992",
+          "Earth Goblin Shaman#727090988646.dmg_dealt: 0 -> 8",
+          "Earth Goblin Shaman#727090988646.ult_charge: 60 -> 62"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyAlly#727141320558.regen_bank: 0.0 -> 1.25",
+          "DummyAlly2#727158097882.regen_bank: 0.0 -> 1.25",
+          "DummyFallen#727174875025.regen_bank: 0.0 -> 1.25"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Earth Goblin Shaman#727090988646.hp: 20 -> 48",
+          "Earth Goblin Shaman#727090988646.healing: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Mend",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "goblin_shaman_air",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#737308313493.dmg_dealt: 0 -> 42",
+          "Air Goblin Shaman#737291536304.hp: 105 -> 63",
+          "Air Goblin Shaman#737291536304.ult_charge: 62 -> 104"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#737308313493.hp: 50000 -> 49992",
+          "Air Goblin Shaman#737291536304.dmg_dealt: 0 -> 8",
+          "Air Goblin Shaman#737291536304.ult_charge: 60 -> 62"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyAlly#737341867902.regen_bank: 0.0 -> 1.25",
+          "DummyAlly2#737358645456.regen_bank: 0.0 -> 1.25",
+          "DummyFallen#737375422519.regen_bank: 0.0 -> 1.25"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Air Goblin Shaman#737291536304.hp: 63 -> 91",
+          "Air Goblin Shaman#737291536304.healing: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Mend",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "goblin_shaman_lightning",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#747391420453.dmg_dealt: 0 -> 42",
+          "Lightning Goblin Shaman#747374643161.hp: 105 -> 63",
+          "Lightning Goblin Shaman#747374643161.ult_charge: 64 -> 106"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#747391420453.hp: 50000 -> 49984",
+          "Lightning Goblin Shaman#747374643161.dmg_dealt: 0 -> 16",
+          "Lightning Goblin Shaman#747374643161.ult_charge: 60 -> 64"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyAlly#747424974750.regen_bank: 0.0 -> 1.25",
+          "DummyAlly2#747441752108.regen_bank: 0.0 -> 1.25",
+          "DummyFallen#747458529028.regen_bank: 0.0 -> 1.25"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Lightning Goblin Shaman#747374643161.hp: 63 -> 91",
+          "Lightning Goblin Shaman#747374643161.healing: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Mend",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "orc_earth",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#757759739484.dmg_dealt: 0 -> 103",
+          "Earth Orc#757742962451.hp: 262 -> 159"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#757759739484.hp: 50000 -> 49966",
+          "Earth Orc#757742962451.dmg_dealt: 0 -> 34"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Bloodrage triggers below 50% HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#757759739484.hp: 49966 -> 49920",
+          "DummyNear#757759739484.stun: false -> true",
+          "Earth Orc#757742962451.dmg_dealt: 34 -> 80"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Crushing Blow",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "orc_normal",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#768581044165.dmg_dealt: 0 -> 75",
+          "Normal Orc#768564266914.hp: 262 -> 187"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#768581044165.hp: 50000 -> 49949",
+          "Normal Orc#768564266914.dmg_dealt: 0 -> 51"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Bloodrage triggers below 50% HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#768581044165.hp: 49949 -> 49881",
+          "DummyNear#768581044165.stun: false -> true",
+          "Normal Orc#768564266914.dmg_dealt: 51 -> 119"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Crushing Blow",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "orc_fire",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#779184244420.dmg_dealt: 0 -> 103",
+          "Fire Orc#779167467154.hp: 262 -> 159"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#779184244420.hp: 50000 -> 49966",
+          "Fire Orc#779167467154.dmg_dealt: 0 -> 34"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Bloodrage triggers below 50% HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#779184244420.hp: 49966 -> 49920",
+          "DummyNear#779184244420.stun: false -> true",
+          "Fire Orc#779167467154.dmg_dealt: 34 -> 80"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Crushing Blow",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "orc_water",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#789820999344.dmg_dealt: 0 -> 103",
+          "Water Orc#789804222427.hp: 262 -> 159"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#789820999344.hp: 50000 -> 49966",
+          "Water Orc#789804222427.dmg_dealt: 0 -> 34"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Bloodrage triggers below 50% HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#789820999344.hp: 49966 -> 49920",
+          "DummyNear#789820999344.stun: false -> true",
+          "Water Orc#789804222427.dmg_dealt: 34 -> 80"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Crushing Blow",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "orc_air",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#799820219903.dmg_dealt: 0 -> 103",
+          "Air Orc#799803442691.hp: 262 -> 159"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#799820219903.hp: 50000 -> 49966",
+          "Air Orc#799803442691.dmg_dealt: 0 -> 34"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Bloodrage triggers below 50% HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#799820219903.hp: 49966 -> 49920",
+          "DummyNear#799820219903.stun: false -> true",
+          "Air Orc#799803442691.dmg_dealt: 34 -> 80"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Crushing Blow",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "orc_lightning",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#809819441397.dmg_dealt: 0 -> 103",
+          "Lightning Orc#809802663611.hp: 262 -> 159"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#809819441397.hp: 50000 -> 49966",
+          "Lightning Orc#809802663611.dmg_dealt: 0 -> 34"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Bloodrage triggers below 50% HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#809819441397.hp: 49966 -> 49920",
+          "DummyNear#809819441397.stun: false -> true",
+          "Lightning Orc#809802663611.dmg_dealt: 34 -> 80"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Crushing Blow",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "slime_water",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#819818661920.dmg_dealt: 0 -> 32",
+          "Water Slime#819801884742.hp: 77 -> 45"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#819818661920.hp: 50000 -> 49987",
+          "Water Slime#819801884742.dmg_dealt: 0 -> 13"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Split is on-death — not observable in the passive probe window",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#819818661920.weak: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Corrosive Goo",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "slime_normal",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#830220535740.dmg_dealt: 0 -> 23",
+          "Normal Slime#830203758468.hp: 77 -> 54"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#830220535740.hp: 50000 -> 49981",
+          "Normal Slime#830203758468.dmg_dealt: 0 -> 19"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Split is on-death — not observable in the passive probe window",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#830220535740.weak: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Corrosive Goo",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "slime_fire",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#840588855345.dmg_dealt: 0 -> 32",
+          "Fire Slime#840572078498.hp: 77 -> 45"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#840588855345.hp: 50000 -> 49987",
+          "Fire Slime#840572078498.dmg_dealt: 0 -> 13"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Split is on-death — not observable in the passive probe window",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#840588855345.weak: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Corrosive Goo",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "slime_earth",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#850873288736.dmg_dealt: 0 -> 32",
+          "Earth Slime#850856511701.hp: 77 -> 45"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#850873288736.hp: 50000 -> 49987",
+          "Earth Slime#850856511701.dmg_dealt: 0 -> 13"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Split is on-death — not observable in the passive probe window",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#850873288736.weak: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Corrosive Goo",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "slime_air",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#860788623292.dmg_dealt: 0 -> 32",
+          "Air Slime#860771845970.hp: 77 -> 45"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#860788623292.hp: 50000 -> 49987",
+          "Air Slime#860771845970.dmg_dealt: 0 -> 13"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Split is on-death — not observable in the passive probe window",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#860788623292.weak: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Corrosive Goo",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "slime_lightning",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#870703958065.dmg_dealt: 0 -> 32",
+          "Lightning Slime#870687180773.hp: 77 -> 45"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#870703958065.hp: 50000 -> 49987",
+          "Lightning Slime#870687180773.dmg_dealt: 0 -> 13"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Split is on-death — not observable in the passive probe window",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#870703958065.weak: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Corrosive Goo",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "lizard_normal",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#880619292704.dmg_dealt: 0 -> 23",
+          "Normal Lizard#880602515292.hp: 84 -> 61"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#880619292704.hp: 50000 -> 49916",
+          "Normal Lizard#880602515292.dmg_dealt: 0 -> 84"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Normal Lizard#880602515292.regen_bank: 0.0 -> 0.72"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#880619292704.hp: 49916 -> 49730",
+          "Normal Lizard#880602515292.dmg_dealt: 84 -> 270"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Precision Shot",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "lizard_fire",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#890954057660.dmg_dealt: 0 -> 32",
+          "Fire Lizard#890937280629.hp: 84 -> 52"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#890954057660.hp: 50000 -> 49944",
+          "Fire Lizard#890937280629.dmg_dealt: 0 -> 56"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Fire Lizard#890937280629.regen_bank: 0.0 -> 0.72"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#890954057660.hp: 49944 -> 49820",
+          "Fire Lizard#890937280629.dmg_dealt: 56 -> 180"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Precision Shot",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "lizard_water",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#901339154481.dmg_dealt: 0 -> 32",
+          "Water Lizard#901322376828.hp: 84 -> 52"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#901339154481.hp: 50000 -> 49944",
+          "Water Lizard#901322376828.dmg_dealt: 0 -> 56"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Water Lizard#901322376828.regen_bank: 0.0 -> 0.72"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#901339154481.hp: 49944 -> 49820",
+          "Water Lizard#901322376828.dmg_dealt: 56 -> 180"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Precision Shot",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "lizard_earth",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#911103494204.dmg_dealt: 0 -> 65",
+          "Earth Lizard#911086716897.hp: 84 -> 19"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#911103494204.hp: 50000 -> 49944",
+          "Earth Lizard#911086716897.dmg_dealt: 0 -> 56"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Earth Lizard#911086716897.regen_bank: 0.0 -> 0.72"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#911103494204.hp: 49944 -> 49820",
+          "Earth Lizard#911086716897.dmg_dealt: 56 -> 180"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Precision Shot",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "lizard_air",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#921555699745.dmg_dealt: 0 -> 65",
+          "Air Lizard#921538922328.hp: 84 -> 19"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#921555699745.hp: 50000 -> 49944",
+          "Air Lizard#921538922328.dmg_dealt: 0 -> 56"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Air Lizard#921538922328.regen_bank: 0.0 -> 0.72"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#921555699745.hp: 49944 -> 49820",
+          "Air Lizard#921538922328.dmg_dealt: 56 -> 180"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Precision Shot",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "lizard_lightning",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#932309895078.dmg_dealt: 0 -> 32",
+          "Lightning Lizard#932293117651.hp: 84 -> 52"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#932309895078.hp: 50000 -> 49887",
+          "Lightning Lizard#932293117651.dmg_dealt: 0 -> 113"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Lightning Lizard#932293117651.regen_bank: 0.0 -> 0.72"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#932309895078.hp: 49887 -> 49763",
+          "Lightning Lizard#932293117651.dmg_dealt: 113 -> 237"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Precision Shot",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "bear_normal",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#943131199422.dmg_dealt: 0 -> 107",
+          "Normal Bear#943114422171.hp: 420 -> 313"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#943131199422.hp: 50000 -> 49950",
+          "Normal Bear#943114422171.dmg_dealt: 0 -> 50"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Fury ramps with missing HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#943131199422.hp: 49950 -> 49918",
+          "Normal Bear#943114422171.dmg_dealt: 50 -> 82"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Rending Swipe",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "bear_fire",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#954254493595.dmg_dealt: 0 -> 147",
+          "Fire Bear#954237716339.hp: 420 -> 273"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#954254493595.hp: 50000 -> 49984",
+          "Fire Bear#954237716339.dmg_dealt: 0 -> 16"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Fury ramps with missing HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#954254493595.hp: 49984 -> 49963",
+          "Fire Bear#954237716339.dmg_dealt: 16 -> 37"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Rending Swipe",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "bear_water",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#964958357363.dmg_dealt: 0 -> 147",
+          "Water Bear#964941580351.hp: 420 -> 273"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#964958357363.hp: 50000 -> 49984",
+          "Water Bear#964941580351.dmg_dealt: 0 -> 16"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Fury ramps with missing HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#964958357363.hp: 49984 -> 49963",
+          "Water Bear#964941580351.dmg_dealt: 16 -> 37"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Rending Swipe",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "bear_earth",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#974890469439.dmg_dealt: 0 -> 147",
+          "Earth Bear#974873692288.hp: 420 -> 273"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#974890469439.hp: 50000 -> 49984",
+          "Earth Bear#974873692288.dmg_dealt: 0 -> 16"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Fury ramps with missing HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#974890469439.hp: 49984 -> 49963",
+          "Earth Bear#974873692288.dmg_dealt: 16 -> 37"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Rending Swipe",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "bear_air",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#984822581376.dmg_dealt: 0 -> 147",
+          "Air Bear#984805803992.hp: 420 -> 273"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#984822581376.hp: 50000 -> 49984",
+          "Air Bear#984805803992.dmg_dealt: 0 -> 16"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Fury ramps with missing HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#984822581376.hp: 49984 -> 49963",
+          "Air Bear#984805803992.dmg_dealt: 16 -> 37"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Rending Swipe",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "bear_lightning",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#994754693080.dmg_dealt: 0 -> 147",
+          "Lightning Bear#994737915531.hp: 420 -> 273"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#994754693080.hp: 50000 -> 49984",
+          "Lightning Bear#994737915531.dmg_dealt: 0 -> 16"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Fury ramps with missing HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#994754693080.hp: 49984 -> 49963",
+          "Lightning Bear#994737915531.dmg_dealt: 16 -> 37"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Rending Swipe",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "troll_normal",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1004686804619.dmg_dealt: 0 -> 48",
+          "Normal Troll#1004670027722.hp: 168 -> 120"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1004686804619.hp: 50000 -> 49958",
+          "Normal Troll#1004670027722.dmg_dealt: 0 -> 42"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Normal Troll#1004670027722.regen_bank: 0.0 -> 21.6"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyAlly#1004720359241.aspd_buff: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Enrage",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "troll_fire",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1014635693941.dmg_dealt: 0 -> 133",
+          "Fire Troll#1014618916723.hp: 168 -> 35"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1014635693941.hp: 50000 -> 49972",
+          "Fire Troll#1014618916723.dmg_dealt: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Fire Troll#1014618916723.regen_bank: 0.0 -> 7.2"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyAlly#1014669248749.aspd_buff: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Enrage",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "troll_water",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1024953681891.dmg_dealt: 0 -> 66",
+          "Water Troll#1024936904472.hp: 168 -> 102"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1024953681891.hp: 50000 -> 49972",
+          "Water Troll#1024936904472.dmg_dealt: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Water Troll#1024936904472.regen_bank: 0.0 -> 21.6"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyAlly2#1025004013771.aspd_buff: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Enrage",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "troll_earth",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1034869016576.dmg_dealt: 0 -> 133",
+          "Earth Troll#1034852239320.hp: 168 -> 35"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1034869016576.hp: 50000 -> 49972",
+          "Earth Troll#1034852239320.dmg_dealt: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Earth Troll#1034852239320.regen_bank: 0.0 -> 21.6"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyAlly#1034902571112.aspd_buff: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Enrage",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "troll_air",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1044817905383.dmg_dealt: 0 -> 66",
+          "Air Troll#1044801127928.hp: 168 -> 102"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1044817905383.hp: 50000 -> 49972",
+          "Air Troll#1044801127928.dmg_dealt: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Air Troll#1044801127928.regen_bank: 0.0 -> 21.6"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyAlly2#1044868237471.aspd_buff: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Enrage",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "troll_lightning",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1054733240215.dmg_dealt: 0 -> 66",
+          "Lightning Troll#1054716463153.hp: 168 -> 102"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1054733240215.hp: 50000 -> 49972",
+          "Lightning Troll#1054716463153.dmg_dealt: 0 -> 28"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "Lightning Troll#1054716463153.regen_bank: 0.0 -> 7.2"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "Lightning Troll#1054716463153.aspd_buff: false -> true"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Enrage",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "windup_bot_normal",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1064195590385.dmg_dealt: 0 -> 63",
+          "Normal Wind-Up Bot#1064178812827.hp: 210 -> 147"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1064195590385.hp: 50000 -> 49916",
+          "Normal Wind-Up Bot#1064178812827.dmg_dealt: 0 -> 84"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Overclock ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1064195590385.hp: 49916 -> 49789",
+          "DummyNear#1064195590385.stun: false -> true",
+          "Normal Wind-Up Bot#1064178812827.dmg_dealt: 84 -> 211"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Wind-Up Punch",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "windup_bot_fire",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1074966563059.dmg_dealt: 0 -> 86",
+          "Fire Wind-Up Bot#1074949785349.hp: 210 -> 124"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1074966563059.hp: 50000 -> 49944",
+          "Fire Wind-Up Bot#1074949785349.dmg_dealt: 0 -> 56"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Overclock ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1074966563059.hp: 49944 -> 49860",
+          "DummyNear#1074966563059.stun: false -> true",
+          "Fire Wind-Up Bot#1074949785349.dmg_dealt: 56 -> 140"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Wind-Up Punch",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "windup_bot_water",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1085720758097.dmg_dealt: 0 -> 86",
+          "Water Wind-Up Bot#1085703981018.hp: 210 -> 124"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1085720758097.hp: 50000 -> 49944",
+          "Water Wind-Up Bot#1085703981018.dmg_dealt: 0 -> 56"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Overclock ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1085720758097.hp: 49944 -> 49860",
+          "DummyNear#1085720758097.stun: false -> true",
+          "Water Wind-Up Bot#1085703981018.dmg_dealt: 56 -> 140"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Wind-Up Punch",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "windup_bot_earth",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1095870973759.dmg_dealt: 0 -> 86",
+          "Earth Wind-Up Bot#1095854196789.hp: 210 -> 124"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1095870973759.hp: 50000 -> 49944",
+          "Earth Wind-Up Bot#1095854196789.dmg_dealt: 0 -> 56"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Overclock ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1095870973759.hp: 49944 -> 49860",
+          "DummyNear#1095870973759.stun: false -> true",
+          "Earth Wind-Up Bot#1095854196789.dmg_dealt: 56 -> 140"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Wind-Up Punch",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "windup_bot_air",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1106021189553.dmg_dealt: 0 -> 173",
+          "Air Wind-Up Bot#1106004412287.hp: 210 -> 37"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1106021189553.hp: 50000 -> 49944",
+          "Air Wind-Up Bot#1106004412287.dmg_dealt: 0 -> 56"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Overclock ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1106021189553.hp: 49944 -> 49860",
+          "DummyNear#1106021189553.stun: false -> true",
+          "Air Wind-Up Bot#1106004412287.dmg_dealt: 56 -> 140"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Wind-Up Punch",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "windup_bot_lightning",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1116892825494.dmg_dealt: 0 -> 86",
+          "Lightning Wind-Up Bot#1116876048423.hp: 210 -> 124"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1116892825494.hp: 50000 -> 49944",
+          "Lightning Wind-Up Bot#1116876048423.dmg_dealt: 0 -> 56"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Overclock ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1116892825494.hp: 49944 -> 49860",
+          "DummyNear#1116892825494.stun: false -> true",
+          "Lightning Wind-Up Bot#1116876048423.dmg_dealt: 56 -> 140"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Wind-Up Punch",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "hydra_normal",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1127596689616.dmg_dealt: 0 -> 192",
+          "Normal Hydra#1127579912123.hp: 2065 -> 1873"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1127596689616.hp: 50000 -> 49907",
+          "Normal Hydra#1127579912123.dmg_dealt: 0 -> 93"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1127596689616.hp: 49907 -> 49796",
+          "Normal Hydra#1127579912123.dmg_dealt: 93 -> 172"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Serpent Strike",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "hydra_fire",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1138401215904.dmg_dealt: 0 -> 263",
+          "Fire Hydra#1138384439293.hp: 2065 -> 1802"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1138401215904.hp: 50000 -> 49938",
+          "Fire Hydra#1138384439293.dmg_dealt: 0 -> 62"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1138401215904.hp: 49938 -> 49864",
+          "Fire Hydra#1138384439293.dmg_dealt: 62 -> 141"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Serpent Strike",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "hydra_water",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1149205743758.dmg_dealt: 0 -> 263",
+          "Water Hydra#1149188966453.hp: 2065 -> 1802"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1149205743758.hp: 50000 -> 49938",
+          "Water Hydra#1149188966453.dmg_dealt: 0 -> 62"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1149205743758.hp: 49938 -> 49864",
+          "Water Hydra#1149188966453.dmg_dealt: 62 -> 141"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Serpent Strike",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "hydra_earth",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1159372736337.dmg_dealt: 0 -> 263",
+          "Earth Hydra#1159355959353.hp: 2065 -> 1802"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1159372736337.hp: 50000 -> 49938",
+          "Earth Hydra#1159355959353.dmg_dealt: 0 -> 62"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1159372736337.hp: 49938 -> 49864",
+          "Earth Hydra#1159355959353.dmg_dealt: 62 -> 141"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Serpent Strike",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "hydra_air",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1169539729527.dmg_dealt: 0 -> 263",
+          "Air Hydra#1169522952113.hp: 2065 -> 1802"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1169539729527.hp: 50000 -> 49938",
+          "Air Hydra#1169522952113.dmg_dealt: 0 -> 62"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1169539729527.hp: 49938 -> 49864",
+          "Air Hydra#1169522952113.dmg_dealt: 62 -> 141"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Serpent Strike",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "hydra_lightning",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1179706722437.dmg_dealt: 0 -> 263",
+          "Lightning Hydra#1179689945203.hp: 2065 -> 1802"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1179706722437.hp: 50000 -> 49938",
+          "Lightning Hydra#1179689945203.dmg_dealt: 0 -> 62"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "head-regrowth gates on HYDRA_REGROW_INTERVAL (20s) — longer than this probe's fixed 3-second passive window, so it's legitimately silent here; see _hydra_regrow_tick",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1179706722437.hp: 49938 -> 49864",
+          "Lightning Hydra#1179689945203.dmg_dealt: 62 -> 141"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Serpent Strike",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "ogre",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1189873715595.dmg_dealt: 0 -> 118",
+          "Ogre#1189856937968.hp: 315 -> 197"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1189873715595.hp: 50000 -> 49955",
+          "Ogre#1189856937968.dmg_dealt: 0 -> 45"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Bloodrage (reused from Orc) triggers below 50% HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1189873715595.hp: 49955 -> 49888",
+          "DummyNear#1189873715595.stun: false -> true",
+          "Ogre#1189856937968.dmg_dealt: 45 -> 112"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Crushing Blow",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "minotaur",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1200510469826.dmg_dealt: 0 -> 101",
+          "Minotaur#1200493693174.hp: 262 -> 161"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1200510469826.hp: 50000 -> 49957",
+          "Minotaur#1200493693174.dmg_dealt: 0 -> 43"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Savage Charge (reused from Bear's Fury) ramps with missing HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1200510469826.hp: 49957 -> 49892",
+          "DummyNear#1200510469826.stun: false -> true",
+          "Minotaur#1200493693174.dmg_dealt: 43 -> 108"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Gore Rush",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "gargoyle",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1211130447829.dmg_dealt: 0 -> 123",
+          "Gargoyle#1211113670375.hp: 350 -> 227"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1211130447829.hp: 50000 -> 49944",
+          "Gargoyle#1211113670375.dmg_dealt: 0 -> 56"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Stone Ward raises at 50% HP — silent at full HP in probe (covered by gargoyle_kit_probe)",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1211130447829.hp: 49944 -> 49905",
+          "Gargoyle#1211113670375.dmg_dealt: 56 -> 95"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Talon Rake",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "stone_golem",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1222169855816.dmg_dealt: 0 -> 178",
+          "Stone Golem#1222153078503.hp: 525 -> 347",
+          "Stone Golem#1222153078503.ult_charge: 260 -> 300"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1222169855816.hp: 50000 -> 49980",
+          "Stone Golem#1222153078503.dmg_dealt: 0 -> 20",
+          "Stone Golem#1222153078503.ult_charge: 255 -> 260"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "no passive by design",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Stone Golem#1222153078503.shield: 0 -> 375"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Granite Shell",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "crystal_crab",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1232303294335.dmg_dealt: 0 -> 78",
+          "Crystal Crab#1232286517170.hp: 217 -> 139"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1232303294335.hp: 50000 -> 49976",
+          "Crystal Crab#1232286517170.dmg_dealt: 0 -> 24"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Frenzied Clacking (reused from Bear's Fury) ramps with missing HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Crystal Crab#1232286517170.shield: 0 -> 155"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Crystalline Shell",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "root_walker",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1242319292337.dmg_dealt: 0 -> 47",
+          "Root Walker#1242302515218.hp: 118 -> 71",
+          "Root Walker#1242302515218.ult_charge: 71 -> 118"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1242319292337.hp: 50000 -> 49982",
+          "Root Walker#1242302515218.dmg_dealt: 0 -> 18",
+          "Root Walker#1242302515218.ult_charge: 67 -> 71"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [
+          "DummyAlly#1242352846888.regen_bank: 0.0 -> 1.25",
+          "DummyAlly2#1242369624009.regen_bank: 0.0 -> 1.25",
+          "DummyFallen#1242386401096.regen_bank: 0.0 -> 1.25"
+        ],
+        "status": "OK"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1242319292337.hp: 49982 -> 49962",
+          "DummyNear#1242319292337.slow: false -> true",
+          "Root Walker#1242302515218.dmg_dealt: 18 -> 38",
+          "Root Walker#1242302515218.ult_charge: 118 -> 123"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Entangling Roots",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "fire_giant",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1252586948624.dmg_dealt: 0 -> 281",
+          "Fire Giant#1252570171410.hp: 914 -> 633"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1252586948624.hp: 50000 -> 49915",
+          "Fire Giant#1252570171410.dmg_dealt: 0 -> 85"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Forge Fury (reused from Orc's Bloodrage) triggers below 50% HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1252586948624.hp: 49915 -> 49787",
+          "DummyNear#1252586948624.stun: false -> true",
+          "Fire Giant#1252570171410.dmg_dealt: 85 -> 213"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Molten Smash",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "hellhound",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1263290812516.dmg_dealt: 0 -> 52",
+          "Hellhound#1263274035099.hp: 133 -> 81",
+          "Hellhound#1263274035099.ult_charge: 91 -> 143"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1263290812516.hp: 50000 -> 49936",
+          "Hellhound#1263274035099.dmg_dealt: 0 -> 64",
+          "Hellhound#1263274035099.ult_charge: 75 -> 91"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Hunting Pack (reused from Goblin's Pack Courage) needs other Hellhounds within 3 tiles — silent for a lone probe unit",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1263290812516.hp: 49936 -> 49902",
+          "DummyNear#1263290812516.burn: false -> true",
+          "Hellhound#1263274035099.dmg_dealt: 64 -> 98"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Searing Bite",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "ember_phoenix",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1274229556883.dmg_dealt: 0 -> 42",
+          "Ember Phoenix#1274212779995.hp: 105 -> 63"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1274229556883.hp: 50000 -> 49974",
+          "Ember Phoenix#1274212779995.dmg_dealt: 0 -> 26"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Rebirth fires on its first death — silent while alive in probe (covered by phoenix_kit_probe)",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1274229556883.hp: 49974 -> 49930",
+          "Ember Phoenix#1274212779995.dmg_dealt: 26 -> 70"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Cinder Lance",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "storm_giant",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1284765648289.dmg_dealt: 0 -> 287",
+          "Storm Giant#1284748871506.hp: 856 -> 569"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1284765648289.hp: 50000 -> 49925",
+          "Storm Giant#1284748871506.dmg_dealt: 0 -> 75"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Gathering Storm (reused from Wind-Up Bot's Overclock) ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1284765648289.hp: 49925 -> 49805",
+          "DummyNear#1284765648289.stun: false -> true",
+          "Storm Giant#1284748871506.dmg_dealt: 75 -> 195"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Thunderclap",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "storm_crow",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1295435958202.dmg_dealt: 0 -> 36",
+          "Storm Crow#1295419180452.hp: 91 -> 55",
+          "Storm Crow#1295419180452.ult_charge: 61 -> 97"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1295435958202.hp: 50000 -> 49972",
+          "Storm Crow#1295419180452.dmg_dealt: 0 -> 28",
+          "Storm Crow#1295419180452.ult_charge: 54 -> 61"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Murder (reused from Goblin's Pack Courage) needs other Storm Crows within 3 tiles — silent for a lone probe unit",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1295435958202.hp: 49972 -> 49939",
+          "DummyNear#1295435958202.slow: false -> true",
+          "Storm Crow#1295419180452.dmg_dealt: 28 -> 61",
+          "Storm Crow#1295419180452.ult_charge: 97 -> 105"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Static Shriek",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "sky_wyvern",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1305703614422.dmg_dealt: 0 -> 292",
+          "Sky Wyvern#1305686837124.hp: 843 -> 551"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1305703614422.hp: 50000 -> 49930",
+          "Sky Wyvern#1305686837124.dmg_dealt: 0 -> 70"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Wounded Dive (reused from Bear's Fury) ramps with missing HP — silent at full HP in probe",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1305703614422.hp: 49930 -> 49839",
+          "DummyNear#1305703614422.burn: false -> true",
+          "Sky Wyvern#1305686837124.dmg_dealt: 70 -> 161"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Venom Stinger",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "tidepool_horror",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1316256482721.dmg_dealt: 0 -> 277",
+          "Tidepool Horror#1316239706087.hp: 933 -> 656"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1316256482721.hp: 50000 -> 49940",
+          "Tidepool Horror#1316239706087.dmg_dealt: 0 -> 60"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Deathgrip (reused from Goblin Archer's Focus Fire) is on-hit (see on_hit result), not a per-frame passive",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1316256482721.hp: 49940 -> 49832",
+          "DummyNear#1316256482721.stun: false -> true",
+          "Tidepool Horror#1316239706087.dmg_dealt: 60 -> 168"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Pincer Slam",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "harpy",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1326842906761.dmg_dealt: 0 -> 42",
+          "Harpy#1326826129158.hp: 105 -> 63"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1326842906761.hp: 50000 -> 49970",
+          "Harpy#1326826129158.dmg_dealt: 0 -> 30"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Windborne is a flat equipment_passives[\"Evasion\"] roll applied inside take_damage, not a per-frame passive — same shape as the Gale Warden's, which it foreshadows; its kit is the Talon Rake skill",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "DummyNear#1326842906761.hp: 49970 -> 49937",
+          "Harpy#1326826129158.dmg_dealt: 30 -> 63"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Talon Rake",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    },
+    {
+      "kind": "enemy",
+      "name": "coral_husk",
+      "on_being_hit": {
+        "changes": [
+          "DummyNear#1337378998183.dmg_dealt: 0 -> 63",
+          "Coral Husk#1337362220998.hp: 168 -> 105"
+        ],
+        "status": "OK"
+      },
+      "on_hit": {
+        "changes": [
+          "DummyNear#1337378998183.hp: 50000 -> 49976",
+          "Coral Husk#1337362220998.dmg_dealt: 0 -> 24"
+        ],
+        "status": "OK"
+      },
+      "passive": {
+        "changes": [],
+        "reason": "Slow Tide (reused from Wind-Up Bot's Overclock) ramps the aspd meta over battle time; not reflected in the probe hp/dmg world-state diff",
+        "status": "EXPECTED"
+      },
+      "skill": {
+        "changes": [
+          "Coral Husk#1337362220998.shield: 0 -> 120"
+        ],
+        "status": "OK"
+      },
+      "skill_name": "Calcify",
+      "ultimate": {
+        "changes": [],
+        "status": "NO_KIT"
+      },
+      "ultimate_name": ""
+    }
+  ],
+  "silent_abilities": 2
+}
+ARENA_RESULT_END

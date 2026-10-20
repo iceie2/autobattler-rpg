@@ -1,5 +1,8 @@
 extends Object
 class_name Balance
+# Owner's temporary combat-feel test (2026-10-05). Set false to restore
+# tenacity-scaled stuns on bosses/elites. Tenacity is never altered by this.
+static var BOSS_ELITE_STUN_IMMUNITY_TEST: bool = true
 # ══════════════════════════════════════════════════════════════════════════════
 # CENTRAL BALANCE FILE (2026-07-04, user request) — the game's cross-file
 # tuning knobs live HERE, so a balance pass touches one file instead of
@@ -111,6 +114,14 @@ const ELITE_COIN_DROP := 2         # +1 from round 15 on (ELITE_COIN_LATE_BONUS_
 const ELITE_COIN_LATE_BONUS_ROUND := 15
 const COIN_CHANCE_BASE := 0.20
 
+# Early crystal floor (2026-09-29, owner: "3-5 runs before the first 10-crystal
+# upgrade"). Waves 1-5 are mostly bodies scoring just under the 400 crystal
+# threshold (goblin 367), so a wave-5 Hill Giant loss paid 2-3 crystals. Every
+# WON round up to this wave pays a flat bonus on top of kill drops — a floor
+# luck can't take away. Stops at 10 so the late economy is untouched.
+const EARLY_WAVE_CRYSTAL_BONUS := 1
+const EARLY_WAVE_CRYSTAL_BONUS_LAST_ROUND := 10
+
 # ── Combat baselines ──────────────────────────────────────────────────────────
 const CRIT_CHANCE_BASE := 0.10     # everyone (heroes AND enemies) crits 10% of hits by default (2026-07-24)
 const CRIT_DAMAGE_BASE := 2.0      # crit = double damage
@@ -182,8 +193,20 @@ const AFFINITY_OWN_OFF_BONUS       := 50.0   # own element: hit that element har
 const AFFINITY_OWN_DEF_BONUS       := 25.0   # own element: block that element better
 const AFFINITY_OFFELEM_DEF_PENALTY := 15.0   # every other element: defended worse
 
-const ANT_HILL_SPAWN_INTERVAL := 1.5   # seconds between ant spawns (3.5 → 1.0
-	# in the 2026-07-15 elite rebalance: at 3.5s the swarm never outpaced a
-	# round-15 team's kill rate — every ant died on arrival, all 7 heroes
-	# finished at 100% HP — so the DPS check was toothless)
+const ANT_HILL_SPAWN_INTERVAL := 1.5   # initial seconds between ant spawns
+const ANT_HILL_SPAWN_REDUCTION := 0.01 # permanent reduction per ant spawned this battle
+const ANT_HILL_MIN_SPAWN_INTERVAL := 0.2
 const ANT_HILL_MAX_ANTS := 20          # alive-ant cap per hill
+
+# Traveling Merchant services — provisional prices, validate through playtesting.
+const MERCHANT_REFORGE_BASE := 4
+const MERCHANT_EXCHANGE_BASE := 3
+const MERCHANT_ENCHANT_BASE := 5
+const MERCHANT_RARITY_STEP := 2
+const MERCHANT_TRAINING_BASE := 6
+const MERCHANT_TRAINING_XP_FRACTION := 0.5
+const MERCHANT_SUPPLIES_BASE := 5
+const MERCHANT_SUPPLIES_POWER := 0.10
+const CAMP_ACTIONS := 2
+const CAMP_REST_HP_FRACTION := 0.5
+const CAMP_REST_MANA_FRACTION := 0.5   # VD-23: rest restores mana too

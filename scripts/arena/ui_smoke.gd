@@ -54,11 +54,30 @@ func _ready() -> void:
 		await get_tree().process_frame
 		# A populated name label proves _refresh_details actually ran.
 		_check(str(mg.details_unit_name.text) != "", "details panel populated (%s)" % mg.details_unit_name.text)
+		# The reversible stun-immunity test must be visible without replacing
+		# tenacity's live value for the other control effects.
+		var was_elite: bool = enemy.is_elite
+		var was_test: bool = Balance.BOSS_ELITE_STUN_IMMUNITY_TEST
+		enemy.is_elite = true
+		Balance.BOSS_ELITE_STUN_IMMUNITY_TEST = true
+		mg._update_details_panel()
+		var immunity_cell: Control = mg._details.combat_grid.get_node("CellStunImmunity")
+		_check(immunity_cell.visible and immunity_cell.get_node("Value").text == "STUN IMMUNE", "live details disclose immunity test")
+		var ten_value: Label = mg._details.combat_grid.get_node("CellTenacity/Value")
+		_check(ten_value.text.contains("%d%%" % roundi(enemy.status_duration_mult()*100.0)), "tenacity duration remains visible")
+		Balance.BOSS_ELITE_STUN_IMMUNITY_TEST = false
+		mg._update_details_panel()
+		_check(not immunity_cell.visible, "immunity display clears when test is off")
+		enemy.is_elite = was_elite
+		Balance.BOSS_ELITE_STUN_IMMUNITY_TEST = was_test
+		mg._update_details_panel()
 		# The bag must NOT be rebuilt every refresh: refresh_live() runs each frame,
 		# and freeing the slot button under the cursor killed its hover tooltip
 		# (2026-08-02). Same items across refreshes → same button instances.
-		var bag: GridContainer = mg.unit_details_panel.get_node(
-			"Margin/ScrollContainer/Root/Header/HeaderInfo/ChipRow/ItemBag")
+		# The controller's own reference, not a node path: since 2026-09-28 the
+		# controller wraps ScrollContainer in a runtime VBox (pinned title bar), so
+		# the scene path "Margin/ScrollContainer/..." no longer resolves.
+		var bag: GridContainer = mg._details.item_bag
 		var before: Array = []
 		for c in bag.get_children():
 			before.append(c.get_instance_id())

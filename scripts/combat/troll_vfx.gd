@@ -32,6 +32,7 @@ var elapsed := 0.0
 var lifetime := 0.5
 var host = null
 var tint: Color = Color(0.45, 0.75, 0.40)
+var _element: int = UnitBase.Element.NORMAL
 var reach := 92.0
 var ground_y := 46.0
 var _t := 0.0
@@ -44,6 +45,7 @@ func _tint_for(element: int) -> Color:
 	return SynergyData.element_color(element)
 
 func setup_point(kind: Mode, world_pos: Vector2, element: int, size: float, life: float) -> void:
+	_element = element
 	mode = kind
 	global_position = world_pos
 	tint = _tint_for(element)
@@ -53,6 +55,7 @@ func setup_point(kind: Mode, world_pos: Vector2, element: int, size: float, life
 	queue_redraw()
 
 func setup_on(kind: Mode, unit, element: int, size: float, life: float) -> void:
+	_element = element
 	mode = kind
 	host = unit
 	tint = _tint_for(element)
@@ -64,6 +67,8 @@ func setup_on(kind: Mode, unit, element: int, size: float, life: float) -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	if host and is_instance_valid(host) and host.has_method("_battle_clock"):
+		delta *= host._battle_clock()
 	elapsed += delta
 	_t += delta
 	if host != null:
@@ -91,6 +96,8 @@ func _draw() -> void:
 		Mode.ENRAGED:     _draw_enraged()
 		Mode.REGEN:       _draw_regen()
 		Mode.SMOTHERED:   _draw_smothered(t)
+	if mode == Mode.ENRAGE_CAST:
+		LizardVFX.draw_accent(self, _element, Vector2(14, -reach * 0.1), reach * 0.10, _t, 0.65 * (1.0 - t))
 
 # ── The roar goes out ──────────────────────────────────────────────────────
 func _draw_cast(t: float) -> void:

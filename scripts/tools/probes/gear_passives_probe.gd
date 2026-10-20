@@ -162,10 +162,13 @@ func _inventory() -> void:
 	var a := _green("hp", "atk")
 	var b := _green("cdr", "atk")   # hunters_reset, +haste
 	b.stat_bonus["cdr"] = 100
-	inv.items.append(a)
-	inv.items.append(b)
-	inv.apply_to_hero(a, hero)
-	inv.apply_to_hero(b, hero)
+	# Equip through the inventory's own stat path but NOT apply_to_hero(): that
+	# enforces hero_item_cap(), which reads the player's real crystal-tree save
+	# (2026-09-29: a save without "+1 Equipment" capped this at 1 item and the
+	# probe failed for a reason that had nothing to do with equipment).
+	inv.hero_equipment[uid] = [a, b]
+	inv._apply_equipment_bonuses(hero, a)
+	inv._apply_equipment_bonuses(hero, b)
 	_check(hero.gear_levels.get("lifesteal", 0) == 1 and hero.gear_levels.get("hunters_reset", 0) == 1,
 		"gear_levels summed on equip (%s)" % str(hero.gear_levels))
 	_check(hero.ability_haste == 100, "haste from cdr stat")
@@ -302,9 +305,9 @@ func _passives() -> void:
 
 	# 13 Deep Wound
 	p = _pair({"deep_wound": L}); a = p[0]; b = p[1]
-	_basic(a, b, 100, true)
+	_basic(a, b, 100)   # no crit needed any more
 	b.current_hp = 500; b.heal(100)
-	_check(b.current_hp == 500 + roundi(100 * (1.0 - 0.40 * f)), "#13 healing cut (%d)" % b.current_hp)
+	_check(b.current_hp == 550, "#13 flat 50%% healing cut (%d)" % b.current_hp)
 
 	# 14 Sunder
 	p = _pair({"sunder": L}); a = p[0]; b = p[1]; b.resistance = 100

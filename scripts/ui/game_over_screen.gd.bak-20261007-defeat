@@ -1,0 +1,174 @@
+extends CanvasLayer
+class_name GameOverScreen
+
+const MAIN_MENU_SCENE := "res://scenes/main_menu.tscn"
+
+# 2026-09-27 audit rebuild: moved onto the shared menu chrome (menu_header
+# banner + menu_surface_box, dark AND light). It used to always draw a red
+# skull label above the title — so DEFEAT showed two skulls and VICTORY
+# showed one. The outcome glyph now lives in the title only, per outcome.
+const PANEL_W := 560.0
+const PANEL_H := 540.0
+
+var _crystal_lbl: Label
+var _round_key:   Label
+var _round_lbl:   Label
+var _dmg_lbl:     Label
+var _kills_lbl:   Label
+var _title_lbl:   Label
+var _subtitle_lbl: Label
+var _verdict_lbl: Label
+var _panel: Panel
+
+# Empty verdict just hides the line, so callers that don't supply one are safe.
+func _set_verdict(verdict: String) -> void:
+	if not _verdict_lbl:
+		return
+	_verdict_lbl.text = verdict
+	_verdict_lbl.visible = verdict != ""
+
+func _ready() -> void:
+	_build_ui()
+
+func show_defeat(crystals: int, rounds_survived: int,
+		total_damage: int, kills: int, verdict: String = "") -> void:
+	_set_verdict(verdict)
+	_title_lbl.text = "☠  DEFEATED"
+	_title_lbl.add_theme_color_override("font_color", _outcome_col(false))
+	_subtitle_lbl.text = "Your heroes have fallen. Gold and heroes are lost."
+	_paint_panel(false)
+	_crystal_lbl.text = "%d" % crystals
+	_round_key.text = "Rounds survived"
+	_fill_stats(rounds_survived, total_damage, kills)
+	visible = true
+
+func show_victory(crystals: int, rounds_cleared: int,
+		total_damage: int, kills: int, verdict: String = "") -> void:
+	_set_verdict(verdict)
+	_title_lbl.text = "✦  VICTORY  ✦"
+	_title_lbl.add_theme_color_override("font_color", _outcome_col(true))
+	_subtitle_lbl.text = "Your heroes have triumphed! Crystals saved for the next run."
+	_paint_panel(true)
+	_crystal_lbl.text = "%d" % crystals
+	_round_key.text = "Rounds cleared"
+	_fill_stats(rounds_cleared, total_damage, kills)
+	visible = true
+
+func _fill_stats(rounds: int, total_damage: int, kills: int) -> void:
+	_round_lbl.text = str(rounds)
+	_dmg_lbl.text   = str(total_damage)
+	_kills_lbl.text = str(kills)
+
+# Red for defeat, gold for victory — darker variants on the light parchment
+# banner, where the dark-mode brights wash out.
+func _outcome_col(victory: bool) -> Color:
+	if UITheme.is_light():
+		return Color(0.55, 0.40, 0.04) if victory else Color(0.62, 0.12, 0.10)
+	return Color(1.0, 0.86, 0.3) if victory else Color(0.95, 0.32, 0.30)
+
+# The shared surface, with its border picked out in the outcome colour so the
+# whole panel still reads as win/lose at a glance (the old striped panel did
+# that with a full-panel tint).
+func _paint_panel(victory: bool) -> void:
+	var box := UITheme.menu_surface_box()
+	box.border_color = _outcome_col(victory)
+	box.set_border_width_all(2)
+	_panel.add_theme_stylebox_override("panel", box)
+
+func _build_ui() -> void:
+	var overlay := ColorRect.new()
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.color = Color(0, 0, 0, 0.82)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	_panel = Panel.new()
+	_panel.size = Vector2(PANEL_W, PANEL_H)
+	overlay.add_child(_panel)
+	_paint_panel(false)
+	UITheme.menu_header(_panel, Rect2(18, 18, PANEL_W - 36, 112))
+	_center(_panel)
+
+	var body := UITheme.menu_body_color()
+	var muted := UITheme.menu_subtitle_color()
+
+	# Title + subtitle sit on the banner, like every other menu-chrome screen.
+	_title_lbl = _t("☠  DEFEATED", UITheme.FONT_DISPLAY, _outcome_col(false),
+		Vector2(0, 32), Vector2(PANEL_W, 50))
+	_subtitle_lbl = _t("", UITheme.FONT_BODY, UITheme.menu_subtitle_color(),
+		Vector2(40, 82), Vector2(PANEL_W - 80, 24))
+
+	# ── Crystal reward (the thing that carries over, so it's the headline) ────
+	_t("CRYSTALS EARNED", UITheme.FONT_BODY, Color(0.35, 0.62, 0.95),
+		Vector2(0, 146), Vector2(PANEL_W, 22))
+	_crystal_lbl = _t("0", UITheme.FONT_DISPLAY, Color(0.35, 0.72, 1.0),
+		Vector2(0, 168), Vector2(PANEL_W, 52))
+
+	_rule(Vector2(40, 232))
+
+	# ── Run summary: label column + right-aligned value column ────────────────
+	_t("RUN SUMMARY", UITheme.FONT_BODY, muted, Vector2(0, 244), Vector2(PANEL_W, 22))
+	var keys := ["Rounds survived", "Total damage dealt", "Enemies defeated"]
+	var vals: Array[Label] = []
+	for i in range(keys.size()):
+		var y := 272.0 + i * 28.0
+		var k := _t(keys[i], UITheme.FONT_VALUE, body, Vector2(110, y), Vector2(220, 26),
+			HORIZONTAL_ALIGNMENT_LEFT)
+		if i == 0:
+			_round_key = k
+		vals.append(_t("0", UITheme.FONT_VALUE, body, Vector2(330, y), Vector2(120, 26),
+			HORIZONTAL_ALIGNMENT_RIGHT))
+	_round_lbl = vals[0]
+	_dmg_lbl = vals[1]
+	_kills_lbl = vals[2]
+
+	# ── After-action verdict: HOW the last fight went, under the numbers ─────
+	_verdict_lbl = _t("", UITheme.FONT_BODY, Color(0.95, 0.68, 0.30),
+		Vector2(40, 362), Vector2(PANEL_W - 80, 48))
+	_verdict_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UITheme.apply_read_font(_verdict_lbl, UITheme.FONT_BODY)   # prose -> Inter (2026-09-29)
+	_verdict_lbl.visible = false
+
+	_t("Crystals carry over — spend them to unlock stronger heroes next run.",
+		UITheme.FONT_BODY, muted, Vector2(30, 416), Vector2(PANEL_W - 60, 22))
+
+	# Gold like every other action button, and inside the panel rather than
+	# straddling its bottom edge.
+	var btn := Button.new()
+	btn.text = "Return to Main Menu"
+	UITheme.style_button(btn)
+	UITheme.apply_font(btn, UITheme.FONT_HEADER)
+	btn.position = Vector2((PANEL_W - 280) / 2.0, PANEL_H - 78)
+	btn.size = Vector2(280, 48)
+	btn.pressed.connect(_on_return)
+	_panel.add_child(btn)
+
+	visible = false
+
+func _on_return() -> void:
+	get_tree().change_scene_to_file(MAIN_MENU_SCENE)
+
+func _center(control: Control) -> void:
+	var vp := get_viewport().get_visible_rect().size if get_viewport() else Vector2(1800, 1080)
+	control.position = (vp - control.size) / 2.0
+
+func _rule(pos: Vector2) -> void:
+	var r := ColorRect.new()
+	r.position = pos
+	r.size = Vector2(PANEL_W - pos.x * 2.0, 1)
+	r.color = Color(UITheme.menu_subtitle_color(), 0.35)
+	_panel.add_child(r)
+
+func _t(text: String, px: int, col: Color, pos: Vector2, size: Vector2,
+		align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_CENTER) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.position = pos
+	l.size = size
+	l.horizontal_alignment = align
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	UITheme.apply_font(l, px)
+	l.add_theme_color_override("font_color", col)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(l)
+	return l

@@ -56,6 +56,8 @@ const DM_EXPANDED_HEIGHT  := 300.0
 var _dm_expanded := false
 # Damage-meter tab: 0 = Allies, 1 = Enemies
 var _dm_tab := 0
+# Value snapshots survive enemy removal and freeing through the round results.
+var _dm_defeated_enemies: Array[Dictionary] = []
 
 # Event history (its own panel, below the damage meter)
 @onready var event_history_panel = $UI/EventHistoryPanel
@@ -71,7 +73,7 @@ var _event_log: Array = []   # [{text, is_player}, ...]
 var _battle_controls: Panel
 var _btn_pause: Button
 var _speed_buttons: Dictionary = {}   # scale (float) -> Button
-const SPEED_OPTIONS: Array[float] = [0.25, 1.0, 2.0, 4.0]
+const SPEED_OPTIONS: Array[float] = [0.25, 0.5, 0.75, 1.0, 2.0, 4.0]
 
 # Wave difficulty panel
 var difficulty_panel: DifficultyPanel
@@ -116,8 +118,8 @@ var _pending_round_reward: Dictionary = {}
 # design change). As of 2026-08-02 that revival happens at the START of the next
 # round, inside the row-bonus ceremony, instead of the instant the fight ends.
 var _downed_heroes: Array = []
-# Revived by the ceremony — skipped by the row heal so they land exactly on the
-# advertised 10%, instead of 10% + another 10-40% from their row bonus.
+# Revived by the ceremony — tracked for the revival message. Their row heal
+# applies afterward, on top of the 10% revival HP.
 var _just_revived: Array = []
 const REVIVE_HP_PCT := 0.10
 # Row bonuses measured at the end of the last round, paid out by
@@ -159,7 +161,12 @@ var _eh_dirty := false
 var _ui_refresh_accum := 0.0
 var _perf_overlay_lbl: Label = null    # F3 debug overlay (FPS / frame ms / node count)
 var _equipment_inventory: EquipmentInventory
+var _equipment_save_queued: bool = false
 var _equipment_panel: EquipmentPanel
+var _merge_panel: HeroMergePanel          # hero merging, menu route (2026-09-28)
+var _merge_btn: Button                    # "Merge Heroes" — sits under Equipment
+var _merge_toasts: MergeToastQueue        # plays hero/equipment merge toasts in turn; never blocks input
+var _relic_reveals: MergeToastQueue       # end-of-run relic unlock cards: stacked right, click to skip
 var _event_panel: EventPanel
 var _milestone_battle := RelicMilestoneBattle.new()
 var _game_over_screen: GameOverScreen
@@ -177,12 +184,20 @@ var _hydra_element_screen: HydraElementScreen
 
 # Run tracking (reset each new game)
 var _run_kills: int = 0
+# Run recap (2026-10-07): the whole-run journey record (RunRecap). Fed at four
+# points: a map node entered, a battle started (hero identities stamped), an
+# enemy defeat (through the combat tap) and the final whistle. Saved inside
+# run_save.json; written to its own terminal file once the result is final.
+var _run_recap: RunRecap = null
+var _recap_terminal_shown := false
+var _run_recap_screen: RunRecapScreen = null
 # Which relic-waves (1/11/21) have already handed out their pick this run.
 var _relic_waves_done: Dictionary = {}
 # Which merchant rounds (ShopGenerator.MERCHANT_ROUNDS) have already opened the
 # event shop this run — one visit per merchant round.
 var _shop_rounds_done: Dictionary = {}
 var _shop_screen: ShopScreen
+var _camp_screen: CampScreen
 # Live reference to the open shop's stock (same Array the screen holds/mutates),
 # so buy handlers can read each slot's price by index.
 var _shop_stock: Array = []
@@ -207,7 +222,9 @@ const _GOLD_DIM   := Color(0.42, 0.29, 0.12, 0.55)
 var _left_panel:     PanelContainer
 var _right_panel:    PanelContainer
 var _synergy_list:   VBoxContainer   # rebuilt when player roster changes
+var _synergy_btn:    Button          # its collapsible header (closed by default)
 var _inventory_grid: GridContainer   # bag display rebuilt on inventory_changed
+var _inventory_scroll: ScrollContainer # shows three rows; scrolls for overflow
 var _synergy_tracker: SynergyTracker = SynergyTracker.new()
 var _synergies_applied: bool = false   # guards the battle-start apply / battle-end revert
 
@@ -224,8 +241,10 @@ var _relic_tip_layer: CanvasLayer = null
 var _relic_tip:          PanelContainer = null
 var _relic_tip_name_lbl: Label = null
 var _relic_tip_desc_lbl: Label = null
+var _relic_tip_base_desc: String = ""
+var _relic_tip_momentum_pct_per_sec: float = 0.0
 const RELIC_TIP_NAME_FONT_SIZE := UITheme.FONT_HEADER
-const RELIC_TIP_DESC_FONT_SIZE := UITheme.FONT_VALUE
+const RELIC_TIP_DESC_FONT_SIZE := UITheme.FONT_HEADER
 var _badge_tip_active: bool = false   # item tooltip is currently shown by a board badge hover
 # Bag drag-to-equip state
 var _drag_candidate: EquipmentItem = null
@@ -262,6 +281,7 @@ var _sb_dm_list:      VBoxContainer
 
 # ── INITIALIZATION ─────────────────────────────────────────────────────────
 func _ready():
+	UITheme.install_read_tooltips()
 	# The mode is a property of the run. Existing saves have no mode tag and
 	# therefore keep legacy equipment even after new runs are enabled later.
 	if RunSave.resume_on_start and RunSave.exists():
@@ -355,6 +375,7 @@ func save_run() -> void:
 		"hydra_element": _hydra_chosen_element,
 		"hydra_chosen": _hydra_element_chosen,
 		"call_pending": _call_to_arms_pending,
+		"run_recap": _run_recap.to_dict() if _run_recap else {},
 		"bag": bag,
 		"heroes": heroes,
 	})
@@ -386,6 +407,18 @@ func _resume_run() -> void:
 		_run_map = RunMap.from_dict(map_data)
 		_map_node = _run_map.node_by_id(String(d.get("map_node_id", "")))
 	_events_seen = d.get("events_seen", {})
+	# Run recap: the record saved WITH this run state. A save from before the
+	# recorder existed starts a PARTIAL record at the resume point - the waves
+	# before it are unavailable, never zero.
+	var saved_recap = d.get("run_recap", {})
+	_run_recap = RunRecap.from_dict(saved_recap) if saved_recap is Dictionary \
+		and not (saved_recap as Dictionary).is_empty() else null
+	if _run_recap == null:
+		var resume_from: int = int(d.get("round", 1))
+		if MAP_MODE and _run_map != null and not RunMap.is_battle_node(_map_node):
+			resume_from += 1                 # saved between nodes: that round was fought
+		_run_recap = RunRecap.from_legacy(_telemetry_run_id, resume_from)
+	_recap_terminal_shown = false
 	_run_flags = d.get("run_flags", {})
 	_shop_discount_pending = float(d.get("shop_discount", 0.0))
 	_shop_sale_slots_pending = int(d.get("shop_sale_slots", 0))
@@ -430,7 +463,10 @@ func _resume_run() -> void:
 		update_ui()
 		if _call_to_arms_pending:
 			_maybe_open_call_to_arms_picker()
-		_open_run_map()
+		if bool(_run_flags.get("camp_active", false)):
+			_camp_screen.open()
+		else:
+			_open_run_map()
 		info_label.text = "Run resumed — round %d." % game_state.battle_round
 		return
 	game_state.start_battle_round()
@@ -445,7 +481,7 @@ func _hero_to_dict(u: UnitBase, on_bench: bool) -> Dictionary:
 	return {
 		"class": int(u.unit_class), "element": int(u.current_element),
 		"name": u.unit_name, "level": u.level, "variant": u.sprite_variant,
-		"grade": u.recruit_grade, "growth_bonus": u.growth_bonus.duplicate(),
+		"grade": u.recruit_grade, "merge_progress": u.merge_progress, "growth_bonus": u.growth_bonus.duplicate(),
 		"bench": on_bench, "pos": u.grid_position, "home": u.home_position,
 		"max_hp": u.max_hp, "current_hp": u.current_hp,
 		"max_mana": u.max_mana, "current_mana": u.current_mana,
@@ -467,6 +503,7 @@ func _hero_to_dict(u: UnitBase, on_bench: bool) -> Dictionary:
 		# hero with unexplained numbers and no scar chip (see
 		# unit_details_controller).
 		"scars": u.get_meta("scars", []),
+		"recap_uid": int(u.get_meta("recap_uid", 0)),   # run recap identity
 		"equipment": equipment,
 	}
 
@@ -477,9 +514,12 @@ func _restore_hero(d: Dictionary) -> void:
 	var u := UnitFactory.create_unit(cls_i, int(d.get("element", 0)), true)
 	u.growth_bonus = d.get("growth_bonus", {})
 	u.recruit_grade = str(d.get("grade", ""))
+	u.merge_progress = int(d.get("merge_progress", 0))   # partial merges (absent in older saves)
 	u.level = int(d.get("level", 1))
 	u.unit_name = str(d.get("name", u.unit_name))
 	u.sprite_variant = int(d.get("variant", 0))
+	if int(d.get("recap_uid", 0)) != 0:
+		u.set_meta("recap_uid", int(d["recap_uid"]))
 	var saved_scars: Array = d.get("scars", [])
 	if not saved_scars.is_empty():
 		u.set_meta("scars", saved_scars)
@@ -579,7 +619,6 @@ func _center_battlefield() -> void:
 	var origin   := Vector2(origin_x, origin_y).round()
 	background_layer.position = origin
 	battle_grid_node.position = origin
-	_battlefield_rest_pos = origin   # authoritative "at rest" spot for the camera-punch tween to return to
 	if progression_rails:
 		progression_rails.position = origin
 
@@ -662,7 +701,6 @@ func connect_signals() -> void:
 	auto_battle_manager.pace_changed.connect(_on_pace_changed)
 	auto_battle_manager.unit_summoned.connect(_on_unit_summoned)
 	auto_battle_manager.unit_revived.connect(_on_unit_revived)
-	auto_battle_manager.camera_punch_requested.connect(_on_camera_punch_requested)
 	
 	# Grid signals
 	battle_grid.cell_clicked.connect(_on_cell_clicked)
@@ -672,6 +710,15 @@ func connect_signals() -> void:
 	spawn_hero_btn.pressed.connect(_on_spawn_hero_pressed)
 	use_items_btn.text = "Equipment"
 	use_items_btn.pressed.connect(_on_equipment_pressed)
+	# Merge Heroes (2026-09-28): a twin of the Equipment button (same scene
+	# style overrides via duplicate), placed right under it.
+	_merge_btn = use_items_btn.duplicate(0) as Button
+	_merge_btn.name = "MergeHeroesBtn"
+	_merge_btn.text = "Merge Heroes"
+	_merge_btn.tooltip_text = "Fuse two copies of the same hero into one, a grade higher"
+	use_items_btn.get_parent().add_child(_merge_btn)
+	use_items_btn.get_parent().move_child(_merge_btn, use_items_btn.get_index() + 1)
+	_merge_btn.pressed.connect(_on_merge_pressed)
 	classes_btn.pressed.connect(_on_classes_pressed)
 	roster_btn.pressed.connect(_on_roster_pressed)
 	ready_btn.pressed.connect(_on_ready_pressed)
@@ -731,9 +778,24 @@ func connect_signals() -> void:
 	_equipment_inventory = ComponentEquipmentInventory.new() \
 		if ComponentEquipmentGateway.active_run else EquipmentInventory.new()
 	_equipment_inventory.inventory_changed.connect(_rebuild_inventory_grid)
+	_equipment_inventory.inventory_changed.connect(_queue_equipment_save)
 	_equipment_inventory.hero_equipment_changed.connect(_on_hero_equipment_changed)
+	if _equipment_inventory is ComponentEquipmentInventory:
+		(_equipment_inventory as ComponentEquipmentInventory).components_merged.connect(_on_components_merged)
 	_equipment_panel = EquipmentPanel.new()
 	add_child(_equipment_panel)
+	_merge_panel = HeroMergePanel.new()
+	_merge_panel.merge_requested.connect(func(a, b): _try_merge_heroes(a, b))
+	add_child(_merge_panel)
+	_merge_toasts = MergeToastQueue.new()
+	add_child(_merge_toasts)
+	# Relic unlocks reuse the merge carousel (owner 2026-09-30) but are read, not
+	# glanced at: above every screen, no backlog speed-up, click to skip.
+	_relic_reveals = MergeToastQueue.new()
+	_relic_reveals.toast_layer = 120
+	_relic_reveals.click_to_skip = true
+	_relic_reveals.backlog_speeds = false
+	add_child(_relic_reveals)
 	_equipment_inventory.auto_combine_pick_needed.connect(_on_auto_combine_pick_needed)
 
 	_event_panel = EventPanel.new()
@@ -759,6 +821,14 @@ func connect_signals() -> void:
 	_shop_screen.reroll_requested.connect(_on_shop_screen_reroll)
 	_shop_screen.closed.connect(_on_shop_closed)
 	add_child(_shop_screen)
+	_shop_screen.services.provider = _merchant_service_context
+	_shop_screen.service_requested.connect(_on_merchant_service)
+	_camp_screen = CampScreen.new()
+	_camp_screen.layer = 2
+	add_child(_camp_screen)
+	_camp_screen.activities.provider = _camp_context
+	_camp_screen.activity_requested.connect(_on_camp_activity)
+	_camp_screen.closed.connect(_on_camp_closed)
 
 	_hydra_element_screen = HydraElementScreen.new()
 	_hydra_element_screen.chosen.connect(_on_hydra_element_chosen)
@@ -962,6 +1032,8 @@ func start_new_game() -> void:
 	_run_last_death = {}
 	_run_passive_picks = []
 	_telemetry_run_id = RunTelemetry.new_run_id()
+	_run_recap = RunRecap.create(_telemetry_run_id)
+	_recap_terminal_shown = false
 	_telemetry_seq = 0
 	_telemetry_battles = []
 	_telemetry_decisions = []
@@ -1023,6 +1095,7 @@ func start_new_game() -> void:
 		var starts: Array = _run_map.available_next()
 		if not starts.is_empty() and int(starts[0].get("type", -1)) == RunMap.NodeType.RELIC:
 			_map_node = _run_map.advance_to(String(starts[0]["id"]))
+			_recap_note_node(_map_node)   # the run's first stop, consumed before the map opens
 		var offers: Array = Relic.roll_offers(1, _relic_inventory.owned_ids(), 3, _relic_offer_ctx(1))
 		if not offers.is_empty():
 			_relic_screen_wave = 1
@@ -1068,6 +1141,8 @@ func update_ui() -> void:
 func enable_action_buttons(enabled: bool) -> void:
 	spawn_hero_btn.disabled = not enabled
 	use_items_btn.disabled = not enabled
+	if _merge_btn:
+		_merge_btn.disabled = not enabled   # merging is prep-phase only
 	ready_btn.disabled = not enabled
 	# Info buttons always accessible
 	classes_btn.disabled = false
@@ -1227,11 +1302,15 @@ func _on_battle_round_started(round_number: int) -> void:
 			_shop_sale_slots_pending = 0
 		_shop_screen.open(round_number, game_state.gold, _shop_stock)
 
-	# Hydra element pick at the start of wave 30 (the final boss) — a modal over
+	# Hydra element pick at the start of the Hydra's boss round — a modal over
 	# the prep phase, same shape as the relic screen above. The pick is a
 	# matchup/strategy call, not a difficulty toggle: the Hydra hits just as
 	# hard whichever element gets chosen (see WaveScaler.boss_code_for).
-	if WaveScaler.boss_tier(round_number) == 3 and not _hydra_element_chosen:
+	# Keyed on the boss code, not a tier number: the Hydra moved off round 30
+	# (now the Drowned Maw) when the run was extended to 100.
+	if WaveScaler.is_boss_round(round_number) \
+			and WaveScaler.boss_code_for(round_number).begins_with("HY") \
+			and not _hydra_element_chosen:
 		_hydra_element_chosen = true
 		_hydra_element_screen.present()
 
@@ -1340,7 +1419,12 @@ func _rebuild_relic_bar() -> void:
 		slot.mouse_filter = Control.MOUSE_FILTER_STOP
 		var relic_name: String = r.get("name", "")
 		var relic_desc: String = r.get("desc", "")
-		slot.mouse_entered.connect(func(): _show_relic_tooltip(relic_name, grade, relic_desc, get_viewport().get_mouse_position()))
+		var momentum_pct_per_sec := 0.0
+		for effect in r.get("effects", []):
+			if String(effect.get("type", "")) == "momentum":
+				momentum_pct_per_sec = float(effect.get("pct_per_sec", 0.0))
+		slot.mouse_entered.connect(func(): _show_relic_tooltip(relic_name, grade, relic_desc,
+			momentum_pct_per_sec, get_viewport().get_mouse_position()))
 		slot.mouse_exited.connect(func(): _hide_relic_tooltip())
 
 		var icon_path: String = Relic.icon_path(r)
@@ -1387,8 +1471,9 @@ func _rebuild_bench_bar() -> void:
 
 		if i < bench_units.size() and is_instance_valid(bench_units[i]):
 			var unit: VisualUnit = bench_units[i]
-			btn.tooltip_text = "%s  ·  Lv %d\n%d/%d HP\nClick to deploy · Right-click to sell (+%dg)" % [
-				unit.unit_name, unit.level, unit.current_hp, unit.max_hp, Balance.SELL_REFUND]
+			btn.tooltip_text = "%s  ·  Lv %d  ·  Grade %s\n%d/%d HP\nClick to deploy · Right-click to sell (+%dg)\nDrag onto a copy of this hero to merge" % [
+				unit.unit_name, unit.level, unit.recruit_grade if unit.recruit_grade != "" else "B",
+				unit.current_hp, unit.max_hp, Balance.SELL_REFUND]
 			btn.pressed.connect(_deploy_bench_unit.bind(i))
 			btn.gui_input.connect(_on_bench_slot_input.bind(i))
 			var icon_path: String = VisualUnit.HERO_SPRITE_PATHS.get(unit.unit_class, "")
@@ -1418,7 +1503,7 @@ func _rebuild_bench_bar() -> void:
 # ── Drag-to-sell drop zone (2026-07-24) ───────────────────────────────────────
 # A bottom-centre target that only appears while you're dragging a fielded hero
 # during prep. VisualUnit hit-tests it on drop and calls _sell_fielded_hero.
-const SELL_ZONE_SIZE := Vector2(300, 96)
+const SELL_ZONE_SIZE := Vector2(250, 96)
 
 func _build_sell_zone() -> void:
 	_sell_zone = Panel.new()
@@ -1445,12 +1530,14 @@ func _build_sell_zone() -> void:
 	# Register with VisualUnit — one shared target for every hero on the board.
 	VisualUnit.sell_zone = _sell_zone
 	VisualUnit.sell_handler = _sell_fielded_hero
+	VisualUnit.merge_handler = _merge_fielded_heroes
 
 func _position_sell_zone() -> void:
 	if not _sell_zone:
 		return
 	var vp := get_viewport_rect().size
-	_sell_zone.position = Vector2((vp.x - SELL_ZONE_SIZE.x) / 2.0, vp.y - SELL_ZONE_SIZE.y - 24.0)
+	_sell_zone.position = Vector2((SIDEBAR_W - SELL_ZONE_SIZE.x) / 2.0, vp.y - SELL_ZONE_SIZE.y - 24.0)
+	_sell_zone.z_index = 100
 
 # Called by VisualUnit when a hero is dropped on the sell zone.
 func _sell_fielded_hero(unit: VisualUnit) -> void:
@@ -1484,7 +1571,140 @@ func _sell_fielded_hero(unit: VisualUnit) -> void:
 	update_ui()
 	save_run()
 
+func _owned_hero_classes() -> Array:
+	var out: Array = []
+	for u in player_units + bench_units + _downed_heroes:
+		if is_instance_valid(u) and not u.is_summoned and not (u.unit_class in out):
+			out.append(u.unit_class)
+	return out
+
+# Drag a fielded hero onto another fielded copy of the same hero → merge.
+func _merge_fielded_heroes(dragged: VisualUnit, target: VisualUnit) -> void:
+	_try_merge_heroes(dragged, target)
+
+# Merge two copies of a hero (2026-09-28). Either copy may be on the field or
+# the bench (not downed). The survivor (see merge_survivor) climbs one grade;
+# the other is consumed, its gear goes back to the bag and half its current XP
+# carries over. Prep phase only. Returns true if the merge happened.
+#
+# Two copies of the SAME hero merge; the higher grade survives (same grade →
+# the higher level). A lower-grade copy only counts as a PARTIAL merge: it adds
+# progress toward the next grade (UnitFactory.merge_plan; owner 2026-10-07).
+func _try_merge_heroes(dragged: VisualUnit, target: VisualUnit) -> bool:
+	if not (dragged and is_instance_valid(dragged) and target and is_instance_valid(target)):
+		return false
+	var refuse := func(msg: String) -> bool:
+		info_label.text = msg
+		if dragged in player_units:
+			dragged._snap_to_grid_cell()
+		return false
+	if game_state.current_state != GameState.State.PLAYER_TURN:
+		return refuse.call("You can only merge heroes between rounds.")
+	for u in [dragged, target]:
+		if u in _downed_heroes or not (u in player_units or u in bench_units):
+			return refuse.call("Both heroes must be on your field or bench to merge.")
+	var survivor: VisualUnit = UnitFactory.merge_survivor(dragged, target)
+	var consumed: VisualUnit = target if survivor == dragged else dragged
+	var why := UnitFactory.merge_block_reason(survivor, consumed)
+	if why != "":
+		return refuse.call(why)
+	var old_grade := survivor.recruit_grade
+	var plan := UnitFactory.merge_plan(survivor, consumed)   # steps == 0 → a partial merge
+	var before := MergeResultScreen.snapshot(survivor)   # for the before/after screen
+	if _equipment_inventory:
+		_equipment_inventory.return_all_from_hero(consumed)   # gear back to the bag, never lost
+	UnitFactory.merge_heroes(survivor, consumed)
+	# Data for the toast, captured NOW: it may play after this hero is merged again.
+	var toast_info := MergeResultScreen.info_of(survivor)
+	var toast_after := MergeResultScreen.snapshot(survivor)
+	var consumed_fielded: bool = consumed in player_units
+	if consumed_fielded:
+		battle_grid.purge_unit(consumed)
+		player_units.erase(consumed)
+	bench_units.erase(consumed)
+	var survivor_fielded: bool = survivor in player_units
+	if survivor_fielded:
+		# The dragged node may be the survivor, left hovering where it was dropped.
+		survivor._snap_to_grid_cell()
+	var fly: bool = consumed_fielded and survivor_fielded
+	# A partial merge pops "+1/2" (how much of a full merge the copy was worth).
+	var partial_label := "" if int(plan["steps"]) > 0 \
+		else "+" + UnitFactory.progress_text(int(plan["added"]), int(plan["threshold_before"]))
+	_play_merge_effect(survivor, consumed, fly, partial_label)
+	# The merge toast joins the queue once the board beat has landed (pull + burst
+	# peak). It never blocks input, and back-to-back merges wait in its list.
+	var delay: float = (MergeVFX.PULL_TIME if fly else 0.0) + 0.55
+	get_tree().create_timer(delay).timeout.connect(func() -> void:
+		if _merge_toasts:
+			_merge_toasts.enqueue_hero(toast_info, before, toast_after))
+	_rebuild_bench_bar()
+	if int(plan["steps"]) > 0:
+		info_label.text = "Merged! %s: grade %s → %s." % [survivor.unit_name,
+			old_grade if old_grade != "" else "B", survivor.recruit_grade]
+	else:
+		info_label.text = "%s absorbed a %s copy: merge progress %s toward %s." % [survivor.unit_name,
+			UnitFactory.grade_of(consumed), UnitFactory.progress_text(int(plan["progress_after"]), int(plan["threshold_after"])),
+			UnitFactory.next_grade(survivor.recruit_grade)]
+	_telemetry_decision("hero_merged", {"class": int(survivor.unit_class),
+		"grade": survivor.recruit_grade, "level": survivor.level, "partial": int(plan["steps"]) == 0,
+		"added": int(plan["added"])})
+	_rebuild_inventory_grid()
+	_rebuild_synergy_display()
+	update_team_health_bars()
+	update_ui()
+	if _details and _details.current_unit == survivor:
+		_details.refresh_live()
+	save_run()
+	if _merge_panel and _merge_panel.visible:
+		_merge_panel.refresh(player_units, bench_units)
+	return true
+
+# The merge beat: when both copies stood on the field the consumed one is drawn
+# into the survivor (shrinks + fades along the way), then a gold burst and the
+# new grade pop over the survivor. A benched copy has no board node to fly, so it
+# is freed at once and only the burst plays. The effect survivor may itself be
+# on the bench (hidden) — then the burst plays on the bench bar instead.
+func _play_merge_effect(survivor: VisualUnit, consumed: VisualUnit, fly: bool, partial_label: String = "") -> void:
+	var burst_at := func() -> void:
+		if not is_instance_valid(survivor):
+			return
+		var fx := MergeVFX.new()
+		fx.grade = survivor.recruit_grade
+		fx.label = partial_label
+		if partial_label != "":
+			fx.sub_text = "MERGE PROGRESS"
+		if survivor.visible and survivor in player_units:
+			fx.position = survivor.position + Vector2(0, -battle_grid.cell_size * 0.35)
+			battle_grid_node.add_child(fx)
+		elif _bench_grid and _bench_grid.is_inside_tree():
+			var idx: int = bench_units.find(survivor)
+			var slot: Control = _bench_grid.get_child(idx) if idx >= 0 and idx < _bench_grid.get_child_count() else _bench_grid
+			fx.scale = Vector2(0.55, 0.55)
+			var layer := CanvasLayer.new()
+			layer.layer = 30
+			add_child(layer)
+			fx.position = slot.get_global_rect().get_center()
+			layer.add_child(fx)
+			fx.tree_exited.connect(layer.queue_free)
+	if not fly:
+		consumed.queue_free()
+		burst_at.call()
+		return
+	consumed.can_be_dragged = false
+	consumed.z_index = survivor.z_index + 1
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(consumed, "position", survivor.position, MergeVFX.PULL_TIME) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	tw.tween_property(consumed, "scale", consumed.scale * 0.2, MergeVFX.PULL_TIME) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(consumed, "modulate", Color(1.6, 1.4, 0.8, 0.0), MergeVFX.PULL_TIME)
+	tw.chain().tween_callback(func() -> void:
+		consumed.queue_free()
+		burst_at.call())
+
 func _on_battle_started() -> void:
+	_dm_defeated_enemies.clear()
+	_recap_stamp_roster()
 	if difficulty_panel:
 		difficulty_panel.set_panel_visible(false)
 	enable_unit_dragging(false)
@@ -1506,8 +1726,8 @@ func _on_battle_started() -> void:
 func _build_battle_controls() -> void:
 	_battle_controls = Panel.new()
 	_battle_controls.name = "BattleControls"
-	_battle_controls.size = Vector2(360, 48)
-	_battle_controls.position = Vector2((1280 - 360) / 2.0, 66)
+	_battle_controls.size = Vector2(420, 48)
+	_battle_controls.position = Vector2((1280 - 420) / 2.0, 66)
 	# UI theme pass 2026-07-03: dobo card panel for the floating battle controls.
 	_battle_controls.add_theme_stylebox_override("panel", UITheme.panel_box())
 	_battle_controls.visible = false
@@ -1515,7 +1735,7 @@ func _build_battle_controls() -> void:
 
 	var hbox := HBoxContainer.new()
 	hbox.position = Vector2(8, 6)
-	hbox.size = Vector2(344, 36)
+	hbox.size = Vector2(404, 36)
 	hbox.add_theme_constant_override("separation", 6)
 	_battle_controls.add_child(hbox)
 
@@ -2029,10 +2249,124 @@ func _last_battle_damage() -> int:
 			total += int(r.get("damage", 0))
 	return total
 
+# RUN-level facts for the defeat screen. Kept apart from the final-battle report
+# on purpose: nothing here comes from the fight itself, so the screen can label
+# the two groups honestly. The losing round is NOT counted as cleared.
+func _defeat_summary() -> Dictionary:
+	var rnd: int = game_state.battle_round
+	var biome_idx: int = clampi(_biome_of_round(rnd), 0, ProgressionRails.BIOMES.size() - 1)
+	var encounter := "Battle"
+	if WaveScaler.is_boss_round(rnd):
+		encounter = "Boss"
+	elif WaveScaler.is_elite_round(rnd):
+		encounter = "Elite"
+	return {
+		"crystals": game_state.crystals,
+		"rounds_cleared": maxi(0, rnd - 1),
+		"fell_on": rnd,
+		"enemies_defeated": _run_kills,
+		"biome": String(ProgressionRails.BIOMES[biome_idx]["name"]),
+		"encounter": encounter,
+		"difficulty": String(RunMapScreen.TIER_NAMES[clampi(_locked_difficulty, 0, RunMapScreen.TIER_NAMES.size() - 1)]),
+	}
+
 # Hero classes still fielded when the run ended (2026-08-03, balance baseline).
 # Names, not enum ints, so the log stays readable if the enum is ever reordered.
 # Dead heroes are already gone from player_units, so this is the survivors —
 # which is the honest answer to "what was still standing when the run ended".
+# ── Run recap feeds ──────────────────────────────────────────────────────────
+# Every hero this run holds right now: field, bench and the downed.
+func _recap_roster_units() -> Array:
+	var out: Array = []
+	for u in player_units + bench_units + _downed_heroes:
+		if u and is_instance_valid(u) and u is UnitBase and u.is_player_unit \
+				and not u.is_summoned and not out.has(u):
+			out.append(u)
+	return out
+
+func _recap_stamp_roster() -> void:
+	if _run_recap == null:
+		return
+	for u in _recap_roster_units():
+		_run_recap.ensure_uid(u)
+
+# Route facts for one node (or a node-shaped dict without the map). The icon is
+# the same creature sprite the map drew for that node.
+func _recap_ctx(node: Dictionary, round_no: int) -> Dictionary:
+	var rnd: int = int(node.get("round", 0))
+	if rnd <= 0:
+		rnd = round_no
+	var t: int = int(node.get("type", RunMap.NodeType.BATTLE))
+	var fight: bool = RunMap.is_battle_node(node)
+	var tier: int = int(node.get("difficulty", _locked_difficulty)) if fight else 0
+	var icon := ""
+	if fight:
+		icon = _map_node_sprite(maxi(1, rnd), t, tier, int(node.get("wave_seed", 0)))
+	return {"node_id": String(node.get("id", "")), "round": rnd,
+		"biome": _biome_of_round(maxi(1, rnd)), "type": t, "tier": tier, "icon": icon}
+
+func _recap_note_node(node: Dictionary) -> void:
+	if _run_recap == null or node.is_empty():
+		return
+	var rnd: int = int(node.get("round", 0))
+	if int(node.get("type", -1)) == RunMap.NodeType.RELIC and _run_map != null:
+		rnd = _run_map.absolute_round(1)   # a biome's opening stop, before its first wave
+	_run_recap.note_node(_recap_ctx(node, rnd), RunMap.is_battle_node(node))
+
+# The final whistle: freeze this fight into the run record, exactly once.
+func _recap_finalise_fight(player_won: bool) -> void:
+	if _run_recap == null or auto_battle_manager == null:
+		return
+	var uid_by_id: Dictionary = {}
+	var roster_uids: Array = []
+	for u in _recap_roster_units():
+		var uid: int = _run_recap.ensure_uid(u)
+		uid_by_id[u.get_instance_id()] = uid
+		if not roster_uids.has(uid):
+			roster_uids.append(uid)
+	var rnd: int = game_state.battle_round
+	var node: Dictionary = _map_node if (MAP_MODE and RunMap.is_battle_node(_map_node)) else {}
+	if node.is_empty():
+		# No map (MAP_MODE off, or a debug warp): the round itself is the encounter.
+		var t: int = RunMap.NodeType.BOSS if WaveScaler.is_boss_round(rnd) \
+			else (RunMap.NodeType.ELITE if WaveScaler.is_elite_round(rnd) else RunMap.NodeType.BATTLE)
+		node = {"round": rnd, "type": t, "difficulty": _locked_difficulty}
+	var ctx := _recap_ctx(node, rnd)
+	ctx["won"] = player_won
+	var bench_uids: Array = []
+	for u in bench_units:
+		if u and is_instance_valid(u):
+			bench_uids.append(_run_recap.ensure_uid(u))
+	_run_recap.finalise_fight(ctx, auto_battle_manager.last_report, auto_battle_manager.last_recap,
+		uid_by_id, roster_uids, bench_uids)
+
+# The run's result is final (after the crystal payout, save clear and history
+# entry): freeze the record and write the terminal recap file.
+func _recap_finish_run(won: bool) -> void:
+	if _run_recap == null:
+		_run_recap = RunRecap.from_legacy(_telemetry_run_id, game_state.battle_round)
+	_run_recap.finalise_run("victory" if won else "defeat", game_state.battle_round,
+		_run_kills, game_state.crystals)
+	RunRecap.save_terminal(_run_recap)
+
+# Shows the terminal run recap, once. Returns false when there is nothing to
+# show (no final record), so the caller falls back to the old result screen.
+# Waits for the journey to reach its overview (played out, skipped, or opened
+# straight there under reduced motion) so relic unlocks play over the finished
+# screen, as they did over the old one (owner, 2026-09-30).
+func _show_run_recap() -> bool:
+	if _recap_terminal_shown:
+		return true
+	if _run_recap == null or not _run_recap.is_final():
+		return false
+	_recap_terminal_shown = true
+	_run_recap_screen = RunRecapScreen.new()
+	add_child(_run_recap_screen)
+	_run_recap_screen.present(_run_recap, "terminal")
+	if _run_recap_screen.is_journey():
+		await _run_recap_screen.overview_reached
+	return true
+
 func _run_team_classes() -> Array:
 	var out: Array = []
 	for u in player_units:
@@ -2104,34 +2438,24 @@ func _build_after_action_verdict() -> String:
 				% [best_name, share]
 	return ""
 
+# Earned silently mid-run; rewards reveal at the end of the run.
 func _record_relic_milestones(facts: Dictionary, boss_token: String = "") -> void:
 	var awards := Progression.award_relic_milestones(facts, boss_token)
 	if awards.is_empty(): return
 	_telemetry_event("relic_milestones_earned", {"ids": awards})
-	var names: PackedStringArray = []
-	for id: String in awards: names.append(RelicMilestones.by_id(id).name)
-	var banner := CanvasLayer.new()
-	banner.layer = 110
-	add_child(banner)
-	var label := Label.new()
-	label.text = "Milestone earned: %s\nCollect at the end of the run" % ", ".join(names)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	label.offset_top = 50
-	label.add_theme_font_size_override("font_size", UITheme.header_font(24))
-	label.add_theme_color_override("font_color", Color(1.0, 0.86, 0.4))
-	label.add_theme_color_override("font_outline_color", Color.BLACK)
-	label.add_theme_constant_override("outline_size", 6)
-	banner.add_child(label)
-	get_tree().create_timer(4.0).timeout.connect(banner.queue_free)
 
 func _collect_relic_milestones() -> void:
-	var screen := RelicMilestoneScreen.new()
-	add_child(screen)
-	screen.show_collection(Progression.relic_milestones)
-	await screen.collected
+	var pending := Progression.relic_milestones.pending.keys()
+	if pending.is_empty(): return
+	var rewards: Array = []
+	for id in pending:
+		for relic: Dictionary in RelicMilestones.members(str(id)):
+			rewards.append(relic)
+	# Persist the unlock before playback so an interrupted reveal cannot lose it.
 	Progression.collect_relic_milestones()
-	screen.queue_free()
+	for relic: Dictionary in rewards:
+		_relic_reveals.enqueue_relic(relic)
+	await _relic_reveals.drained
 
 func _on_battle_ended(player_won: bool) -> void:
 	if _milestone_battle.active:
@@ -2139,6 +2463,7 @@ func _on_battle_ended(player_won: bool) -> void:
 			"%s:%d" % [_telemetry_run_id, game_state.battle_round])
 	# Capture the exact finished fight before synergies, units and counters reset.
 	_telemetry_battle_ended(player_won)
+	_recap_finalise_fight(player_won)
 	# Strip the battle-only synergy bonuses first so between-round stats/displays
 	# show base values (they recompute fresh next fight).
 	_revert_team_synergies()
@@ -2157,10 +2482,13 @@ func _on_battle_ended(player_won: bool) -> void:
 					_equipment_inventory.fusion_log if _equipment_inventory else [],
 					_run_last_death,
 					Progression.nodes_owned(), Progression.total_spent(), telemetry_summary)
+			_recap_finish_run(true)
+			if not await _show_run_recap():
+				_game_over_screen.show_victory(
+					game_state.crystals, game_state.battle_round, total_dmg, _run_kills,
+					_build_after_action_verdict())
+			# Result screen first, THEN the relic unlocks play over it (owner, 2026-09-30).
 			await _collect_relic_milestones()
-			_game_over_screen.show_victory(
-				game_state.crystals, game_state.battle_round, total_dmg, _run_kills,
-				_build_after_action_verdict())
 			return
 
 		# Economy v3 (2026-07-03, per user): gold is now PHYSICAL — kills dropped
@@ -2181,6 +2509,8 @@ func _on_battle_ended(player_won: bool) -> void:
 		_spawn_coin_burst(ROUND_WIN_GOLD + relic_gold + interest
 			+ Progression.get_bonus("starting_gold"))
 		var tithe: int = Progression.get_bonus("crystal_per_round")
+		if game_state.battle_round <= Balance.EARLY_WAVE_CRYSTAL_BONUS_LAST_ROUND:
+			tithe += Balance.EARLY_WAVE_CRYSTAL_BONUS
 		if tithe > 0:
 			game_state.add_crystals(tithe)
 		var reward_gold := 0
@@ -2215,6 +2545,10 @@ func _on_battle_ended(player_won: bool) -> void:
 		_vacuum_all_crystals()
 		_vacuum_all_items()
 	else:
+		# A loss skips the round-end vacuum, so crystals still lying on the
+		# field used to vanish (2026-09-29). Credit them instantly first.
+		if _crystal_drop_system:
+			_crystal_drop_system.collect_all_now()
 		# Save crystals earned this run to the persistent wallet
 		Progression.add_crystals(game_state.crystals)
 		RunSave.clear()
@@ -2230,14 +2564,29 @@ func _on_battle_ended(player_won: bool) -> void:
 				_equipment_inventory.fusion_log if _equipment_inventory else [],
 				_run_last_death,
 				Progression.nodes_owned(), Progression.total_spent(), telemetry_summary)
+		_recap_finish_run(false)
+		# Run recap (2026-10-07): the whole-run journey, ending in an overview from
+		# which this final fight - and every recorded one - opens in the per-fight
+		# report below. Those two remain the fallback when there is no record.
+		if await _show_run_recap():
+			await _collect_relic_milestones()
+			return
+		# The final-battle report was frozen by the manager in end_battle(), before
+		# any unit reset or free. An empty report (a fight that never recorded)
+		# falls back to the compact legacy panel.
+		var defeat_report: Dictionary = auto_battle_manager.last_report if auto_battle_manager else {}
+		if defeat_report.is_empty() or defeat_report.get("heroes", []).is_empty():
+			_game_over_screen.show_defeat(
+				game_state.crystals,       # earned this run
+				maxi(0, game_state.battle_round - 1),   # the losing round is not "cleared"
+				total_dmg,
+				_run_kills,
+				_build_after_action_verdict()
+			)
+		else:
+			_game_over_screen.show_defeat_report(_defeat_summary(), defeat_report)
+		# Defeat screen first, THEN the relic unlocks play over it (owner, 2026-09-30).
 		await _collect_relic_milestones()
-		_game_over_screen.show_defeat(
-			game_state.crystals,       # earned this run
-			game_state.battle_round,
-			total_dmg,
-			_run_kills,
-			_build_after_action_verdict()
-		)
 		return
 
 	update_ui()
@@ -2346,44 +2695,6 @@ func _on_unit_summoned(unit: UnitBase) -> void:
 	else:
 		if unit not in enemy_units:
 			enemy_units.append(unit)
-
-# Momentary zoom-punch toward a boss beat the player can't otherwise steer or
-# react to (currently just Skyrender's Long Fall grab) — pure spectacle, no
-# gameplay effect. Scales/repositions battle_grid_node itself so every child
-# (units, projectiles, damage text, skill effects) zooms together; the UI
-# CanvasLayer is unaffected by a parent 2D transform by design, so HUD/panels
-# stay put. Keeps its own running tween so a second punch mid-animation
-# replaces the first cleanly instead of fighting it.
-const CAMERA_PUNCH_ZOOM := 1.35
-const CAMERA_PUNCH_IN_TIME := 0.22
-const CAMERA_PUNCH_OUT_TIME := 0.3
-var _camera_punch_tween: Tween = null
-var _battlefield_rest_pos: Vector2 = Vector2(480, 60)   # kept in sync by _center_battlefield()
-
-func _on_camera_punch_requested(world_pos: Vector2, hold_time: float) -> void:
-	if battle_grid_node == null:
-		return
-	if _camera_punch_tween and _camera_punch_tween.is_valid():
-		_camera_punch_tween.kill()
-
-	# Pivot always computed against the authoritative rest transform (scale 1,
-	# position = _battlefield_rest_pos), not the node's current transform — a
-	# second punch firing mid-animation would otherwise pivot off an
-	# already-zoomed frame and drift instead of re-centering cleanly.
-	var pivot_local: Vector2 = world_pos - _battlefield_rest_pos
-	var target_scale := Vector2.ONE * CAMERA_PUNCH_ZOOM
-	var target_pos: Vector2 = _battlefield_rest_pos + pivot_local * (1.0 - CAMERA_PUNCH_ZOOM)
-
-	_camera_punch_tween = create_tween()
-	_camera_punch_tween.tween_property(battle_grid_node, "scale", target_scale, CAMERA_PUNCH_IN_TIME) \
-			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	_camera_punch_tween.parallel().tween_property(battle_grid_node, "position", target_pos, CAMERA_PUNCH_IN_TIME) \
-			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	_camera_punch_tween.tween_interval(maxf(hold_time - CAMERA_PUNCH_IN_TIME, 0.0))
-	_camera_punch_tween.tween_property(battle_grid_node, "scale", Vector2.ONE, CAMERA_PUNCH_OUT_TIME) \
-			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	_camera_punch_tween.parallel().tween_property(battle_grid_node, "position", _battlefield_rest_pos, CAMERA_PUNCH_OUT_TIME) \
-			.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 
 func _despawn_summons() -> void:
 	# Remove all summoned units from the grid and scene at round end — EXCEPT
@@ -2664,10 +2975,12 @@ func _row_phrase(row_y: int) -> String:
 # ── UNIT PLACEMENT & GRID INPUT ────────────────────────────────────────────
 func _on_cell_clicked(grid_pos: Vector2i) -> void:
 	# Right-click to show unit details
-	if battle_grid.is_cell_occupied(grid_pos):
-		var unit = battle_grid.get_unit_at(grid_pos)
-		if unit and unit is UnitBase:
-			show_unit_details(unit)
+	var current: UnitBase = _details.current_unit if _details and unit_details_panel.visible else null
+	var unit = battle_grid.inspection_unit_at(grid_pos, current)
+	if unit and unit is UnitBase:
+		show_unit_details(unit)
+		if battle_grid.get_units_at(grid_pos).size() > 1:
+			info_label.text = "Shared square — right-click again to inspect the other unit."
 		return
 	
 	info_label.text = "Empty ground on the %s — drag a hero here to hold it." % _row_phrase(grid_pos.y)
@@ -2717,10 +3030,12 @@ func _on_shop_buy_hero(idx: int, cls: int, element: int, rolls: Dictionary) -> v
 		return
 	if not game_state.spend_gold(price):
 		info_label.text = "Not enough gold!"
+		_shop_screen.purchase_rejected("Not enough gold!")
 		return
 	if not _recruit_hero(cls, element, rolls):
 		game_state.add_gold(price)   # refund — field AND bench are full
 		info_label.text = "No room — field and bench are full!"
+		_shop_screen.purchase_rejected("No room — field and bench are full!")
 		return
 	_shop_screen.mark_sold(idx)
 	_telemetry_decision("merchant_purchase", {
@@ -2738,9 +3053,11 @@ func _on_shop_buy_stat(idx: int, perk: Dictionary) -> void:
 		func(u): return u and is_instance_valid(u))
 	if alive_units.is_empty():
 		info_label.text = "You need a hero to receive the bonus!"
+		_shop_screen.purchase_rejected("You need a hero to receive the bonus!")
 		return
 	if not game_state.spend_gold(price):
 		info_label.text = "Not enough gold!"
+		_shop_screen.purchase_rejected("Not enough gold!")
 		return
 	_shop_screen.mark_sold(idx)
 	_shop_screen.refresh(game_state.gold)
@@ -2759,8 +3076,12 @@ func _on_shop_buy_item(idx: int, item: EquipmentItem) -> void:
 		return
 	if not game_state.spend_gold(price):
 		info_label.text = "Not enough gold!"
+		_shop_screen.purchase_rejected("Not enough gold!")
 		return
-	_equipment_inventory.add_item(item)
+	if not _equipment_inventory.add_item(item):
+		game_state.add_gold(price)
+		_shop_screen.purchase_rejected("Your bag is full. Make room first.")
+		return
 	_shop_screen.mark_sold(idx)
 	_telemetry_decision("merchant_purchase", {
 		"kind": "item", "slot": idx, "price": price, "item_id": item.id,
@@ -2776,6 +3097,7 @@ func _on_shop_buy_relic(idx: int, relic: Dictionary) -> void:
 		return
 	if not game_state.spend_gold(price):
 		info_label.text = "Not enough gold!"
+		_shop_screen.purchase_rejected("Not enough gold!")
 		return
 	_on_relic_chosen(relic)   # stores + applies retroactively (also saves/updates UI)
 	_telemetry_decision("merchant_purchase", {
@@ -2788,12 +3110,130 @@ func _on_shop_screen_reroll() -> void:
 	var cost := _shop_screen.current_reroll_cost()
 	if not game_state.spend_gold(cost):
 		info_label.text = "Not enough gold to reroll."
+		_shop_screen.purchase_rejected("Not enough gold to reroll.")
 		return
 	_shop_stock = ShopGenerator.roll_stock(game_state.battle_round, _relic_inventory.owned_ids())
 	_telemetry_decision("merchant_stock_rerolled", {
 		"cost": cost, "stock_size": _shop_stock.size()})
 	_shop_screen.set_stock(game_state.gold, _shop_stock)
 	update_ui()
+
+func _merchant_service_context() -> Dictionary:
+	var heroes: Array = []
+	for unit in player_units + bench_units:
+		if is_instance_valid(unit) and not unit in heroes: heroes.append(unit)
+	return {"items": _equipment_inventory.items.duplicate(), "heroes": heroes,
+		"round": game_state.battle_round, "gold": game_state.gold,
+		"supplies_pending": bool(_run_flags.get("merchant_supplies", false))}
+
+func _on_merchant_service(kind: String, target: Variant, modifier: String) -> void:
+	if not _shop_screen.visible or not kind in ["reforge", "enchant"]:
+		return
+	var rarity := 0
+	if kind in ["reforge", "enchant"]:
+		if not target is EquipmentItem or not _equipment_inventory.items.has(target):
+			_shop_screen.services.report("That item is no longer in your bag. No gold spent.")
+			return
+		rarity = target.rarity
+	var price := MerchantServices.cost(kind, game_state.battle_round, rarity)
+	if game_state.gold < price:
+		_shop_screen.services.report("Not enough gold. Nothing changed.")
+		return
+	var result: EquipmentItem
+	if kind == "reforge": result = MerchantServices.reforge(target, game_state.battle_round)
+	if kind == "enchant": result = MerchantServices.enchant(target, modifier)
+	if result == null:
+		_shop_screen.services.report("Choose an available modifier. No gold spent.")
+		return
+	if not game_state.spend_gold(price): return
+	var message := ""
+	match kind:
+		"reforge", "enchant":
+			# Replace atomically in the same bag slot; even a full bag is valid.
+			# Do not auto-combine away the result before the player can inspect it.
+			var index: int = _equipment_inventory.items.find(target)
+			_equipment_inventory.items[index] = result
+			_equipment_inventory.inventory_changed.emit()
+			message = "Received %s (%s). Inspect it in your bag or the selection above." % [result.name, result.get_rarity_name()]
+	_shop_screen.refresh(game_state.gold)
+	_shop_screen.services.report(message)
+	_shop_screen._keeper_react()
+	_telemetry_decision("merchant_service", {"kind": kind, "price": price})
+	update_ui()
+	save_run()
+
+func _camp_context() -> Dictionary:
+	var context := _merchant_service_context()
+	context["actions"] = int(_run_flags.get("camp_actions", 0))
+	context["history"] = _run_flags.get("camp_history", [])
+	context["supplies_count"] = int(_run_flags.get("camp_supplies", 0)) + int(bool(_run_flags.get("merchant_supplies", false)))
+	return context
+
+func _on_camp_activity(kind: String, target: Variant, _modifier: String) -> void:
+	if not _camp_screen.visible or not bool(_run_flags.get("camp_active", false)):
+		return
+	if int(_run_flags.get("camp_actions", 0)) <= 0 or not kind in ["rest", "training", "supplies"]:
+		_camp_screen.refresh("No actions remaining. Leave camp when ready.")
+		return
+	var context := _camp_context()
+	if kind == "training":
+		if not is_instance_valid(target) or not target in context["heroes"] or target.level >= Progression.hero_level_cap():
+			_camp_screen.refresh("Choose a hero below the level cap. No action used.")
+			return
+	if kind == "reforge" and (not target is EquipmentItem or not _equipment_inventory.items.has(target)):
+		_camp_screen.refresh("Choose an item currently in your bag. No action used.")
+		return
+	if kind == "rest" and context["heroes"].is_empty():
+		_camp_screen.refresh("There are no heroes to rest. No action used.")
+		return
+	var result: EquipmentItem
+	if kind == "reforge":
+		result = MerchantServices.reforge(target, game_state.battle_round)
+		if result == null:
+			_camp_screen.refresh("That item cannot be reforged. No action used.")
+			return
+	var message := ""
+	match kind:
+		"rest":
+			for hero in context["heroes"]:
+				hero.current_hp = mini(hero.max_hp, hero.current_hp + maxi(1, roundi(hero.max_hp * Balance.CAMP_REST_HP_FRACTION)))
+				# VD-23: mana is a run resource now, so resting restores it too.
+				hero.current_mana = mini(hero.max_mana, hero.current_mana + maxi(1, roundi(hero.max_mana * Balance.CAMP_REST_MANA_FRACTION)))
+			message = "Rested: restored 50% of maximum HP and mana to each hero."
+		"training":
+			var xp := MerchantServices.training_xp(target)
+			target.grant_xp(xp)
+			message = "%s gained %d XP." % [target.unit_name, xp]
+		"reforge":
+			var index: int = _equipment_inventory.items.find(target)
+			_equipment_inventory.items[index] = result
+			_equipment_inventory.inventory_changed.emit()
+			message = "Reforged %s. Inspect the new stats above." % result.name
+		"supplies":
+			_run_flags["camp_supplies"] = int(_run_flags.get("camp_supplies", 0)) + 1
+			message = "Supplies ready: +%d%% ATK and MAG next battle." % (10 * (int(_run_flags["camp_supplies"]) + int(bool(_run_flags.get("merchant_supplies", false)))))
+	_run_flags["camp_actions"] = int(_run_flags["camp_actions"]) - 1
+	var history: Array = _run_flags.get("camp_history", [])
+	history.append(message)
+	_run_flags["camp_history"] = history
+	_camp_screen.refresh(message)
+	update_team_health_bars()
+	update_ui()
+	_telemetry_decision("camp_activity", {"kind": kind, "actions_left": _run_flags["camp_actions"]})
+	save_run()
+	if kind == "training" and target.perk_points > 0:
+		_camp_screen.visible = false
+		_level_up_screen.present([target])
+		await _level_up_screen.all_done
+		_camp_screen.open()
+		save_run()
+
+func _on_camp_closed() -> void:
+	_run_flags.erase("camp_active")
+	update_ui()
+	save_run()
+	await _present_pending_perks()
+	_open_run_map()
 
 func _on_shop_closed() -> void:
 	update_ui()
@@ -2802,7 +3242,18 @@ func _on_shop_closed() -> void:
 	# the scheduled prep-phase shop just drops you back into prep.
 	if _shop_from_map:
 		_shop_from_map = false
+		await _present_pending_perks()
 		_open_run_map()
+
+# Levels from _grant_skipped_wave_rewards leave perk points behind; pick them on
+# the way back to the map instead of after the next fight (events already do
+# this in _on_event_resolved). Returns synchronously when nothing is pending.
+func _present_pending_perks() -> void:
+	var leveled: Array = player_units.filter(
+		func(u): return u and is_instance_valid(u) and u.perk_points > 0)
+	if not leveled.is_empty():
+		_level_up_screen.present(leveled)
+		await _level_up_screen.all_done
 
 func _on_spawn_hero_pressed() -> void:
 	if not shop_open:
@@ -2823,6 +3274,7 @@ func _on_spawn_hero_pressed() -> void:
 		return
 	var shop_slots: int = 3 + (_relic_inventory.shop_slot_bonus() if _relic_inventory else 0)
 	_hero_shop.favored_verbs = _relic_inventory.seed_verbs() if _relic_inventory else []
+	_hero_shop.owned_classes = _owned_hero_classes()
 	_hero_shop.open(game_state.gold, shop_slots)
 	update_ui()
 
@@ -2955,6 +3407,118 @@ func _recruit_hero(unit_class: UnitBase.UnitClass, element: UnitBase.Element, ro
 	update_team_health_bars()
 	return true
 
+# ── Bench drag-to-merge (2026-09-28) ─────────────────────────────────────────
+# The button that got the press keeps receiving motion + the release even once
+# the cursor leaves it, so the whole gesture is tracked from its gui_input.
+# Releasing outside the origin button means `pressed` never fires → no deploy.
+var _bench_drag_unit: VisualUnit = null
+var _bench_drag_press := Vector2.ZERO
+var _bench_drag_active := false
+var _bench_drag_layer: CanvasLayer = null
+var _bench_drag_hint: Label = null
+
+func _handle_bench_drag(event: InputEvent, idx: int) -> bool:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_bench_drag_unit = bench_units[idx] if idx >= 0 and idx < bench_units.size() else null
+			_bench_drag_press = get_viewport().get_mouse_position()
+			_bench_drag_active = false
+			return false   # let the button register the press (click = deploy)
+		if _bench_drag_active:
+			var dragged := _bench_drag_unit
+			_end_bench_drag()
+			var target := _merge_target_at(get_viewport().get_mouse_position(), dragged)
+			if target:
+				_try_merge_heroes(dragged, target)
+			elif dragged and is_instance_valid(dragged):
+				info_label.text = "Drop %s on another copy of itself to merge." % dragged.unit_name
+			return true
+		_bench_drag_unit = null
+		return false
+	if event is InputEventMouseMotion and _bench_drag_unit:
+		var mouse := get_viewport().get_mouse_position()
+		if not _bench_drag_active and mouse.distance_to(_bench_drag_press) > 10.0:
+			if game_state.current_state != GameState.State.PLAYER_TURN:
+				_bench_drag_unit = null
+				return false
+			_bench_drag_active = true
+			_begin_bench_drag(_bench_drag_unit)
+		if _bench_drag_active and _bench_drag_layer:
+			var preview: Control = _bench_drag_layer.get_child(0)
+			preview.position = mouse - preview.size * 0.5
+			var target := _merge_target_at(mouse, _bench_drag_unit)
+			var hint := ""
+			if target:
+				var sv: UnitBase = UnitFactory.merge_survivor(_bench_drag_unit, target)
+				var other: UnitBase = target if sv == _bench_drag_unit else _bench_drag_unit
+				if UnitFactory.merge_block_reason(sv, other) == "":
+					var hp := UnitFactory.merge_plan(sv, other)
+					hint = ("MERGE → %s" % hp["grade_after"]) if int(hp["steps"]) > 0 \
+						else "+%s MERGE" % UnitFactory.progress_text(int(hp["added"]), int(hp["threshold_before"]))
+				else:
+					hint = "MAX GRADE"
+			_bench_drag_hint.text = hint
+			return true
+	return false
+
+func _begin_bench_drag(unit: VisualUnit) -> void:
+	_bench_drag_layer = CanvasLayer.new()
+	_bench_drag_layer.layer = 25
+	add_child(_bench_drag_layer)
+	var box := Panel.new()
+	box.size = Vector2(BENCH_SLOT, BENCH_SLOT) * 1.2
+	box.add_theme_stylebox_override("panel", UITheme.slot_box(false))
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.modulate = Color(1, 1, 1, 0.85)
+	_bench_drag_layer.add_child(box)
+	var portrait := HeroPortrait.new()
+	portrait.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(portrait)
+	portrait.setup(unit.unit_class)
+	_bench_drag_hint = Label.new()
+	_bench_drag_hint.position = Vector2(-20, box.size.y + 2)
+	_bench_drag_hint.size = Vector2(box.size.x + 40, 24)
+	_bench_drag_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UITheme.apply_font(_bench_drag_hint, UITheme.FONT_VALUE)
+	_bench_drag_hint.add_theme_color_override("font_color", MergeVFX.GOLD)
+	_bench_drag_hint.add_theme_color_override("font_outline_color", MergeVFX.RIM)
+	_bench_drag_hint.add_theme_constant_override("outline_size", 6)
+	box.add_child(_bench_drag_hint)
+
+func _end_bench_drag() -> void:
+	_bench_drag_unit = null
+	_bench_drag_active = false
+	if _bench_drag_layer:
+		_bench_drag_layer.queue_free()
+	_bench_drag_layer = null
+	_bench_drag_hint = null
+
+# A same-class copy under `pos` that `dragged` could merge with: a fielded hero
+# on the board cell, or another bench slot. null otherwise.
+func _merge_target_at(pos: Vector2, dragged: VisualUnit) -> VisualUnit:
+	if not (dragged and is_instance_valid(dragged)):
+		return null
+	var cand: VisualUnit = null
+	if _bench_grid:
+		for i in range(mini(_bench_grid.get_child_count(), bench_units.size())):
+			var slot := _bench_grid.get_child(i) as Control
+			if slot and slot.get_global_rect().has_point(pos):
+				cand = bench_units[i]
+	if cand == null and battle_grid:
+		# Perspective-aware lookup (cells are trapezoids) — the same mapping the
+		# board's own hero drag uses. `pos` is a viewport position; convert it to
+		# canvas space so a camera/zoom can't skew it.
+		var world: Vector2 = get_viewport().get_canvas_transform().affine_inverse() * pos
+		var cell: Vector2i = battle_grid.world_to_grid(world)
+		if battle_grid.is_valid_position(cell):
+			var u = battle_grid.get_unit_at(cell)
+			if u is VisualUnit and u in player_units:
+				cand = u
+	if cand and cand != dragged and is_instance_valid(cand) and cand.unit_class == dragged.unit_class:
+		return cand
+	return null
+
 # Right-click a fielded hero during prep → store it on the bench.
 func _bench_unit(unit: VisualUnit) -> void:
 	if unit not in player_units:
@@ -2979,6 +3543,10 @@ func _bench_unit(unit: VisualUnit) -> void:
 # Right-click a benched hero to sell it for a partial refund (2026-07-17 economy
 # valve + fixes permanently-clogged rosters). Prep phase only.
 func _on_bench_slot_input(event: InputEvent, idx: int) -> void:
+	# Left-drag a benched hero onto a copy of itself (field or bench) → merge
+	# (2026-09-28). A plain click still deploys via the button's `pressed`.
+	if _handle_bench_drag(event, idx):
+		return
 	if not (event is InputEventMouseButton and event.pressed \
 			and event.button_index == MOUSE_BUTTON_RIGHT):
 		return
@@ -3050,6 +3618,7 @@ func _maybe_open_call_to_arms_picker() -> void:
 	_awaiting_call_to_arms_pick = true
 	var shop_slots: int = 3 + (_relic_inventory.shop_slot_bonus() if _relic_inventory else 0)
 	_hero_shop.favored_verbs = _relic_inventory.seed_verbs() if _relic_inventory else []
+	_hero_shop.owned_classes = []   # starting pick: nothing to merge with, keep it uniform
 	_hero_shop.open(0, shop_slots, true)
 
 
@@ -3067,6 +3636,9 @@ func _on_roster_pressed() -> void:
 
 func _on_equipment_pressed() -> void:
 	_equipment_panel.open(_equipment_inventory, player_units)
+
+func _on_merge_pressed() -> void:
+	_merge_panel.open(player_units, bench_units)
 
 # Auto-Combine (2026-08-06) paused a fusion because the player has a real
 # choice to make on which passives survive — surface the panel's existing
@@ -3189,6 +3761,7 @@ func _open_run_map() -> void:
 	# Which biome's map to show: the one holding the NEXT wave, so clearing a
 	# boss rolls straight into the next decade's map.
 	var next_round: int = game_state.battle_round + 1
+	_refill_on_new_biome(_biome_of_round(next_round))
 	_ensure_map_for_biome(_biome_of_round(next_round))
 	if _run_map.is_finished():
 		_run_map = null
@@ -3196,6 +3769,21 @@ func _open_run_map() -> void:
 	var biome_name: String = ProgressionRails.BIOMES[
 		clampi(_run_map.biome, 0, ProgressionRails.BIOMES.size() - 1)]["name"]
 	_run_map_screen.present(_run_map, biome_name)
+
+# VD-23 (owner 2026-09-28): HP and mana carry over between fights and drain
+# across a biome; a new biome starts everyone at full. Keyed on a saved run flag
+# so reloading mid-biome never grants a second refill, and the first biome
+# (everyone starts full anyway) never triggers it.
+func _refill_on_new_biome(biome_index: int) -> void:
+	if biome_index <= int(_run_flags.get("refilled_biome", 0)):
+		return
+	_run_flags["refilled_biome"] = biome_index
+	for unit in player_units + bench_units:
+		if is_instance_valid(unit) and unit.current_hp > 0:
+			unit.current_hp = unit.max_hp
+			unit.current_mana = unit.max_mana
+	update_team_health_bars()
+	save_run()
 
 # Debug only: walk the fresh map forward until the given wave of the biome is
 # the NEXT battle, picking arbitrarily at every fork. Used by the F6/F7 warp so
@@ -3239,10 +3827,15 @@ func _on_map_node_chosen(node: Dictionary) -> void:
 	if entered.is_empty():
 		return   # not reachable from here; the screen shouldn't have offered it
 	_map_node = entered
+	_recap_note_node(entered)
 	_telemetry_decision("map_node_chosen", {
 		"chosen": _telemetry_node(entered),
 		"offered": offered,
 	})
+	# Paid BEFORE save_run so a quit at the event/shop/camp modal keeps it.
+	if int(entered["type"]) in [RunMap.NodeType.EVENT, RunMap.NodeType.MERCHANT,
+			RunMap.NodeType.CAMP]:
+		_grant_skipped_wave_rewards(int(entered.get("round", 0)))
 	save_run()
 
 	if RunMap.is_battle_node(entered):
@@ -3307,10 +3900,64 @@ func _on_map_node_chosen(node: Dictionary) -> void:
 				_shop_sale_slots_pending = 0
 			_shop_from_map = true
 			_shop_screen.open(round_no, game_state.gold, _shop_stock)
+		RunMap.NodeType.CAMP:
+			_run_flags["camp_active"] = true
+			_run_flags["camp_actions"] = Balance.CAMP_ACTIONS
+			_run_flags["camp_history"] = []
+			save_run()
+			_camp_screen.open()
 		_:
-			# CAMP is now part of generation; its interaction is the next feature
-			# pass. Until then, advancing through it safely returns to the map.
 			_open_run_map()
+
+# ── Skipped-wave payout (2026-09-29) ─────────────────────────────────────────
+# Owner: "non battles need to give the same exp as normal so players aren't
+# punished for taking events." An event/merchant/camp REPLACES stage N's fight
+# (see run_map.gd), so entering one pays what a clean Normal clear of wave N
+# would have:
+#   account XP — exact: the Normal roster's summed xp_reward, same share and
+#                Scholar bonus as a kill.
+#   hero XP    — estimated, since damage only exists in a real fight: a clear
+#                deals about the roster's total HP, so (HP / ROW_XP_PER_DMG +
+#                kill XP) at the mid-row multiplier, split equally across the
+#                field. Reads slightly under a real fight (no overkill, shields
+#                or regen), which keeps fighting the marginally better XP.
+#   the early crystal floor (Balance.EARLY_WAVE_CRYSTAL_BONUS).
+# Kill gold and item drops are NOT repaid — that is the real cost of skipping.
+const SKIPPED_WAVE_ROW_MULT := 1.25   # midpoint of the row bonus (1.10 back .. 1.40 front)
+
+func _grant_skipped_wave_rewards(round_no: int) -> void:
+	if round_no <= 0:
+		return
+	var spec: Array = _wave_director.generate_wave_spec(round_no,
+			WaveScaler.Difficulty.NORMAL, battle_grid.grid_width, _hydra_chosen_element, 0)
+	var total_hp: float = 0.0
+	var total_xp: float = 0.0
+	for entry: Dictionary in spec:
+		var u: VisualUnit = _wave_director.create_enemy_for_entry(entry, round_no)
+		if u:
+			total_hp += float(u.max_hp)
+			total_xp += float(u.xp_reward)
+			u.free()
+
+	game_state.add_player_xp(total_xp * PLAYER_XP_SHARE
+		* (1.0 + float(Progression.get_bonus("bonus_xp")) / 100.0))
+
+	var heroes: Array = []
+	for h in player_units:
+		if h and is_instance_valid(h) and not h.is_summoned:
+			heroes.append(h)
+	if not heroes.is_empty():
+		var per_hero: float = (total_hp / float(ROW_XP_PER_DMG) + total_xp) / float(heroes.size())
+		var top_level: int = _top_hero_level(heroes)
+		for h in heroes:
+			# Not awaited: grant_xp runs before the first await inside, so the XP
+			# is on the hero before the modal opens; the bar just replays it.
+			_animate_hero_payout(h, 0, per_hero * _hero_xp_node_mult(h, top_level)
+					* SKIPPED_WAVE_ROW_MULT)
+
+	if round_no <= Balance.EARLY_WAVE_CRYSTAL_BONUS_LAST_ROUND:
+		game_state.add_crystals(Balance.EARLY_WAVE_CRYSTAL_BONUS)
+	update_ui()
 
 # Run state the catalog's eligibility rules and payout formulas read. Built
 # fresh per event roll — an event that asks "do you have 2 items" has to be
@@ -3685,6 +4332,10 @@ func _on_ready_pressed() -> void:
 		info_label.text = "You have %dg unspent — buy/reroll heroes, or click READY again to start." % game_state.gold
 		return
 
+	# Battle quits replay this checkpoint: keep the FINAL prep bag, merged
+	# items, equipment and formation before combat changes any hero state.
+	save_run()
+
 	close_shop()
 	if difficulty_panel:
 		difficulty_panel.set_panel_visible(false)
@@ -3719,12 +4370,9 @@ func _on_ready_pressed() -> void:
 	# they'd win, so commit to that exact result, not a fresh roll.
 	_pending_round_reward = _rolled_rewards.get(_locked_difficulty, {})
 
-	# Trigger random event between rounds (25% chance).
-	# 2026-09-19: now draws from EventCatalog through the run's context and
-	# seen-set, so eligibility (items held, board full, flags set by earlier
-	# choices) and non-repetition are honoured. A null event means the eligible
-	# pool was empty — fall through to the battle rather than stalling the round.
-	if randf() < 0.25 and game_state.battle_round > 1:
+	# Map runs encounter events at event nodes. Keep the old between-round
+	# chance only for classic runs, where there is no event-node route.
+	if not MAP_MODE and randf() < 0.25 and game_state.battle_round > 1:
 		var event: EventBlessing = EventGenerator.generate(_event_context(), _events_seen)
 		if event:
 			_events_seen[event.def_id] = true
@@ -3812,11 +4460,18 @@ func _rebuild_damage_meter() -> void:
 		target.remove_child(child)
 		child.free()
 
+	dm_ally_btn.set_pressed_no_signal(_dm_tab == 0)
+	dm_enemy_btn.set_pressed_no_signal(_dm_tab == 1)
 	var units := player_units if _dm_tab == 0 else enemy_units
 	var name_col := Color(0.35, 0.92, 0.45) if _dm_tab == 0 else Color(0.95, 0.38, 0.38)
 
 	# Sort by damage_dealt descending
-	var sorted := units.filter(func(u): return u and is_instance_valid(u))
+	var sorted: Array = []
+	for u in units:
+		if u and is_instance_valid(u):
+			sorted.append({"unit_name": u.unit_name, "damage_dealt": u.damage_dealt})
+	if _dm_tab == 1:
+		sorted.append_array(_dm_defeated_enemies)
 	sorted.sort_custom(func(a, b): return a.damage_dealt > b.damage_dealt)
 	var total_dmg := 0
 	for u in sorted:
@@ -3887,7 +4542,7 @@ func _render_event_log() -> void:
 		var e: Dictionary = _event_log[i]
 		var lbl := Label.new()
 		lbl.text = str(e["text"])
-		UITheme.apply_font(lbl, UITheme.FONT_VALUE)
+		UITheme.apply_read_font(lbl)   # prose -> Inter (2026-09-29)
 		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var is_round := str(e["text"]).begins_with("—")
 		if is_round:
@@ -3901,7 +4556,8 @@ func _render_event_log() -> void:
 	if _event_log.is_empty():
 		var empty := Label.new()
 		empty.text = "No actions yet. Start a battle to see the log."
-		UITheme.apply_font(empty, UITheme.FONT_VALUE)
+		UITheme.apply_read_font(empty, UITheme.FONT_BODY)   # prose -> Inter (2026-09-29)
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 		eh_list.add_child(empty)
 
@@ -4111,6 +4767,7 @@ func _roll_held_item(unit: VisualUnit) -> void:
 	var chance: float = HELD_ITEM_BASE_CHANCE \
 		+ game_state.battle_round * HELD_ITEM_CHANCE_PER_ROUND \
 		+ float(Progression.get_bonus("loot_drop_chance")) / 100.0
+	chance *= ComponentEquipmentGateway.supply_mult()   # fewer items per tier in the component system
 	if randf() >= chance:
 		return
 	var item := ComponentEquipmentGateway.generate_item(game_state.battle_round, EquipmentItem.Rarity.RARE)
@@ -4142,10 +4799,8 @@ func _place_enemy(unit: VisualUnit, roll_item: bool = true) -> void:
 # nothing can ever linger there regardless of how it got left behind.
 func _clear_middle_row() -> void:
 	var mid_y: int = battle_grid.grid_height / 2
-	for x in range(battle_grid.grid_width):
-		var pos := Vector2i(x, mid_y)
-		var stray = battle_grid.get_unit_at(pos)
-		if not (stray and is_instance_valid(stray)):
+	for stray in battle_grid.get_all_units():
+		if not (stray and is_instance_valid(stray)) or not stray.occupies_row(mid_y):
 			continue
 		# Put a hero back in its own zone rather than losing it outright. This
 		# used to test `stray in player_units or stray in _downed_heroes`, so any
@@ -4342,10 +4997,10 @@ func _top_hero_level(heroes: Array) -> int:
 # unchanged from the old instant version; only the timing and staging moved.
 #
 # Heroes that fell this round are measured too (they're in _downed_heroes, not
-# player_units, since revival is deferred as well): they earn the XP their
-# damage bought, but no heal — the ceremony stands them up at exactly
-# REVIVE_HP_PCT, which is the whole point of the "a death costs you the round"
-# rule. That matches the old ordering, where _just_revived was heal-exempt.
+# player_units, since revival is deferred as well). They earn their row's XP
+# and heal after standing up at REVIVE_HP_PCT.
+const ROW_XP_PER_DMG := 8   # 1 hero XP per N damage dealt (also read by _grant_skipped_wave_rewards)
+
 func _snapshot_between_round_bonuses() -> void:
 	# Player zone: y=5 (front, closest to middle) to y=8 (back, farthest from middle).
 	# Front row: 10% heal, +40% XP.  Back row: 40% heal, +10% XP.
@@ -4355,7 +5010,7 @@ func _snapshot_between_round_bonuses() -> void:
 	const HEAL_FRONT       := 0.10
 	const XP_MULT_BACK     := 1.10
 	const XP_MULT_FRONT    := 1.40
-	const XP_PER_DMG       := 8          # 1 XP per N damage dealt
+	const XP_PER_DMG       := ROW_XP_PER_DMG
 
 	_pending_row_bonuses.clear()
 
@@ -4380,10 +5035,8 @@ func _snapshot_between_round_bonuses() -> void:
 		var front_t: float = float(PLAYER_Y_BACK - row_y) / float(PLAYER_Y_BACK - PLAYER_Y_FRONT)
 
 		var is_downed: bool = unit in _downed_heroes
-		var heal_amt: int = 0
-		if not is_downed:
-			var heal_pct: float = lerpf(HEAL_BACK, HEAL_FRONT, front_t)
-			heal_amt = int(unit.max_hp * heal_pct)
+		var heal_pct: float = lerpf(HEAL_BACK, HEAL_FRONT, front_t)
+		var heal_amt: int = int(unit.max_hp * heal_pct)
 
 		# XP from output this battle. The kill share already carries Quick
 		# Learner/Tutelage (applied per kill); the damage share - ~96% of hero
@@ -4399,8 +5052,10 @@ func _snapshot_between_round_bonuses() -> void:
 			"front_t": front_t, "revive": is_downed,
 		})
 
-		# Reset per-battle trackers for next round
-		unit.damage_dealt = 0
+		# Reset per-battle trackers for next round. damage_dealt is deliberately
+		# NOT reset here any more: the damage meter stays readable through the
+		# prep phase and is zeroed when the next battle starts
+		# (AutoBattleManager._init_unit_timers). Its XP was already read above.
 		unit.kill_count   = 0
 		unit.kill_xp      = 0
 
@@ -4595,8 +5250,7 @@ func _log_between_round(unit: UnitBase, heal: int, xp: float, front_t: float) ->
 # report: "they moved toward the center and unclickable", units gone for good.
 #
 # Note this also takes the hero OFF _downed_heroes, so the round-start ceremony
-# treats it as the survivor it is: it earns the row heal like anyone else who
-# finished the fight standing, instead of the heal-exempt revive path.
+# treats it as the survivor it is and heals from its remaining HP.
 func _on_unit_revived(unit) -> void:
 	if not (unit and is_instance_valid(unit)):
 		return
@@ -4611,6 +5265,8 @@ func _on_unit_revived(unit) -> void:
 
 func _on_unit_died(unit) -> void:
 	var was_enemy := enemy_units.has(unit)
+	if was_enemy and is_instance_valid(unit):
+		_dm_defeated_enemies.append({"unit_name": unit.unit_name, "damage_dealt": unit.damage_dealt})
 	if _milestone_battle.active and is_instance_valid(unit):
 		_milestone_battle.death(unit, was_enemy, auto_battle_manager.battle_elapsed)
 		_record_relic_milestones(_milestone_battle.sample())
@@ -4653,6 +5309,8 @@ func _on_unit_died(unit) -> void:
 
 	if was_enemy and unit and is_instance_valid(unit):
 		_run_kills += 1
+		if auto_battle_manager:
+			auto_battle_manager.recap_tap.on_enemy_defeat(unit)   # same definition as this run kill
 		# Hold a greyed TEAM STATUS row until the death animation finishes.
 		# VisualUnit.die() emits `died` FIRST and only frees the node after the
 		# death clip + fade, so the panel and the board disagreed for the whole
@@ -4765,9 +5423,9 @@ func _create_row_tooltip() -> void:
 	_row_tip.size = Vector2(190, 76)
 	_row_tip.visible = false
 	var s := StyleBoxFlat.new()
-	s.bg_color     = Color(0.05, 0.05, 0.09, 0.93)
-	s.border_color = Color(0.83, 0.69, 0.22, 0.75)
-	s.set_border_width_all(1)
+	s.bg_color     = Color(0.06, 0.06, 0.10, 0.96)
+	s.border_color = Color(0.83, 0.69, 0.22, 0.85)
+	s.set_border_width_all(2)
 	s.corner_radius_top_left     = 6
 	s.corner_radius_top_right    = 6
 	s.corner_radius_bottom_left  = 6
@@ -4865,6 +5523,10 @@ func _update_held_item_tooltip() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# The run recap is a full-screen modal: nothing underneath (pause menu on Esc,
+	# B to recruit...) may react while it is up. It handles its own keys.
+	if _run_recap_screen and is_instance_valid(_run_recap_screen) and _run_recap_screen.visible:
+		return
 	# Any click / key during the round-start ceremony fast-forwards it. It plays
 	# up to 100 times a run, so sitting through the full stagger every time is a
 	# tax on anyone who already knows what their rows pay.
@@ -5030,7 +5692,9 @@ func _toggle_perf_overlay() -> void:
 # Forced-choice screens (level up, round reward, event) are deliberately not
 # included here — dismissing them would skip a choice the player still owes.
 func _close_top_menu() -> void:
-	if unit_details_panel.visible:
+	if _equipment_panel and _equipment_panel.removal_menu_open():
+		_equipment_panel.cancel_removal_menu()   # Esc = Cancel on the merge menu
+	elif unit_details_panel.visible:
 		_details.close()
 	elif _hero_shop and _hero_shop.visible:
 		_hero_shop.visible = false
@@ -5040,6 +5704,8 @@ func _close_top_menu() -> void:
 		_character_menu.visible = false
 	elif _equipment_panel and _equipment_panel.visible:
 		_equipment_panel.visible = false
+	elif _merge_panel and _merge_panel.visible:
+		_merge_panel.visible = false
 	elif _pause_menu and _pause_menu.visible:
 		_toggle_pause_menu(false)
 	else:
@@ -5110,6 +5776,18 @@ func _save_if_in_prep() -> void:
 	if game_state.current_state == GameState.State.PLAYER_TURN:
 		save_run()
 
+func _queue_equipment_save() -> void:
+	if _equipment_save_queued:
+		return
+	_equipment_save_queued = true
+	call_deferred("_save_equipment_changes")
+
+func _save_equipment_changes() -> void:
+	_equipment_save_queued = false
+	# Defer until the entire merge/auto-combine or equip transaction finishes.
+	# Combat still resumes from its prep checkpoint, never a partial fight.
+	_save_if_in_prep()
+
 func _pause_quit_to_menu() -> void:
 	_save_if_in_prep()
 	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
@@ -5134,6 +5812,7 @@ func _update_bag_drag() -> void:
 	if _item_tip and _item_tip.visible and not _dragged_item:
 		_reposition_item_tooltip(get_viewport().get_mouse_position())
 	if _relic_tip and _relic_tip.visible:
+		_relic_tip_desc_lbl.text = _relic_tooltip_description()
 		_reposition_relic_tooltip(get_viewport().get_mouse_position())
 
 
@@ -5149,8 +5828,8 @@ func _update_details_panel() -> void:
 # 2026-09-19, the same class of bug as the 2026-07-05 relic overlap the original
 # list was written for). Anything that covers the board belongs in here.
 func _any_modal_open() -> bool:
-	for modal in [_hero_shop, _shop_screen, _level_up_screen, _round_reward_screen,
-			_equipment_panel, _event_panel, _game_over_screen, _relic_screen,
+	for modal in [_hero_shop, _shop_screen, _camp_screen, _level_up_screen, _round_reward_screen,
+			_equipment_panel, _merge_panel, _event_panel, _game_over_screen, _relic_screen,
 			_hydra_element_screen, _character_menu, _class_browser]:
 		if modal and modal.visible:
 			return true
@@ -5159,6 +5838,8 @@ func _any_modal_open() -> bool:
 	# hiding the panel, and there the board's tooltips must keep working.
 	if _run_map_screen and _run_map_screen.is_covering_board():
 		return true
+	if _merge_toasts != null and _merge_toasts.is_busy():
+		return true   # only hides the row tooltip; the toast itself never blocks input
 	return unit_details_panel != null and unit_details_panel.visible
 
 func _update_row_tooltip() -> void:
@@ -5184,13 +5865,14 @@ func _update_row_tooltip() -> void:
 	# user request). Works for both sides; rebuilt every frame (no row cache)
 	# so a unit stepping into/out of the hovered cell can't show stale info.
 	var cell := Vector2i(cx, cy)
-	if battle_grid.is_valid_position(cell) and battle_grid.is_cell_occupied(cell):
+	if battle_grid.is_valid_position(cell):
 		var hover_unit = battle_grid.get_unit_at(cell)
 		if hover_unit and hover_unit is UnitBase:
 			_row_tip_title.text = hover_unit.unit_name
 			_row_tip_heal.text = "Level %d" % hover_unit.level
 			_row_tip_xp.text = ""
-			_row_tip.size.y = 56   # two lines, not the three-line row layout
+			_layout_row_tip(true)
+			_row_tip_heal.add_theme_color_override("font_color", Color(0.55, 0.95, 0.60))
 			_row_tip_last = -1   # force a row-bonus rebuild once we leave the unit
 			_row_tip.visible = true
 			_reposition_tooltip(mouse)
@@ -5224,7 +5906,7 @@ func _update_row_tooltip() -> void:
 		_: row_name = "Row %d" % row_num
 
 	_row_tip_title.text = row_name
-	_row_tip.size.y = 76   # restore the three-line height after unit-hover mode
+	_layout_row_tip(false)
 
 	# "next round" wording (2026-08-02): row bonuses are measured on the round
 	# fought and paid out by the ceremony when the NEXT round opens.
@@ -5241,6 +5923,36 @@ func _update_row_tooltip() -> void:
 	_reposition_tooltip(mouse)
 	_row_tip.visible = true
 
+
+# Two looks for the same popup (2026-09-30 owner: "ugly, make the level bigger,
+# change the font"). Unit hover: name at header size, level big and in the
+# readable font, panel wide enough for the longest name. Row hover: the heal/XP
+# sentences are prose, so they take the readable font too.
+func _layout_row_tip(unit_mode: bool) -> void:
+	var title_px: int = UITheme.FONT_HEADER if unit_mode else UITheme.FONT_VALUE
+	UITheme.apply_font(_row_tip_title, title_px)
+	var f: Font = _row_tip_title.get_theme_font("font")
+	var w: float = f.get_string_size(_row_tip_title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, title_px).x
+	var body := UITheme.body_face()
+	if unit_mode:
+		UITheme.apply_read_font(_row_tip_heal, UITheme.FONT_VALUE)
+		var lw: float = body.get_string_size(_row_tip_heal.text, HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FONT_VALUE).x
+		var pw: float = maxf(150.0, maxf(w, lw) + 28.0)
+		_row_tip.size = Vector2(pw, 70)
+		_row_tip_title.position = Vector2(14, 8)
+		_row_tip_heal.position = Vector2(14, 38)
+	else:
+		UITheme.apply_read_font(_row_tip_heal, UITheme.FONT_BODY)
+		UITheme.apply_read_font(_row_tip_xp, UITheme.FONT_BODY)
+		var hw: float = body.get_string_size(_row_tip_heal.text if _row_tip_heal.text != "" else "Heal  40%  next round",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FONT_BODY).x
+		var pw2: float = maxf(220.0, maxf(w, hw) + 28.0)
+		_row_tip.size = Vector2(pw2, 92)
+		_row_tip_title.position = Vector2(14, 8)
+		_row_tip_heal.position = Vector2(14, 36)
+		_row_tip_xp.position = Vector2(14, 62)
+	for l in [_row_tip_title, _row_tip_heal, _row_tip_xp]:
+		(l as Label).size = Vector2(_row_tip.size.x - 24, 26)
 
 func _reposition_tooltip(mouse: Vector2) -> void:
 	var vp   := get_viewport().get_visible_rect().size
@@ -5298,9 +6010,13 @@ func _build_left_panel() -> void:
 	vb.add_theme_constant_override("separation", 6)
 	mg.add_child(vb)
 
-	vb.add_child(_sb_heading("SET BONUSES"))
+	# Collapsible, closed by default (owner, 2026-09-30): the list is long and
+	# mostly noise until you go looking for it. The header still says how many
+	# bonuses are live so you know whether it's worth opening.
 	_synergy_list = VBoxContainer.new()
-	_synergy_list.add_theme_constant_override("separation", 4)
+	_synergy_list.add_theme_constant_override("separation", 6)
+	_synergy_btn = _sb_accordion("SET BONUSES", _synergy_list, false, _synergy_title_text)
+	vb.add_child(_synergy_btn)
 	vb.add_child(_synergy_list)
 	_rebuild_synergy_display()
 
@@ -5372,11 +6088,16 @@ func _build_left_panel() -> void:
 
 	sv.add_child(_sb_heading("BAG"))
 
+	_inventory_scroll = ScrollContainer.new()
+	_inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_inventory_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_inventory_scroll.custom_minimum_size.y = 3 * 44 + 2 * 4
+	sv.add_child(_inventory_scroll)
 	_inventory_grid = GridContainer.new()
 	_inventory_grid.columns = 5
 	_inventory_grid.add_theme_constant_override("h_separation", 4)
 	_inventory_grid.add_theme_constant_override("v_separation", 4)
-	sv.add_child(_inventory_grid)
+	_inventory_scroll.add_child(_inventory_grid)
 	_rebuild_inventory_grid()
 
 
@@ -5461,7 +6182,7 @@ func _build_right_panel() -> void:
 	act_body.add_theme_constant_override("separation", 5)
 	sv.add_child(_sb_accordion("PLAYER ACTIONS", act_body, true))
 	sv.add_child(act_body)
-	for btn in [spawn_hero_btn, use_items_btn, classes_btn, roster_btn]:
+	for btn in [spawn_hero_btn, use_items_btn, _merge_btn, classes_btn, roster_btn]:
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		# Ellipsize instead of forcing the sidebar wider than SIDEBAR_W (see
 		# _sb_panel's clip_contents note) — a graceful truncation, not a
@@ -5503,11 +6224,18 @@ func _build_right_panel() -> void:
 	# ── Damage Meter (fresh list + reparent tab buttons) ─────────────────────
 	var dm_body := VBoxContainer.new()
 	dm_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sv.add_child(_sb_accordion("DAMAGE METER", dm_body))
+	var dm_header := _sb_accordion("DAMAGE METER", dm_body)
+	sv.add_child(dm_header)
+	dm_header.pressed.connect(_rebuild_damage_meter)
 	sv.add_child(dm_body)
 	dm_body.visible = false
 	dm_tab_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	dm_tab_row.reparent(dm_body)
+	dm_tab_row.visible = true
+	dm_ally_btn.toggle_mode = true
+	dm_enemy_btn.toggle_mode = true
+	dm_ally_btn.set_pressed_no_signal(_dm_tab == 0)
+	dm_enemy_btn.set_pressed_no_signal(_dm_tab == 1)
 	var dm_inner_scroll := ScrollContainer.new()
 	dm_inner_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	dm_inner_scroll.custom_minimum_size = Vector2(0, 200)
@@ -5532,7 +6260,7 @@ func _build_right_panel() -> void:
 
 	# Info strip at bottom of the outer VBox (outside scroll)
 	vb.add_child(_sb_sep())
-	UITheme.apply_font(info_label, UITheme.FONT_VALUE)
+	UITheme.apply_read_font(info_label, UITheme.FONT_BODY)   # prose -> Inter (2026-09-29)
 	info_label.add_theme_color_override("font_color", Color(0.58, 0.58, 0.68, 1))
 	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info_label.reparent(vb)
@@ -5551,7 +6279,7 @@ func _make_sb_lbl(placeholder: String) -> Label:
 	var lbl := Label.new()
 	lbl.text = placeholder
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	UITheme.apply_font(lbl, UITheme.FONT_VALUE)
+	UITheme.apply_read_font(lbl, UITheme.FONT_BODY)   # prose -> Inter (2026-09-29)
 	lbl.add_theme_color_override("font_color", Color(0.70, 0.70, 0.80))
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return lbl
@@ -5576,44 +6304,85 @@ func _rebuild_synergy_display() -> void:
 	if _synergy_tracker.active.is_empty():
 		var ph := Label.new()
 		ph.text = "Match elements or stack a\nrole to trigger synergies"
-		UITheme.apply_font(ph, UITheme.FONT_VALUE)
+		UITheme.apply_read_font(ph, UITheme.FONT_BODY)   # prose -> Inter (2026-09-29)
 		ph.add_theme_color_override("font_color", Color(0.42, 0.42, 0.52, 1))
 		ph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		ph.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_synergy_list.add_child(ph)
+		if _synergy_btn:
+			_sb_accordion_refresh(_synergy_btn)
 		return
 
 	for syn in _synergy_tracker.active:
-		var col: Color = syn["color"]
-		var tier: int = syn["tier"]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		_synergy_list.add_child(_make_synergy_card(syn))
+	if _synergy_btn:
+		_sb_accordion_refresh(_synergy_btn)
 
-		var pip := ColorRect.new()
-		pip.custom_minimum_size = Vector2(8, 14)
-		pip.color = col if tier >= 2 else (col.darkened(0.25) if tier == 1 else col.darkened(0.6))
-		row.add_child(pip)
+# "SET BONUSES  ·  3" — the header says how many bonuses are live, so a closed
+# section still tells you whether it is worth opening.
+func _synergy_title_text() -> String:
+	var n := 0
+	for s in _synergy_tracker.active:
+		if int(s["tier"]) >= 1:
+			n += 1
+	return "SET BONUSES" if n == 0 else "SET BONUSES  ·  %d" % n
 
-		var lbl := Label.new()
-		UITheme.apply_font(lbl, UITheme.FONT_VALUE)
-		if tier == 0:
-			# Below the first threshold — show progress toward it, not a bonus
-			# that isn't active yet (2026-07-06 user request: a single matching
-			# hero should still show up here instead of vanishing entirely).
-			lbl.text = "%s %d/%d — %s at %d" % [
-				syn["name"], syn["count"], syn["next_need"], syn["desc"], syn["next_need"]]
-			lbl.add_theme_color_override("font_color", col.darkened(0.35))
-			row.tooltip_text = "%s ×%d  (not yet active)\n%s once you reach %d" % [
-				syn["name"], syn["count"], syn["desc"], syn["next_need"]]
-		else:
-			lbl.text = "%s ×%d — %s" % [syn["name"], syn["count"], syn["desc"]]
-			lbl.add_theme_color_override("font_color", col.lightened(0.15))
-			row.tooltip_text = "%s ×%d  (tier %d)\n%s" % [syn["name"], syn["count"], tier, syn["desc"]]
-		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(lbl)
+# One synergy as a small card: accent stripe, name + count on top, the bonus in
+# the readable font underneath. Live bonuses are bright; ones still short of
+# their first threshold are dimmed and read as progress ("1/2").
+func _make_synergy_card(syn: Dictionary) -> Control:
+	var col: Color = syn["color"]
+	var tier: int = int(syn["tier"])
+	var live: bool = tier >= 1
 
-		_synergy_list.add_child(row)
+	var card := PanelContainer.new()
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(col.r * 0.16, col.g * 0.16, col.b * 0.16, 0.85) if live 		else Color(0.09, 0.09, 0.12, 0.7)
+	box.border_color = col if live else col.darkened(0.55)
+	box.border_width_left = 4
+	box.set_corner_radius_all(5)
+	box.content_margin_left = 10
+	box.content_margin_right = 8
+	box.content_margin_top = 4
+	box.content_margin_bottom = 5
+	card.add_theme_stylebox_override("panel", box)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 0)
+	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(vb)
+
+	var top := HBoxContainer.new()
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vb.add_child(top)
+	var name_lbl := Label.new()
+	name_lbl.text = str(syn["name"])
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UITheme.apply_font(name_lbl, UITheme.FONT_VALUE)
+	name_lbl.add_theme_color_override("font_color",
+		col.lightened(0.2) if live else col.darkened(0.2))
+	top.add_child(name_lbl)
+	var count_lbl := Label.new()
+	count_lbl.text = ("×%d" % int(syn["count"])) if live 		else ("%d/%d" % [int(syn["count"]), int(syn["next_need"])])
+	UITheme.apply_font(count_lbl, UITheme.FONT_VALUE)
+	count_lbl.add_theme_color_override("font_color",
+		Color(0.95, 0.85, 0.5) if live else Color(0.6, 0.6, 0.68))
+	top.add_child(count_lbl)
+
+	var desc_lbl := Label.new()
+	desc_lbl.text = str(syn["desc"]) if live else "%s at %d" % [syn["desc"], int(syn["next_need"])]
+	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UITheme.apply_read_font(desc_lbl, UITheme.FONT_BODY)
+	desc_lbl.add_theme_color_override("font_color",
+		Color(0.86, 0.86, 0.92) if live else Color(0.55, 0.55, 0.64))
+	vb.add_child(desc_lbl)
+
+	card.tooltip_text = ("%s ×%d  (tier %d)
+%s" % [syn["name"], int(syn["count"]), tier, syn["desc"]]) if live 		else ("%s ×%d  (not yet active)
+%s once you reach %d" % [
+			syn["name"], int(syn["count"]), syn["desc"], int(syn["next_need"])])
+	return card
 
 # ── Synergy combat bonuses (battle-start apply / battle-end revert) ───────────
 # Applied to every player unit at battle start and reverted at battle end, so
@@ -5624,6 +6393,12 @@ func _apply_team_synergies() -> void:
 		return
 	_synergy_tracker.update_from_team(player_units)
 	var b: Dictionary = _synergy_tracker.team_bonuses()
+	var supplies_count := int(_run_flags.get("camp_supplies", 0)) + int(bool(_run_flags.get("merchant_supplies", false)))
+	if supplies_count > 0:
+		b["attack_damage"] *= 1.0 + Balance.MERCHANT_SUPPLIES_POWER * supplies_count
+		b["magic_power"] *= 1.0 + Balance.MERCHANT_SUPPLIES_POWER * supplies_count
+		_run_flags.erase("merchant_supplies")
+		_run_flags.erase("camp_supplies")
 	for u in player_units:
 		if not (u and is_instance_valid(u)):
 			continue
@@ -5634,7 +6409,16 @@ func _apply_team_synergies() -> void:
 			"kill_atk_whole": u.kill_atk_whole(),
 		})
 		u.attack_damage = maxi(1, int(round(u.attack_damage * b["attack_damage"])))
+		var mp_before: int = u.magic_power
 		u.magic_power   = maxi(0, int(round(u.magic_power   * b["magic_power"])))
+		# Magic power is reverted by DELTA, not snapshot. GearPassives.battle_start
+		# (Attunement, +60% MP) runs in _init_unit_timers BEFORE battle_started
+		# fires, so the snapshot above already holds that bonus; battle_end then
+		# strips it and the snapshot restore put it straight back — every fight
+		# permanently added 60% MAG, compounding (owner report 2026-09-30: a
+		# level-15 Zolt at 1191 MAG). A delta is order-independent.
+		var syn_bk: Dictionary = u.get_meta("syn_backup")
+		syn_bk["magic_delta"] = u.magic_power - mp_before
 		u.resistance    = maxi(0, int(round(u.resistance    * b["resistance"])))
 		u.attack_speed  = u.attack_speed * float(b["attack_speed"])
 		u.attack_range  = maxi(1, u.attack_range + int(b["range_add"]))
@@ -5648,7 +6432,7 @@ func _apply_team_synergies() -> void:
 func _revert_team_synergies() -> void:
 	if not _synergies_applied:
 		return
-	for u in player_units:
+	for u in player_units + _downed_heroes:
 		if not (u and is_instance_valid(u) and u.has_meta("syn_backup")):
 			continue
 		var bk: Dictionary = u.get_meta("syn_backup")
@@ -5656,7 +6440,10 @@ func _revert_team_synergies() -> void:
 		# this fight; restoring the snapshot alone erased it every fight (VD-21).
 		var kill_atk_earned: int = u.kill_atk_whole() - int(bk.get("kill_atk_whole", u.kill_atk_whole()))
 		u.attack_damage = int(bk["attack_damage"]) + kill_atk_earned
-		u.magic_power   = int(bk["magic_power"])
+		if bk.has("magic_delta"):
+			u.magic_power = maxi(0, u.magic_power - int(bk["magic_delta"]))
+		else:
+			u.magic_power = int(bk["magic_power"])   # snapshot from an older save
 		u.resistance    = int(bk["resistance"])
 		u.attack_speed  = float(bk["attack_speed"])
 		u.attack_range  = int(bk["attack_range"])
@@ -5680,8 +6467,9 @@ func _rebuild_inventory_grid() -> void:
 	const MAX_SLOTS := 30
 
 	var items: Array = _equipment_inventory.items if _equipment_inventory else []
+	var visible_slots: int = clampi(maxi(15, items.size()), 15, MAX_SLOTS)
 
-	for i in range(MAX_SLOTS):
+	for i in range(visible_slots):
 		var slot_bg := StyleBoxFlat.new()
 		slot_bg.corner_radius_top_left     = 4
 		slot_bg.corner_radius_top_right    = 4
@@ -5840,7 +6628,7 @@ func _build_item_tooltip() -> void:
 	vb.add_child(_item_tip_passive_lbl)
 
 	_item_tip_passive_desc = Label.new()
-	UITheme.apply_font(_item_tip_passive_desc, UITheme.FONT_VALUE)
+	UITheme.apply_read_font(_item_tip_passive_desc)   # prose -> Inter (2026-09-29)
 	_item_tip_passive_desc.add_theme_color_override("font_color", Color(0.70, 0.70, 0.82))
 	_item_tip_passive_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_item_tip_passive_desc.custom_minimum_size = Vector2(304, 0)
@@ -5848,7 +6636,7 @@ func _build_item_tooltip() -> void:
 	vb.add_child(_item_tip_passive_desc)
 
 	_item_tip_hint_lbl = Label.new()
-	UITheme.apply_font(_item_tip_hint_lbl, UITheme.FONT_VALUE)
+	UITheme.apply_read_font(_item_tip_hint_lbl, UITheme.FONT_BODY)   # prose -> Inter (2026-09-29)
 	_item_tip_hint_lbl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.68))
 	_item_tip_hint_lbl.visible = false
 	vb.add_child(_item_tip_hint_lbl)
@@ -5921,7 +6709,7 @@ func _build_relic_tooltip() -> void:
 	add_child(_relic_tip_layer)
 
 	_relic_tip = PanelContainer.new()
-	_relic_tip.custom_minimum_size = Vector2(190, 0)
+	_relic_tip.custom_minimum_size = Vector2(220, 0)
 	_relic_tip.visible = false
 	var s := StyleBoxFlat.new()
 	s.bg_color     = Color(0.06, 0.05, 0.10, 0.97)
@@ -5947,21 +6735,30 @@ func _build_relic_tooltip() -> void:
 	vb.add_child(_relic_tip_name_lbl)
 
 	_relic_tip_desc_lbl = Label.new()
-	UITheme.apply_font(_relic_tip_desc_lbl, RELIC_TIP_DESC_FONT_SIZE)
+	UITheme.apply_read_font(_relic_tip_desc_lbl)   # prose -> Inter (2026-09-29)
 	_relic_tip_desc_lbl.add_theme_color_override("font_color", Color(0.70, 0.70, 0.82))
 	_relic_tip_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_relic_tip_desc_lbl.custom_minimum_size = Vector2(174, 0)
+	_relic_tip_desc_lbl.custom_minimum_size = Vector2(204, 0)
 	vb.add_child(_relic_tip_desc_lbl)
 
 
-func _show_relic_tooltip(relic_name: String, grade: String, desc: String, mouse_pos: Vector2) -> void:
+func _show_relic_tooltip(relic_name: String, grade: String, desc: String,
+		momentum_pct_per_sec: float, mouse_pos: Vector2) -> void:
 	if not _relic_tip:
 		return
 	_relic_tip_name_lbl.text = "%s  [%s-rank]" % [relic_name, grade]
-	_relic_tip_desc_lbl.text = desc
+	_relic_tip_base_desc = desc
+	_relic_tip_momentum_pct_per_sec = momentum_pct_per_sec
+	_relic_tip_desc_lbl.text = _relic_tooltip_description()
 	_relic_tip.visible = true
 	_reposition_relic_tooltip(mouse_pos)
 
+func _relic_tooltip_description() -> String:
+	if _relic_tip_momentum_pct_per_sec <= 0.0:
+		return _relic_tip_base_desc
+	var elapsed := float(auto_battle_manager.battle_elapsed) if auto_battle_manager and auto_battle_manager.battle_active else 0.0
+	var charge_pct := minf(100.0, elapsed * _relic_tip_momentum_pct_per_sec * 100.0)
+	return "%s\nCurrent charge: +%.0f%%" % [_relic_tip_base_desc, charge_pct]
 
 func _hide_relic_tooltip() -> void:
 	if _relic_tip:
@@ -6105,6 +6902,13 @@ func _show_combine_preview(dragged: EquipmentItem, target: EquipmentItem, pos: V
 	preview.name = "%s (you pick)" % preview.get_rarity_name()
 	_show_item_tooltip(preview, pos, "Release, then remove %d level%s" % [need, "" if need == 1 else "s"], true)
 
+# The equipment merge toast (two items combine, then the stat count-up). One
+# instance per manual merge; it plays itself out and frees itself.
+func _on_components_merged(base: ComponentEquipmentItem, other: ComponentEquipmentItem,
+		result: ComponentEquipmentItem) -> void:
+	if _merge_toasts:
+		_merge_toasts.enqueue_equipment(base, other, result)
+
 func _drop_combine(dragged: EquipmentItem, target: EquipmentItem) -> void:
 	if not (dragged is ComponentEquipmentItem and target is ComponentEquipmentItem \
 			and _equipment_inventory is ComponentEquipmentInventory):
@@ -6117,17 +6921,27 @@ func _drop_combine(dragged: EquipmentItem, target: EquipmentItem) -> void:
 		return
 	var sources: Array[EquipmentItem] = [target, dragged]
 	if ComponentEquipmentRules.levels_to_remove(ca, cb) > 0:
+		# The removal menu lives inside the Equipment panel, so it has to open —
+		# but if the player wasn't already in it, close it again when they finish
+		# (or cancel) instead of leaving them stranded in the Equipment menu.
+		var was_open: bool = _equipment_panel.visible
 		_equipment_panel.open(_equipment_inventory, player_units)
-		_equipment_panel.open_level_removal(sources)
+		_equipment_panel.open_level_removal(sources, not was_open)
 		return
 	var merged := (_equipment_inventory as ComponentEquipmentInventory).combine_components(sources)
 	if merged:
 		info_label.text = "Combined into %s (%s)" % [merged.name, merged.get_rarity_name()]
 
 
-func _sb_accordion(title: String, body: Control, open: bool = false) -> Button:
+func _sb_accordion(title: String, body: Control, open: bool = false, title_fn: Callable = Callable()) -> Button:
 	body.visible = open
 	var btn := Button.new()
+	# title_fn: optional live title (SET BONUSES shows how many are active).
+	# Kept on the button so the owner can refresh it without a second path.
+	if title_fn.is_valid():
+		btn.set_meta("title_fn", title_fn)
+		title = str(title_fn.call())
+	btn.set_meta("accordion_body", body)
 	btn.text      = title + ("  ▼" if open else "  ▶")
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	UITheme.apply_font(btn, UITheme.header_font(20))
@@ -6146,6 +6960,14 @@ func _sb_accordion(title: String, body: Control, open: bool = false) -> Button:
 		btn.add_theme_stylebox_override(state, s)
 	btn.pressed.connect(func():
 		body.visible = not body.visible
-		btn.text = title + ("  ▼" if body.visible else "  ▶")
+		_sb_accordion_refresh(btn, title)
 	)
 	return btn
+
+# Re-label an accordion from its live title (if it has one) and open state.
+func _sb_accordion_refresh(btn: Button, fallback_title: String = "") -> void:
+	var body := btn.get_meta("accordion_body", null) as Control
+	var t: String = fallback_title
+	if btn.has_meta("title_fn"):
+		t = str((btn.get_meta("title_fn") as Callable).call())
+	btn.text = t + ("  ▼" if (body and body.visible) else "  ▶")

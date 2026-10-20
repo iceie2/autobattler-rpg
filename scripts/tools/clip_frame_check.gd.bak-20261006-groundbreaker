@@ -1,0 +1,45 @@
+extends Node
+## Every clip against the camera frame (lesson from Bloodhound v002: _frame_camera
+## sizes from idle + death only, and an overhead strike clipped unnoticed).
+## Counts opaque pixels on the viewport's border at 12 points through each clip.
+## Any > 0 means part of the character left the frame on that sample.
+##   godot --path autobattler-rpg res://scenes/tools/clip_frame_check.tscn -- --hero=RUSH
+
+func _ready() -> void:
+	var hero := "RUSH"
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--hero="):
+			hero = a.substr(7)
+	var cls: int = UnitBase.UnitClass.keys().find(hero)
+	var u: VisualUnit = UnitFactory.create_unit(cls, UnitBase.Element.NORMAL, true)
+	u.set_meta("anim_preview_lock", true)
+	add_child(u)
+	await get_tree().process_frame
+	var m: Model3DSprite = u.model3d
+	var worst := 0
+	for clip in m.get_animation_list():
+		if not m.has_animation(clip):
+			continue
+		m.play(clip)
+		var length: float = m.animation_length(clip)
+		var hits: Array = []
+		for i in 12:
+			m._anim.seek(length * float(i) / 11.0, true)
+			m._anim.pause()
+			for k in 2:
+				await RenderingServer.frame_post_draw
+			var img := m._viewport.get_texture().get_image()
+			var w := img.get_width()
+			var h := img.get_height()
+			var n := 0
+			for x in w:
+				if img.get_pixel(x, 0).a > 0.5: n += 1
+				if img.get_pixel(x, h - 1).a > 0.5: n += 1
+			for y in h:
+				if img.get_pixel(0, y).a > 0.5: n += 1
+				if img.get_pixel(w - 1, y).a > 0.5: n += 1
+			hits.append(n)
+			worst = maxi(worst, n)
+		print("CLIP_FRAME %-10s %-10s border_px per sample %s" % [hero, clip, str(hits)])
+	print("CLIP_FRAME_DONE %s worst=%d" % [hero, worst])
+	get_tree().quit()

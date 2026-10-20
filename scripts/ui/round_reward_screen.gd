@@ -31,7 +31,9 @@ const MAX_VISIBLE_ROWS := 2   # more than this scrolls (team size clamps at 20)
 const SIDE_PAD := 40.0
 const MIN_PANEL_W := 640.0
 const GRID_TOP := 310.0
-const BOTTOM_PAD := 46.0
+# 46 was sized for the old striped panel's thick bottom band; the flat
+# menu_surface_box has none, so it left ~70px of dead space (2026-09-27 audit).
+const BOTTOM_PAD := 20.0
 
 # panel_cream.png is a DARK navy texture despite the name, so text on it is
 # light; UITheme.TEXT_* are parchment browns that vanish here.
@@ -396,6 +398,7 @@ func _build_ui() -> void:
 
 	_name_lbl = _lbl(_panel, "", UITheme.FONT_HEADER, UITheme.menu_body_color(), Vector2(0, 202), Vector2(MIN_PANEL_W, 30))
 	_desc_lbl = _lbl(_panel, "", UITheme.FONT_BODY, UITheme.menu_subtitle_color(), Vector2(0, 234), Vector2(MIN_PANEL_W, 22))
+	UITheme.apply_read_font(_desc_lbl)   # prose → Inter (2026-09-27)
 
 	# "── CHOOSE WHO RECEIVES IT ──" divider between the reward and the heroes.
 	_prompt_lbl = _lbl(_panel, "CHOOSE WHO RECEIVES IT", UITheme.FONT_BODY, UITheme.menu_body_color(),

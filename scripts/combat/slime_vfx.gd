@@ -36,6 +36,7 @@ var elapsed := 0.0
 var lifetime := 0.4
 var host = null
 var tint: Color = Color(0.55, 0.85, 0.35)
+var _element: int = UnitBase.Element.NORMAL
 var reach := 80.0
 var _t := 0.0
 var _rng := RandomNumberGenerator.new()
@@ -49,6 +50,7 @@ func _ready() -> void:
 			_rng.randf_range(0.6, 1.6)))
 
 func setup_point(kind: Mode, world_pos: Vector2, element: int, size: float, life: float) -> void:
+	_element = element
 	mode = kind
 	global_position = world_pos
 	tint = _slime_tint(element)
@@ -58,6 +60,7 @@ func setup_point(kind: Mode, world_pos: Vector2, element: int, size: float, life
 	queue_redraw()
 
 func setup_windup(caster, element: int, size: float, life: float) -> void:
+	_element = element
 	mode = Mode.GOO_WINDUP
 	host = caster
 	tint = _slime_tint(element)
@@ -69,6 +72,7 @@ func setup_windup(caster, element: int, size: float, life: float) -> void:
 # Persistent while the weaken actually runs — the manager frees it the frame
 # weakened_time expires, so it can never outlive the mechanic.
 func setup_corroded(victim, element: int, size: float) -> void:
+	_element = element
 	mode = Mode.CORRODED
 	host = victim
 	tint = _slime_tint(element)
@@ -78,6 +82,8 @@ func setup_corroded(victim, element: int, size: float) -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	if host and is_instance_valid(host) and host.has_method("_battle_clock"):
+		delta *= host._battle_clock()
 	elapsed += delta
 	_t += delta
 	if mode in [Mode.GOO_WINDUP, Mode.CORRODED]:
@@ -104,6 +110,8 @@ func _draw() -> void:
 		Mode.GOO_SPLAT:  _draw_splat(t)
 		Mode.CORRODED:   _draw_corroded()
 		Mode.SPLIT:      _draw_split(t)
+	if mode != Mode.CORRODED:
+		LizardVFX.draw_accent(self, _element, Vector2(0, -reach * 0.18), reach * 0.10, _t, 0.6 * (1.0 - t))
 
 # ── The slime swells and gathers goo before spitting ────────────────────────
 func _draw_windup(t: float) -> void:

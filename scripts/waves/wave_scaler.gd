@@ -77,6 +77,7 @@ const CODE_ROLE: Dictionary = {
 	"TRI": Role.FRONT, # The Triarch (1×1 — opens in its melee phase)
 	"SS": Role.FRONT,  # Stat Stealer (1×1 elite)
 	"AH": Role.BOSS,   # Ant Hill (2×2 — stationary spawner)
+	"ANT": Role.FRONT, # Ant Hill's opening guard
 	"KHA": Role.BOSS,  # Khagan (2×2 while mounted — phase 1)
 	"SKR": Role.BOSS,   # Skyrender (2×2 — wave-20 Air boss)
 	"DMW": Role.BOSS,   # The Drowned Maw (2×2 — wave-30 Water boss)
@@ -129,7 +130,7 @@ const CODE_IS_LARGE: Dictionary = {
 	"TCC": true,  # Terracotta Colossus — the Earth decade's elite wall (2026-07-27)
 	"MH": true,   # Magma Heart — the Fire decade's elite vent (2026-07-27)
 	"MW": true,   # Mirrorplate Warden — round-85 elite (2026-07-27)
-	"AD": true,   # Aspect Devourer — round-95 capstone elite (2026-07-27)
+	"AD": true,   # Aspect Devourer — round-75 elite (2026-07-27)
 	"KHA": true,
 	"SKR": true,   # Skyrender — wave-20 Air boss (2026-07-27)
 	"DMW": true,   # The Drowned Maw — wave-30 Water boss (2026-07-28)
@@ -183,9 +184,10 @@ const UNIT_POWER: Dictionary = {
 	"TRI": 350, # The Triarch — 3-phase final boss
 	"SS": 150,  # Stat Stealer — elite-tier
 	"AH": 250,  # Ant Hill — elite-tier (tanky spawner; the ants are the real threat, uncounted here)
+	"ANT": 80,  # Opening ants; live budgets use the actual same-level ant score.
 	# Elemental elites (2026-07-27). Priced in the Stat Stealer's 1×1 elite band;
 	# GW's evasion is effective-HP the score can't see, so it sits a notch above.
-	"GW": 170,  # Gale Warden — elite-tier (evasive skirmisher, formation breaker)
+	"GW": 45,   # Gale Warden — ONE BIRD of the flock (2026-09-28): a quarter of the old 170 lone elite
 	"TC": 190,  # Tidecaller — elite-tier (support; its regen/shield output is
 				# force-multiplier power score_unit can't see, hence the premium)
 	"TCC": 320, # Terracotta Colossus — elite-tier 2×2, priced just above Hill Giant
@@ -194,7 +196,7 @@ const UNIT_POWER: Dictionary = {
 	"TPC": 260, # Tempest Conduit — elite-tier 1×1; its real output depends on the
 				# player's own formation, so treat this as a mid-clump estimate
 	"MW": 480,  # Mirrorplate Warden — round-85 elite 2×2
-	"AD": 560,  # Aspect Devourer — round-95 capstone elite 2×2, the strongest
+	"AD": 560,  # Aspect Devourer — round-75 elite 2×2, the strongest
 				# non-boss body in the game (it stands one wave before the finale)
 	"KHA": 300, # Khagan — wave-10 boss (mount-swap fight)
 	"SKR": 380,  # Skyrender — wave-20 Air boss (aloft windows add effective bulk)
@@ -341,6 +343,28 @@ static func retint_counts(counts: Dictionary, round: int) -> Dictionary:
 # A code missing from DEBUT_ROUND is treated as round-1 legal rather than being
 # silently dropped, because dropping it would shrink the budget pool without
 # anyone noticing. `--mode=debut` fails loudly on a missing entry instead.
+# Internal keys distinguish full returning elites from authored demoted heavies.
+const PAST_ELITE_PREFIX := "past:"
+const EXTRA_ELITE_CAP: Array[int] = [0, 1, 2]
+# Level tuning levers, independent of each elite's full base stats.
+const PAST_ELITE_LEVEL_PER_ROUND := 0.8
+const PAST_ELITE_LEVEL_OFFSETS: Dictionary = {}
+
+static func original_code(code: String) -> String:
+	return code.trim_prefix(PAST_ELITE_PREFIX)
+
+static func past_elite_level(code: String, round: int) -> int:
+	return maxi(1, 3 + int(float(round - 10) * PAST_ELITE_LEVEL_PER_ROUND)
+		+ int(PAST_ELITE_LEVEL_OFFSETS.get(original_code(code), 0)))
+
+static func past_elite_pool(round: int) -> Array[String]:
+	var pool: Array[String] = []
+	for home_round: int in ELITE_BY_ROUND:
+		# Completing the biome unlocks its elite for subsequent biomes.
+		if round > home_round + 5:
+			pool.append(PAST_ELITE_PREFIX + String(ELITE_BY_ROUND[home_round]))
+	return pool
+
 static func legal_filler(round: int) -> Array[String]:
 	var out: Array[String] = []
 	for code: String in FILLER_POOL:
@@ -377,7 +401,7 @@ const SUSTAIN_CODES: Array[String] = [
 static func role_tag_for_code(code: String) -> String:
 	if code in SUSTAIN_CODES:
 		return "support"
-	if CODE_ROLE.get(code, Role.FRONT) == Role.BACK:
+	if CODE_ROLE.get(original_code(code), Role.FRONT) == Role.BACK:
 		return "ranged"
 	# Role.FRONT and Role.BOSS both fight in melee; BOSS only means "placed
 	# centrally" (the 2×2 bodies), not "attacks at range".
@@ -389,7 +413,7 @@ static func threat_profile(spec: Array) -> Dictionary:
 	for entry: Dictionary in spec:
 		var code: String = String(entry.get("code", ""))
 		out["total"] += 1
-		if CODE_IS_LARGE.get(code, false):
+		if CODE_IS_LARGE.get(original_code(code), false):
 			out["large"] += 1
 		out[role_tag_for_code(code)] += 1
 	return out
@@ -489,9 +513,14 @@ static func crystals_for_unit(unit: UnitBase) -> int:
 	if unit.has_meta("wave_heavy"):
 		return 0
 	var s := score_unit(unit)
-	if s >= 800.0: return 2
-	if s >= 400.0: return 1
-	return 0
+	var by_score: int = 2 if s >= 800.0 else (1 if s >= 400.0 else 0)
+	# Elites/bosses (2026-09-29): the score tiers cap at 2, so a wave-5 Hill
+	# Giant paid the same as one Wind-Up Bot. They now pay their hand-authored
+	# per-unit crystal_reward (enemy_factory.gd) — never less than the score
+	# tier. Not score-scaled: boss scores run to millions late on.
+	if unit.is_elite or unit.is_boss:
+		return maxi(by_score, unit.crystal_reward)
+	return by_score
 
 # ── Formation builder ─────────────────────────────────────────────────────────
 # Returns Array of {"code": String, "pos": Vector2i} ready for spawn_enemies().
@@ -519,7 +548,8 @@ static func build_formation(round: int, difficulty: int, grid_width: int = 9,
 # without one. Those keep their old behaviour rather than silently getting a
 # different wave.
 static func _topped_up(base_counts: Dictionary, difficulty: int, round: int,
-		wave_seed: int, score_fn: Callable, preplaced: Dictionary = {}) -> Dictionary:
+		wave_seed: int, score_fn: Callable, preplaced: Dictionary = {},
+		extra_codes: Array = []) -> Dictionary:
 	var counts: Dictionary = base_counts.duplicate()
 	# VD-11: the boss honour guard is retinted to the decade's element. It was
 	# hardcoded Normal (M/B/BRN/TLN/GSN/LZN) at every tier in every decade, so
@@ -529,7 +559,8 @@ static func _topped_up(base_counts: Dictionary, difficulty: int, round: int,
 		counts[code] = counts.get(code, 0) + int(guard[code])
 	var filler: Dictionary
 	if score_fn.is_valid():
-		filler = fill_to_score(base_counts, difficulty, round, wave_seed, score_fn, preplaced)
+		filler = fill_to_score(base_counts, difficulty, round, wave_seed, score_fn, preplaced,
+			extra_codes)
 	else:
 		var base_power: int = _count_power(base_counts)
 		var remaining: int = int(float(base_power) * DIFFICULTY_MULT[difficulty]) - base_power
@@ -558,6 +589,29 @@ static func _topped_up(base_counts: Dictionary, difficulty: int, round: int,
 const FILL_TOLERANCE_FRAC := 0.004   # ±0.4% of target — the owner asked for ~±50 on 12k
 const FILL_TRIM_PASSES := 10
 
+# ── CROWD CAPS (2026-09-28, owner call) ──────────────────────────────────────
+# Brutal used to buy its extra power as BODIES: 2x2 slots top out around three,
+# so everything past that became cheap filler and rounds 24/30/32/36 Brutal
+# covered ~31 of the enemy half's cells (round 32: 9 bodies Normal, 22 Brutal).
+# Owner: "the way we handle it needs to change" — harder should mean fewer,
+# heavier threats, not a wall. So a tier may add at most EXTRA_BODY_CAP bodies
+# to the authored wave, and the whole wave may use at most WAVE_CELL_CAP cells
+# (2/3 of the 4×9 enemy half). Inside those limits each pick aims at
+# remaining ÷ slots-left, so the budget PROMOTES (beast tier, decade giants)
+# instead of multiplying. If even the heaviest legal body can't reach the target
+# within the caps, the wave lands under target on purpose — a crowded board is
+# the thing being removed.
+const EXTRA_BODY_CAP: Array[int] = [0, 2, 3]   # Normal / Veteran / Brutal
+const GALE_FLOCK_SIZE: Array[int] = [4, 6, 8]  # Gale Warden birds per tier (owner, 2026-09-28)
+const WAVE_CELL_CAP := 24
+
+static func _cells_of(counts: Dictionary) -> int:
+	var n := 0
+	for code: String in counts:
+		var s: int = cell_size_for_code(code)
+		n += s * s * int(counts[code])
+	return n
+
 # reference_counts sets the TARGET (it is the Normal-tier wave, so ×1.5 means
 # one-and-a-half times what Normal fields). preplaced is anything already on the
 # board that is not part of that reference — the boss's hand-designed honour
@@ -565,7 +619,8 @@ const FILL_TRIM_PASSES := 10
 # Without that split a boss's Veteran target would be 1.5× (boss + guard) instead
 # of 1.5× the Normal fight, which is not what the tier is supposed to promise.
 static func fill_to_score(reference_counts: Dictionary, difficulty: int, round: int,
-		wave_seed: int, score_fn: Callable, preplaced: Dictionary = {}) -> Dictionary:
+		wave_seed: int, score_fn: Callable, preplaced: Dictionary = {},
+		extra_codes: Array = []) -> Dictionary:
 	if difficulty == Difficulty.NORMAL or not score_fn.is_valid():
 		return {}
 	var base_score: float = 0.0
@@ -584,28 +639,61 @@ static func fill_to_score(reference_counts: Dictionary, difficulty: int, round: 
 	# Price every candidate once. A code with no sprite/type prices at 0 and is
 	# dropped rather than being treated as free.
 	var cost: Dictionary = {}
-	for code: String in legal_filler(round):
+	var candidates: Array = legal_filler(round)
+	candidates.append_array(past_elite_pool(round))
+	for code in extra_codes:
+		if not (code in candidates):
+			candidates.append(code)
+	for code: String in candidates:
 		var s: float = float(score_fn.call(code, round))
 		if s > 0.0:
 			cost[code] = s
 
 	var rng := _filler_rng(round, difficulty, wave_seed)
 	var picks: Dictionary = {}
+	# Seeded allowance keeps zero elites possible when the budget fits.
+	var elite_cap: int = rng.randi_range(0, EXTRA_ELITE_CAP[difficulty])
+	var body_cap: int = EXTRA_BODY_CAP[difficulty]
+	var fixed_cells: int = _cells_of(reference_counts) + _cells_of(preplaced)
+	# Room left under both crowd caps once `picks` is on the board.
+	var fits := func(code: String, cur: Dictionary) -> bool:
+		var bodies := 0
+		var elites := 0
+		for c: String in cur:
+			bodies += int(cur[c])
+			if c.begins_with(PAST_ELITE_PREFIX): elites += int(cur[c])
+		if code.begins_with(PAST_ELITE_PREFIX) and elites + 1 > elite_cap:
+			return false
+		if bodies + 1 > body_cap:
+			return false
+		var s: int = cell_size_for_code(code)
+		return fixed_cells + _cells_of(cur) + s * s <= WAVE_CELL_CAP
 	var safety: int = 0
 	while remaining > tol and safety < 60:
 		safety += 1
 		var affordable: Array = []
 		for code: String in cost:
-			if float(cost[code]) <= remaining + tol:
+			if float(cost[code]) <= remaining + tol and fits.call(code, picks):
 				affordable.append(code)
 		if affordable.is_empty():
 			break
-		# Same character as the old budget fill: usually the strongest body that
-		# still fits, sometimes anything that fits — that 30% is what stops every
-		# hard wave being the same stack of the single best-value unit.
 		affordable.sort_custom(func(a, b): return float(cost[a]) > float(cost[b]))
-		var pick: String = String(affordable[0]) if rng.randf() < 0.7 \
-			else String(affordable[rng.randi() % affordable.size()])
+		# Aim each pick at the average the remaining slots must carry, so a
+		# capped tier promotes into heavier bodies instead of stopping short.
+		# Any body at or above that average is a fair pick and is chosen
+		# UNIFORMLY — with only 2-3 slots, always taking the cheapest qualifier
+		# collapsed every run onto the same cast (map_smoke's per-run-variety
+		# check caught it). When nothing reaches the average, take one of the
+		# three strongest that fit, again at random.
+		var used := 0
+		for c: String in picks: used += int(picks[c])
+		var need: float = remaining / float(maxi(1, body_cap - used))
+		var heavy: Array = affordable.filter(func(c): return float(cost[c]) >= need)
+		var pick: String
+		if heavy.is_empty():
+			pick = String(affordable[rng.randi() % mini(3, affordable.size())])
+		else:
+			pick = String(heavy[rng.randi() % heavy.size()])
 		picks[pick] = int(picks.get(pick, 0)) + 1
 		remaining -= float(cost[pick])
 
@@ -617,10 +705,12 @@ static func fill_to_score(reference_counts: Dictionary, difficulty: int, round: 
 	if picks.is_empty() and remaining > tol and not cost.is_empty():
 		var cheapest: String = ""
 		for code: String in cost:
-			if cheapest == "" or float(cost[code]) < float(cost[cheapest]):
+			if (cheapest == "" or float(cost[code]) < float(cost[cheapest])) \
+					and fits.call(code, picks):
 				cheapest = code
-		picks[cheapest] = 1
-		remaining -= float(cost[cheapest])
+		if cheapest != "":
+			picks[cheapest] = 1
+			remaining -= float(cost[cheapest])
 
 	# Trim toward the target. Three moves are considered each pass — SWAP one
 	# chosen body for a differently-priced one, ADD a body, or REMOVE one — and
@@ -634,6 +724,8 @@ static func fill_to_score(reference_counts: Dictionary, difficulty: int, round: 
 		var move_out: String = ""
 		var move_in: String = ""
 		for to_code: String in cost:                       # ADD
+			if not fits.call(to_code, picks):
+				continue
 			var e_add: float = absf(remaining - float(cost[to_code]))
 			if e_add < best_err - 0.5:
 				best_err = e_add
@@ -647,6 +739,11 @@ static func fill_to_score(reference_counts: Dictionary, difficulty: int, round: 
 				move_in = ""
 			for to_code2: String in cost:                  # SWAP
 				if to_code2 == from_code:
+					continue
+				# A swap frees one body and its cells before placing the new one.
+				var after: Dictionary = picks.duplicate()
+				after[from_code] = int(after[from_code]) - 1
+				if not fits.call(to_code2, after):
 					continue
 				var err: float = absf(remaining + float(cost[from_code])
 						- float(cost[to_code2]))
@@ -744,11 +841,43 @@ static func _fill_budget(budget: int, round: int, rng: RandomNumberGenerator) ->
 static func _auto_place(counts: Dictionary, grid_width: int) -> Array:
 	var result: Array = []
 	var occupied: Dictionary = {}   # Vector2i → true
+	counts = counts.duplicate()
+	# Five guards on alternating front cells; keep their gaps open even when
+	# higher difficulties add escorts. Pin the hill behind the guard as well.
+	if counts.get("AH", 0) == 1 and counts.get("ANT", 0) > 0:
+		var hill_cell := Vector2i(int((grid_width - 2) / 2), 1)
+		result.append({"code": "AH", "pos": hill_cell})
+		for dy in 2:
+			for dx in 2:
+				occupied[hill_cell + Vector2i(dx, dy)] = true
+		counts.erase("AH")
+		var guard_count := mini(int(counts["ANT"]), int((grid_width + 1) / 2))
+		var first_x := int((grid_width - (guard_count * 2 - 1)) / 2)
+		for i in guard_count:
+			result.append({"code": "ANT", "pos": Vector2i(first_x + i * 2, 3)})
+		for x in grid_width:
+			occupied[Vector2i(x, 3)] = true
+		counts.erase("ANT")
+	# Emberhollow's body occupies the forward centre block; its two Hearts
+	# flank it. Keep the rear return tiles free of difficulty escorts as well.
+	if counts.get("EMB", 0) == 1 and counts.get("EMH", 0) >= 2:
+		var body := Vector2i(mini(int(grid_width / 2), grid_width - 2), 2)
+		result.append({"code": "EMB", "pos": body})
+		for dy in 2:
+			for dx in 2:
+				occupied[body + Vector2i(dx, dy)] = true
+		for side in 2:
+			var cell := emberhollow_heart_cell(side, grid_width)
+			result.append({"code": "EMH", "pos": cell})
+			occupied[cell] = true
+			occupied[emberhollow_heart_cell(side, grid_width, true)] = true
+		counts.erase("EMB")
+		counts["EMH"] -= 2
 
 	# --- 1. Collect and place 2×2 boss units first (centered) ---
 	var boss_codes: Array = []
 	for code: String in counts:
-		if CODE_IS_LARGE.get(code, false):
+		if CODE_IS_LARGE.get(original_code(code), false):
 			for _i in range(int(counts[code])):
 				boss_codes.append(code)
 	if not boss_codes.is_empty():
@@ -757,9 +886,9 @@ static func _auto_place(counts: Dictionary, grid_width: int) -> Array:
 	# --- 2. Group regular units by role ---
 	var by_role: Dictionary = {}
 	for code: String in counts:
-		if CODE_IS_LARGE.get(code, false):
+		if CODE_IS_LARGE.get(original_code(code), false):
 			continue
-		var role: int = CODE_ROLE.get(code, Role.FRONT)
+		var role: int = CODE_ROLE.get(original_code(code), Role.FRONT)
 		if not by_role.has(role):
 			by_role[role] = []
 		for _i in range(int(counts[code])):
@@ -774,6 +903,9 @@ static func _auto_place(counts: Dictionary, grid_width: int) -> Array:
 
 	return result
 
+static func emberhollow_heart_cell(side: int, grid_width: int = 9, rear: bool = false) -> Vector2i:
+	return Vector2i(1 if side == 0 else grid_width - 2, 1 if rear else 3)
+
 # Place N large (2×2) units, evenly spaced across boss rows (1–2).
 static func _place_bosses(codes: Array, occupied: Dictionary, grid_width: int) -> Array:
 	var result: Array = []
@@ -785,7 +917,17 @@ static func _place_bosses(codes: Array, occupied: Dictionary, grid_width: int) -
 		max_w = maxi(max_w, cell_size_for_code(c))
 	var valid_x: Array = []
 	for x in range(maxi(grid_width - max_w + 1, 1)):
-		valid_x.append(x)
+		# Authored formations can reserve the centre before difficulty escorts
+		# arrive. Spread large escorts only across anchors that still fit.
+		for r0 in range(5 - max_w):
+			var clear := true
+			for dy in max_w:
+				for dx in max_w:
+					if occupied.has(Vector2i(x + dx, r0 + dy)):
+						clear = false
+			if clear:
+				valid_x.append(x)
+				break
 	var chosen_x: Array = _even_pick(valid_x, n)
 
 	for i in range(codes.size()):
@@ -823,9 +965,9 @@ static func _place_bosses(codes: Array, occupied: Dictionary, grid_width: int) -
 # in CODE_IS_LARGE is 2×2; everything else is a single cell. Keep this in sync
 # with the cell_size each factory sets.
 static func cell_size_for_code(code: String) -> int:
-	if code == "ARCH":
+	if original_code(code) == "ARCH":
 		return 3
-	return 2 if CODE_IS_LARGE.get(code, false) else 1
+	return 2 if CODE_IS_LARGE.get(original_code(code), false) else 1
 
 # Fill a list of units across rows in priority order, evenly spacing per row.
 static func _fill_rows(codes: Array, row_priority: Array, occupied: Dictionary, grid_width: int) -> Array:
@@ -916,7 +1058,7 @@ static func boss_level(round: int) -> int:
 #   30  Water      The Drowned Maw    heal-cut aura ......... sustain check
 #   40  Earth      Cloven Titan       splits on death ....... finish-the-job
 #   50  Fire       Emberhollow        revives unless Hearts die . kill order
-#   60  Lightning  Arcfang            blinks to your carry .. backline check
+#   60  Lightning  Arcfang            marks/hunts -> exposed recovery; Last Howl
 #   70  mixed      The Triarch        relocated from 20, re-tuned by boss_level
 #   80  mixed      (TODO)             — Hydra moves here with its element picker
 #   90  mixed      The Gravekeeper    fallen rise as shades . attrition capstone
@@ -949,7 +1091,10 @@ static func build_boss_formation(round: int, difficulty: int, grid_width: int = 
 		chosen_element: int = -1, wave_seed: int = 0, score_fn: Callable = Callable()) -> Array:
 	var tier: int = boss_tier(round)
 	var counts: Dictionary = {boss_code_for(round, chosen_element): 1}      # the boss
-	# Normal: boss-only encounter, no escort — every 10 rounds is just the boss.
+	# Hearts belong to Emberhollow's kit on every difficulty, including Normal.
+	if boss_code_for(round, chosen_element) == "EMB":
+		counts["EMH"] = 2
+	# Normal has the boss's complete kit, without difficulty escorts.
 	if difficulty == Difficulty.NORMAL:
 		return _auto_place(counts, grid_width)
 	# ── The honour guard is a KIT, not filler ────────────────────────────────
@@ -964,26 +1109,15 @@ static func build_boss_formation(round: int, difficulty: int, grid_width: int = 
 	# scored budget below — so Veteran and Brutal mean 1.5× and 2.0× of the
 	# Normal fight instead of "the same kit plus a couple of goblins" (measured
 	# ×1.30 / ×1.38 at round 10 before this).
-	var guard: Dictionary = {"M": 2 + tier}                 # goblin fodder
-	if tier == 2:
-		guard["B"]   = 1                                    # orc bruisers
-		guard["BRN"] = 2                                    # bear frontline
-		guard["TLN"] = 2                                    # attack-speed buffers
-		guard["GSN"] = 2                                    # shaman healers
-	elif tier >= 3:
-		guard["BRN"] = 2
-		guard["BN"]  = 2
-		guard["TLN"] = 2                                    # attack-speed buffers
-		guard["GSN"] = 2
-		guard["LZN"] = 2                                    # backline snipers
-	# Boss-specific escort additions. Emberhollow's two Ember Hearts aren't
-	# support — they're the fight's win condition. They're FRONT role, so
-	# _auto_place puts them in rows 3→2, physically between the player and the
-	# boss: nearest-enemy targeting then walks the team into them without the
-	# player needing a targeting lever they don't have.
-	if boss_code_for(round, chosen_element) == "EMB":
-		guard["EMH"] = 2
-	# counts holds the boss alone, which is exactly the Normal-tier fight — so it
+	# 2026-09-28 (owner call): cut to its DESIGNED CORE — the two trolls that
+	# speed the boss up and the two shamans that heal it. The goblin fodder
+	# (2 + tier) and the bear/orc/lizard packs are gone: they were sized in July
+	# for bosses that, it turned out, were barely fighting (inherited ult spam —
+	# see BOSS_SIGNATURES in AutoBattleManager), and at tier 3+ they were 15-19
+	# bodies the crowd caps could not touch. The freed budget now buys heavies
+	# inside those caps instead.
+	var guard: Dictionary = {"TLN": 2, "GSN": 2}            # buffers + healers
+	# counts holds the complete Normal-tier fight (including Ember Hearts), so it
 	# is the reference the 1.5×/2.0× target is measured against. The guard is
 	# charged against that budget, and whatever is left buys ordinary filler.
 	return _auto_place(
@@ -1001,7 +1135,7 @@ const ELITE_POOL: Array[String] = ["G", "SS", "AH", "GW", "TC", "TCC", "MH", "TP
 # 2026-07-27 elemental-elite pass: each decade's elite now MATCHES that decade's
 # element, so the round-5/15/25/… encounters teach the element the next ten waves
 # are built on. Ant Hill and Stat Stealer moved out to the mixed endgame rounds
-# (65/75) where they get re-tuned; Hill Giant stays at 5 because "G" is the
+# (65/95) where they get re-tuned; Hill Giant stays at 5 because "G" is the
 # structural 2×2 anchor of nearly every built wave from 11 to 39 and can't move.
 #
 # All ten slots are now real bespoke encounters — the elite_code_for() fallback
@@ -1013,12 +1147,12 @@ const ELITE_POOL: Array[String] = ["G", "SS", "AH", "GW", "TC", "TCC", "MH", "TP
 #   45 Fire      Magma Heart          escalating team burn .. race check
 #   55 Lightning Tempest Conduit      chains between heroes . spacing check
 #   65 mixed     Ant Hill             ant swarm ............. DPS check
-#   75 mixed     Stat Stealer         steals a stat ......... attrition check
+#   75 mixed     Aspect Devourer      cycles element ........ damage-type check
 #   85 mixed     Mirrorplate Warden   reflects damage ....... overkill check
-#   95 mixed     Aspect Devourer      cycles element ........ damage-type capstone
+#   95 mixed     Stat Stealer         steals a stat ......... attrition check
 const ELITE_BY_ROUND := {
 	5: "G", 15: "GW", 25: "TC", 35: "TCC", 45: "MH",
-	55: "TPC", 65: "AH", 75: "SS", 85: "MW", 95: "AD",
+	55: "TPC", 65: "AH", 75: "AD", 85: "MW", 95: "SS",
 }
 
 static func is_elite_round(round: int) -> bool:
@@ -1104,7 +1238,15 @@ static func elite_code_for(round: int) -> String:
 static func build_elite_formation(round: int, difficulty: int, grid_width: int = 9,
 		wave_seed: int = 0, score_fn: Callable = Callable()) -> Array:
 	var base: Dictionary = {elite_code_for(round): 1}
+	if elite_code_for(round) == "AH":
+		base["ANT"] = mini(5, int((grid_width + 1) / 2))
+	# The Gale Warden is a FLOCK (2026-09-28, owner design): the tier IS the
+	# flock size, 4 / 6 / 8 birds. Each bird is a quarter of the old lone elite,
+	# so 6 and 8 land on the 1.5× / 2.0× targets by construction — no filler.
+	if elite_code_for(round) == "GW":
+		return _auto_place({"GW": GALE_FLOCK_SIZE[difficulty]}, grid_width)
 	if difficulty == Difficulty.NORMAL:
 		return _auto_place(base, grid_width)
+	# Extra elites are drawn only from completed biomes.
 	return _auto_place(
 		_topped_up(base, difficulty, round, wave_seed, score_fn), grid_width)

@@ -9,6 +9,8 @@ class_name BattleGrid
 # Grid data structure
 var grid_cells: Array = []
 var occupied_cells: Dictionary = {}
+# Nonblocking occupants share squares with solid units without replacing them.
+var passing_cells: Dictionary = {}
 
 # Visual
 var grid_color: Color = Color(0.2, 0.2, 0.3, 0.5)
@@ -24,6 +26,7 @@ func _ready():
 func initialize_grid() -> void:
 	grid_cells.clear()
 	occupied_cells.clear()
+	passing_cells.clear()
 	
 	for y in range(grid_height):
 		var row = []
@@ -73,29 +76,58 @@ func is_valid_position(grid_pos: Vector2i) -> bool:
 		   grid_pos.y >= 0 and grid_pos.y < grid_height
 
 func is_cell_occupied(grid_pos: Vector2i) -> bool:
+	# Movement/placement tests only solid occupants. Use get_units_at for hits
+	# and inspection, or get_all_units when collecting the combat roster.
 	return occupied_cells.has(grid_pos)
 
 func place_unit(unit, grid_pos: Vector2i) -> bool:
 	var size: int = unit.cell_size if "cell_size" in unit else 1
-	# Validate all cells first
-	for dy in range(size):
-		for dx in range(size):
-			var p := grid_pos + Vector2i(dx, dy)
-			if not is_valid_position(p) or is_cell_occupied(p):
-				return false
-	# Register all cells
-	for dy in range(size):
-		for dx in range(size):
-			var p := grid_pos + Vector2i(dx, dy)
+	var cells: Array[Vector2i] = []
+	var passing: bool = bool(unit.get_meta("phase_through_units", false))
+	if unit is UnitBase:
+		if unit.get_meta("segmented_snake", false) and unit.segment_cells.is_empty():
+			cells = [grid_pos]
+			if not _extend_snake(cells, 6, passing): return false
+		else: cells = unit.footprint_at(grid_pos)
+	else:
+		for dy in size:
+			for dx in size: cells.append(grid_pos + Vector2i(dx, dy))
+	# Validate the whole shape before writing ANY cell.
+	for p in cells:
+		if not is_valid_position(p) or (not passing and is_cell_occupied(p)): return false
+	if unit is UnitBase:
+		unit.combat_grid = self
+		if unit.get_meta("segmented_snake", false):
+			unit.segment_cells = cells
+			if unit.segment_previous_cells.is_empty(): unit.segment_previous_cells = cells.duplicate()
+	for p in cells:
+		if passing:
+			if not passing_cells.has(p): passing_cells[p] = []
+			if not passing_cells[p].has(unit): passing_cells[p].append(unit)
+		else:
 			occupied_cells[p] = unit
 			grid_cells[p.y][p.x] = unit
 	unit_placed.emit(unit, grid_pos)
 	return true
 
+# Reserve a connected six-cell body at spawn, curling when a board edge or
+# another solid unit blocks the straight tail. Passing snakes may share cells.
+func _extend_snake(cells: Array[Vector2i], length: int, passing: bool = false) -> bool:
+	if not is_valid_position(cells[-1]) or (not passing and is_cell_occupied(cells[-1])): return false
+	if cells.size() == length: return true
+	for direction in [Vector2i.UP, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN]:
+		var cell: Vector2i = cells[-1] + direction
+		if cells.has(cell) or not is_valid_position(cell) or (not passing and is_cell_occupied(cell)): continue
+		cells.append(cell)
+		if _extend_snake(cells, length, passing): return true
+		cells.pop_back()
+	return false
+
 func remove_unit(grid_pos: Vector2i) -> void:
-	if not is_cell_occupied(grid_pos):
+	var unit = get_unit_at(grid_pos)
+	if unit == null:
 		return
-	_erase_cells_of(occupied_cells[grid_pos])
+	_erase_cells_of(unit)
 	unit_removed.emit(grid_pos)
 
 # Identity-based removal — clears every cell registered to `unit` no matter
@@ -136,7 +168,15 @@ func sweep_phantoms() -> int:
 	for pos in to_erase:
 		occupied_cells.erase(pos)
 		grid_cells[pos.y][pos.x] = null
-	return to_erase.size()
+	var reclaimed := to_erase.size()
+	for pos in passing_cells.keys():
+		var live: Array = []
+		for u in passing_cells[pos]:
+			if u and is_instance_valid(u): live.append(u)
+			else: reclaimed += 1
+		if live.is_empty(): passing_cells.erase(pos)
+		else: passing_cells[pos] = live
+	return reclaimed
 
 func _erase_cells_of(unit) -> int:
 	var to_erase: Array[Vector2i] = []
@@ -146,12 +186,43 @@ func _erase_cells_of(unit) -> int:
 	for pos in to_erase:
 		occupied_cells.erase(pos)
 		grid_cells[pos.y][pos.x] = null
-	return to_erase.size()
+	var removed := to_erase.size()
+	for pos in passing_cells.keys():
+		var owners: Array = passing_cells[pos]
+		if owners.has(unit):
+			owners.erase(unit)
+			removed += 1
+		if owners.is_empty(): passing_cells.erase(pos)
+	return removed
 
 func get_unit_at(grid_pos: Vector2i):
-	if is_cell_occupied(grid_pos):
-		return occupied_cells[grid_pos]
-	return null
+	var units := get_units_at(grid_pos)
+	return units[0] if not units.is_empty() else null
+
+func get_units_at(grid_pos: Vector2i) -> Array:
+	var result: Array = []
+	var solid = occupied_cells.get(grid_pos)
+	if solid and is_instance_valid(solid): result.append(solid)
+	for unit in passing_cells.get(grid_pos, []):
+		if unit and is_instance_valid(unit) and not result.has(unit): result.append(unit)
+	return result
+
+# Cell lookup prefers a hero standing there; repeated inspection reaches the
+# passing enemy too. Both retain their own effective live stats and HP.
+func inspection_unit_at(grid_pos: Vector2i, current = null):
+	var units := get_units_at(grid_pos)
+	if units.is_empty(): return null
+	var index: int = units.find(current)
+	return units[(index+1) % units.size()]
+
+func get_all_units() -> Array:
+	var result: Array = []
+	for unit in occupied_cells.values():
+		if unit and is_instance_valid(unit) and not result.has(unit): result.append(unit)
+	for owners in passing_cells.values():
+		for unit in owners:
+			if unit and is_instance_valid(unit) and not result.has(unit): result.append(unit)
+	return result
 
 func clear_grid() -> void:
 	occupied_cells.clear()

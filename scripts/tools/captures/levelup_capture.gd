@@ -47,8 +47,9 @@ func _ready() -> void:
 	screen.present([unit])
 
 	# The three-card cascade takes longer than 90 frames; capture the settled UI.
-	for i in range(260):
-		await get_tree().process_frame
+	# Real-time wait: capture frames run slower than 60fps, so a frame count
+	# could still catch card 3 mid-spin (2026-09-27).
+	await get_tree().create_timer(6.0).timeout
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(
 		ProjectSettings.globalize_path("user://_levelup_rest.png"))

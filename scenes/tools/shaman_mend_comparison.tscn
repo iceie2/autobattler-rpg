@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/tools/captures/shaman_mend_comparison.gd" id="1"]
+[node name="ShamanMendComparison" type="Node2D"]
+script = ExtResource("1")

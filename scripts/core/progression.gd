@@ -147,111 +147,6 @@ const UPGRADES: Array = [
 		"desc": "+5% crit damage to all heroes per level.",
 		"effect": "Crit Damage +%d%%", "max_level": 20, "effect_per_level": 5,
 	},
-	# ── Hero unlocks (2026-08-01) ──────────────────────────────────────────────
-	# One-shot (max_level 1) purchases that unlock a recruitable hero. 6 heroes
-	# (one per element, see STARTER_HEROES below) start unlocked for free and
-	# have no entry here. effect_per_level is unused (no numeric bonus) — the
-	# unlock itself is read via is_hero_unlocked() checking upgrade_levels.
-	{
-		"key": "hero_unlock_pastor", "name": "Unlock Pastor",
-		"desc": "Adds Pastor to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_coal", "name": "Unlock Coal",
-		"desc": "Adds Coal to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_sear", "name": "Unlock Sear",
-		"desc": "Adds Sear to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_ember", "name": "Unlock Ember",
-		"desc": "Adds Ember to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_doc", "name": "Unlock Doc",
-		"desc": "Adds Doc to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_reed", "name": "Unlock Reed",
-		"desc": "Adds Reed to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_sheildor", "name": "Unlock Sheildor",
-		"desc": "Adds Sheildor to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_june", "name": "Unlock June",
-		"desc": "Adds June to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_spore", "name": "Unlock Spore",
-		"desc": "Adds Spore to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_sable", "name": "Unlock Sable",
-		"desc": "Adds Sable to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_lumen", "name": "Unlock Lumen",
-		"desc": "Adds Lumen to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_vail", "name": "Unlock Vail",
-		"desc": "Adds Vail to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_zolt", "name": "Unlock Zolt",
-		"desc": "Adds Zolt to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_rush", "name": "Unlock Rush",
-		"desc": "Adds Rush to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_lordee", "name": "Unlock Lordee",
-		"desc": "Adds Lordee to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_necro", "name": "Unlock Necro",
-		"desc": "Adds Necro to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_riot", "name": "Unlock Riot",
-		"desc": "Adds Riot to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_stitch", "name": "Unlock Stitch",
-		"desc": "Adds Stitch to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_cross", "name": "Unlock Cross",
-		"desc": "Adds Cross to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
-	{
-		"key": "hero_unlock_rift", "name": "Unlock Rift",
-		"desc": "Adds Rift to the recruitment pool.",
-		"effect": "Unlocked", "max_level": 1, "effect_per_level": 0,
-	},
 	# ── Run-start gold (2026-08-01 user spec) ──────────────────────────────────
 	# Distinct from "starting_gold"/Head Start above (which despite its key
 	# actually pays out every ROUND, not at run start — see that entry's
@@ -465,51 +360,42 @@ func hero_level_cap() -> int:
 	# so this is one aggregated read rather than a hardcoded key list.
 	return HERO_LEVEL_CAP_BASE + get_bonus("max_level")
 
-# Heroes unlocked for free from the very start (no purchase, no tree node) —
-# one per element so early runs have element variety. Checked directly in
-# is_hero_unlocked() rather than seeded into upgrade_levels, so existing save
-# files (with no hero_unlock_* keys at all) don't retroactively lock heroes a
-# player has already been using.
-const STARTER_HEROES: Array = [
-	UnitBase.UnitClass.BLOODHOUND,  # earth
-	UnitBase.UnitClass.SHAUNA,      # fire
-	UnitBase.UnitClass.NEMI,        # water
-	UnitBase.UnitClass.HEADHUNTER,  # air
-	UnitBase.UnitClass.STATIC,        # lightning
-	UnitBase.UnitClass.BOUNCER,     # normal
+# Hero pool (2026-10-01): hero unlocks left the crystal tree. Every hero in
+# ROSTER is recruitable from the first run; there are no unlock nodes and no
+# per-hero purchase. New heroes join the pool by being added here.
+const ROSTER: Array = [
+	UnitBase.UnitClass.BLOODHOUND,
+	UnitBase.UnitClass.SHAUNA,
+	UnitBase.UnitClass.NEMI,
+	UnitBase.UnitClass.HEADHUNTER,
+	UnitBase.UnitClass.STATIC,
+	UnitBase.UnitClass.BOUNCER,
+	UnitBase.UnitClass.PASTOR,
+	UnitBase.UnitClass.COAL,
+	UnitBase.UnitClass.SEAR,
+	UnitBase.UnitClass.EMBER,
+	UnitBase.UnitClass.DOC,
+	UnitBase.UnitClass.REED,
+	UnitBase.UnitClass.SHEILDOR,
+	UnitBase.UnitClass.JUNE,
+	UnitBase.UnitClass.SPORE,
+	UnitBase.UnitClass.SABLE,
+	UnitBase.UnitClass.LUMEN,
+	UnitBase.UnitClass.VAIL,
+	UnitBase.UnitClass.ZOLT,
+	UnitBase.UnitClass.RUSH,
+	UnitBase.UnitClass.LORDEE,
+	UnitBase.UnitClass.NECRO,
+	UnitBase.UnitClass.RIOT,
+	UnitBase.UnitClass.STITCH,
+	UnitBase.UnitClass.CROSS,
+	UnitBase.UnitClass.RIFT,
 ]
 
-# UnitClass -> hero_unlock_* upgrade key, for every hero NOT in STARTER_HEROES.
-const HERO_UNLOCK_KEYS: Dictionary = {
-	UnitBase.UnitClass.PASTOR:   "hero_unlock_pastor",
-	UnitBase.UnitClass.COAL:     "hero_unlock_coal",
-	UnitBase.UnitClass.SEAR:     "hero_unlock_sear",
-	UnitBase.UnitClass.EMBER:    "hero_unlock_ember",
-	UnitBase.UnitClass.DOC:      "hero_unlock_doc",
-	UnitBase.UnitClass.REED:     "hero_unlock_reed",
-	UnitBase.UnitClass.SHEILDOR: "hero_unlock_sheildor",
-	UnitBase.UnitClass.JUNE:     "hero_unlock_june",
-	UnitBase.UnitClass.SPORE:    "hero_unlock_spore",
-	UnitBase.UnitClass.SABLE:    "hero_unlock_sable",
-	UnitBase.UnitClass.LUMEN:    "hero_unlock_lumen",
-	UnitBase.UnitClass.VAIL:     "hero_unlock_vail",
-	UnitBase.UnitClass.ZOLT:     "hero_unlock_zolt",
-	UnitBase.UnitClass.RUSH:   "hero_unlock_rush",
-	UnitBase.UnitClass.LORDEE:   "hero_unlock_lordee",
-	UnitBase.UnitClass.NECRO:    "hero_unlock_necro",
-	UnitBase.UnitClass.RIOT:     "hero_unlock_riot",
-	UnitBase.UnitClass.STITCH:   "hero_unlock_stitch",
-	UnitBase.UnitClass.CROSS:    "hero_unlock_cross",
-	UnitBase.UnitClass.RIFT:     "hero_unlock_rift",
-}
-
-# True if this class can appear in hero recruitment: a starter hero, or an
-# hero_unlock_* upgrade has been bought (level >= 1).
+# True if this class is in the recruitment pool (kept as a function so callers
+# and non-hero classes keep their old answer).
 func is_hero_unlocked(unit_class) -> bool:
-	if unit_class in STARTER_HEROES:
-		return true
-	var key: String = HERO_UNLOCK_KEYS.get(unit_class, "")
-	return key != "" and get_level(key) >= 1
+	return unit_class in ROSTER
 
 # VD-20: pending awards are durable; pool membership is frozen per run.
 var relic_milestones := RelicMilestoneState.new()
@@ -673,31 +559,12 @@ func display_desc(key: String) -> String:
 	var upgrade := _find(key)
 	return String(upgrade.get("desc", ""))
 
-# Hero unlocks share ONE price ladder (2026-09-25 owner request): every
-# unbought hero costs the same, and each hero bought raises the price of all
-# the rest. The node's own cost_mult (the generator's per-spoke ramp) is
-# ignored. 1st hero 150c, 12th ~1,115c, 20th ~4,930c.
-const HERO_UNLOCK_BASE := 150.0
-const HERO_UNLOCK_RAMP := 1.2
-
-func hero_unlocks_owned() -> int:
-	var n := 0
-	for key: String in HERO_UNLOCK_KEYS.values():
-		if get_level(key) >= 1:
-			n += 1
-	return n
-
-func _hero_unlock_cost(owned: int) -> int:
-	return roundi(HERO_UNLOCK_BASE * pow(HERO_UNLOCK_RAMP, owned))
-
 # Cost to purchase the next level of an upgrade (returns -1 if already maxed)
 func next_cost(key: String) -> int:
 	var lvl := get_level(key)
 	var upgrade := _find(key)
 	if upgrade.is_empty() or lvl >= max_level(key):
 		return -1
-	if key.begins_with("hero_unlock_"):
-		return _hero_unlock_cost(hero_unlocks_owned())
 	# Exponential curve: base 10, multiplier 1.255, caps near 750 at level 19
 	# Lv0→1: 10c  |  Lv4→5: 25c  |  Lv9→10: 77c  |  Lv14→15: 240c  |  Lv19→20: 749c
 	# cost_mult scales the whole curve for premium nodes (per-kill economy pair).
@@ -760,11 +627,7 @@ func buy(key: String) -> bool:
 # crystals_spent, the real ledger. See reset_all().
 func total_spent() -> int:
 	var spent := 0
-	for i in range(hero_unlocks_owned()):
-		spent += _hero_unlock_cost(i)
 	for u in _catalogue:
-		if String(u["key"]).begins_with("hero_unlock_"):
-			continue    # replayed above from the shared ramp
 		var mult: float = float(u.get("cost_mult", 1.0))
 		for lvl in range(get_level(u["key"])):
 			spent += roundi(10.0 * pow(1.255, lvl) * mult)

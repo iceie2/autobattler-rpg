@@ -13,7 +13,8 @@ class_name Model3DSprite
 ##   idle walk run attack attack_alt attack_heavy skill block hurt death victory
 ##
 ## Cost note: each instance is a live 3D viewport. Keep RENDER_SIZE modest and
-## call set_paused(true) for units that are off-screen or dead — a board of 20
+## Hidden sprites stop viewport updates automatically. Park dead units with
+## set_paused(true) — a board of 20
 ## always-updating viewports is the thing most likely to cost frames.
 
 ## Production pixel-art render resolution. The viewport is composited with
@@ -42,6 +43,17 @@ var frame_grow: float = 1.0
 ## so the production defaults below remain unchanged.
 static var debug_style_override: Dictionary = {}
 var texture_filter_nearest: bool = true
+var msaa_3d: Viewport.MSAA = Viewport.MSAA_DISABLED
+## Preserve antialiased character coverage when compositing the silhouette.
+var outline_soft_edges: bool = false
+## Exact source material names -> native PBR overrides. Duplicated per instance.
+var pbr_material_overrides: Dictionary = {}
+## Test-only, both OFF in production — see the override block in setup().
+var debug_ssao: bool = false
+var debug_self_shadow: bool = false
+## Test-only, both 0.0 in production — see rim_lift / spec_amount in TOON_SHADER.
+var toon_rim_lift: float = 0.0
+var toon_spec: float = 0.0
 var toon_bands: float = 3.0
 var color_cluster_levels: float = 0.0
 ## Camera pitch, in degrees above the character's eye line.
@@ -61,6 +73,8 @@ var camera_pitch_deg: float = 0.0
 ## the art rather than a character in it. Banding the light into 2 steps and
 ## adding a silhouette line is what closes most of that gap.
 var toon: bool = true
+## Keep the screen-space silhouette when rendering native PBR.
+var outline_with_pbr: bool = false
 ## Toon palette knobs, mirrored into TOON_SHADER's uniforms at setup().
 ## Defaults chosen by rendering the board check across a ladder of values and
 ## measuring mean HSV saturation of Cross's pixels against the 2D roster's:
@@ -188,6 +202,7 @@ var glow_base: Color = Color(0, 0, 0)
 var glow_by_clip: Dictionary = {}        # clip name -> Color
 var glow_energy: float = 1.0
 var _glow_mats: Array[ShaderMaterial] = []
+var _pbr_glow_mats: Array[BaseMaterial3D] = []
 
 ## Optional board-scale prop motion layered over an authored attack.
 var attack_prop_node: String = ""
@@ -195,6 +210,15 @@ var attack_prop_offset: Vector3 = Vector3.ZERO
 var attack_prop_rotation_deg: Vector3 = Vector3.ZERO
 var _attack_prop: Node3D = null
 var _attack_prop_base: Transform3D
+
+## Optional simulated rope (Model3DCable) strung between two bones. Empty =
+## inert. Keys: start_bone, start (Vector3, model REST space), end_bone, end,
+## material (source material name whose toon material the rope reuses),
+## hide_material (that material's surfaces are hidden on the rigid mesh the rope
+## replaces), and optional length / radius / colliders / segments / tip (a
+## Vector3 carried by start_bone, for effects on non-bone geometry).
+var cable_config: Dictionary = {}
+var _cable: Model3DCable = null
 
 signal animation_finished(anim_name: String)
 
@@ -209,6 +233,7 @@ var _model: Node3D
 var _anim: AnimationPlayer
 var _sprite: Sprite2D
 var _model_height: float = 1.0
+var _idle_aabb := AABB()
 var _sprite_scale_compensation: float = 1.0   ## see _frame_camera()
 var _current: String = ""
 var _queued_after_oneshot: String = ""
@@ -226,15 +251,40 @@ func setup(path: String, height: float = 120.0) -> bool:
 		outline_px = float(dbg.get("outline_px", outline_px))
 		toon_bands = float(dbg.get("toon_bands", toon_bands))
 		texture_filter_nearest = bool(dbg.get("nearest", texture_filter_nearest))
+		msaa_3d = int(dbg.get("msaa", msaa_3d)) as Viewport.MSAA
+		outline_soft_edges = bool(dbg.get("outline_soft_edges", outline_soft_edges))
+		pbr_material_overrides = dbg.get("pbr_material_overrides", pbr_material_overrides).duplicate(true)
 		color_cluster_levels = float(dbg.get("color_cluster_levels", color_cluster_levels))
+		# Added 2026-10-02 for the saturation sweep. Measured against the 2D
+		# roster the 3D units sit beside, saturation is the single largest gap:
+		# a 2D goblin sprite averages 74 (max-min RGB over its figure pixels)
+		# against 40-43 for a live 3D hero. Resolution is NOT the main lever --
+		# 128-nearest to 256-smooth moved edge density only 29.8 -> 31.4 -- so
+		# these two have to be reachable from the override to be compared at all.
+		toon_saturation = float(dbg.get("toon_saturation", toon_saturation))
+		toon_brightness = float(dbg.get("toon_brightness", toon_brightness))
+		# Added 2026-10-02. AO and the key's self-shadow are the only things in
+		# this rig that can reveal form in a DARK material -- saturation, banding
+		# and brightness all do nothing to near-black. Pastor's black cassock
+		# reads as a draped garment in a Blender turntable and as a flat black
+		# silhouette on the board, and this is the difference. Both ship OFF
+		# (see _setup_lighting for why); these two keys exist so that decision
+		# can be RE-TESTED instead of assumed.
+		debug_ssao = bool(dbg.get("ssao", debug_ssao))
+		debug_self_shadow = bool(dbg.get("self_shadow", debug_self_shadow))
+		toon_rim_lift = float(dbg.get("rim_lift", toon_rim_lift))
+		toon_spec = float(dbg.get("spec", toon_spec))
+		# Lets the "looks good in Blender" observation be tested in-engine: with
+		# toon off the GLB's own PBR material renders, which is what Blender's
+		# turntable shows. A separate test flag can retain the screen-space outline.
+		toon = bool(dbg.get("toon", toon))
+		outline_with_pbr = bool(dbg.get("outline_with_pbr", outline_with_pbr))
 	if not ResourceLoader.exists(path):
 		push_error("Model3DSprite: no model at %s" % path)
 		return false
 
-	if debug_style_override.is_empty():
-		render_size = RENDER_SIZE
 	if stretch_arm:
-		render_size.x = int(round(RENDER_SIZE.x * STRETCH_FRAME_WIDTH))
+		render_size.x = int(round(render_size.x * STRETCH_FRAME_WIDTH))
 	if frame_grow > 1.0:
 		render_size = Vector2i(int(round(render_size.x * frame_grow)),
 				int(round(render_size.y * frame_grow)))
@@ -242,7 +292,10 @@ func setup(path: String, height: float = 120.0) -> bool:
 	_viewport = SubViewport.new()
 	_viewport.size = render_size
 	_viewport.transparent_bg = true
-	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_viewport.msaa_3d = msaa_3d
+	# A hidden unit's texture is not consumed by the canvas. Render again as soon
+	# as its sprite is visible; animation/combat clocks continue independently.
+	_viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	# The board is 2D and unlit; a 3D viewport with no environment renders black,
 	# so the character carries its own light rig and ambient fill.
 	_viewport.own_world_3d = true
@@ -280,9 +333,13 @@ func setup(path: String, height: float = 120.0) -> bool:
 	_setup_lighting()
 	if toon:
 		_apply_toon_shading()
+	else:
+		_apply_pbr_materials()
 	if runtime_bake_stretch:
 		_bake_arm_stretch()
 	_frame_camera()
+	if not cable_config.is_empty():
+		_setup_cable()
 
 	_sprite = Sprite2D.new()
 	_sprite.texture = _viewport.get_texture()
@@ -290,7 +347,7 @@ func setup(path: String, height: float = 120.0) -> bool:
 			else CanvasItem.TEXTURE_FILTER_LINEAR)
 	_sprite.centered = true
 	_sprite.z_index = 1
-	if toon and outline_px > 0.0:
+	if (toon or outline_with_pbr) and outline_px > 0.0:
 		_apply_outline_material()
 	add_child(_sprite)
 	# The viewport renders the character at RENDER_SIZE; scale down to the height
@@ -322,7 +379,7 @@ func _setup_lighting() -> void:
 	# figurine lit by a different scene than the board it stands on.
 	# Explicit rather than relying on the engine default: a default is not a
 	# decision, and this one has to survive someone toggling it in the inspector.
-	key.shadow_enabled = false
+	key.shadow_enabled = debug_self_shadow
 	_viewport.add_child(key)
 
 	var env := Environment.new()
@@ -332,7 +389,11 @@ func _setup_lighting() -> void:
 	env.ambient_light_energy = 0.85
 	# Same reasoning as key.shadow_enabled: every screen-space effect that could
 	# darken or blur the silhouette is off by name, not by default.
-	env.ssao_enabled = false
+	env.ssao_enabled = debug_ssao
+	if debug_ssao:
+		env.ssao_radius = 0.35
+		env.ssao_intensity = 2.6
+		env.ssao_power = 1.6
 	env.ssil_enabled = false
 	env.sdfgi_enabled = false
 	# Screen-space glow stays OFF even for the emissive-syringe hero. Tried and
@@ -452,17 +513,26 @@ static func _bone_length_axis(skel: Skeleton3D, idx: int) -> Vector3:
 ## the same weight whether the unit is a 1-cell hero or a 3x3 boss.
 const OUTLINE_SHADER = """
 shader_type canvas_item;
+uniform vec4 triarch_echo_tint : source_color = vec4(1.0);
 
 uniform float thickness = 2.0;
 uniform vec4 line_color : source_color = vec4(0.09, 0.07, 0.12, 1.0);
 uniform float color_levels = 0.0;
+uniform bool soft_edges = false;
+// Waterline (Drowned Maw dive/breach, 2026-10-02): everything below cut_v in
+// sprite UV is under the board and is not drawn; a thin band just above it is
+// darkened toward the deep so the body reads as entering water, not as being
+// sliced. cut_v > 1.0 disables it (the default for every other unit).
+uniform float cut_v = 2.0;
+uniform float cut_band = 0.04;
+uniform vec4 cut_tint : source_color = vec4(0.03, 0.10, 0.11, 1.0);
 
 void fragment() {
 	vec4 c = texture(TEXTURE, UV);
-	if (c.a > 0.5) {
-		if (color_levels > 1.0) {
-			c.rgb = floor(c.rgb * color_levels + 0.5) / color_levels;
-		}
+	if (color_levels > 1.0) {
+		c.rgb = floor(c.rgb * color_levels + 0.5) / color_levels;
+	}
+	if ((!soft_edges && c.a > 0.5) || (soft_edges && c.a >= 0.999)) {
 		COLOR = c;
 	} else {
 		float a = 0.0;
@@ -477,8 +547,24 @@ void fragment() {
 		a = max(a, texture(TEXTURE, UV - px * 0.707).a);
 		a = max(a, texture(TEXTURE, UV + vec2(px.x, -px.y) * 0.707).a);
 		a = max(a, texture(TEXTURE, UV + vec2(-px.x, px.y) * 0.707).a);
-		COLOR = vec4(line_color.rgb, line_color.a * step(0.5, a));
+		if (soft_edges) {
+			// Composite behind the existing edge instead of thresholding away
+			// MSAA coverage. Keep straight alpha for normal canvas blending.
+			float border = line_color.a * smoothstep(0.05, 0.95, a);
+			float alpha = c.a + (1.0 - c.a) * border;
+			vec3 rgb = (c.rgb * c.a + line_color.rgb * (1.0 - c.a) * border)
+				/ max(alpha, 0.0001);
+			COLOR = vec4(rgb, alpha);
+		} else {
+			COLOR = vec4(line_color.rgb, line_color.a * step(0.5, a));
+		}
 	}
+	if (cut_v <= 1.0) {
+		float wet = smoothstep(cut_v - cut_band, cut_v, UV.y);
+		COLOR.rgb = mix(COLOR.rgb, cut_tint.rgb, wet * 0.75);
+		COLOR.a *= 1.0 - step(cut_v, UV.y);
+	}
+	COLOR *= triarch_echo_tint;
 }
 """
 
@@ -497,7 +583,112 @@ func _apply_outline_material() -> void:
 	mat.set_shader_parameter("thickness", outline_px / maxf(down, 0.001))
 	mat.set_shader_parameter("line_color", outline_color)
 	mat.set_shader_parameter("color_levels", color_cluster_levels)
+	mat.set_shader_parameter("soft_edges", outline_soft_edges)
 	_sprite.material = mat
+
+## Preserve native PBR textures and surface response, while making selected
+## material edits and animation-driven glow independent for each hero instance.
+var _hydra_visible_heads: int = -1
+
+func set_hydra_heads(heads: int) -> void:
+	if not _model or heads == _hydra_visible_heads: return
+	_hydra_visible_heads = heads
+	var skeleton := _find(_model, "Skeleton3D") as Skeleton3D
+	if not skeleton: return
+	# Collapse the severed neck's weighted geometry onto its stump. Persistent
+	# pose overrides apply after clips, so casts cannot resurrect a dead head.
+	for group in ["L", "R", "C"]:
+		var root := skeleton.find_bone("Neck%s_1" % group)
+		if root < 0: continue
+		var missing := heads < 3 if group == "L" else (heads < 2 if group == "R" else heads < 1)
+		var stump := skeleton.get_bone_global_pose(root)
+		stump.basis = Basis.IDENTITY.scaled(Vector3.ONE * 0.001)
+		for bone in skeleton.get_bone_count():
+			if skeleton.get_bone_name(bone).begins_with("Neck" + group):
+				skeleton.set_bone_global_pose_override(bone, stump, 1.0 if missing else 0.0, true)
+
+var _aspect_skin: Array[BaseMaterial3D] = []
+var _aspect_element: int = -1
+
+func set_aspect_element(element: int) -> void:
+	if not _model or element == _aspect_element: return
+	_aspect_element = element
+	if _aspect_skin.is_empty():
+		for node in _walk(_model):
+			if not node is MeshInstance3D: continue
+			var mesh: MeshInstance3D = node
+			for surface in mesh.mesh.get_surface_count():
+				var original = mesh.get_active_material(surface)
+				if not original is BaseMaterial3D: continue
+				var material: BaseMaterial3D = original.duplicate()
+				mesh.set_surface_override_material(surface, material)
+				_aspect_skin.append(material)
+	var color: Color = SynergyData.element_color(element)
+	for material in _aspect_skin:
+		# Keep the production texture; lift dark skin with a restrained colored glow.
+		material.albedo_color = color * 1.8
+		material.emission_enabled = true
+		material.emission = color
+		material.emission_energy_multiplier = 0.32
+
+func _apply_pbr_materials() -> void:
+	var copies: Dictionary = {}
+	for node in _walk(_model):
+		if not node is MeshInstance3D:
+			continue
+		var mi: MeshInstance3D = node
+		for surface in mi.mesh.get_surface_count():
+			var src := mi.get_active_material(surface)
+			if not src is BaseMaterial3D:
+				continue
+			var name: String = src.resource_name
+			var is_glow: bool = glow_material != "" and name == glow_material
+			if not is_glow and not pbr_material_overrides.has(name):
+				continue
+			var id: int = src.get_instance_id()
+			if not copies.has(id):
+				var mat: BaseMaterial3D = src.duplicate()
+				var settings: Dictionary = pbr_material_overrides.get(name, {})
+				if settings.has("roughness"):
+					mat.roughness = clampf(float(settings["roughness"]), 0.0, 1.0)
+				if settings.has("metallic"):
+					mat.metallic = clampf(float(settings["metallic"]), 0.0, 1.0)
+				if settings.has("albedo_tint"):
+					mat.albedo_color *= settings["albedo_tint"]
+				if settings.has("albedo_color"):
+					mat.albedo_color = settings["albedo_color"]
+				if settings.has("albedo_texture"):
+					mat.albedo_texture = settings["albedo_texture"]
+				if settings.has("emission_color"):
+					mat.emission_enabled = true
+					mat.emission = settings["emission_color"]
+					mat.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+				if settings.has("emission_energy"):
+					mat.emission_energy_multiplier = float(settings["emission_energy"])
+				if settings.has("emission_texture"):
+					mat.emission_texture = settings["emission_texture"]
+				if is_glow:
+					mat.emission_enabled = true
+					mat.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+					_pbr_glow_mats.append(mat)
+				copies[id] = mat
+				if settings.has("element_color") and not is_glow:
+					var palette_mat := ShaderMaterial.new()
+					palette_mat.shader = preload("res://shaders/enemy_element_palette.gdshader")
+					palette_mat.set_shader_parameter("albedo_tex", mat.albedo_texture)
+					palette_mat.set_shader_parameter("base_color", mat.albedo_color)
+					palette_mat.set_shader_parameter("element_color", settings["element_color"])
+					palette_mat.set_shader_parameter("surface_roughness", mat.roughness)
+					palette_mat.set_shader_parameter("surface_metallic", mat.metallic)
+					palette_mat.set_shader_parameter("use_normal", mat.normal_enabled and mat.normal_texture != null)
+					if mat.normal_texture:
+						palette_mat.set_shader_parameter("normal_tex", mat.normal_texture)
+					copies[id] = palette_mat
+			mi.set_surface_override_material(surface, copies[id])
+	if glow_material != "" and _pbr_glow_mats.is_empty():
+		push_warning("Model3DSprite: PBR glow material '%s' missing in %s"
+			% [glow_material, model_path])
+	_update_glow(_current)
 
 ## Cel shading, applied over whatever material the glTF
 ## shipped with (so the model keeps its own albedo texture).
@@ -530,6 +721,20 @@ uniform float shadow_tone = 0.38;
 // costs nothing for the rest of the roster.
 uniform vec4 emission_color : source_color = vec4(0.0);
 uniform float emission_energy = 0.0;
+// Dark-material readability (2026-10-02, TEST-ONLY until approved). Both default
+// to 0.0, which reproduces the pre-existing output: see light() below.
+//   rim_lift     0 = rim is multiplied by ALBEDO (as before). 1 = rim uses
+//                max(ALBEDO, rim_floor), so a near-black surface still gets a
+//                visible edge. The rim's own comment says it exists to separate
+//                the character from the backdrop -- on black cloth it could not,
+//                because black x rim = black.
+//   spec_amount  0 = no highlight (as before; fragment() forces SPECULAR = 0).
+//                >0 = a hard-banded additive highlight, NOT multiplied by
+//                albedo, which is how dark materials show form at all.
+uniform float rim_lift = 0.0;
+uniform float rim_floor = 0.55;
+uniform float spec_amount = 0.0;
+uniform float spec_power = 8.0;
 
 void fragment() {
 	vec4 c = texture(albedo_tex, UV) * tint;
@@ -558,7 +763,18 @@ void light() {
 	// MUST modulate by ALBEDO. Adding the light term on its own blows every
 	// surface out to the light's colour and the character loses all its own
 	// colour — the first cut of this shader turned an orange robot bone white.
-	DIFFUSE_LIGHT += ATTENUATION * LIGHT_COLOR * ALBEDO * (lit + rim * rim_amount);
+	// At rim_lift = 0 this is algebraically the old single line,
+	// ALBEDO * (lit + rim * rim_amount). The `lit` term stays multiplied by
+	// albedo for the reason above; only the rim, which is confined to grazing
+	// angles by the pow(..., 3.0), is allowed a floor.
+	vec3 rim_base = mix(ALBEDO, max(ALBEDO, vec3(rim_floor)), rim_lift);
+	DIFFUSE_LIGHT += ATTENUATION * LIGHT_COLOR * (ALBEDO * lit + rim_base * rim * rim_amount);
+	if (spec_amount > 0.0) {
+		vec3 h = normalize(normalize(LIGHT) + normalize(VIEW));
+		float sp = pow(clamp(dot(normalize(NORMAL), h), 0.0, 1.0), spec_power);
+		sp = step(0.5, sp);   // banded: a flat painted highlight, not a gradient
+		DIFFUSE_LIGHT += ATTENUATION * LIGHT_COLOR * sp * spec_amount;
+	}
 }
 """
 
@@ -598,6 +814,8 @@ func _apply_toon_shading() -> void:
 			mat.set_shader_parameter("rim_amount",
 					float(material_rim_amount.get(material_name, 0.35)))
 			mat.set_shader_parameter("bands", toon_bands)
+			mat.set_shader_parameter("rim_lift", toon_rim_lift)
+			mat.set_shader_parameter("spec_amount", toon_spec)
 			if glow_material != "" and src != null and src.resource_name == glow_material:
 				_glow_mats.append(mat)
 			mi.set_surface_override_material(s, mat)
@@ -614,6 +832,66 @@ func _apply_toon_shading() -> void:
 		push_warning("Model3DSprite: glow_material '%s' matched no surface in %s (found: %s)"
 			% [glow_material, model_path, ", ".join(have)])
 	_update_glow(_current)
+
+func _setup_cable() -> void:
+	var skel := _find(_model, "Skeleton3D") as Skeleton3D
+	if skel == null:
+		return
+	var want := String(cable_config.get("material", ""))
+	var hide := String(cable_config.get("hide_material", ""))
+	var rope_mat: Material = null
+	var discard := ShaderMaterial.new()
+	discard.shader = Shader.new()
+	discard.shader.code = "shader_type spatial;\nvoid fragment() { discard; }\n"
+	for n in _walk(_model):
+		if not (n is MeshInstance3D):
+			continue
+		var mi: MeshInstance3D = n
+		for s in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(s)
+			var nm := src.resource_name if src != null else ""
+			if nm == want and rope_mat == null:
+				var cur := mi.get_surface_override_material(s)
+				rope_mat = (cur if cur != null else src).duplicate()
+			if nm == hide and hide != "":
+				mi.set_surface_override_material(s, discard)
+	if rope_mat == null:
+		push_warning("Model3DSprite: cable material '%s' not found in %s" % [want, model_path])
+		return
+	_cable = Model3DCable.new()
+	_cable.length = float(cable_config.get("length", _cable.length))
+	_cable.radius = float(cable_config.get("radius", _cable.radius))
+	_cable.segments = int(cable_config.get("segments", _cable.segments))
+	_cable.colliders = cable_config.get("colliders", [])
+	_model.add_child(_cable)
+	if not _cable.setup(skel, cable_config["start_bone"], cable_config["start"],
+			cable_config["end_bone"], cable_config["end"], rope_mat):
+		_cable.queue_free()
+		_cable = null
+	elif cable_config.has("tip"):
+		_cable.set_tip(cable_config["tip"])
+
+## The rope's points on the 2D canvas (GLOBAL coords), plug end first. Empty if
+## this character has no cable. Same projection as bone_canvas_position().
+func cable_canvas_points() -> PackedVector2Array:
+	var out := PackedVector2Array()
+	if _cable == null or _camera == null or _sprite == null:
+		return out
+	var xf := _model.global_transform
+	for p in _cable.points():
+		var px: Vector2 = _camera.unproject_position(xf * p)
+		out.append(_sprite.to_global(px - Vector2(render_size) * 0.5))
+	return out
+
+func has_cable() -> bool:
+	return _cable != null
+
+## The cable's tip point (see Model3DCable.set_tip) on the 2D canvas.
+func cable_tip_canvas() -> Vector2:
+	if _cable == null or _camera == null or _sprite == null:
+		return global_position
+	var px: Vector2 = _camera.unproject_position(_model.global_transform * _cable.tip_point())
+	return _sprite.to_global(px - Vector2(render_size) * 0.5)
 
 ## Pin the root bone's HORIZONTAL travel while leaving its vertical travel alone.
 ##
@@ -652,6 +930,7 @@ func _strip_horizontal_root_motion() -> void:
 ## board, and so its on-screen size is exactly predictable from render_height.
 func _frame_camera() -> void:
 	var idle_aabb := character_bounds(_model)
+	_idle_aabb = idle_aabb
 	_model_height = maxf(idle_aabb.size.y, 0.001)
 
 	# Also account for the death clip specifically, not just idle, for the
@@ -797,9 +1076,18 @@ func _clip(name: String) -> String:
 func has_animation(name: String) -> bool:
 	return _anim != null and _anim.has_animation(_clip(name))
 
+## Crossfade between clips, seconds. 0 = hard cut (the long-standing default,
+## and what every hero authored against). Set per hero when a reworked idle no
+## longer shares its first pose with the clips it hands off to (Static v020).
+var clip_blend_sec: float = 0.0
+## Optional caller-facing destination clips. Return/travel blends can soften
+## discontinuities while attacks retain their authored timing and hard entry.
+var clip_blend_by_clip: Dictionary = {}
+
 func play(name: String, loop: bool = true) -> bool:
 	if not has_animation(name):
 		return false
+	var blend: float = float(clip_blend_by_clip.get(name, clip_blend_sec))
 	# Alias resolution happens ONCE, here. _current and every per-clip lookup
 	# below (weapon visibility, glow, yaw bias) stay in the caller's vocabulary,
 	# so a config keyed on "attack" works whichever file variant is loaded.
@@ -808,7 +1096,7 @@ func play(name: String, loop: bool = true) -> bool:
 		return true
 	var a := _anim.get_animation(name)
 	a.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
-	_anim.play(name)
+	_anim.play(name, blend)
 	_current = name
 	if loop:
 		_oneshot_active = false
@@ -821,12 +1109,16 @@ func play(name: String, loop: bool = true) -> bool:
 ## alongside the weapon-visibility swap, so the glow changes on exactly the same
 ## frame the ability's animation starts.
 func _update_glow(clip: String) -> void:
-	if _glow_mats.is_empty():
+	if _glow_mats.is_empty() and _pbr_glow_mats.is_empty():
 		return
 	var c: Color = glow_by_clip.get(clip, glow_base)
 	# Alpha carries INTENSITY: a base fluid can sit at a low simmer and an ult
 	# can blow out, without needing a second parallel dictionary.
 	var e: float = glow_energy * c.a
+	for mat in _pbr_glow_mats:
+		mat.albedo_color = Color(c.r, c.g, c.b, mat.albedo_color.a)
+		mat.emission = Color(c.r, c.g, c.b, 1.0)
+		mat.emission_energy_multiplier = e
 	for m in _glow_mats:
 		# Drive the ALBEDO, not just EMISSION. With no bloom pass available
 		# (see _setup_lighting) emission alone only lightens the fluid a shade
@@ -863,6 +1155,17 @@ func play_oneshot(name: String, resume: String = "idle") -> bool:
 	_queued_after_oneshot = resume
 	_oneshot_active = true
 	return true
+
+## Abandon whatever one-shot is running and hold nothing afterwards. Needed when
+## the unit's STATE outruns its clip: a hero revived while its death clip is
+## still playing kept the one-shot guard up, the clip ran out into its held
+## "lying" pose, and it stayed down (health bar back) until its next action
+## (Doc's Field Surgery, 2026-09-26).
+func cancel_oneshot() -> void:
+	_oneshot_active = false
+	_queued_after_oneshot = ""
+	if _anim:
+		_anim.speed_scale = 1.0
 
 func play_oneshot_timed(name: String, duration: float, resume: String = "idle") -> bool:
 	if not play_oneshot(name, resume):
@@ -948,7 +1251,7 @@ func face_direction(dir: Vector2) -> void:
 ## Stop rendering (dead / off-screen units) — the sprite keeps its last frame.
 func set_paused(v: bool) -> void:
 	_viewport.render_target_update_mode = (
-		SubViewport.UPDATE_DISABLED if v else SubViewport.UPDATE_ALWAYS)
+		SubViewport.UPDATE_DISABLED if v else SubViewport.UPDATE_WHEN_VISIBLE)
 	if _anim:
 		_anim.speed_scale = 0.0 if v else 1.0
 
@@ -973,6 +1276,50 @@ func bone_canvas_position(bone_name: String) -> Vector2:
 	var world: Vector3 = (_skel_cache.global_transform * _skel_cache.get_bone_global_pose(idx)).origin
 	var px: Vector2 = _camera.unproject_position(world)
 	return _sprite.to_global(px - Vector2(render_size) * 0.5)
+
+## Hide everything below the board surface (the model's ground plane, y = 0),
+## so a body can sink INTO the board or rise out of it. The line sits at the
+## FRONT of the footprint -- the lowest point the ground reaches on screen under
+## the board's camera pitch -- so feet standing on the surface are never cut.
+## Idle-pose bone bounds measured when the camera was framed (world units).
+func idle_bounds() -> AABB:
+	return _idle_aabb
+
+## Rows of EMPTY pixels under the lowest opaque pixel of the rendered frame (in the
+## viewport's own pixels), or -1 if nothing has been drawn yet / no renderer.
+## VisualUnit uses it to stand each model's feet on the cell line: the frame has
+## padding of a different size per model (bone-bounds pad, the death clip's bounds,
+## FRAME_MARGIN), and pinning the frame BOTTOM left Bloodhound ~10px and June
+## ~17px above the line while the contact shadow sat on it (owner 2026-10-06:
+## "units look like they float"). Measured from pixels, not projected: the
+## projection route (camera.unproject_position) was tried first and was off by 5x.
+func bottom_pad_px() -> float:
+	if _viewport == null:
+		return -1.0
+	var tex := _viewport.get_texture()
+	if tex == null:
+		return -1.0
+	var img: Image = tex.get_image()
+	if img == null or img.is_empty():
+		return -1.0
+	var used := img.get_used_rect()
+	if used.size == Vector2i.ZERO:
+		return -1.0
+	return float(img.get_height() - used.end.y)
+
+func frame_px_height() -> float:
+	return float(_viewport.size.y) if _viewport != null else 0.0
+
+func set_waterline(enabled: bool) -> void:
+	if not (_sprite and _sprite.material is ShaderMaterial):
+		return
+	var mat := _sprite.material as ShaderMaterial
+	if not enabled or _camera == null or _viewport == null:
+		mat.set_shader_parameter("cut_v", 2.0)
+		return
+	var front: float = maxf(_idle_aabb.size.x, _idle_aabb.size.z) * 0.5
+	var p: Vector2 = _camera.unproject_position(Vector3(0.0, 0.0, front))
+	mat.set_shader_parameter("cut_v", p.y / float(_viewport.size.y))
 
 func get_sprite() -> Sprite2D:
 	return _sprite

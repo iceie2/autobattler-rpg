@@ -254,8 +254,14 @@ def text_to_image(key, prompt, ai_model="nano-banana-pro", pose="a-pose",
     """
     cost = COST_IMAGE.get(ai_model, 9)
     _spend(key, cost, f"text-to-image {ai_model} ({prompt[:32]}...)")
-    body = {"ai_model": ai_model, "prompt": prompt, "pose_mode": pose,
+    # pose "none" (2026-10-04): creatures. A-pose is a HUMAN pose -- on a bird
+    # it grew a pair of clawed arms under the wings (Skyrender concept v002).
+    # remove_bg=False keeps the prompt's own background: the auto-cut is white,
+    # and it swallowed a pale wing whole.
+    body = {"ai_model": ai_model, "prompt": prompt,
             "aspect_ratio": aspect, "remove_background": remove_bg}
+    if pose != "none":
+        body["pose_mode"] = pose
     return _req(key, "POST", "text-to-image", body)["result"]
 
 
@@ -541,7 +547,9 @@ def main():
     im.add_argument("prompt")
     im.add_argument("--out", required=True)
     im.add_argument("--model", default="nano-banana-pro")
-    im.add_argument("--pose", default="a-pose", choices=["a-pose", "t-pose"])
+    im.add_argument("--pose", default="a-pose", choices=["a-pose", "t-pose", "none"])
+    im.add_argument("--keep-bg", dest="keep_bg", action="store_true",
+                    help="don't auto-remove the background (it cuts to white)")
     im.add_argument("--aspect", default="3:4")
 
     ch = sub.add_parser("character")
@@ -618,7 +626,8 @@ def main():
         if args.dry_run:
             print(f"would spend {COST_IMAGE.get(args.model, 9)}")
             return
-        tid = text_to_image(key, args.prompt, args.model, args.pose, args.aspect)
+        tid = text_to_image(key, args.prompt, args.model, args.pose, args.aspect,
+                            remove_bg=not args.keep_bg)
         print("task", tid)
         download_image(wait(key, "text-to-image", tid), args.out)
 

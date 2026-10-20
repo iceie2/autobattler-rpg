@@ -1,0 +1,62 @@
+class_name RelicUnlockReveal
+extends CanvasLayer
+
+# A self-running reward card, paced like the equipment merge result.
+signal finished
+
+func present(relic: Dictionary, number: int, total: int) -> void:
+	layer = 120
+	var root := Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(root)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(420, 390)
+	panel.position = (get_viewport().get_visible_rect().size - panel.custom_minimum_size) * 0.5
+	var box := UITheme.menu_surface_box()
+	box.border_color = Relic.grade_color(str(relic.get("grade", "D")))
+	box.set_border_width_all(3)
+	panel.add_theme_stylebox_override("panel", box)
+	root.add_child(panel)
+	var content := VBoxContainer.new()
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_theme_constant_override("separation", 12)
+	panel.add_child(content)
+	var kicker := _label("RELIC UNLOCKED  %d/%d" % [number, total], UITheme.FONT_HEADER)
+	content.add_child(kicker)
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(140, 140)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var path := Relic.icon_path(relic)
+	if path != "": icon.texture = load(path) as Texture2D
+	content.add_child(icon)
+	content.add_child(_label(str(relic.get("name", "")), UITheme.FONT_DISPLAY))
+	content.add_child(_label("%s GRADE" % relic.get("grade", "D"), UITheme.FONT_HEADER))
+	var description := _label(str(relic.get("desc", "")), 19)
+	description.custom_minimum_size = Vector2(360, 110)
+	content.add_child(description)
+	panel.modulate.a = 0.0
+	panel.scale = Vector2(0.82, 0.82)
+	panel.pivot_offset = panel.custom_minimum_size * 0.5
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(panel, "modulate:a", 1.0, 0.22)
+	tween.tween_property(panel, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	await tween.finished
+	await get_tree().create_timer(2.4).timeout
+	if not is_inside_tree(): return
+	var out := create_tween()
+	out.tween_property(panel, "modulate:a", 0.0, 0.32)
+	await out.finished
+	finished.emit()
+
+func _label(value: String, size: int) -> Label:
+	var label := Label.new()
+	label.text = value
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UITheme.apply_font(label, size)
+	label.add_theme_color_override("font_color", UITheme.menu_title_color())
+	return label

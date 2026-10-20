@@ -1,0 +1,18 @@
+00:00.047  reports          | WARNING Unable to open 'C:\Users\iceie\AppData\Roaming\Blender Foundation\Blender\5.2\config\userpref.blend': Permission denied
+Blender 5.2.1 LTS (hash 9e2066aef7ef built 2026-08-25 02:38:20)
+Extensions: writing cache failed ([WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\iceie\\AppData\\Roaming\\Blender Foundation\\Blender\\5.2\\extensions\\.cache').
+08:20:50 | INFO: Data are loaded, start creating Blender stuff
+08:20:50 | INFO: Blender create Mesh node Mesh_0
+08:20:50 | INFO: glTF import finished in 0.04s
+00:01.579  image.write      | ERROR OpenImageIO write failed: Could not open file "\.thumbnails\large\blender_37752_5051c231556ff4c182e63b3dc6acde79.png.png"
+TEMPest bones: ['Hips', 'BoundsBase', 'BoundsTop', 'Neck_1', 'Neck_2', 'Neck_3', 'Neck_4', 'Neck_4_end']
+Info: Saved as "tempest_conduit_v002.blend"
+INFO Draco is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_draco_bridge.dll
+INFO MeshOptimizer is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_meshopt_bridge.dll
+08:20:50 | INFO: Starting glTF 2.0 export
+08:20:50 | INFO: Extracting primitive: Mesh_0
+08:20:50 | INFO: Primitives created: 1
+08:20:50 | INFO: Finished glTF 2.0 export in 0.2226722240447998 s
+
+
+Blender quit

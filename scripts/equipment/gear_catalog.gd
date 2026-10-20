@@ -140,7 +140,7 @@ static func describe(key: String, level: float) -> String:
 		"arcane_conduit": return "Skills deal an extra %s ATK as magic damage per target" % _pct(value(key, "atk_pct", L))
 		"hunters_reset": return "Basic-attack kills cut skill cooldown by %.2fs" % value(key, "sec", L)
 		"cadence": return "Hits while standing still stack +%s attack speed (max 5)" % _pct(value(key, "aspd_stack", L))
-		"deep_wound": return "Crits cut the target's healing by %s for 4s" % _pct(value(key, "cut", L))
+		"deep_wound": return "Anti-heal: attacks cut the target's healing by %s for 4s" % _pct(GearPassives.DEEP_WOUND_CUT)
 		"sunder": return "Hits shred %s of armor and magic resist (max 5 stacks)" % _pct(value(key, "shred_stack", L))
 		"blood_price": return "Kills heal %s max HP and restore %.1f mana" % [_pct(value(key, "hp_pct", L)), value(key, "mana", L)]
 		"attunement": return "+%s Magic Power" % _pct(value(key, "mp_pct", L))

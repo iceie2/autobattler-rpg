@@ -2,6 +2,7 @@ extends Node2D
 class_name DamageText
 
 var damage_amount: int = 0
+var custom_text: String = ""
 var element_color: Color = Color.WHITE
 var is_heal: bool = false
 var is_crit: bool = false            # gold + oversized + wobble + a "CRIT" tag
@@ -115,10 +116,10 @@ func _process(delta: float):
 	else:
 		queue_redraw()
 func _draw():
-	if damage_amount <= 0:
+	if damage_amount <= 0 and custom_text.is_empty():
 		return
 
-	var text = ("+" + str(damage_amount)) if is_heal else str(damage_amount)
+	var text = custom_text if not custom_text.is_empty() else (("+" + str(damage_amount)) if is_heal else str(damage_amount))
 	var alpha = 1.0 - (elapsed / lifetime)
 
 	var color = Color(element_color.r, element_color.g, element_color.b, alpha)

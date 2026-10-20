@@ -299,8 +299,10 @@ static func _spec() -> Dictionary:
 				"text": "Regenerates {regen} HP a second per summon still alive.",
 			},
 			ACTIVE: {
-				"terms": [_f("count", "Zombies", 1.0, "num")],
-				"text": "Summons {count} zombie to fight for you.",
+				"terms": [_f("count", "Zombies", 1.0, "num"),
+					_t("cost", "Current mana cost", "effective_skill_mana_cost", 1.0, "num", "", false, false),
+					_t("alive", "Living owned zombies", "living_owned_zombies", 1.0, "num", "", false, false)],
+				"text": "Summons {count} zombie to fight for you. Costs {cost} MP: base cost + 100 MP per living zombie you own ({alive} alive). Cost drops when your zombies die; bats and other summoners' zombies do not count.",
 			},
 			ULTIMATE: {
 				"terms": [
@@ -633,9 +635,13 @@ static func _spec() -> Dictionary:
 			ACTIVE: {
 				"terms": [
 					_t("dmg", "Storm damage", "magic_power", 0.5, "dmg", "", true),
-					_f("stun", "Stun", 0.5, "sec"),
+					_f("stun", "Stun", 0.01, "sec"),
+					# Owner 2026-10-07: upkeep RAMPS per storm, each on its own clock.
+					_f("upkeep", "Starting upkeep per storm", 1.0, "num"),
+					_f("upkeep_step", "Upkeep +1 every", 2.0, "sec"),
+					_f("upkeep_max", "Max upkeep per storm", 10.0, "num"),
 				],
-				"text": "Drops a drifting storm: {dmg} and a {stun} stun.",
+				"text": "Drops a drifting storm: {dmg} and a {stun} stun. Each storm drains {upkeep} mana/s, +1 every {upkeep_step} (max {upkeep_max}/s). All of Zolt's storms disappear when his mana reaches 0.",
 			},
 			ULTIMATE: {
 				"terms": [
@@ -649,21 +655,37 @@ static func _spec() -> Dictionary:
 		# ── Lumen — MAG multi-target mage ─────────────────────────────────────
 		C.LUMEN: {
 			"scale": "magic_power",
+			# Kit rework 2026-10-06 ("The Lens", LUMEN_KIT_AUDIT.md s5): the
+			# bounce passive / Refract chain / hit-all Prism are gone -- the chain
+			# duplicated Zolt's verb and none of it read on the board.
 			PASSIVE: {
-				"terms": [_t("dmg", "Bounce damage", "attack_damage", 0.5, "dmg", "", true)],
-				"text": "Every attack also strikes a 2nd enemy for {dmg}.",
+				# Scales MAG, not ATK: his ATK (10) is too low for a ramp to matter.
+				"terms": [
+					_t("max", "Max bonus/hit", "magic_power", 0.6, "dmg", "", true),
+					_f("ramp", "Seconds to max", 4.0, "sec"),
+				],
+				"text": "Holding his beam on one target ramps each hit up to +{max} over {ramp}; switching targets resets it.",
 			},
 			ACTIVE: {
 				"terms": [
-					_t("dmg", "First hit", "magic_power", 1.0, "dmg", "skill"),
-					_f("bounces", "Bounces", 5.0, "num"),
-					_f("decay", "Decay per bounce", 0.15, "pct"),
+					_t("dmg", "Damage", "magic_power", 0.5, "dmg", "skill"),
+					_f("radius", "Radius", 2.0, "num"),
+					_f("blind", "Blind", 3.0, "sec"),
 				],
-				"text": "Beam hits {bounces} enemies for {dmg}, -{decay} per bounce.",
+				"text": "A flash from his core hits enemies within {radius} tiles for {dmg} and blinds them {blind}.",
 			},
 			ULTIMATE: {
-				"terms": [_t("dmg", "Damage", "magic_power", 1.0, "dmg", "ult")],
-				"text": "Strikes every enemy on the field for {dmg}.",
+				"terms": [
+					_t("tick", "Damage per tick", "magic_power", 0.35, "dmg", "", true),
+					_f("dur", "Channel", 2.0, "sec"),
+					_f("every", "Tick every", 0.25, "sec"),
+					# Owner review 2026-10-06: the beam fires FROM Lumen toward the
+					# biggest enemy group, to the board edge; the bright core hits
+					# full, the edges `edge` of that.
+					_f("width", "Beam width (tiles)", 1.5, "num"),
+					_f("edge", "Edge damage", 0.5, "pct"),
+				],
+				"text": "Channels a giant beam from his hands at the biggest enemy group for {dur}: {tick} every {every} in the core, {edge} of that at the edges.",
 			},
 		},
 
@@ -758,15 +780,24 @@ static func _spec() -> Dictionary:
 				"text": "Enemies within {radius} tiles gather spores, bursting {burst}.",
 			},
 			ACTIVE: {
-				"terms": [_t("burst", "Burst damage", "magic_power", 1.6, "dmg", "", true)],
-				"text": "Maxes spores on the nearest enemy; bursts for {burst}.",
+				# Rework 2026-10-02: a mushroom patch (target tile + 4 neighbours)
+				# instead of a second copy of the passive's burst.
+				"terms": [
+					_t("burst", "Burst damage", "magic_power", 1.6, "dmg", "", true),
+					_f("rate", "Spore speed", 3.0, "x"),
+					_f("dur", "Duration", 5.0, "sec"),
+				],
+				"text": "Plants a mushroom patch on the nearest enemy; foes on it gather spores {rate} faster for {dur}, bursting {burst}.",
 			},
 			ULTIMATE: {
+				# `hi` is the 10-stack value. Was 2.94 at a 15-stack point no unit
+				# can reach (stacks burst at 10); 2.24 is what 10 stacks dealt on
+				# the old curve, so real damage is unchanged.
 				"terms": [
 					_t("lo", "Damage (few stacks)", "magic_power", 1.12, "dmg", "", true),
-					_t("hi", "Damage (full stacks)", "magic_power", 2.94, "dmg", "", true),
+					_t("hi", "Damage (full stacks)", "magic_power", 2.24, "dmg", "", true),
 				],
-				"text": "Bursts every spore cloud for {lo}-{hi} by stacks.",
+				"text": "Cracks race out to every enemy and burst their spores for {lo}-{hi} by stacks, nearest first.",
 			},
 		},
 	}
@@ -943,6 +974,10 @@ static func _apply_curve(unit: UnitBase, curve: String, overrides: Dictionary) -
 static func _stat(unit: UnitBase, name: String, overrides: Dictionary) -> float:
 	if overrides.has(name):
 		return float(overrides[name])
+	if name == "effective_skill_mana_cost":
+		return float(unit.effective_skill_mana_cost())
+	if name == "living_owned_zombies":
+		return float(unit.living_owned_zombies())
 	var v = unit.get(name)
 	return float(v) if v != null else 0.0
 

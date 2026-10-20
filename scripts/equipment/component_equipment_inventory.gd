@@ -5,6 +5,9 @@ class_name ComponentEquipmentInventory
 # saves and while the feature flag is off.
 const STAT_KEEP := 1.0  # Provisional until two-input arena tuning.
 
+# (base item, absorbed item, result) after a manual merge; see combine_components.
+signal components_merged(base: ComponentEquipmentItem, other: ComponentEquipmentItem, result: ComponentEquipmentItem)
+
 # removals: {passive_key: levels} chosen in the merge menu; must remove exactly
 # ComponentEquipmentRules.levels_to_remove(a, b) levels.
 func combine_components(sources: Array[EquipmentItem], removals: Dictionary = {}) -> ComponentEquipmentItem:
@@ -23,6 +26,11 @@ func combine_components(sources: Array[EquipmentItem], removals: Dictionary = {}
 	items.append(result)
 	_log(sources, result, removals)
 	inventory_changed.emit()
+	# Only THIS manual path announces itself (drag-to-combine, Combine tray, the
+	# level-removal menu): the silent auto-combine sweeps below do not, so a
+	# pickup chain of merges never spams the merge toast. sources[0] is the item
+	# dropped onto, the base the toast counts up from.
+	components_merged.emit(sources[0], sources[1], result)
 	if auto_combine:
 		_auto_combine_sweep()
 	return result

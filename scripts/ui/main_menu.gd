@@ -52,6 +52,8 @@ var _options_style_label: Label
 var _options_close: Button
 var _ui_dark_btn: Button
 var _ui_light_btn: Button
+var _motion_label: Label
+var _motion_btn: Button
 var _class_browser: ClassBrowser
 var _crystal_shop: CrystalShop
 var _run_history: RunHistoryScreen
@@ -83,6 +85,7 @@ var _hero_timer := 0.0
 const HERO_CYCLE := 15.0
 
 func _ready() -> void:
+	UITheme.install_read_tooltips()
 	_apply_window_mode(WinMode.WINDOWED)
 	_load_settings()   # overrides with the saved window mode, if any
 
@@ -369,9 +372,13 @@ func _build_main(canvas: CanvasLayer) -> void:
 	by += 12.0
 	var secondary := [
 		["CLASSES",      _on_classes],
+		["RELIC GLOSSARY", _on_relic_glossary],
 		["CRYSTAL SHOP", _on_crystal_shop],
 		["RUN HISTORY",  _on_run_history],
 	]
+	# The last finished run's journey recap, reopened in its overview (2026-10-07).
+	if RunRecap.terminal_exists():
+		secondary.append(["LAST RUN", _on_last_run])
 	for e in secondary:
 		var b := _btn_secondary(e[0], Vector2(stack_x + 30, by), Vector2(stack_w - 60, 50))
 		b.pressed.connect(e[1])
@@ -396,12 +403,12 @@ func _build_main(canvas: CanvasLayer) -> void:
 	root.add_child(quit)
 	by += 40.0
 
-	_lbl(root, "v0.4.3.0 – early development", 12, Color(0.3, 0.3, 0.4),
+	_lbl(root, "v0.4.3.1.1 – early development", 12, Color(0.3, 0.3, 0.4),
 		Vector2(stack_x + stack_w / 2.0 - 150, by + 14), Vector2(300, 24), true)
 
 # ── Options panel ─────────────────────────────────────────────────────────────
 func _build_options(canvas: CanvasLayer) -> void:
-	_options_panel = _panel(canvas, Rect2(660, 150, 600, 580))
+	_options_panel = _panel(canvas, Rect2(660, 150, 600, 650))
 	_options_panel.visible = false
 
 	_options_title = _lbl(_options_panel, "OPTIONS", 22, UITheme.menu_title_color(),
@@ -435,6 +442,15 @@ func _build_options(canvas: CanvasLayer) -> void:
 	_options_panel.add_child(_ui_light_btn)
 	my += 108
 
+	# Reduced motion (2026-10-07): long decorative animations, such as the
+	# end-of-run journey, open on their finished state.
+	_motion_label = _lbl(_options_panel, "Motion", 15, UITheme.menu_body_color(),
+		Vector2(30, my - 4), Vector2(240, 28))
+	_motion_btn = _btn_secondary("", Vector2(30, my + 30), Vector2(276, 44))
+	_motion_btn.pressed.connect(_on_motion_toggle)
+	_options_panel.add_child(_motion_btn)
+	my += 86
+
 	var sep2 := HSeparator.new()
 	sep2.position = Vector2(0, my + 6); sep2.size = Vector2(600, 4)
 	_options_panel.add_child(sep2)
@@ -464,6 +480,8 @@ func _update_ui_style_controls() -> void:
 	_options_style_label.add_theme_color_override("font_color", UITheme.menu_body_color())
 	_ui_dark_btn.text = "Dark ✓" if UITheme.ui_style() == "dark" else "Dark"
 	_ui_light_btn.text = "Light ✓" if UITheme.ui_style() == "light" else "Light"
+	_motion_label.add_theme_color_override("font_color", UITheme.menu_body_color())
+	_motion_btn.text = "Reduce motion: On ✓" if UITheme.reduced_motion() else "Reduce motion: Off"
 	var close_color := UITheme.menu_title_color()
 	for key in ["font_color", "font_hover_color", "font_pressed_color"]:
 		_options_close.add_theme_color_override(key, close_color)
@@ -481,6 +499,13 @@ func _on_classes() -> void:
 	_options_panel.visible = false
 	_class_browser.open(0)
 
+func _on_relic_glossary() -> void:
+	_options_panel.visible = false
+	var screen := RelicMilestoneScreen.new()
+	add_child(screen)
+	screen.show_glossary(Progression.relic_milestones)
+	screen.collected.connect(screen.queue_free)
+
 func _on_crystal_shop() -> void:
 	_options_panel.visible = false
 	_crystal_shop.open()
@@ -497,12 +522,29 @@ func _on_run_history() -> void:
 	_options_panel.visible = false
 	_run_history.open()
 
+func _on_motion_toggle() -> void:
+	UITheme.set_reduced_motion(not UITheme.reduced_motion())
+	_update_ui_style_controls()
+
+# Reopens the last finished run's recap, straight in its completed overview.
+func _on_last_run() -> void:
+	_options_panel.visible = false
+	var recap := RunRecap.load_terminal()
+	if recap == null:
+		return
+	var screen := RunRecapScreen.new()
+	add_child(screen)
+	# Plays the journey from the beginning (owner, 2026-10-08); Skip / Esc jumps
+	# to the overview as usual, and reduced motion still opens the overview.
+	screen.present(recap, "menu")
+
 func _on_quit() -> void:
 	get_tree().quit()
 
 # 3 clicks to actually wipe: two escalating warnings, then the real thing.
 # Wipes crystals/upgrades (Progression), the in-progress run checkpoint
-# (RunSave), and the run history log (RunHistory) — everything that survives
+# (RunSave), the run history log (RunHistory) and the last run's recap
+# (RunRecap terminal file) — everything that survives
 # between sessions except the window-mode setting. Reloads the menu afterward
 # so every panel/button (e.g. CONTINUE RUN's visibility) reflects the wipe
 # instead of showing stale cached state.
@@ -520,6 +562,7 @@ func _on_wipe_pressed() -> void:
 	Progression.wipe_all()
 	RunSave.clear()
 	RunHistory.clear()
+	RunRecap.clear_terminal()
 	_wipe_stage = 0
 	get_tree().reload_current_scene()
 

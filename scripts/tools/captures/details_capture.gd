@@ -77,26 +77,33 @@ func _capture(mg: Node, u: UnitBase) -> void:
 	# The wave-1 relic pick opens on top of everything and would cover the panel.
 	if mg._relic_screen:
 		mg._relic_screen.visible = false
-	# Park the panel somewhere fully on-screen — it defaults to a position that
-	# runs off the left edge in this harness's window.
-	mg.unit_details_panel.position = Vector2(520, 90)
+	# Relic milestone popup (VD-20) can also open over everything.
+	for n in mg.find_children("*", "RelicMilestoneScreen", true, false):
+		(n as CanvasLayer).visible = false
+	# Keep the production opening position so captures reveal layout regressions.
 
 	for i in range(20):
 		await get_tree().process_frame
 
 	# The SKILL block sits below the fold — scroll to it, that's the whole point
 	# of this capture.
-	var sc := mg.unit_details_panel.get_node_or_null("Margin/ScrollContainer") as ScrollContainer
-	if sc:
-		var root := sc.get_node("Root") as Control
-		var skill_row := root.get_node_or_null("SkillRow") as Control
-		if skill_row:
-			sc.scroll_vertical = int(skill_row.position.y) - 40
+	# Found by type: since 2026-09-28 the title bar is pinned above the scroll
+	# area, so the ScrollContainer is no longer a direct child of Margin.
+	var found: Array = mg.unit_details_panel.find_children("*", "ScrollContainer", true, false)
+	var sc: ScrollContainer = found[0] as ScrollContainer if not found.is_empty() else null
+	# Two shots: the panel as it opens (top) and scrolled all the way down.
 	for i in range(20):
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(
 		ProjectSettings.globalize_path("user://_details_check.png"))
+	if sc:
+		sc.scroll_vertical = 100000
+	for i in range(20):
+		await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(
+		ProjectSettings.globalize_path("user://_details_check_bottom.png"))
 	print("CAPTURED details — hero=%s level=%d MAG=%d ATK=%d"
 		% [hero, u.level, u.magic_power, u.attack_damage])
 	get_tree().quit()

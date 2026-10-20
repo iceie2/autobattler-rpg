@@ -33,17 +33,17 @@ static func create_common(family: String, stats: Dictionary = {}) -> ComponentEq
 			item.stat_bonus[stat] = stats[stat]
 	return item
 
-# Two stat rolls per grey. cdr is Ability Haste (flat 3-6 per roll, not
-# round-scaled, like crit). Regen rolls are provisional arena numbers.
-static func _roll_value(family: String, round_number: int) -> Variant:
+# Two stat rolls per grey. All roll ranges are fixed at the former wave-one
+# values; the wave never changes an item's bonuses. cdr is Ability Haste.
+static func _roll_value(family: String, _round_number: int) -> Variant:
 	var spread := 0.8 + randf() * 0.4
 	match family:
 		"crit": return snappedf(0.03 + randf() * 0.03, 0.01)
 		"cdr": return randi_range(3, 6)
-		"aspd": return snappedf((0.05 + round_number * 0.005) * spread, 0.01)
-		"hpregen": return snappedf((0.3 + round_number * 0.03) * spread, 0.01)
-		"manaregen": return snappedf((0.2 + round_number * 0.01) * spread, 0.01)
-	var v := int((3.0 + round_number * 0.25) * spread)
+		"aspd": return snappedf(0.055 * spread, 0.01)
+		"hpregen": return snappedf(0.33 * spread, 0.01)
+		"manaregen": return snappedf(0.21 * spread, 0.01)
+	var v := int(3.25 * spread)
 	return v * 10 if family == "hp" else v
 
 static func _roll_common(family: String, round_number: int) -> ComponentEquipmentItem:

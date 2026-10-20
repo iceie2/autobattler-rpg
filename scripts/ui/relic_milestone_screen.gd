@@ -111,6 +111,14 @@ func show_collection(state: RelicMilestoneState) -> void:
 	_refresh_cards()
 	visible = true
 
+func show_glossary(state: RelicMilestoneState) -> void:
+	show_collection(state)
+	_catalogue = true
+	_earned_tab.visible = false
+	_button.text = "Close"
+	_summary.text = "%d of %d milestones unlocked" % [state.unlocked.size(), RelicMilestones.TABLE.size()]
+	_refresh_cards()
+
 func _tab(text: String, catalogue: bool) -> Button:
 	var button := Button.new()
 	button.text = text

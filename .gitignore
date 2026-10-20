@@ -55,3 +55,7 @@ Meshy_AI_*
 !**/sheildor_v043.*
 !**/static_v018.*
 !**/zolt_v001.*
+
+# Disposable Godot test profiles (APPDATA redirects for headless checks):
+# shader caches, logs and throwaway saves. The script backups beside them stay.
+backups/**/Godot/

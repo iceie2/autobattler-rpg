@@ -1,0 +1,32 @@
+00:00.047  reports          | WARNING Unable to open 'C:\Users\iceie\AppData\Roaming\Blender Foundation\Blender\5.2\config\userpref.blend': Permission denied
+Blender 5.2.1 LTS (hash 9e2066aef7ef built 2026-08-25 02:38:20)
+Extensions: writing cache failed ([WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\iceie\\AppData\\Roaming\\Blender Foundation\\Blender\\5.2\\extensions\\.cache').
+06:28:09 | INFO: Data are loaded, start creating Blender stuff
+06:28:09 | INFO: Blender create Mesh node Mesh_0
+06:28:10 | INFO: glTF import finished in 0.09s
+00:02.234  image.write      | ERROR OpenImageIO write failed: Could not open file "\.thumbnails\large\blender_30188_f3bd79622713c8941338128daf47f6b4.png.png"
+Info: Saved as "cloven_fist_v001.blend"
+INFO Draco is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_draco_bridge.dll
+INFO MeshOptimizer is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_meshopt_bridge.dll
+06:28:10 | INFO: Starting glTF 2.0 export
+06:28:10 | INFO: Extracting primitive: Mesh_0
+06:28:10 | INFO: Primitives created: 1
+06:28:10 | INFO: Finished glTF 2.0 export in 0.727306604385376 s
+
+Extensions: writing cache failed ([WinError 183] Cannot create a file when that file already exists: 'C:\\Users\\iceie\\AppData\\Roaming\\Blender Foundation\\Blender\\5.2\\extensions\\.cache').
+06:28:10 | INFO: Data are loaded, start creating Blender stuff
+06:28:10 | INFO: Blender create Mesh node Mesh_0
+06:28:11 | INFO: glTF import finished in 0.09s
+C:\Users\iceie\Documents\coding\rpg-autobattler\autobattler-rpg\tools\model3d\build_cloven_fragments.py:38: DeprecationWarning: 'Material.use_nodes' is expected to be removed in Blender 6.0
+  mat = bpy.data.materials.new('AmberCore'); mat.use_nodes = True
+00:03.281  image.write      | ERROR OpenImageIO write failed: Could not open file "\.thumbnails\large\blender_30188_700270aca9bf31c39a3176f5b02a9999.png.png"
+Info: Saved as "cloven_heart_v001.blend"
+06:28:11 | INFO: Starting glTF 2.0 export
+06:28:11 | INFO: Extracting primitive: Mesh_0
+06:28:11 | INFO: Primitives created: 1
+06:28:11 | INFO: Extracting primitive: Icosphere.001
+06:28:11 | INFO: Primitives created: 1
+06:28:11 | INFO: Finished glTF 2.0 export in 0.7013092041015625 s
+
+
+Blender quit

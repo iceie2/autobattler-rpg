@@ -1,0 +1,20 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2548)
+  ok: UI fixture spawned enemies
+  ok: details panel opens
+  ok: details panel populated (Lightning Bloodhound)
+  ok: live details disclose immunity test
+  ok: tenacity duration remains visible
+  ok: immunity display clears when test is off
+  ok: bag slots survive live refresh
+  ok: details panel closes
+  ok: item tooltip shows
+  ok: item tooltip hides
+  ok: sidebar rebuild paths ran without crashing
+UI_SMOKE: ALL PASS
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 4 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

@@ -52,6 +52,7 @@ const SKILL_ICONS: Dictionary = {
 # Combat-stat grid cells (node name -> STAT_ICONS key) and affinity element order
 const _COMBAT_CELLS := [
 	["CellAtk", "atk"], ["CellDef", "res"], ["CellMagRes", "mres"], ["CellTenacity", "ten"],
+	["CellAbilityHaste", "ability_haste"],
 	["CellMag", "magic"], ["CellAspd", "aspd"],
 	["CellHpRegen", "hpregen"], ["CellMpRegen", "manaregen"], ["CellMove", "move"], ["CellRange", "range"],
 	["CellCritChance", "crit_chance"], ["CellCritDamage", "crit_damage"],
@@ -79,6 +80,12 @@ const _COMBAT_ABBR := {
 	"CellMag": "MAG", "CellAspd": "ASPD", "CellHpRegen": "HP+", "CellMpRegen": "MP+",
 	"CellMove": "SPD", "CellRange": "RNG", "CellCritChance": "CRIT", "CellCritDamage": "CDMG",
 }
+# Tenacity reads as what it buys, not the raw stat (2026-09-27 audit:
+# "TEN 0 (x1.00)" meant nothing to a player). Label override for that cell:
+const _COMBAT_ABBR_OVERRIDE := {
+	"CellTenacity": "CC TIME",
+	"CellAbilityHaste": "HASTE",
+}
 const _GROWTH_ABBR := {
 	"hp": "HP", "atk": "ATK", "mana": "MP", "magic": "MAG",
 	"res": "ARM", "aspd": "ASPD", "hpregen": "HP+", "manaregen": "MP+",
@@ -102,6 +109,17 @@ func _init(p_game) -> void:
 	element_icon   = root.get_node("Header/HeaderInfo/ChipRow/ElementChip/EChipRow/ElementIcon")
 	element_lbl    = root.get_node("Header/HeaderInfo/ChipRow/ElementChip/EChipRow/ElementLabel")
 	level_lbl      = root.get_node("Header/HeaderInfo/ChipRow/LevelChip/LevelLabel")
+	# Close button (2026-09-27 audit): the scene ships a tiny pink "X" on the
+	# old dark style. Restyled here, not in main_game.tscn, to keep this
+	# panel's look in one file.
+	var close_btn := root.get_node_or_null("TitleBar/CloseBtn") as Button
+	if close_btn:
+		close_btn.text = "✕"
+		UITheme.style_button(close_btn)
+		UITheme.apply_font(close_btn, UITheme.FONT_HEADER)
+		close_btn.custom_minimum_size = Vector2(40, 40)
+		close_btn.tooltip_text = "Close"
+	_pin_title_and_shrink(root)
 	hp_bar         = root.get_node("Vitals/HPBar")
 	hp_val         = root.get_node("Vitals/HPBar/Value")
 	mp_bar         = root.get_node("Vitals/MPBar")
@@ -115,14 +133,46 @@ func _init(p_game) -> void:
 	skill_icon_rect = root.get_node("SkillRow/SkillIcon")
 	skill_name_lbl  = root.get_node("SkillRow/SkillTextCol/SkillName")
 	skill_desc_lbl  = root.get_node("SkillRow/SkillTextCol/SkillDesc")
+	UITheme.apply_read_rich(skill_desc_lbl)
 
 # ── Public API (main_game delegates here) ─────────────────────────────────────
+
+# 2026-09-28 (owner: "make the menu smaller but scrollable"). The panel was
+# ~1000px tall — the full height of the screen. It is now PANEL_HEIGHT and the
+# body scrolls; the title bar (with the close button) is lifted OUT of the
+# ScrollContainer so it stays put while the stats scroll under it. Done at
+# runtime rather than in main_game.tscn so every existing node path
+# ($UI/UnitDetailsPanel/Margin/ScrollContainer/Root, Root/Header/...) still
+# resolves; only TitleBar/Sep0 move, and both are looked up before this runs.
+const PANEL_HEIGHT := 700.0
+
+func _pin_title_and_shrink(root: Control) -> void:
+	var scroll := root.get_parent() as ScrollContainer
+	var margin := scroll.get_parent() as Control if scroll else null
+	var title := root.get_node_or_null("TitleBar") as Control
+	if scroll == null or margin == null or title == null:
+		return
+	var frame := VBoxContainer.new()
+	frame.add_theme_constant_override("separation", 6)
+	margin.remove_child(scroll)
+	margin.add_child(frame)
+	title.reparent(frame, false)
+	var sep := root.get_node_or_null("Sep0") as Control
+	if sep:
+		sep.reparent(frame, false)
+	frame.add_child(scroll)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	panel.offset_bottom = panel.offset_top + PANEL_HEIGHT
 
 func show_unit(unit: UnitBase) -> void:
 	current_unit = unit
 	panel.visible = true
 	_ensure_icons()
 	_refresh()
+	# Reopen at the center of the current viewport, even after a previous drag.
+	var view_size: Vector2 = panel.get_viewport_rect().size
+	panel.position = ((view_size - panel.size) * 0.5).max(Vector2.ZERO)
 
 func close() -> void:
 	panel.visible = false
@@ -157,7 +207,7 @@ func _ensure_icons() -> void:
 	# built) — create them at runtime, matching the existing CellAtk/etc.
 	# HBoxContainer+Icon+Value structure exactly, so _set_combat_cell's
 	# "%s/Value" lookup finds them too. CellMagRes is moved up beside CellDef.
-	for crit_cell in ["CellMagRes", "CellTenacity", "CellCritChance", "CellCritDamage"]:
+	for crit_cell in ["CellMagRes", "CellTenacity", "CellAbilityHaste", "CellCritChance", "CellCritDamage", "CellStunImmunity"]:
 		if combat_grid.get_node_or_null(crit_cell):
 			continue
 		var cell := HBoxContainer.new()
@@ -181,6 +231,8 @@ func _ensure_icons() -> void:
 			combat_grid.move_child(cell, 2)   # sit right beside CellDef (armor)
 		elif crit_cell == "CellTenacity":
 			combat_grid.move_child(cell, 3)   # third defensive stat, next to magic armor
+		elif crit_cell == "CellAbilityHaste":
+			combat_grid.move_child(cell, 4)   # next to the other cooldown/control stat
 	for pair in _COMBAT_CELLS:
 		var stat_key: String = pair[1]
 		var path: String = UnitFactory.STAT_ICONS.get(stat_key, "")
@@ -220,6 +272,12 @@ func _ensure_icons() -> void:
 # Portrait for the header: heroes use their full sprite; monsters use their
 # using/ override if present. Returns null when nothing suitable exists.
 func _get_portrait_texture(unit: UnitBase) -> Texture2D:
+	return portrait_texture(unit)
+
+# Static so other screens (the roster, 2026-09-27) resolve portraits exactly
+# the way this panel does instead of keeping their own sprite tables — the
+# roster's private table is how Bloodhound ended up drawn as an LPC human.
+static func portrait_texture(unit: UnitBase) -> Texture2D:
 	var path := ""
 	if VisualUnit.HERO_SPRITE_PATHS.has(unit.unit_class):
 		path = VisualUnit.HERO_SPRITE_PATHS[unit.unit_class]
@@ -333,6 +391,9 @@ func _refresh() -> void:
 	# tank with inexplicably low HP and no way to find out why. The chip says it
 	# happened; the tooltip lists every trade, in order.
 	var scars: Array = unit.get_meta("scars", [])
+	# The plain class chip just repeated the name ("Lightning Static" + "Static")
+	# — it only earns its space when it carries the SCARRED marker.
+	(class_lbl.get_parent() as Control).visible = not scars.is_empty()
 	if scars.is_empty():
 		class_lbl.add_theme_color_override("font_color", UITheme.TEXT_BODY)
 		class_lbl.tooltip_text = ""
@@ -348,6 +409,21 @@ func _refresh() -> void:
 	element_icon.texture = load(UnitFactory.ELEMENT_ICONS.get(unit.current_element, "")) as Texture2D
 	level_lbl.text = "Lv %d" % unit.level
 	UITheme.apply_font(level_lbl, UITheme.FONT_VALUE)
+	# Recruit grade (2026-09-28): it now CHANGES in a run (hero merging), so it
+	# has to be visible after recruit, not only on the shop card.
+	if unit.is_player_unit and unit.recruit_grade != "":
+		# Partial merges (lesser copies) show as "+1/2" beside the grade.
+		var prog := ""
+		var thr: int = UnitFactory.merge_value(UnitFactory.grade_of(unit))
+		if unit.merge_progress > 0 and unit.recruit_grade != UnitFactory.GRADE_LADDER[-1]:
+			prog = " +" + UnitFactory.progress_text(unit.merge_progress, thr)
+		level_lbl.text = "Lv %d  ·  %s%s" % [unit.level, unit.recruit_grade, prog]
+		level_lbl.add_theme_color_override("font_color",
+			UnitFactory.GRADE_COLORS.get(unit.recruit_grade, UITheme.TEXT_BODY))
+		level_lbl.tooltip_text = "Grade %s. Merge copies of this hero to raise it (max S+): a same-grade copy ranks it up, a lower-grade copy adds part of a merge." % unit.recruit_grade
+	else:
+		level_lbl.remove_theme_color_override("font_color")
+		level_lbl.tooltip_text = ""
 
 	var eq := _sum_equipment_stats(unit)
 	var shop := _shop_bonuses(unit)
@@ -361,9 +437,17 @@ func _refresh() -> void:
 		hp_val.text = "HP  %d / %d → %d" % [unit.current_hp, unit.max_hp - hp_shop, unit.max_hp]
 	else:
 		hp_val.text = "HP  %d / %d" % [unit.current_hp, unit.max_hp]
+	if unit.ink_poison_time > 0.0:
+		hp_val.text += " · Poison ×%d (%.0f/s)" % [unit.ink_poison_stacks, unit.ink_poison_dps()]
+		hp_val.tooltip_text = unit.ink_poison_description()
+	else:
+		hp_val.tooltip_text = ""
 	hp_val.add_theme_color_override("font_color",
 		Color(0.4, 0.95, 0.5) if hp_shop > 0 else Color(0.9, 0.9, 0.95))
 	var mana_shop: int = int(shop.get("mana", 0.0))
+	# Enemies whose moves are all timers (no mana cost) have no use for mana --
+	# a full "MP 110/110" bar on a boss like Khagan only misleads (2026-10-03).
+	mp_bar.visible = unit.is_player_unit or unit.skill_mana_cost > 0
 	mp_bar.max_value = max(1, unit.max_mana)
 	mp_bar.value = unit.current_mana
 	if mana_shop > 0:
@@ -386,6 +470,13 @@ func _refresh() -> void:
 	var atk := _combat_cell_values(unit, "attack_damage", eq.get("atk", 0.0) + shop.get("atk", 0.0))
 	var def := _combat_cell_values(unit, "resistance", eq.get("res", 0.0) + shop.get("res", 0.0))
 	var mres := _combat_cell_values(unit, "magic_resist", eq.get("mres", 0.0) + shop.get("mres", 0.0))
+	var fracture: int = int(unit.get_meta("cloven_defense_loss", 0))
+	if fracture > 0:
+		def[0] = maxf(0.0, float(def[0]) - fracture)
+		mres[0] = maxf(0.0, float(mres[0]) - fracture)
+		# Show current defenses plainly while scarred, without a misleading buff.
+		def[1] = 0.0
+		mres[1] = 0.0
 	var mag := _combat_cell_values(unit, "magic_power", eq.get("magic", 0.0) + shop.get("magic", 0.0))
 	var aspd := _combat_cell_values(unit, "attack_speed", eq.get("aspd", 0.0) + shop.get("aspd", 0.0))
 	var hpreg_b: float = eq.get("hpregen", 0.0) + shop.get("hpregen", 0.0)
@@ -396,15 +487,42 @@ func _refresh() -> void:
 	_set_combat_cell("CellAtk", _cell_int_text(int(round(atk[0])), atk[1]), atk[1] > 0)
 	_set_combat_cell("CellDef", _cell_int_text(int(round(def[0])), def[1]), def[1] > 0)
 	_set_combat_cell("CellMagRes", _cell_int_text(int(round(mres[0])), mres[1]), mres[1] > 0)
+	# LIVE defenses (AGENTS.md "live combat stats must be truthful"): when the
+	# unit's own state cuts them -- Stuck Club's Exposed, the Cloven Titan's
+	# stolen defense -- show what hits actually meet, from the SAME accessor
+	# take_damage uses (UnitBase.effective_armor / effective_magic_resist).
+	_defense_cell("CellDef", unit, unit.resistance, unit.effective_armor(), "armor")
+	_defense_cell("CellMagRes", unit, unit.magic_resist, unit.effective_magic_resist(), "magic resist")
 	# Tenacity shows the raw stat AND what it actually buys, because the number
 	# alone means nothing to a player: 60 → "60 (·0.63)" = CC lasts 63% as long.
 	_set_combat_cell("CellTenacity",
-		"%d (x%.2f)" % [unit.tenacity, unit.status_duration_mult()], false)
+		"%d%%" % int(round(unit.status_duration_mult() * 100.0)), unit.tenacity > 0)
+	_set_combat_cell("CellAbilityHaste", "%d" % unit.ability_haste, unit.ability_haste > 0)
+	var immunity_cell := combat_grid.get_node_or_null("CellStunImmunity") as Control
+	if immunity_cell:
+		immunity_cell.visible = unit.is_stun_immune()
+		_set_combat_cell("CellStunImmunity", "STUN IMMUNE", false)
+		var immunity_value := immunity_cell.get_node_or_null("Value") as Label
+		if immunity_value:
+			immunity_value.tooltip_text = "Boss/elite stun-immunity test is on: incoming stuns are ignored. Tenacity still scales roots, taunts and slows."
+			immunity_value.mouse_filter = Control.MOUSE_FILTER_STOP
+	var ten_lbl := combat_grid.get_node_or_null("CellTenacity/Value") as Label
+	if ten_lbl:
+		ten_lbl.tooltip_text = ("Tenacity %d — roots, taunts and slows last %d%% as long. Incoming stuns are currently immune (test)." if unit.is_stun_immune() else "Tenacity %d — stuns, roots, taunts and slows last %d%% as long.") % [
+			unit.tenacity, int(round(unit.status_duration_mult() * 100.0))]
+		ten_lbl.mouse_filter = Control.MOUSE_FILTER_STOP
 	_set_combat_cell("CellMag", _cell_int_text(int(round(mag[0])), mag[1]), mag[1] > 0)
 	_set_combat_cell("CellAspd", _cell_float_text(aspd[0], aspd[1]), aspd[1] > 0)
 	_set_combat_cell("CellHpRegen", _cell_float_text(unit.hp_regen, hpreg_b), hpreg_b > 0)
 	_set_combat_cell("CellMpRegen", _cell_float_text(unit.mana_regen, mpreg_b), mpreg_b > 0)
-	_set_combat_cell("CellMove", _cell_int_text(unit.movement_speed, move_b), move_b > 0)
+	var move_live := unit.effective_movement_speed()
+	_set_combat_cell("CellMove", "%.2f" % move_live, move_live > unit.movement_speed or move_b > 0)
+	var move_value := combat_grid.get_node_or_null("CellMove/Value") as Label
+	if move_value:
+		move_value.tooltip_text = "Current movement speed including buffs, haste and slows. Base speed: %.2f." % unit.movement_speed
+		if unit.get_meta("tempest_feeding",false):
+			move_value.tooltip_text += "\nStorm Feast: %d food eaten, +%.0f%% movement speed. Body: %d sections." % [unit.tempest_food_eaten,unit.tempest_move_bonus*100,unit.segment_cells.size()]
+		move_value.mouse_filter = Control.MOUSE_FILTER_STOP
 	_set_combat_cell("CellRange", "%d" % unit.attack_range, false)
 	if cc_b > 0.0:
 		_set_combat_cell("CellCritChance", "%.0f%% → %.0f%%" % [(unit.crit_chance - cc_b) * 100.0, unit.crit_chance * 100.0], true)
@@ -485,6 +603,9 @@ const KIT_VALUE_COLOR := "#eef0ff"
 # Sized rather than bolded: [b] makes RichTextLabel fall back to a bold face that
 # renders denser and reads smaller than the body text around it.
 const KIT_VALUE_FONT := 20
+# 2026-09-27: kit prose is Inter (UITheme "Role, not size"); the PASSIVE/name
+# tag lines are wrapped back in LeagueGothic so they still read as headers.
+const KIT_TAG_FONT := "res://assets/Fonts/LeagueGothic-Regular.otf"
 
 # Builds the passive/active/ultimate blurb with THIS unit's resolved numbers.
 # Returns "" when the unit has no AbilityFormulas entry (enemies, summons, the
@@ -504,8 +625,8 @@ func _kit_numbers_text(unit: UnitBase) -> String:
 		for t in r["terms"]:
 			body = body.replace("{%s}" % t["id"],
 				"[font_size=%d][color=%s]%s[/color][/font_size]"
-					% [UITheme.body_font(KIT_VALUE_FONT), KIT_VALUE_COLOR, t["display"]])
-		out.append("[color=%s]%s[/color]  [color=%s]%s[/color]\n%s" % [
+					% [UITheme.FONT_READ + 2, KIT_VALUE_COLOR, t["display"]])
+		out.append("[font=%s][font_size=%d][color=%s]%s[/color]  [color=%s]%s[/color][/font_size][/font]\n%s" % [KIT_TAG_FONT, UITheme.FONT_VALUE,
 			KIT_SLOT_COLORS[i], KIT_SLOT_LABELS[i],
 			KIT_SLOT_COLORS[i], str(r["name"]), body])
 	if out.is_empty():
@@ -521,9 +642,44 @@ func _kit_numbers_text(unit: UnitBase) -> String:
 func _enemy_kit_text(unit: UnitBase) -> Array:
 	if unit.is_player_unit:
 		return ["", ""]
+	# A unit with more moves than the three fixed slots (Khagan phase 1 has a
+	# skill AND two timed moves, 2026-10-03) lists them itself in the
+	# `kit_moves` meta: [{"slot": "PASSIVE"|"ACTIVE"|"ULTIMATE", "name", "desc"}].
+	# name "@skill" pulls the unit's live skill_name / skill_description.
+	if unit.has_meta("kit_moves"):
+		var mnames: Array[String] = []
+		var mout: Array[String] = []
+		for mv in unit.get_meta("kit_moves"):
+			var mname: String = str(mv.get("name", ""))
+			var mdesc: String = str(mv.get("desc", ""))
+			if mname == "@skill":
+				mname = unit.skill_name
+				mdesc = unit.skill_description
+			var si: int = maxi(0, KIT_SLOT_LABELS.find(str(mv.get("slot", "ACTIVE"))))
+			mnames.append(mname)
+			mout.append("[font=%s][font_size=%d][color=%s]%s[/color]  [color=%s]%s[/color][/font_size][/font]\n%s" % [KIT_TAG_FONT, UITheme.FONT_VALUE,
+				KIT_SLOT_COLORS[si], KIT_SLOT_LABELS[si], KIT_SLOT_COLORS[si], mname, mdesc])
+		if not mout.is_empty():
+			return [" / ".join(mnames), "\n\n".join(mout)]
 	var slots := [
-		[String(unit.get_meta("passive_name", "")), String(unit.get_meta("passive_desc", ""))],
-		[unit.skill_name, unit.skill_description],
+		[String(unit.get_meta("passive_name", "")), AutoBattleManager.magma_pulse_description(unit)
+			if unit.get_meta("mob_passive", "") == "magma_pulse"
+			# Gale Warden: LIVE dodge (UnitBase.effective_evasion) + the flock's hunt.
+			else AutoBattleManager.gale_flock_description(unit)
+			if unit.get_meta("mob_passive", "") == "gale_flock"
+			else ArcfangHunt.description(unit)
+			if unit.get_meta("mob_passive", "") == "arcfang_blink"
+			else unit.ant_hill_swarm_description()
+			if unit.unit_class == UnitBase.UnitClass.ANT_HILL
+			else HydraKit.description(unit)
+			if unit.unit_class == UnitBase.UnitClass.HYDRA
+			else MirrorWardenKit.description(unit)
+			if unit.get_meta("mob_passive", "") == "mirror_warden" or unit.has_meta("mirror_copy")
+			else AspectKit.description(unit)
+			if unit.get_meta("mob_passive", "") == "aspect_devour"
+			else String(unit.get_meta("passive_desc", "")) + ("\n\n"+TempestCircuit.feeding_description(unit) if unit.get_meta("tempest_feeding",false) else "")],
+		[unit.skill_name, AbilityFormulas.resolve(unit, AbilityFormulas.ACTIVE)["text"]
+			if unit.unit_class == UnitBase.UnitClass.NECRO else unit.skill_description],
 		[unit.ultimate_name, String(unit.get_meta("ultimate_desc", ""))],
 	]
 	var names: Array[String] = []
@@ -535,7 +691,7 @@ func _enemy_kit_text(unit: UnitBase) -> Array:
 			continue
 		if slot_name != "":
 			names.append(slot_name)
-		out.append("[color=%s]%s[/color]  [color=%s]%s[/color]\n%s" % [
+		out.append("[font=%s][font_size=%d][color=%s]%s[/color]  [color=%s]%s[/color][/font_size][/font]\n%s" % [KIT_TAG_FONT, UITheme.FONT_VALUE,
 			KIT_SLOT_COLORS[i], KIT_SLOT_LABELS[i],
 			KIT_SLOT_COLORS[i], slot_name, slot_desc])
 	if out.is_empty():
@@ -550,11 +706,35 @@ func _hero_kit_text(unit: UnitBase) -> Array:
 			return [entry["skill"], entry["skill_desc"]]
 	return ["", ""]
 
+# A defense cell whose live value is below the stat: "base → live" in red, with
+# the reason on hover. Untouched (the normal cell) when nothing cuts it.
+const DEBUFF_RED := Color(1.0, 0.45, 0.38)
+func _defense_cell(cell: String, unit: UnitBase, base: int, live: int, what: String) -> void:
+	var lbl := combat_grid.get_node_or_null("%s/Value" % cell) as Label
+	if not lbl:
+		return
+	if live >= base:
+		lbl.tooltip_text = ""
+		return
+	_set_combat_cell(cell, "%d → %d" % [base, live], false)
+	lbl.add_theme_color_override("font_color", DEBUFF_RED)
+	var why: Array[String] = []
+	if float(unit.get_meta("arcfang_recovery_remaining", 0.0)) > 0.0:
+		why.append("Spent Storm: %s cut by 40%% for %.1fs more" % [what, float(unit.get_meta("arcfang_recovery_remaining"))])
+	if unit.exposed_time > 0.0:
+		why.append("Stuck Club: %s cut by %d%% for %.1fs more" % [what, roundi(unit.exposed_pct * 100.0), unit.exposed_time])
+	var stolen: int = int(unit.get_meta("cloven_defense_loss", 0))
+	if stolen > 0:
+		why.append("Cloven Titan: -%d stolen" % stolen)
+	lbl.tooltip_text = "
+".join(why)
+	lbl.mouse_filter = Control.MOUSE_FILTER_STOP
+
 func _set_combat_cell(cell: String, text: String, buffed: bool) -> void:
 	var lbl := combat_grid.get_node_or_null("%s/Value" % cell) as Label
 	if not lbl:
 		return
-	var abbr: String = _COMBAT_ABBR.get(cell, "")
+	var abbr: String = _COMBAT_ABBR_OVERRIDE.get(cell, _COMBAT_ABBR.get(cell, ""))
 	lbl.text = "%s  %s" % [abbr, text] if abbr != "" else text
 	lbl.add_theme_color_override("font_color", Color(0.4, 0.95, 0.5) if buffed else Color(0.9, 0.9, 0.95))
 

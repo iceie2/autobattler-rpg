@@ -1,0 +1,127 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/battle_grid.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/units/tempest_snake_body.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/units/enemy_factory.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/ui/unit_details_controller.gd:340)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/units/visual_unit.gd:0)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/battle_recorder.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/recap_fight_tap.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/hero_verbs.gd:127)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/element_pieces.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_factory.gd:145)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/units/ability_formulas.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/synergies/synergy_data.gd:0)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/windup_bot_vfx.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/channel.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/ember_vfx.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/goblin_shaman_vfx.gd:0)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/projectile.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/equipment/gear_passives.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/troll_vfx.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/slime_vfx.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_factory.gd:145)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/waves/wave_scaler.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/tempest_circuit.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/equipment/equipment_manager.gd:135)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/equipment/equipment_inventory.gd:13)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/equipment/component_equipment_inventory.gd:0)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/equipment/component_equipment_gateway.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/hero_verbs.gd:127)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/aspect_vfx.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/storm_hazard.gd:0)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/auto_battle_manager.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:419)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scratch/lumen_cleanup_check.gd:0)
+ERROR: Failed to load script "res://scratch/lumen_cleanup_check.gd" with error "Compilation failed".
+   at: load (modules/gdscript/gdscript.cpp:3041)
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2548)
+SCRIPT ERROR: Invalid access to property or key 'health_bar' on a base object of type 'Node2D (UnitBase)'.
+   at: AutoBattleManager._clear_board_effects (res://scripts/combat/auto_battle_manager.gd:943)
+   GDScript backtrace (most recent call first):
+       [0] _clear_board_effects (res://scripts/combat/auto_battle_manager.gd:943)
+       [1] run (res://scratch/lumen_cleanup_check.gd:18)
+SCRIPT ERROR: Assertion failed: Round cleanup must hide the beam immediately
+   at: run (res://scratch/lumen_cleanup_check.gd:19)
+   GDScript backtrace (most recent call first):
+       [0] run (res://scratch/lumen_cleanup_check.gd:19)

@@ -4,6 +4,11 @@ Read this BEFORE editing. It encodes the landmines and patterns this codebase
 has already paid for. Written 2026-07-03 during the foundation session.
 Godot 4.5, GDScript. Game: wave-based RPG autobattler.
 
+Live-stat contract: follow the root `AGENTS.md` rule. Current-stat displays must
+show the effective values used by combat, through a shared stat calculation,
+including active buffs/debuffs and their expiry/reset. Base values must be
+labeled. No hidden live-stat changes or separate UI modifier arithmetic.
+
 ---
 
 ## 1. Verification commands (run these, always)
@@ -57,8 +62,9 @@ GODOT="/c/anything coding/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mon
 # 3g. Run map (after touching RunMap, the map screen, or round flow):
 "$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=map
 #    → "violations": [] over 2000 generated maps, and every walk must report
-#      13 nodes / 10 waves. Checks reachability, no crossing edges (convergence
-#      rows exempt), two intensities per battle row, one merchant per biome.
+#      11 nodes / 2–10 fights. Checks reachability, required easy/climb/hold
+#      choices from every node, utility only on wide columns, and two reachable
+#      merchants per biome. Crossings are permitted (owner, 2026-10-07).
 "$GODOT" --headless res://scenes/map_smoke.tscn
 #    → "MAP_SMOKE: PASSED". Drives the REAL main_game through a whole biome and
 #      asserts THE TWO-COUNTER RULE: a battle node advances battle_round by
@@ -119,6 +125,43 @@ APPDATA=<scratch>/vd21-relic-rules/isolated-profile \
 #      Earth / Lightning / Water / Air piece on real units, that non-element
 #      heroes don't trigger them, a no-piece team is unchanged, and the seed /
 #      reserved-card offer rules. Arena: --relics=b_faultline,b_rubble,...
+
+# 3k. Run recap (after touching RunRecap / RecapFightTap, the shield, heal or
+#     defeat hooks in UnitBase / AutoBattleManager / main_game, RunRecapScreen
+#     and its parts, MapRouteArt, or DefeatReportView's historical context):
+APPDATA=<scratch>/recap/isolated-profile "$GODOT" --headless --path . res://scenes/run_recap_smoke.tscn
+#    → "RUN_RECAP_SMOKE: ALL PASS". Caster shield credit (stacked = FIFO, unused
+#      capacity, wipes, enemy/unhooked grants unattributed), defeats by type,
+#      the damage breakdown (auto / skill / ult / DoT / summon / other x
+#      physical / magic / true through the real take_damage, summing to
+#      dealt_hp), exact-once finalise, replay replacement, prefix totals,
+#      run-save + JSON parity, legacy partial history, and the MEASURED
+#      worst-case record size. Touching how abilities are dispatched (the
+#      manager's skill / ult calls, projectiles, channels, DoT ticks) means
+#      re-checking the breakdown tags: UnitBase.recap_action, gear_basic_hit,
+#      recap_tap.in_dot.
+APPDATA=<scratch>/recap/isolated-profile "$GODOT" --headless --path . res://scenes/tools/run_recap_screen_check.tscn
+#    → "RUN_RECAP_SCREEN_CHECK: ALL PASS". Pacing (1/5/30/100 fights), Skip from
+#      any moment (button / Esc / controller Back), reduced motion, the overview
+#      replay (back / play / forward = replay point; keys, d-pad, bumpers), the
+#      defeat parade's wave + kill order and its fill as encounter icons land,
+#      recruited-only chart columns, the stacked Total view, the hero damage
+#      card (journey holds, values = the bar's), open / Back state restore, hit
+#      targets.
+APPDATA=<scratch>/recap/isolated-profile "$GODOT" --headless --fixed-fps 60 --path . res://scenes/tools/run_recap_integration.tscn
+#    → "RUN_RECAP_INTEGRATION: ALL PASS". The real main_game: fights recorded,
+#      a real fight's damage breakdown sums to dealt_hp, a resume replay replaces
+#      (never duplicates), utility stops keep their wave, the terminal file +
+#      screen happen exactly once, legacy saves are partial.
+#    Arena --mode=sim results carry "damage_split" per hero (split_sum must
+#    equal dealt_hp; "other" = damage no tag reached).
+APPDATA=<scratch>/recap/isolated-profile "$GODOT" --path . res://scenes/tools/run_recap_capture.tscn
+#    → SYNTHETIC-labelled PNGs in captures/renders (windowed). Add -- --mode=realtime
+#      for wall-clock pacing + frame times, -- --mode=menu for the LAST RUN entry.
+#    All four refuse to run unless APPDATA is a disposable "isolated-profile".
+#    A defeat now opens the run recap; the per-fight report opens FROM it, so
+#    defeat_report_integration drives that path (its own "/defeat-report/
+#    isolated-profile/" APPDATA, as before).
 
 # 4. Balance sim (after touching stats/numbers):
 "$GODOT" --headless --fixed-fps 30 res://scenes/arena.tscn -- --mode=sim \

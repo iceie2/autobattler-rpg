@@ -22,6 +22,17 @@ const BONE := Color(0.95, 0.94, 0.88)
 const FRACTURE := Color(0.07, 0.06, 0.07)
 const HEAT := Color(0.95, 0.28, 0.18)
 
+static func body_color(element: int) -> Color:
+	match element:
+		UnitBase.Element.FIRE: return Color("b9683c")
+		UnitBase.Element.WATER: return Color("478fac")
+		UnitBase.Element.EARTH: return Color("a38a50")
+		UnitBase.Element.AIR: return Color("9cc9b7")
+		UnitBase.Element.LIGHTNING: return Color("986bba")
+	return Color("728250")
+
+var _element: int = UnitBase.Element.NORMAL
+
 var mode: Mode = Mode.CRUSH_IMPACT
 var elapsed := 0.0
 var lifetime := 0.5
@@ -39,6 +50,7 @@ func setup_point(kind: Mode, world_pos: Vector2, size: float, life: float) -> vo
 	queue_redraw()
 
 func setup_on(kind: Mode, unit, size: float, life: float) -> void:
+	if unit: _element = unit.current_element
 	mode = kind
 	host = unit
 	reach = size
@@ -49,6 +61,8 @@ func setup_on(kind: Mode, unit, size: float, life: float) -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	if host and is_instance_valid(host) and host.has_method("_battle_clock"):
+		delta *= host._battle_clock()
 	elapsed += delta
 	_t += delta
 	if host != null:
@@ -81,6 +95,8 @@ func _draw() -> void:
 		Mode.CRUSH_IMPACT:    _draw_impact(t)
 		Mode.BERSERK_TRIGGER: _draw_berserk(t)
 		Mode.ENRAGED:         _draw_enraged()
+	if mode in [Mode.CRUSH_WINDUP, Mode.CRUSH_IMPACT]:
+		LizardVFX.draw_accent(self, _element, Vector2(0, -reach * 0.15), reach * 0.10, _t, 0.65 * (1.0 - t))
 
 # ── It hauls the weight up ─────────────────────────────────────────────────
 # The wedge RISES and the shadow beneath tightens — an unambiguous "something

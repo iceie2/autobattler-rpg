@@ -41,10 +41,16 @@ func present(options: Array, reward_type: int, round_no: int) -> void:
 	var is_item: bool = reward_type == RoundReward.Type.ITEM
 	_title_lbl.text = "CHOOSE AN ITEM" if is_item else "CHOOSE A STAT BONUS"
 	_sub_lbl.text = "Wave %d reward  ·  pick one of %d" % [round_no, options.size()]
+	# remove_child before queue_free: a queued card stays in the row until the
+	# frame ends, so the new three were laid out beside the old three — the row
+	# grew to six cards wide (1850px), never shrank back, and centred the new
+	# cards 468px right, off the panel's edge.
 	for c in _card_row.get_children():
+		_card_row.remove_child(c)
 		c.queue_free()
 	for i in range(options.size()):
 		_card_row.add_child(_item_card(options[i], i) if is_item else _perk_card(options[i], i))
+	_card_row.size = Vector2(PANEL_W, CARD_H)
 	visible = true
 	_center_panel()
 
@@ -105,7 +111,7 @@ func _body(btn: Button, text: String) -> void:
 	var desc := Label.new()
 	desc.position = Vector2(20, 208)
 	desc.size     = Vector2(CARD_W - 40, CARD_H - 220)
-	UITheme.apply_font(desc, UITheme.FONT_BODY)
+	UITheme.apply_read_font(desc, UITheme.FONT_BODY)   # prose -> Inter (2026-09-29)
 	desc.add_theme_color_override("font_color", Color(0.84, 0.84, 0.92))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.vertical_alignment   = VERTICAL_ALIGNMENT_TOP

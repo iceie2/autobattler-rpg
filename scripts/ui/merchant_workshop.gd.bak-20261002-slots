@@ -1,0 +1,194 @@
+extends Control
+class_name MerchantWorkshop
+
+signal purchase_requested(kind: String, target: Variant, modifier: String)
+signal closed()
+
+class ItemTile extends Button:
+	var item: EquipmentItem
+	func _get_drag_data(_at_position: Vector2) -> Variant:
+		if item == null: return null
+		var preview := TextureRect.new()
+		preview.texture = GearIcons.icon_for(item)
+		preview.custom_minimum_size = Vector2(64, 64)
+		preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		set_drag_preview(preview)
+		return item
+
+class Station extends Button:
+	var kind := "reforge"
+	signal item_dropped(kind: String, item: EquipmentItem)
+	func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
+		return data is EquipmentItem
+	func _drop_data(_at_position: Vector2, data: Variant) -> void:
+		item_dropped.emit(kind, data)
+
+var provider: Callable
+var _kind := "reforge"
+var _item: EquipmentItem
+var _context: Dictionary
+var _tray: HFlowContainer
+var _details: RichTextLabel
+var _modifier: OptionButton
+var _choices: Array
+var _confirm: Button
+var _result: Label
+var _stations: Dictionary = {}
+
+func _ready() -> void:
+	position = Vector2(395, 122)
+	size = Vector2(1490, 925)
+	var art := TextureRect.new()
+	art.texture = preload("res://assets/using/merchant_workshop/stations.png")
+	art.position = Vector2(0, 0)
+	art.size = Vector2(1490, 590)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(art)
+	var tint := ColorRect.new()
+	tint.position = art.position
+	tint.size = art.size
+	tint.color = Color(0, 0, 0, 0.25)
+	tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(tint)
+	for kind in ["reforge", "enchant"]:
+		var station := Station.new()
+		station.kind = kind
+		station.position = Vector2(20 if kind == "reforge" else 755, 15)
+		station.size = Vector2(715, 355)
+		station.text = "REFORGE  •  ANVIL\nDROP ITEM HERE" if kind == "reforge" else "ENCHANT  •  ARCANE BENCH\nDROP ITEM HERE"
+		station.add_theme_font_size_override("font_size", 30)
+		station.add_theme_color_override("font_color", Color("f3e5c9"))
+		station.add_theme_stylebox_override("normal", _box(Color(0.06, 0.06, 0.05, 0.12)))
+		station.add_theme_stylebox_override("hover", _box(Color(0.2, 0.28, 0.25, 0.3)))
+		station.add_theme_stylebox_override("focus", _box(Color(0.15, 0.4, 0.4, 0.35)))
+		station.pressed.connect(func(): _kind = kind; _update())
+		station.item_dropped.connect(func(k: String, item: EquipmentItem): _kind = k; _item = item; _update())
+		add_child(station)
+		_stations[kind] = station
+	var readout := Panel.new()
+	readout.position = Vector2(15, 385)
+	readout.size = Vector2(1460, 195)
+	readout.add_theme_stylebox_override("panel", _box(Color(0.06, 0.07, 0.065, 0.91)))
+	add_child(readout)
+	_details = RichTextLabel.new()
+	_details.position = Vector2(20, 14)
+	_details.size = Vector2(1010, 166)
+	UITheme.apply_rich_font(_details, 21)
+	readout.add_child(_details)
+	_modifier = OptionButton.new()
+	_modifier.position = Vector2(1045, 28)
+	_modifier.size = Vector2(390, 55)
+	UITheme.apply_font(_modifier, 19)
+	_modifier.item_selected.connect(func(_i): _update_details())
+	readout.add_child(_modifier)
+	_confirm = Button.new()
+	_confirm.position = Vector2(1045, 106)
+	_confirm.size = Vector2(390, 60)
+	UITheme.apply_font(_confirm, 21)
+	_confirm.pressed.connect(_purchase)
+	readout.add_child(_confirm)
+	var tray_panel := Panel.new()
+	tray_panel.position = Vector2(15, 595)
+	tray_panel.size = Vector2(1460, 224)
+	tray_panel.add_theme_stylebox_override("panel", _box(Color(0.08, 0.065, 0.045, 0.94)))
+	add_child(tray_panel)
+	var tray_title := Label.new()
+	tray_title.text = "YOUR BAG  •  Drag an item to a station, or select it here"
+	tray_title.position = Vector2(18, 9)
+	tray_title.size = Vector2(1400, 35)
+	UITheme.apply_font(tray_title, 21)
+	tray_panel.add_child(tray_title)
+	var scroll := ScrollContainer.new()
+	scroll.position = Vector2(18, 50)
+	scroll.size = Vector2(1424, 158)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tray_panel.add_child(scroll)
+	_tray = HFlowContainer.new()
+	_tray.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tray.add_theme_constant_override("h_separation", 10)
+	_tray.add_theme_constant_override("v_separation", 8)
+	scroll.add_child(_tray)
+	_result = Label.new()
+	_result.position = Vector2(20, 833)
+	_result.size = Vector2(1090, 62)
+	_result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UITheme.apply_font(_result, 20)
+	add_child(_result)
+	var back := Button.new()
+	back.text = "Back to Stock"
+	back.position = Vector2(1160, 839)
+	back.size = Vector2(310, 57)
+	UITheme.apply_font(back, 22)
+	back.pressed.connect(func(): hide(); closed.emit())
+	add_child(back)
+	hide()
+
+func open() -> void:
+	_result.text = ""
+	_item = null
+	reload()
+	show()
+	_stations[_kind].grab_focus()
+
+func reload() -> void:
+	_context = provider.call() if provider.is_valid() else {}
+	if _item != null and not _context.get("items", []).has(_item): _item = null
+	for child in _tray.get_children():
+		_tray.remove_child(child)
+		child.queue_free()
+	for item in _context.get("items", []):
+		var tile := ItemTile.new()
+		tile.item = item
+		tile.custom_minimum_size = Vector2(76, 68)
+		tile.icon = GearIcons.icon_for(item)
+		tile.expand_icon = true
+		tile.tooltip_text = item.to_short_string()
+		tile.add_theme_stylebox_override("normal", _box(item.icon_color.darkened(0.72)))
+		tile.pressed.connect(func(): _item = item; _update())
+		_tray.add_child(tile)
+	_update()
+
+func _update() -> void:
+	for key in _stations:
+		_stations[key].modulate = Color.WHITE if key == _kind else Color(0.75, 0.75, 0.75)
+	_choices = []
+	_modifier.clear()
+	_modifier.visible = _kind == "enchant"
+	if _kind == "enchant" and _item != null:
+		_choices = MerchantServices.modifier_choices(_item)
+		for choice in _choices: _modifier.add_item(choice["label"])
+	_update_details()
+
+func _update_details() -> void:
+	var price := MerchantServices.cost(_kind, int(_context.get("round", 1)), _item.rarity if _item != null else 0)
+	var rule := "Rerolls stats; preserves identity, rarity and passives. The result may be weaker." if _kind == "reforge" else "Replaces one passive level with a different passive; preserves stats and rarity."
+	if _kind == "enchant" and _item != null and _choices.is_empty(): rule += " This item has no enchantable passive slot."
+	var name := _item.to_short_string() if _item != null else "No item selected. Drop an item onto a station."
+	_details.text = "Gold: %dg  •  Cost: %dg\n%s\n%s" % [int(_context.get("gold", 0)), price, name, rule]
+	_confirm.text = "Confirm %s  •  %dg" % [_kind.capitalize(), price]
+	_confirm.disabled = _item == null or int(_context.get("gold", 0)) < price or (_kind == "enchant" and _choices.is_empty())
+
+func _purchase() -> void:
+	_confirm.disabled = true
+	var modifier := str(_choices[_modifier.selected]["key"]) if _kind == "enchant" and _modifier.selected >= 0 and _modifier.selected < _choices.size() else ""
+	purchase_requested.emit(_kind, _item, modifier)
+
+func report(message: String) -> void:
+	_result.text = message
+	reload()
+
+func _box(color: Color) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = color
+	box.border_color = Color("b79860")
+	box.set_border_width_all(2)
+	box.set_corner_radius_all(7)
+	return box
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if visible and event.is_action_pressed("ui_cancel"):
+		hide()
+		closed.emit()
+		get_viewport().set_input_as_handled()

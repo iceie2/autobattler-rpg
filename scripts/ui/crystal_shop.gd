@@ -65,6 +65,7 @@ class NodeRing extends Control:
 # outer rings. 0.08 is the first value that actually fits.
 const ZOOM_MIN := 0.08
 const ZOOM_MAX := 2.0
+const OPEN_ZOOM := 0.55
 
 # ── Node size tiers (2026-09-15) ──────────────────────────────────────────────
 # data/crystal_tree.json carries TWELVE distinct `size` values (56, 68, 76, 80,
@@ -161,8 +162,13 @@ func open() -> void:
 	# layouts the tree's center doesn't line up with the panel's top-left
 	# origin, so the old fixed offset could open with a node clipped at the
 	# view's edge.
-	_canvas.scale = Vector2.ONE
-	_canvas.position = _tree_view.size / 2.0 - _tree.center
+	# 2026-09-27 screen audit: hub-centred at OPEN_ZOOM (was 1x). At 1x the first
+	# ring's corner nodes sat clipped at the view edge; frame_all() on the full
+	# 586-node tree shrinks every node to a speck. 0.55 keeps the first ring
+	# (what an early player can actually buy) whole and readable; Fit and the
+	# wheel still reach the rest.
+	_canvas.scale = Vector2.ONE * OPEN_ZOOM
+	_canvas.position = _tree_view.size / 2.0 - _tree.center * OPEN_ZOOM
 	_clamp_canvas()
 	_update_spoke_alpha()
 	_refresh()
@@ -185,15 +191,17 @@ func _build_ui() -> void:
 
 	var panel := Panel.new()
 	panel.size = PANEL_SIZE
-	panel.add_theme_stylebox_override("panel", UITheme.panel_box())
+	# 2026-09-27 screen audit: shared menu chrome (banner + flat surface).
+	panel.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 	overlay.add_child(panel)
 	_center(panel)
+	UITheme.menu_header(panel, Rect2(14, 8, PANEL_SIZE.x - 28, 76))
 
 	# Header: title top-left, crystal wallet top-right — the center-top is
 	# tree territory now.
-	_lbl(panel, "✦  CRYSTAL SHOP  ✦", 26, COL_TITLE, Vector2(36, 22), Vector2(560, 40))
-	_lbl(panel, "Upgrades persist between runs.", 12, COL_SUBTITLE,
-		Vector2(38, 64), Vector2(560, 22))
+	_lbl(panel, "✦  CRYSTAL SHOP  ✦", 26, UITheme.menu_title_color(), Vector2(70, 14), Vector2(560, 40))
+	_lbl(panel, "Upgrades persist between runs.", 12, UITheme.menu_subtitle_color(),
+		Vector2(72, 60), Vector2(560, 22))
 	var gem := UITheme.currency_icon("gem")
 	gem.position = Vector2(PANEL_SIZE.x - 234, 18)
 	panel.add_child(gem)
@@ -244,6 +252,21 @@ func _build_ui() -> void:
 	# click can't wipe the tree. Refunds every crystal spent.
 	_reset_btn = _btn("Reset Upgrades", Rect2(30, PANEL_SIZE.y - 56, 220, 40))
 	_reset_btn.pressed.connect(_on_reset_pressed)
+	# Destructive, so it must not look like Close (2026-09-27 audit: both were
+	# the same gold pill, side by side). Dark red, light text.
+	var red := func(bg: Color, border: Color) -> StyleBoxFlat:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = bg
+		sb.border_color = border
+		sb.set_border_width_all(2)
+		sb.set_corner_radius_all(8)
+		return sb
+	_reset_btn.add_theme_stylebox_override("normal", red.call(Color(0.36, 0.08, 0.07), Color(0.72, 0.24, 0.20)))
+	_reset_btn.add_theme_stylebox_override("hover", red.call(Color(0.50, 0.11, 0.09), Color(0.95, 0.36, 0.30)))
+	_reset_btn.add_theme_stylebox_override("pressed", red.call(Color(0.28, 0.06, 0.05), Color(0.72, 0.24, 0.20)))
+	for k in ["font_color", "font_hover_color", "font_pressed_color"]:
+		_reset_btn.add_theme_color_override(k, Color(1.0, 0.88, 0.85))
+	_reset_btn.tooltip_text = "Refund every crystal spent (click twice to confirm)"
 	panel.add_child(_reset_btn)
 
 	visible = false
@@ -544,11 +567,11 @@ func _build_detail_bar(panel: Panel) -> void:
 	var bar := Panel.new()
 	bar.position = Vector2(150, 742)
 	bar.size = Vector2(1200, 168)
-	bar.add_theme_stylebox_override("panel", UITheme.panel_box())
+	bar.add_theme_stylebox_override("panel", UITheme.menu_surface_box())
 	panel.add_child(bar)
 	_detail_bar = bar
 
-	_detail_prompt = _lbl(bar, "Select an upgrade to inspect it.", 16, UITheme.TEXT_BODY,
+	_detail_prompt = _lbl(bar, "Select an upgrade to inspect it.", 16, UITheme.menu_subtitle_color(),
 		Vector2(0, 66), Vector2(1200, 30), true)
 
 	_detail_icon = TextureRect.new()
@@ -565,6 +588,7 @@ func _build_detail_bar(panel: Panel) -> void:
 	_detail_name = _lbl(bar, "", 20, UITheme.TEXT_HEADER, Vector2(160, 16), Vector2(440, 34))
 	_detail_desc = _lbl(bar, "", 13, UITheme.TEXT_BODY, Vector2(160, 56), Vector2(440, 54))
 	_detail_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UITheme.apply_read_font(_detail_desc)   # prose -> Inter (2026-09-29)
 	_detail_stats = _lbl(bar, "", 14, Color(0.55, 0.38, 0.1), Vector2(160, 114), Vector2(440, 30))
 
 	_detail_ladder_hdr = _lbl(bar, "PER LEVEL", 13, Color(0.5, 0.35, 0.1), Vector2(620, 14), Vector2(320, 22))
@@ -779,7 +803,9 @@ func _play_unlock_effect(key: String) -> void:
 # Short metallic "clang → ring" built in-memory: an impact click at t=0 plus a
 # few decaying inharmonic sine partials, the classic bell/anvil shape. Nothing
 # to load from disk since there are no audio assets in the project yet.
-func _make_unlock_ding() -> AudioStreamWAV:
+# Static (2026-10-07) so the run recap can reuse the game's one existing sound
+# instead of adding an audio asset; its body is unchanged.
+static func _make_unlock_ding() -> AudioStreamWAV:
 	var sr := 44100
 	var dur := 0.4
 	var n := int(sr * dur)

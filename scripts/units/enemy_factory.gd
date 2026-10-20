@@ -1,6 +1,38 @@
 extends Node
 class_name EnemyFactory
 
+# Flat stat gains per level, keyed by monster identity. All elements share a row.
+# Edit these values to tune growth; level 1 uses each factory's base stats.
+# Former generic-class lookups had no entries, so their zero growth is preserved.
+const MONSTER_GROWTH_PER_LEVEL = {
+	UnitBase.UnitClass.GOBLIN: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.GOBLIN_ARCHER: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.GOBLIN_SHAMAN: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.ORC: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.SLIME: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.LIZARD: {"hp":5,"mana":0,"atk":4,"magic":0,"res":0,"aspd":0.0,"hpregen":1.0,"manaregen":0.0},
+	UnitBase.UnitClass.BEAR: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.TROLL: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.WINDUP_BOT: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.SKELETON: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.RAT: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.OGRE: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.MINOTAUR: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.GARGOYLE: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.STONE_GOLEM: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.CRYSTAL_CRAB: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.ROOT_WALKER: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.FIRE_GIANT: {"hp": 156, "mana": 3, "atk": 3, "magic": 1, "res": 1, "aspd": 0.01, "hpregen": 0.06, "manaregen": 0.03},
+	UnitBase.UnitClass.HELLHOUND: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.EMBER_PHOENIX: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.STORM_GIANT: {"hp": 148, "mana": 3, "atk": 3, "magic": 1, "res": 1, "aspd": 0.01, "hpregen": 0.06, "manaregen": 0.03},
+	UnitBase.UnitClass.STORM_CROW: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.SKY_WYVERN: {"hp": 145, "mana": 3, "atk": 3, "magic": 1, "res": 1, "aspd": 0.01, "hpregen": 0.06, "manaregen": 0.03},
+	UnitBase.UnitClass.TIDEPOOL_HORROR: {"hp": 158, "mana": 3, "atk": 3, "magic": 1, "res": 1, "aspd": 0.01, "hpregen": 0.06, "manaregen": 0.03},
+	UnitBase.UnitClass.HARPY: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.CORAL_HUSK: {"hp":0,"mana":0,"atk":0,"magic":0,"res":0,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+}
+
 # ── Code → factory dispatch (single source of truth) ─────────────────────────
 # Wave codes (WaveScaler formations) and type strings (wave specs) both resolve
 # here. main_game.gd and the arena harness (scripts/arena/) share this — when
@@ -9,7 +41,7 @@ class_name EnemyFactory
 const CODE_TO_TYPE := {
 	"M": "goblin", "A": "goblin_archer",
 	"G": "hill_giant", "SK": "skeleton", "R": "rat",
-	"TRI": "triarch", "SS": "stat_stealer", "AH": "ant_hill", "KHA": "khagan",
+	"TRI": "triarch", "SS": "stat_stealer", "AH": "ant_hill", "ANT": "ant", "KHA": "khagan",
 	"SKR": "skyrender",   # wave-20 Air boss (2026-07-27)
 	"DMW": "drowned_maw", # wave-30 Water boss (2026-07-28)
 	"CLT": "cloven_titan", # wave-40 Earth boss (2026-07-28)
@@ -49,7 +81,7 @@ const CODE_TO_TYPE := {
 	# Wind-Up Bot — 6 elemental variants, brand new.
 	"WUN": "windup_bot_normal", "WUF": "windup_bot_fire", "WUW": "windup_bot_water",
 	"WUE": "windup_bot_earth", "WUA": "windup_bot_air", "WUL": "windup_bot_lightning",
-	# Hydra — wave-30 final boss, 6 elemental variants (player picks which one fights).
+	# Hydra — wave-80 boss, 6 elemental variants (player picks which one fights).
 	"HYN": "hydra_normal", "HYF": "hydra_fire", "HYW": "hydra_water",
 	"HYE": "hydra_earth", "HYA": "hydra_air", "HYL": "hydra_lightning",
 	# Beast tier (2026-07-24) — single-element heavies, one notch above the Bear/
@@ -93,8 +125,8 @@ const CODE_TO_TYPE := {
 # FIRST-CUT NUMBERS, not a balance claim — tune from arena runs (non-boss waves
 # only; the boss-round harness is currently untrustworthy).
 const TENACITY_NORMAL := 20
-const TENACITY_ELITE  := 60
-const TENACITY_BOSS   := 180
+const TENACITY_ELITE  := 200
+const TENACITY_BOSS   := 300
 
 # Fills in a tier default for anything that didn't set its own tenacity. A
 # constructor that wants a bespoke value just assigns u.tenacity and a non-zero
@@ -110,6 +142,12 @@ static func apply_tier_tenacity(u: VisualUnit) -> void:
 		u.tenacity = TENACITY_NORMAL
 
 static func create_by_type(type: String) -> VisualUnit:
+	# Opening guards use the exact factory/stat profile of combat-spawned ants.
+	if type == "ant":
+		var ant := UnitFactory.create_unit(UnitBase.UnitClass.ANT, UnitBase.Element.NORMAL, false)
+		ant.is_summoned = true
+		ant.set_meta("sprite_folder", "ant")
+		return ant
 	var u := _create_by_type_dispatch(type)
 	if u:
 		apply_tier_tenacity(u)
@@ -217,8 +255,8 @@ static func create_by_code(code: String) -> VisualUnit:
 static func create_goblin(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Goblin"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.GOBLIN
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.NORMAL
 	u.is_player_unit  = false
 	u.max_hp          = 150
@@ -259,8 +297,8 @@ static func create_goblin(lvl: int = 1) -> VisualUnit:
 static func create_goblin_archer(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Goblin Archer"
-	u.unit_class      = UnitBase.UnitClass.RANGER
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.GOBLIN_ARCHER
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.NORMAL
 	u.is_player_unit  = false
 	u.max_hp          = 120
@@ -321,8 +359,8 @@ const GOBLIN_SHAMAN_SPRITE_FOLDERS := {
 static func _create_goblin_shaman(element: UnitBase.Element, lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "%s Goblin Shaman" % GOBLIN_SHAMAN_ELEMENT_NAMES[element]
-	u.unit_class      = UnitBase.UnitClass.BLACK_MAGE
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.GOBLIN_SHAMAN
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = element
 	u.is_player_unit  = false
 	u.max_hp          = 300
@@ -390,8 +428,8 @@ const ORC_SPRITE_FOLDERS := {
 static func _create_orc(element: UnitBase.Element, lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "%s Orc" % ORC_ELEMENT_NAMES[element]
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.ORC
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = element
 	u.is_player_unit  = false
 	u.max_hp          = 750
@@ -466,8 +504,8 @@ const SLIME_SPRITE_FOLDERS := {
 static func _create_slime(element: UnitBase.Element, lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "%s Slime" % SLIME_ELEMENT_NAMES[element]
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.SLIME
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = element
 	u.is_player_unit  = false
 	u.max_hp          = 220
@@ -542,15 +580,15 @@ const LIZARD_SPRITE_FOLDERS := {
 static func _create_lizard(element: UnitBase.Element, lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "%s Lizard" % LIZARD_ELEMENT_NAMES[element]
-	u.unit_class      = UnitBase.UnitClass.RANGER
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.LIZARD
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = element
 	u.is_player_unit  = false
 	u.max_hp          = 200
 	u.current_hp      = 200
 	u.max_mana        = 0
 	u.current_mana    = 0
-	u.attack_damage   = 60
+	u.attack_damage   = 40
 	u.magic_power     = 6
 	u.resistance      = 15
 	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
@@ -624,8 +662,8 @@ const BEAR_SPRITE_FOLDERS := {
 static func _create_bear(element: UnitBase.Element, lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "%s Bear" % BEAR_ELEMENT_NAMES[element]
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.BEAR
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = element
 	u.is_player_unit  = false
 	u.max_hp          = 1200         # beefiest 1×1 tank in the roster
@@ -701,8 +739,8 @@ const TROLL_SPRITE_FOLDERS := {
 static func _create_troll(element: UnitBase.Element, lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "%s Troll" % TROLL_ELEMENT_NAMES[element]
-	u.unit_class      = UnitBase.UnitClass.RANGER
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.TROLL
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = element
 	u.is_player_unit  = false
 	u.max_hp          = 480
@@ -783,8 +821,8 @@ const WINDUP_BOT_SPRITE_FOLDERS := {
 static func _create_windup_bot(element: UnitBase.Element, lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "%s Wind-Up Bot" % WINDUP_BOT_ELEMENT_NAMES[element]
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.WINDUP_BOT
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = element
 	u.is_player_unit  = false
 	u.max_hp          = 600
@@ -843,8 +881,8 @@ static func create_windup_bot_lightning(lvl: int = 1) -> VisualUnit: return _cre
 static func create_skeleton(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Skeleton"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.SKELETON
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.NORMAL
 	u.is_player_unit  = false
 	u.max_hp          = 110
@@ -888,8 +926,8 @@ static func create_skeleton(lvl: int = 1) -> VisualUnit:
 static func create_rat(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Rat"
-	u.unit_class      = UnitBase.UnitClass.RANGER
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.RAT
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.NORMAL
 	u.is_player_unit  = false
 	u.max_hp          = 75
@@ -962,21 +1000,21 @@ static func create_hill_giant(lvl: int = 1) -> VisualUnit:
 	# the player provably does not have yet, and coin-drop RNG decided the run
 	# before it started. 45% of the user's 33 logged runs ended here.
 	# Retuned to its ACTUAL audience (3 heroes): ~85% at 3, still lethal at 2.
-	u.max_hp          = 3500
-	u.current_hp      = 3500
+	u.max_hp          = 3400
+	u.current_hp      = 3400
 	u.max_mana        = 100
 	u.current_mana    = 100
 	# 150 → 115 (2026-07-16): the affinity rework dropped off-element defense
 	# to 68 (×1.32 taken), which turned the giant's 150 atk into an 8/8 wipe
 	# of average round-5 comps. 115 restores a real-but-beatable spike.
-	u.attack_damage   = 110
+	u.attack_damage   = 150
 	u.magic_power     = 9
 	u.resistance      = 20
 	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
-	u.attack_speed    = 0.5
+	u.attack_speed    = 0.8
 	u.hp_regen        = 0.55
 	u.mana_regen      = 0.5
-	u.movement_speed  = 2          # arena sims: at move 1 ranged comps kite it
+	u.movement_speed  = 4          # arena sims: at move 1 ranged comps kite it
 								   # to death without taking a single hit
 	# Melee only (2026-07-22): was 2 (ranged, fired a projectile). Now that
 	# the giant has a real club-swing attack sheet it should be adjacent-only —
@@ -985,21 +1023,47 @@ static func create_hill_giant(lvl: int = 1) -> VisualUnit:
 	# projectile when attack_range > 1, so dropping to 1 removes it for free.
 	u.attack_range    = 1
 	u.gold_reward     = 0
-	u.crystal_reward  = 2
+	u.crystal_reward  = 5          # was 2 (dead data until 2026-09-29); first-wall payout
 	u.xp_reward       = 200
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "hill_giant")
 	u.set_meta("mob_skill", "hill_giant_smash")
-	u.skill_name      = "Boulder Smash"
-	u.skill_damage_multiplier = 2.0
+	# GROUNDBREAKER (round-5 elite loop, owner 2026-10-06): two club blows, a
+	# two-handed slam into the 4x2 block in front, then the club sticks. The
+	# skill slot is gated on landed blows (AutoBattleManager._gb_*), not a
+	# cooldown. A demoted heavy-wave Giant is put back on Boulder Smash by
+	# demote_hill_giant() below.
+	u.skill_name      = "Groundbreaker"
+	u.skill_damage_multiplier = AutoBattleManager.GB_DMG
 	u.skill_range     = 1
-	u.skill_cooldown_max = 4
-	u.skill_description = "Smash every adjacent enemy for 200% ATK. · 4s CD"
+	u.skill_cooldown_max = 0
+	u.skill_description = "After %d club blows: a two-handed slam into the 4×2 area in front of him — %d%% ATK to every hero there, knocked back 1 square." % [
+		AutoBattleManager.GB_SWINGS, roundi(AutoBattleManager.GB_DMG * 100.0)]
+	u.set_meta("kit_moves", [
+		{"slot": "ACTIVE", "name": "Club Swing", "desc": "Heavy single-target club blow for 100% ATK."},
+		{"slot": "ACTIVE", "name": "@skill"},
+		{"slot": "PASSIVE", "name": "Stuck Club", "desc": "After Groundbreaker his club lodges in the ground: for %ds he can't attack or move and his armor and magic resist drop to 0, then he takes %.1fs to yank it free." % [
+			int(AutoBattleManager.GB_STUCK), AutoBattleManager.GB_YANK]},
+	])
 	u.ultimate_charge_max = 0     # no ult
 	u.is_elite        = true
 	u.tenacity        = TENACITY_ELITE
 	if lvl > 1: u.set_level(lvl)
 	return u
+
+# A Hill Giant recurring as a heavy anchor in a normal wave (WaveDirector's
+# heavy-tier demotion) keeps the old Boulder Smash, not the elite's
+# Groundbreaker loop (owner 2026-10-06: the loop is the round-5 encounter's;
+# twin demoted Giants in 31-39 were priced for the old kit).
+const BOULDER_SMASH_DESC := "Smash every adjacent enemy for 200% ATK. · 4s CD"
+static func demote_hill_giant(u: UnitBase) -> void:
+	u.set_meta("gb_off", true)
+	u.skill_name = "Boulder Smash"
+	u.skill_damage_multiplier = 2.0
+	u.skill_cooldown_max = 4
+	u.skill_description = BOULDER_SMASH_DESC
+	if u.has_meta("kit_moves"):
+		u.remove_meta("kit_moves")
 
 # ── The Triarch (round 30 final boss — cycles through every attack type) ─────
 # Phase 1 (Melee) is this unit's baseline form, built directly in create_triarch.
@@ -1018,31 +1082,31 @@ static func create_hill_giant(lvl: int = 1) -> VisualUnit:
 # the melee baseline for reference; its real values live in create_triarch).
 const TRIARCH_PHASES: Array[Dictionary] = [
 	{
-		"name": "Melee Form", "unit_class": UnitBase.UnitClass.WARRIOR,
+		"name": "The Knight", "unit_class": UnitBase.UnitClass.WARRIOR,
 		"hp_mult": 1.0, "mana_mult": 1.0, "atk_mult": 1.0, "magic_mult": 1.0, "res_mult": 1.0,
 		"aspd_mult": 1.0, "hpregen_mult": 1.0, "manaregen_mult": 1.0,
 		"move": 3, "range": 1,
 		"skill_name": "Cleaving Strike", "skill_dmg": 1.3, "skill_range": 1, "skill_cd": 3, "skill_mana": 0,
 	},
 	{
-		"name": "Ranger Form", "unit_class": UnitBase.UnitClass.RANGER,
+		"name": "The Hunter", "unit_class": UnitBase.UnitClass.RANGER,
 		"hp_mult": 1.0, "mana_mult": 1.2, "atk_mult": 0.85, "magic_mult": 1.0, "res_mult": 0.85,
 		"aspd_mult": 1.15, "hpregen_mult": 1.0, "manaregen_mult": 1.3,
 		"move": 4, "range": 5,
 		"skill_name": "Piercing Volley", "skill_dmg": 1.0, "skill_range": 6, "skill_cd": 4, "skill_mana": 0,
 	},
 	{
-		"name": "Arcane Form", "unit_class": UnitBase.UnitClass.BLACK_MAGE,
+		"name": "The Arcane Core", "unit_class": UnitBase.UnitClass.BLACK_MAGE,
 		"hp_mult": 0.85, "mana_mult": 2.0, "atk_mult": 0.4, "magic_mult": 2.4, "res_mult": 0.9,
 		"aspd_mult": 0.85, "hpregen_mult": 1.0, "manaregen_mult": 1.8,
 		"move": 2, "range": 5,
-		"skill_name": "Meteor Storm", "skill_dmg": 2.2, "skill_range": 6, "skill_cd": 5, "skill_mana": 25,
+		"skill_name": "Meteor Storm", "skill_dmg": 2.2, "skill_range": 6, "skill_cd": 6, "skill_mana": 25,
 	},
 ]
 
 static func create_triarch(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
-	u.unit_name       = "The Triarch — Melee Form"
+	u.unit_name       = "The Triarch — The Knight"
 	u.unit_class      = UnitBase.UnitClass.WARRIOR
 	# Boss-sized growth (2026-07-12) — see the Hill Giant note. boss_level(20)=12
 	# rides this; phases 2/3 multiply the leveled snapshot so it carries through.
@@ -1073,6 +1137,10 @@ static func create_triarch(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Cleaving Strike"
+	# Declares no ultimate (2026-09-28 boss pass). The inherited 300 pool made
+	# the generic ult fall back to _use_skill, re-casting the signature ~1/s
+	# with no cooldown — the boss spent whole fights doing only that.
+	u.ultimate_charge_max = 0
 	u.skill_description = "Heavy melee blow for 130% ATK. · 3s CD"
 	u.skill_damage_multiplier = 1.3
 	u.skill_range = 1
@@ -1089,8 +1157,13 @@ static func create_triarch(lvl: int = 1) -> VisualUnit:
 	# ever reaches 0 HP the external leveling has long since happened, so the
 	# lazy snapshot in advance_triarch_phase() always sees the real scaled stats.
 	u.set_meta("triarch_phase", 1)
+	# 3D identity (owner, 2026-10-03): ONE champion SHEDDING layers -- Knight,
+	# then Hunter, then Arcane Core -- each its own model, swapped by the
+	# rebuild_sprite() in advance_triarch_phase (see MONSTER_MODEL_PATHS).
+	u.set_meta("sprite_folder", "triarch_phase1")
 	u.set_meta("passive_name", "Three Forms")
-	u.set_meta("passive_desc", "Each time it falls it rises again at full health in a new form: Melee, then Ranger, then Arcane.")
+	u.set_meta("passive_desc", "Falls, leaves the board, then returns at full health: Knight, Hunter, Arcane Core. Untargetable while changing form.")
+	TriarchKit.configure(u)
 	return u
 
 # Called from VisualUnit.die() when a Triarch's HP hits 0. Transforms it into
@@ -1109,7 +1182,7 @@ static func advance_triarch_phase(unit: VisualUnit) -> bool:
 	if not unit.has_meta("triarch_base_stats"):
 		unit.set_meta("triarch_base_stats", {
 			"hp": unit.max_hp, "mana": unit.max_mana, "atk": unit.attack_damage,
-			"magic": unit.magic_power, "res": unit.resistance,
+			"magic": unit.magic_power, "res": unit.resistance, "mr": unit.magic_resist,
 			"aspd": unit.attack_speed, "hpregen": unit.hp_regen, "manaregen": unit.mana_regen,
 		})
 	var base: Dictionary = unit.get_meta("triarch_base_stats", {})
@@ -1122,6 +1195,7 @@ static func advance_triarch_phase(unit: VisualUnit) -> bool:
 	unit.attack_damage = maxi(1, int(round(float(base.get("atk", unit.attack_damage)) * float(cfg["atk_mult"]))))
 	unit.magic_power   = maxi(0, int(round(float(base.get("magic", unit.magic_power)) * float(cfg["magic_mult"]))))
 	unit.resistance    = maxi(0, int(round(float(base.get("res", unit.resistance)) * float(cfg["res_mult"]))))
+	unit.magic_resist = maxi(0, roundi(float(base.get("mr", unit.magic_resist)) * float(cfg["res_mult"])))
 	unit.attack_speed  = float(base.get("aspd", unit.attack_speed)) * float(cfg["aspd_mult"])
 	unit.hp_regen      = float(base.get("hpregen", unit.hp_regen)) * float(cfg["hpregen_mult"])
 	unit.mana_regen    = float(base.get("manaregen", unit.mana_regen)) * float(cfg["manaregen_mult"])
@@ -1155,13 +1229,15 @@ static func advance_triarch_phase(unit: VisualUnit) -> bool:
 
 	unit.unit_name = "The Triarch — %s" % cfg["name"]
 	unit.set_meta("triarch_phase", next_phase)
+	unit.set_meta("sprite_folder", "triarch_phase%d" % next_phase)
+	TriarchKit.configure(unit)
 
 	if unit.health_bar:
 		unit.health_bar.update_hp(unit.current_hp, unit.max_hp)
 		unit.health_bar.update_mp(unit.current_mana, unit.max_mana)
 		unit.health_bar.update_ult(0, unit.ultimate_charge_max)
 		unit.health_bar.update_shield(0, unit.max_hp)
-	if unit.has_method("rebuild_sprite"):
+	if unit.is_inside_tree() and unit.has_method("rebuild_sprite"):
 		unit.rebuild_sprite()
 	return true
 
@@ -1231,7 +1307,7 @@ static func create_ant_hill(lvl: int = 1) -> VisualUnit:
 	u.unit_class      = UnitBase.UnitClass.ANT_HILL
 	# Elite-sized growth (2026-07-12) — see the Hill Giant note. HP/regen only:
 	# the hill's threat is its ant swarm, not its own damage.
-	u.growth_base     = {"hp": 200, "mana": 0, "atk": 10, "magic": 0, "res": 1, "aspd": 0.0, "hpregen": 0.2, "manaregen": 0.0}
+	u.growth_base     = {"hp": 50, "mana": 0, "atk": 10, "magic": 0, "res": 4, "aspd": 0.0, "hpregen": 6.0, "manaregen": 0.0}
 	u.current_element = UnitBase.Element.EARTH
 	u.is_player_unit  = false
 	u.cell_size       = 2          # a wide mound, not a single-tile creature
@@ -1257,8 +1333,7 @@ static func create_ant_hill(lvl: int = 1) -> VisualUnit:
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "ant_hill")
 	u.set_meta("passive_name", "Swarm")
-	u.set_meta("passive_desc", "Spawns an Ant every %.1fs (up to %d alive). Every Ant bite makes every Ant hit harder, with no cap. Kill the hill fast." % [
-		Balance.ANT_HILL_SPAWN_INTERVAL, Balance.ANT_HILL_MAX_ANTS])
+	u.set_meta("passive_desc", u.ant_hill_swarm_description())
 	u.is_elite        = true
 	u.tenacity        = TENACITY_ELITE
 	u.ultimate_charge_max = 0     # no skill/ultimate — purely the passive spawn behavior
@@ -1285,7 +1360,13 @@ static func create_gale_warden(lvl: int = 1) -> VisualUnit:
 	# no MONK hero passive can leak in (see AutoBattleManager._use_skill).
 	u.unit_class      = UnitBase.UnitClass.MONK
 	# Elite-sized growth — same shape as the Stat Stealer's (see its note).
-	u.growth_base     = {"hp": 150, "mana": 15, "atk": 3, "magic": 3, "res": 1, "aspd": 0.01, "hpregen": 0.1, "manaregen": 0.1}
+	# FLOCK (2026-09-28, owner design): the Gale Warden is now one bird of a
+	# flock — 4 / 6 / 8 birds on Normal / Veteran / Brutal (WaveScaler.
+	# GALE_FLOCK_SIZE). One bird = a quarter of the old single elite's HP, attack
+	# and growth, so the Normal fight keeps the old total toughness and damage,
+	# spread across four bodies. That also answers the old note below: a lone
+	# 1×1 needed a huge HP pool to last; a flock lasts by being several targets.
+	u.growth_base     = {"hp": 38, "mana": 15, "atk": 0.75, "magic": 0.75, "res": 1, "aspd": 0.01, "hpregen": 0.1, "manaregen": 0.1}
 	u.current_element = UnitBase.Element.AIR
 	u.is_player_unit  = false
 	# Tuned against the same ~7-hero level-8 team the Ant Hill was tuned for at
@@ -1295,12 +1376,12 @@ static func create_gale_warden(lvl: int = 1) -> VisualUnit:
 	# spawner does, because the Hill's real HP pool is its ant stream. Raised bulk
 	# to close most of that gap while keeping the dodge-not-soak identity — armor
 	# stays deliberately low and the staying power comes from evasion instead.
-	u.max_hp          = 7500
-	u.current_hp      = 7500
+	u.max_hp          = 1875       # 7500 / 4 — see the FLOCK note above
+	u.current_hp      = 1875
 	u.max_mana        = 200
 	u.current_mana    = 200
-	u.attack_damage   = 85
-	u.magic_power     = 30
+	u.attack_damage   = 22         # ~85 / 4
+	u.magic_power     = 8
 	u.resistance      = 34         # low armor — it dodges instead of soaking
 	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 1.5
@@ -1308,25 +1389,41 @@ static func create_gale_warden(lvl: int = 1) -> VisualUnit:
 	u.mana_regen      = 1.5
 	u.movement_speed  = 5          # fast — it closes and repositions
 	u.attack_range    = 1
-	u.gold_reward     = 45
-	u.crystal_reward  = 2
-	u.xp_reward       = 130
+	u.gold_reward     = 12         # ~45 / 4
+	u.crystal_reward  = 1          # was 2 for the lone elite; a Normal flock now pays 4 (flagged to owner)
+	u.xp_reward       = 33         # ~130 / 4
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "gale_warden")
 	u.is_elite        = true
 	u.tenacity        = TENACITY_ELITE
 	# Reuses the player-equipment evasion roll — enemies read the same dict.
 	u.equipment_passives["Evasion"] = GALE_WARDEN_EVASION
-	u.set_meta("passive_name", "Windborne")
-	u.set_meta("passive_desc", "%d%% of direct hits against it miss entirely." % roundi(GALE_WARDEN_EVASION * 100.0))
+	u.set_meta("passive_name", "Vengeful Flock")
+	# Static summary (roster / browser screens). In battle the details panel
+	# shows the LIVE version: AutoBattleManager.gale_flock_description().
+	u.set_meta("passive_desc", ("%d%% of direct hits against it miss. Always flying; the flock spreads across your team. " \
+		+ "When a bird falls, the rest lose their dodge for %ds and the whole flock hunts its killer for %ds; " \
+		+ "another death renews the hunt on the same hero.") \
+		% [roundi(GALE_WARDEN_EVASION * 100.0), roundi(AutoBattleManager.GALE_SCATTER_TIME),
+			roundi(AutoBattleManager.GALE_HUNT_TIME)])
+	u.set_meta("mob_passive", "gale_flock")
+	# FLIGHT (2026-10-06, owner design): the birds never stop moving — they
+	# circle their target, strike on the pass and dive over it (AutoBattleManager
+	# _tick_fly). They share squares instead of claiming them: the nonblocking
+	# grid layer, so a bird flies over a hero without taking its cell, and is
+	# still hit, splashed and inspected there.
+	u.set_meta("move_layer", {"mode": "fly"})
+	u.set_meta("phase_through_units", true)
+	u.set_meta("flier", true)          # VisualUnit: hover height, wingbeat loop, banking
 
 	u.set_meta("mob_skill", "gale_shove")
 	u.skill_name = "Cyclone Shove"
-	u.skill_description = "Deal 140% ATK and physically shove the target one tile further away. · 7s CD"
+	u.skill_description = ("Winds up, then deals 140%% ATK to its target and shoves it one tile on. " \
+		+ "A shoved hero can't be shoved again for %ds. · 4s CD") % roundi(AutoBattleManager.GALE_SHOVE_LOCKOUT)
 	u.skill_damage_multiplier = 1.4
 	u.skill_range = 1
-	u.skill_cooldown_max = 7
-	u.skill_mana_cost = 45
+	u.skill_cooldown_max = 4
+	u.skill_mana_cost = 0
 
 	u.ultimate_charge_max = 0     # no ultimate — the skill IS the signature
 
@@ -1350,6 +1447,7 @@ static func create_tidecaller(lvl: int = 1) -> VisualUnit:
 	u.growth_base     = {"hp": 150, "mana": 15, "atk": 2, "magic": 4, "res": 1, "aspd": 0.01, "hpregen": 0.1, "manaregen": 0.1}
 	u.current_element = UnitBase.Element.WATER
 	u.is_player_unit  = false
+	u.cell_size       = 2          # the decade's elite reads as big as its bosses (owner 2026-10-04)
 	# Tuned against the ~9-hero level-12 team the Stat Stealer was measured with
 	# at round 25 (its encounter ran ~67s; waves 24/26 run ~44s/~77s). Bulk sits
 	# high for a support because the whole encounter is "can you reach it" — but
@@ -1387,7 +1485,17 @@ static func create_tidecaller(lvl: int = 1) -> VisualUnit:
 	u.skill_cooldown_max = 7
 	u.skill_mana_cost = 55
 
-	u.ultimate_charge_max = 0     # no ultimate — passive + skill are the kit
+	# Call of the Reef runs on the battle clock, independently of damage/mana.
+	u.ultimate_charge_max = 0
+	u.ultimate_charge = 0
+	u.ultimate_ready = false
+	u.ultimate_name = ""
+	u.set_meta("passive_name", "Tide Font / Call of the Reef")
+	u.set_meta("passive_desc", str(u.get_meta("passive_desc")) + "\nCall of the Reef: " +	("Every 8s, raises %d Coral Husks behind it (up to %d alive). They rise at half health and " \
+		+ "mend to full over %ds — cut them down while they are soft. They fight on after it falls, and its Tide " \
+		+ "Font and Tidal Ward keep them standing.") \
+		% [AutoBattleManager.REEF_CALL_COUNT, AutoBattleManager.REEF_CALL_MAX_ALIVE,
+			int(AutoBattleManager.REEF_CALL_HEAL_TIME)])
 
 	if lvl > 1: u.set_level(lvl)
 	return u
@@ -1405,7 +1513,7 @@ static func create_terracotta_colossus(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Terracotta Colossus"
 	u.unit_class      = UnitBase.UnitClass.WARRIOR   # stats/sprite host; see the Gale Warden note
-	u.growth_base     = {"hp": 200, "mana": 0, "atk": 6, "magic": 0, "res": 2, "aspd": 0.0, "hpregen": 0.15, "manaregen": 0.0}
+	u.growth_base     = {"hp": 200, "mana": 0, "atk": 8, "magic": 0, "res": 4, "aspd": 0.0, "hpregen": 0.10, "manaregen": 0.0}
 	u.current_element = UnitBase.Element.EARTH
 	u.is_player_unit  = false
 	u.cell_size       = 2          # a 2×2 wall — the decade's anchor silhouette
@@ -1422,7 +1530,7 @@ static func create_terracotta_colossus(lvl: int = 1) -> VisualUnit:
 	u.attack_speed    = 0.7        # slow, heavy swings
 	u.hp_regen        = 1.0
 	u.mana_regen      = 0.0
-	u.movement_speed  = 2
+	u.movement_speed  = 3
 	u.attack_range    = 1
 	u.gold_reward     = 55
 	u.crystal_reward  = 2
@@ -1434,18 +1542,35 @@ static func create_terracotta_colossus(lvl: int = 1) -> VisualUnit:
 
 	u.set_meta("mob_passive", "terracotta_harden")
 	u.set_meta("passive_name", "Set in Stone")
-	u.set_meta("passive_desc", "Gains +%d armor every second it lives, up to +%d. Kill it fast." % [
-		int(AutoBattleManager.TERRACOTTA_ARMOR_PER_SEC), int(AutoBattleManager.TERRACOTTA_ARMOR_CAP)])
-	u.ultimate_charge_max = 0     # no skill/ultimate — the hardening passive IS the kit
+	u.set_meta("passive_desc", ("Gains +%d armor every second it lives, up to +%d. Kill it fast. " \
+		+ "Water and Air hits erode %d of that armor each — the wet clay crumbles.") % [
+		int(AutoBattleManager.TERRACOTTA_ARMOR_PER_SEC), int(AutoBattleManager.TERRACOTTA_ARMOR_CAP),
+		int(UnitBase.TERRACOTTA_ERODE_ARMOR)])
+	# WEIGHT OF STONE (2026-09-30, owner design): a RANGED skill — it tears a
+	# boulder-sized plate off its own armour and hurls it across the board at the
+	# hero who has ERODED it the most (else the nearest). It starts light and grows
+	# with the armour it has stacked, so "kill it fast" has a second reason — it
+	# gets tankier AND heavier. The twist: bringing Water/Air to hold its armor
+	# down makes YOU the target, so whoever does the eroding takes the boulder.
+	u.set_meta("mob_skill", "terracotta_slam")
+	u.skill_name = "Weight of Stone"
+	u.skill_damage_multiplier = 1.2
+	u.skill_range = 10            # anywhere on the board — it is thrown
+	u.skill_cooldown_max = 7      # owner-set 2026-09-30 (was 8)
+	u.skill_mana_cost = 0
+	u.skill_description = "Hurls a boulder of its own armor at the hero who has eroded it most (else the nearest): 120" \
+		+ "% ATK plus " + str(int(AutoBattleManager.TERRACOTTA_SLAM_PER_ARMOR)) \
+		+ " damage for every point of armor it has gained. · 7s CD"
+	u.ultimate_charge_max = 0     # no ultimate — the skill + hardening passive are the kit
 
 	if lvl > 1: u.set_level(lvl)
 	return u
 
 # ── Magma Heart (elite — owns round 45, the FIRE decade) ────────────────────
 # The Fire decade's mini-boss (2026-07-27 elemental-elite pass). Stationary and
-# harmless in melee — it has no attack at all. Its entire threat is "Eruption":
-# every few seconds it burns the ENTIRE enemy team at once, and each pulse burns
-# hotter than the last (see AutoBattleManager's magma_pulse passive). There is no
+# harmless in melee — it has no basic attack. Its entire threat is "Eruption":
+# every few seconds a fast tile wave hits the ENTIRE enemy team once, and each
+# pulse arrives sooner than the last (see the magma_pulse passive). There is no
 # positioning answer and nothing to dodge — the only counterplay is killing it
 # before the pulses outscale your healing. That makes it the decade's pure race
 # check, and it's why the escalation is capped: an unbounded ramp would stop
@@ -1454,7 +1579,7 @@ static func create_magma_heart(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Magma Heart"
 	u.unit_class      = UnitBase.UnitClass.BLACK_MAGE   # stats/sprite host; see the Gale Warden note
-	u.growth_base     = {"hp": 220, "mana": 0, "atk": 0, "magic": 6, "res": 2, "aspd": 0.0, "hpregen": 0.15, "manaregen": 0.0}
+	u.growth_base     = {"hp": 220, "mana": 0, "atk": 0, "magic": 4, "res": 2, "aspd": 0.0, "hpregen": 0.15, "manaregen": 0.0}
 	u.current_element = UnitBase.Element.FIRE
 	u.is_player_unit  = false
 	u.cell_size       = 2          # a 2×2 vent in the ground, not a creature
@@ -1464,7 +1589,7 @@ static func create_magma_heart(lvl: int = 1) -> VisualUnit:
 	u.max_mana        = 0
 	u.current_mana    = 0
 	u.attack_damage   = 0          # no attack whatsoever — the pulse is the kit
-	u.magic_power     = 150        # scales the burn (see MAGMA_PULSE_* knobs)
+	u.magic_power     = 150        # scales each fixed pulse hit (see MAGMA_PULSE_* knobs)
 	u.resistance      = 40
 	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.1
@@ -1482,22 +1607,18 @@ static func create_magma_heart(lvl: int = 1) -> VisualUnit:
 
 	u.set_meta("mob_passive", "magma_pulse")
 	u.set_meta("passive_name", "Eruption")
-	u.set_meta("passive_desc", "Every %ds it burns your whole team, each pulse hotter than the last (+%d%% MAG burn per pulse, up to %d pulses). It has no attack." % [
-		int(AutoBattleManager.MAGMA_PULSE_INTERVAL), roundi(AutoBattleManager.MAGMA_PULSE_DPS_PCT * 100.0),
-		AutoBattleManager.MAGMA_PULSE_MAX_STACKS])
+	u.set_meta("passive_desc", AutoBattleManager.magma_pulse_description(u))
 	u.ultimate_charge_max = 0     # no skill/ultimate — the pulse passive IS the kit
 
 	if lvl > 1: u.set_level(lvl)
 	return u
 
 # ── Tempest Conduit (elite — owns round 55, the LIGHTNING decade) ───────────
-# The Lightning decade's mini-boss (2026-07-27 elemental-elite pass). Its
-# "Chain Discharge" strikes one hero and then arcs outward to every hero packed
-# near the one before it — so the damage it does is a direct function of how
-# tightly the player's formation is bunched. Spread out and it's an ordinary
-# bruiser; clump up (which every other wave rewards, since clumping protects
-# your backline) and it hits the whole team at once. It's the only elite whose
-# difficulty the player sets themselves, at placement time, before the fight.
+# Living Storm (2026-10-05 owner-approved redesign). A floating armored serpent
+# Six-cell snake draws harmless circuits behind its tail as it travels.
+# Warnings and magic tail autos run while it moves; every third circuit
+# sweeps farther and recharges the last two spent paths.
+# Pathfinding, timing, warning-cell coverage and damage live in TempestCircuit.
 static func create_tempest_conduit(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Tempest Conduit"
@@ -1511,7 +1632,7 @@ static func create_tempest_conduit(lvl: int = 1) -> VisualUnit:
 	u.max_mana        = 300
 	u.current_mana    = 300
 	u.attack_damage   = 150
-	u.magic_power     = 190        # scales the arc (see TEMPEST_ARC_* knobs)
+	u.magic_power     = 190        # scales circuit discharge (TempestCircuit knobs)
 	u.resistance      = 38
 	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 1.1
@@ -1524,18 +1645,24 @@ static func create_tempest_conduit(lvl: int = 1) -> VisualUnit:
 	u.xp_reward       = 200
 	u.sprite_variant  = 0
 	u.set_meta("sprite_folder", "tempest_conduit")
+	u.set_meta("segmented_snake", true)
+	u.set_meta("phase_through_units", true) # Shares hero cells without pushing or blocking them.
+	u.set_meta("tempest_feeding", true)
+	u.set_meta("rift_banish_immune", true) # Tear still deals damage; never teleports this snake.
 	u.is_elite        = true
 	u.tenacity        = TENACITY_ELITE
 
-	u.set_meta("mob_skill", "tempest_arc")
-	u.skill_name = "Chain Discharge"
-	u.skill_description = "Lightning arcs hero to hero, up to 5 links, dealing 100% MAG and losing 25% per jump. · 6s CD"
+	u.set_meta("mob_skill", "tempest_circuit")
+	u.skill_name = "Lay the Circuit"
+	u.skill_description = "Always active. Every 3 steps leaves a circuit behind its tail: after a 1.1s warning, marked cells discharge for 100% MAG. Every third circuit is Storm Surge: 6 steps, then a 1.4s warning before the new circuit and last two circuits discharge for 160% MAG. Each hero is hit once. Keeps moving during every warning."
+	u.set_meta("passive_name", "Living Storm")
+	u.set_meta("passive_desc", "A head, four body sections and a tail occupy six connected cells. Any section can be attacked; all share one HP pool. Moves through occupied cells without pushing or blocking other units. Always slithers while its tail fires basic lightning bolts for 100% MAG using attack speed and range. Spent circuits stay dim until Storm Surge. Trails do no continuous damage. Immune to Rift's Tear teleport; still takes its damage.")
 	u.skill_damage_multiplier = 1.0
 	u.skill_range = 6
-	u.skill_cooldown_max = 6
-	u.skill_mana_cost = 60
+	u.skill_cooldown_max = 0
+	u.skill_mana_cost = 0
 
-	u.ultimate_charge_max = 0     # no ultimate — the chain IS the signature
+	u.ultimate_charge_max = 0     # Storm Surge is every third circuit, not a charge-bar ult
 
 	if lvl > 1: u.set_level(lvl)
 	return u
@@ -1589,7 +1716,8 @@ static func create_mirrorplate_warden(lvl: int = 1) -> VisualUnit:
 	# strictly-bigger round-95 elite was winnable — the reflect, not the body, was
 	# doing the killing. 15% keeps it a real overkill tax without out-scaling.
 	u.set_meta("mob_reflect", 0.15)
-	u.set_meta("passive_name", "Mirrorplate")
+	u.set_meta("mob_passive", "mirror_warden")
+	u.set_meta("passive_name", "Mirrorplate / Shatter")
 	u.set_meta("passive_desc", "Throws 15%% of every hit it takes back at the attacker (at most %.1f%% of the attacker's max HP per hit). The reflect can never kill." \
 			% (AutoBattleManager.MIRROR_REFLECT_MAX_HP_PCT * 100.0))
 	u.ultimate_charge_max = 0     # no skill/ultimate — the reflect IS the kit
@@ -1597,15 +1725,8 @@ static func create_mirrorplate_warden(lvl: int = 1) -> VisualUnit:
 	if lvl > 1: u.set_level(lvl)
 	return u
 
-# ── Aspect Devourer (elite — owns round 95, the capstone before wave 100) ────
-# 2026-07-27 elemental-elite pass. The last encounter before the final boss, and
-# a deliberate exam on the system the whole run has been teaching: every
-# ASPECT_CYCLE_INTERVAL seconds it DEVOURS a new element, swapping current_element
-# and re-deriving its affinity profile with it (see the aspect_devour passive).
-# A mono-element team watches its damage swing between strong and awful on a
-# timer it doesn't control; a team carrying mixed damage types barely notices.
-# The swap is announced in the action log so it always reads as telegraphed
-# rather than random.
+# ── Aspect Devourer (wave-75 elite) ─────────────────────────────────────
+# Six matching-element vulnerability phases, with pounce into cone breath.
 static func create_aspect_devourer(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Aspect Devourer"
@@ -1637,8 +1758,8 @@ static func create_aspect_devourer(lvl: int = 1) -> VisualUnit:
 
 	u.set_meta("mob_passive", "aspect_devour")
 	u.set_meta("passive_name", "Devour Aspect")
-	u.set_meta("passive_desc", "Every %ds it devours a new element and becomes it, changing what hurts it. Mixed damage types handle it best." % int(AutoBattleManager.ASPECT_CYCLE_INTERVAL))
-	u.ultimate_charge_max = 0     # no skill/ultimate — the element cycle IS the kit
+	u.set_meta("passive_desc", "Every %ds cycles Normal → Fire → Water → Earth → Air → Lightning. Only matching-element damage can hurt HP or shields, including true damage and DoTs. Halfway through each phase: telegraphed Aspect Pounce toward the farthest hero, then a cone Aspect Breath." % int(AutoBattleManager.ASPECT_CYCLE_INTERVAL))
+	u.ultimate_charge_max = 0     # passive controller owns phase, pounce, and breath timing
 
 	if lvl > 1: u.set_level(lvl)
 	return u
@@ -1661,10 +1782,13 @@ static func create_aspect_devourer(lvl: int = 1) -> VisualUnit:
 # intercept in UnitBase/VisualUnit.
 const KHAGAN_PHASE_2 := {
 	"name": "Dismounted", "unit_class": UnitBase.UnitClass.MONK, "element": UnitBase.Element.AIR,
-	"hp_mult": 0.70, "mana_mult": 1.0, "atk_mult": 1.25, "magic_mult": 1.0, "res_mult": 0.55,
+	"hp_mult": 1.0, "mana_mult": 1.0, "atk_mult": 1.25, "magic_mult": 3.0, "res_mult": 0.55,
 	"aspd_mult": 1.4, "hpregen_mult": 1.0, "manaregen_mult": 1.0,
-	"move": 4, "range": 1,
-	"skill_name": "Flowing Strikes", "skill_dmg": 1.4, "skill_range": 1, "skill_cd": 3, "skill_mana": 0,
+	"move": 4, "range": 8,   # ranged magic ink spit while it flees (2026-10-03)
+	# Ink Cloud (2026-10-03): lobbed at the highest damage dealer on an uninked tile — see AutoBattleManager
+	# "Khagan's kit". Damage-free; the blind is the threat.
+	"skill_name": "Ink Cloud", "skill_dmg": 0.0, "skill_range": 99, "skill_cd": 0, "skill_mana": 0,
+	"skill_desc": "Lobs ink at your highest damage dealer on an uninked tile. If all heroes are inked, chooses an empty uninked tile. Every hero in the 3×3 splash is Blinded for 3s: half their hits miss. Ink adds 1 poison stack on impact and each second inside: 10 damage/s per stack, lasting 6s after the last stack. · 9s CD",
 }
 
 static func create_khagan(lvl: int = 1) -> VisualUnit:
@@ -1674,16 +1798,16 @@ static func create_khagan(lvl: int = 1) -> VisualUnit:
 	# Boss-sized growth (2026-07-12) — see the Hill Giant note. Deliberately the
 	# gentlest boss table: at boss_level(10)=3 this adds ~500 hp / +8 atk, keeping
 	# wave 10 first-try beatable with no crystal upgrades (the run target).
-	u.growth_base     = {"hp": 250, "mana": 5, "atk": 4, "magic": 2, "res": 1, "aspd": 0.01, "hpregen": 0.15, "manaregen": 0.05}
+	u.growth_base     = {"hp": 300, "mana": 5, "atk": 4, "magic": 2, "res": 1, "aspd": 0.01, "hpregen": 0.15, "manaregen": 0.05}
 	u.current_element = UnitBase.Element.WATER
 	u.is_player_unit  = false
 	u.cell_size       = 2          # riding a turtle mount
-	u.max_hp          = 4000
-	u.current_hp      = 2000
+	u.max_hp          = 6000
+	u.current_hp      = 6000
 	u.max_mana        = 100
 	u.current_mana    = 100
-	u.attack_damage   = 50
-	u.magic_power     = 10
+	u.attack_damage   = 100
+	u.magic_power     = 100
 	u.resistance      = 27
 	u.magic_resist    = u.resistance   # defense split 2026-07-16: start equal, tune later
 	u.attack_speed    = 0.55
@@ -1700,6 +1824,7 @@ static func create_khagan(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Shell Slam"
+	u.ultimate_charge_max = 0   # declares no ultimate — see the Triarch note (2026-09-28)
 	u.skill_description = "Slams its armoured shell into the target for 170% ATK. · 3s CD"
 	u.skill_damage_multiplier = 1.7
 	u.skill_range = 1
@@ -1708,8 +1833,21 @@ static func create_khagan(lvl: int = 1) -> VisualUnit:
 
 	if lvl > 1: u.set_level(lvl)
 	u.set_meta("khagan_phase", 1)
-	u.set_meta("passive_name", "Horde Lord")
-	u.set_meta("passive_desc", "When its mount falls it fights on dismounted, faster and squishier. When that body falls it possesses one of your heroes: survive the timer (or burst the puppet) to win.")
+	u.set_meta("mob_passive", "khagan_kit")   # Sidestep Charge + Dread Gaze (2026-10-03)
+	# Movement layer: after each Sidestep Charge it walks to the lane with the
+	# most heroes (whole board) while the charge bar refills, then charges from
+	# there. "every" 0 = on demand (the kit sends it); > 0 would ALSO roam on a timer.
+	u.set_meta("move_layer", {"mode": "roam", "every": 0.0, "pick": "lane"})
+	u.set_meta("strafe_walk", true)   # a crab walks sideways, it doesn't turn to face the way
+	u.set_meta("passive_name", "Sidestep Charge · Dread Gaze")
+	u.set_meta("passive_desc", "Sidestep Charge (8s): the crab lights a lane in any direction and scuttles down it, hitting every hero for 150% ATK and knocking them up to 4 tiles. A hero slammed into a wall takes another 100% ATK and is stunned. Between charges it walks to the busiest lane. Dread Gaze (10s): the rider stares down the 2 heroes hurting it most, −30% damage for 5s. When the crab falls the rider fights on alone.")
+	# Unit details: one line per move (the 3 fixed slots can't hold this kit).
+	u.set_meta("kit_moves", [
+		{"slot": "ACTIVE", "name": "@skill"},
+		{"slot": "ACTIVE", "name": "Sidestep Charge", "desc": "Lights a lane in any direction, then scuttles down it: 150% ATK to every hero in it, knocking them up to 4 tiles. A hero slammed into a wall takes another 100% ATK and is stunned. Between charges it walks to the busiest lane. · 8s CD"},
+		{"slot": "ACTIVE", "name": "Dread Gaze", "desc": "The rider stares down the 2 heroes that have hurt it most: −30% damage for 5s. · 10s CD"},
+		{"slot": "PASSIVE", "name": "Horde Lord", "desc": "When the crab falls, the rider fights on alone."},
+	])
 	return u
 
 # Called from VisualUnit.die() when Khagan's HP hits 0. Phase 1→2: transforms
@@ -1742,12 +1880,19 @@ static func advance_khagan_phase(unit: VisualUnit) -> bool:
 		# ranged attacks, which don't consult grid occupancy) right where
 		# Khagan dismounted (2026-07-10 user report).
 		var bg: BattleGrid = unit.battle_manager.battle_grid if unit.battle_manager else null
-		var anchor: Vector2i = unit.grid_position
+		var anchor: Vector2i = _khagan_dismount_cell(unit)
+		# Killed mid-step (roaming/chasing): drop the 2×2 move in flight, or its
+		# tween would drag the rider back toward the mounted destination.
+		unit.is_moving = false
+		unit.move_progress = 0.0
+		if unit.battle_manager:
+			unit.battle_manager.unit_paths.erase(unit)
 		if bg:
 			bg.purge_unit(unit)
 		unit.cell_size        = 1   # dismounted — no longer a 2×2 mount
 		if bg:
 			bg.place_unit(unit, anchor)
+			unit.grid_position = anchor
 		unit.max_hp        = maxi(1, int(round(float(base["hp"]) * float(cfg["hp_mult"]))))
 		unit.current_hp    = unit.max_hp
 		unit.max_mana      = maxi(0, int(round(float(base["mana"]) * float(cfg["mana_mult"]))))
@@ -1767,7 +1912,27 @@ static func advance_khagan_phase(unit: VisualUnit) -> bool:
 		unit.skill_range = int(cfg["skill_range"])
 		unit.skill_cooldown_max = int(cfg["skill_cd"])
 		unit.skill_mana_cost = int(cfg["skill_mana"])
-		unit.skill_cd_time = 0.0   # opens with an immediate strike, like the Triarch
+		unit.skill_description = cfg["skill_desc"]
+		unit.set_meta("mob_skill", "khagan_ink")
+		# Knocked off its host, the octopus RUNS (owner 2026-10-03): flee layer +
+		# a weak magic ink spit (magic_power × 1.0; magic_mult 3 makes ~40% of ATK).
+		# keep  = cells it holds from every hero before it runs
+		# every = seconds between scurries to the spot farthest from your team
+		unit.set_meta("move_layer", {"mode": "flee", "keep": 3, "every": 1.0})
+		unit.remove_meta("strafe_walk")   # the octopus turns to run
+		unit.remove_meta("scuttle")
+		unit.remove_meta("ml_dest")
+		unit.set_meta("magic_auto", true)
+		unit.set_meta("magic_auto_mult", 1.0)
+		unit.skill_cd_time = 3.0   # first ink a beat after landing, not on the flash
+		unit.set_meta("passive_name", "Eight Arms")
+		unit.set_meta("kit_moves", [
+			{"slot": "ACTIVE", "name": "@skill"},
+			{"slot": "PASSIVE", "name": "On the Run", "desc": "Keeps 3 tiles from your heroes and darts away every few seconds, spitting magic ink from range."},
+			{"slot": "PASSIVE", "name": "Eight Arms", "desc": "Every attack also lashes up to 2 other heroes beside it for 70%. Corner it."},
+			{"slot": "PASSIVE", "name": "Possession", "desc": "When this body falls it leaps onto one of your heroes and rides them: survive the timer (or burst the puppet) to win."},
+		])
+		unit.set_meta("passive_desc", "Knocked off its mount, it runs: it keeps 3 tiles from your heroes, darts away every few seconds and spits magic ink from range. Eight Arms: every attack also lashes up to 2 other heroes beside it for 70%, so corner it. When this body falls it leaps onto one of your heroes and rides them: survive the timer (or burst the puppet) to win.")
 
 		unit.current_shield = 0
 		unit.attack_cooldown = 0.0
@@ -1794,14 +1959,22 @@ static func advance_khagan_phase(unit: VisualUnit) -> bool:
 		# as the sprite swap — both fire together at the dismount flash peak, so
 		# the ground visibly escalates at the exact moment Khagan changes form,
 		# not at the start of this function's stat/grid math above.
+		# The body node still sits at the CENTRE of the old 2×2 block (the corner
+		# where its four cells meet) — snap it into its one cell under the flash,
+		# or he fights from between squares like he's still mounted (2026-10-03).
 		if unit.has_method("play_dismount_transform"):
 			unit.play_dismount_transform(func():
+				if unit.has_method("_snap_to_grid_cell"):
+					unit._snap_to_grid_cell()
 				if unit.has_method("rebuild_sprite"):
 					unit.rebuild_sprite()
 				if unit.battle_manager and unit.battle_manager.has_method("escalate_khagan_overlay_phase2"):
 					unit.battle_manager.escalate_khagan_overlay_phase2(unit))
-		elif unit.has_method("rebuild_sprite"):
-			unit.rebuild_sprite()
+		else:
+			if unit.has_method("_snap_to_grid_cell"):
+				unit._snap_to_grid_cell()
+			if unit.has_method("rebuild_sprite"):
+				unit.rebuild_sprite()
 		return true
 
 	elif phase == 2:
@@ -1810,6 +1983,27 @@ static func advance_khagan_phase(unit: VisualUnit) -> bool:
 		return false   # Khagan's own body really dies now — the puppet carries the fight
 
 	return false
+
+# Which of the mount's four cells the dismounted rider lands on: the one nearest
+# a living hero, so he doesn't drop out of the melee he was already in.
+static func _khagan_dismount_cell(unit: VisualUnit) -> Vector2i:
+	var o: Vector2i = unit.grid_position
+	var best: Vector2i = o
+	var bm = unit.battle_manager
+	if bm == null or not ("player_units" in bm):
+		return best
+	var best_d: float = INF
+	for dy in range(unit.cell_size):
+		for dx in range(unit.cell_size):
+			var c := o + Vector2i(dx, dy)
+			for h in bm.player_units:
+				if h == null or not is_instance_valid(h) or h.current_hp <= 0:
+					continue
+				var d: float = Vector2(c).distance_to(Vector2(h.grid_position))
+				if d < best_d:
+					best_d = d
+					best = c
+	return best
 
 # ── Skyrender (wave-20 boss — the Air decade capstone) ────────────────
 # Replaces The Triarch at wave 20 (2026-07-27): the Triarch is an archetype
@@ -1839,7 +2033,7 @@ static func create_skyrender(lvl: int = 1) -> VisualUnit:
 	# for the 3-phase Triarch it replaces. A single-phase boss shouldn't match a
 	# three-healthbar fight, but 15s made the decade capstone a footnote next to
 	# its own escort. Retuned to land around ~22s.
-	u.growth_base     = {"hp": 620, "mana": 8, "atk": 9, "magic": 5, "res": 1, "aspd": 0.02, "hpregen": 0.15, "manaregen": 0.08}
+	u.growth_base     = {"hp": 350, "mana": 8, "atk": 6, "magic": 5, "res": 3, "aspd": 0.03, "hpregen": 0.15, "manaregen": 0.08}
 	u.current_element = UnitBase.Element.AIR
 	u.is_player_unit  = false
 	u.cell_size       = 2          # a storm given a body — the decade's big silhouette
@@ -1866,6 +2060,7 @@ static func create_skyrender(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Gale Lance"
+	u.ultimate_charge_max = 0   # declares no ultimate — see the Triarch note (2026-09-28)
 	u.skill_damage_multiplier = 1.35
 	u.skill_range = 3
 	u.skill_cooldown_max = 3
@@ -1879,6 +2074,21 @@ static func create_skyrender(lvl: int = 1) -> VisualUnit:
 		roundi(AutoBattleManager.SKYRENDER_ENRAGE_ASPD * 100.0)])
 	u.set_meta("skyrender_aloft", false)
 	u.set_meta("skyrender_timer", 0.0)
+	u.set_meta("kit_moves", [
+		{"slot": "ACTIVE", "name": "@skill"},
+		{"slot": "PASSIVE", "name": "Cyclone Ascent", "desc": "Grounded for %ds, then takes to the sky for %ds, where melee can't reach it." % [
+			int(AutoBattleManager.SKYRENDER_GROUND_TIME), int(AutoBattleManager.SKYRENDER_ALOFT_TIME)]},
+		{"slot": "ACTIVE", "name": "The Long Fall", "desc": "Every take-off: swoops onto your top damage dealer, flies them to the edge and throws them off the board. They don't come back -- kill it before it takes your whole team."},
+		{"slot": "ACTIVE", "name": "Downdraft", "desc": "While aloft, every %ds: a wingbeat slams the area under it for %d%% ATK and slows by %d%%." % [
+			int(AutoBattleManager.DOWNDRAFT_EVERY), roundi(AutoBattleManager.DOWNDRAFT_DMG * 100.0), roundi(AutoBattleManager.DOWNDRAFT_SLOW * 100.0)]},
+		{"slot": "ACTIVE", "name": "Storm Dive", "desc": "Ends each flight by marking your tightest group, then crashing down on it: %d%% ATK and thrown %d tiles outward. It lands there." % [
+			roundi(AutoBattleManager.STORM_DIVE_DMG * 100.0), AutoBattleManager.STORM_DIVE_KNOCK]},
+		{"slot": "PASSIVE", "name": "Gust of Wind", "desc": "Below %d%% HP: +%d%% damage and +%d%% attack speed." % [
+			roundi(AutoBattleManager.SKYRENDER_ENRAGE_HP_PCT * 100.0), roundi(AutoBattleManager.SKYRENDER_ENRAGE_DMG * 100.0),
+			roundi(AutoBattleManager.SKYRENDER_ENRAGE_ASPD * 100.0)]},
+	])
+	u.set_meta("hit_feathers", true)          # feathers knocked loose on hits
+	u.set_meta("shadow_follows_toss", true)   # shadow tracks the aerial-snatch swoop
 
 	if lvl > 1: u.set_level(lvl)
 	return u
@@ -1906,7 +2116,7 @@ static func create_drowned_maw(lvl: int = 1) -> VisualUnit:
 	# upgrades". Attrition boss: a deep HP pool is the POINT here, unlike the
 	# Triarch note about pools just making grinds, because the aura is what makes
 	# the grind dangerous rather than merely long.
-	u.growth_base     = {"hp": 700, "mana": 0, "atk": 10, "magic": 4, "res": 1, "aspd": 0.015, "hpregen": 0.3, "manaregen": 0.0}
+	u.growth_base     = {"hp": 700, "mana": 0, "atk": 14, "magic": 2, "res": 1, "aspd": 0.013, "hpregen": 2.0, "manaregen": 0.0}
 	u.current_element = UnitBase.Element.WATER
 	u.is_player_unit  = false
 	u.cell_size       = 2
@@ -1932,17 +2142,26 @@ static func create_drowned_maw(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Undertow"
-	u.skill_damage_multiplier = 1.5
+	u.ultimate_charge_max = 0   # declares no ultimate — see the Triarch note (2026-09-28)
+	u.skill_damage_multiplier = 2.5
 	u.skill_range = 1
 	u.skill_cooldown_max = 4
 	u.skill_mana_cost = 0
 	# Built by concatenation, not the % operator — the literal "150% ATK" in the
 	# text is itself a format specifier and makes `%` throw a parse error.
-	u.skill_description = "Crushing bite for 150% ATK. · 4s CD"
+	u.skill_description = "Crushing bite for 250% ATK. · 4s CD"
+	# Abyssal Breach (owner design 2026-10-02) runs off the Riptide passive tick
+	# (HP-gated; see AutoBattleManager.MAW_DIVE_THRESHOLDS), so it is described
+	# in the passive text rather than as a mana ultimate it doesn't use.
 	u.set_meta("mob_passive", "drowned_riptide")
-	u.set_meta("passive_name", "Riptide")
-	u.set_meta("passive_desc", "While it lives, all healing your team receives is cut to %d%%." \
-			% roundi(AutoBattleManager.DROWNED_HEAL_MULT * 100.0))
+	u.set_meta("passive_name", "Riptide · Abyssal Breach")
+	u.set_meta("passive_desc", ("While it lives, all healing your team receives is cut to %d%%. "
+			+ "At 70%%, 40%% and 10%% HP it dives beneath the board (untouchable, only its lure "
+			+ "showing) and erupts under your top damage dealer: heavy damage + knockback in the "
+			+ "2×2, then a shockwave across the 4×4. Each dive hardens it: +%d%% armor and +%d%% "
+			+ "attack, but its magic resist never rises — magic is its weakness.") \
+			% [roundi(AutoBattleManager.DROWNED_HEAL_MULT * 100.0),
+			roundi(AutoBattleManager.MAW_DIVE_ARMOR_GAIN * 100.0), roundi(AutoBattleManager.MAW_DIVE_ATK_GAIN * 100.0)])
 
 	if lvl > 1: u.set_level(lvl)
 	return u
@@ -1991,13 +2210,14 @@ static func create_cloven_titan(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Fault Line"
+	u.ultimate_charge_max = 0   # declares no ultimate — see the Triarch note (2026-09-28)
 	u.skill_damage_multiplier = 1.6
 	u.skill_range = 1
 	u.skill_cooldown_max = 4
 	u.skill_mana_cost = 0
-	u.skill_description = "Splitting overhead blow for 160% ATK. · 4s CD"
-	u.set_meta("passive_name", "Split in Two")
-	u.set_meta("passive_desc", "On death it breaks into two halves (%d%% of its max HP each) that fight on." \
+	u.skill_description = "The fused guardians hammer a fault into their victim. A heavy single-target strike for 160% ATK. · 4s CD"
+	u.set_meta("passive_name", "Fracture / Split in Two")
+	u.set_meta("passive_desc", "Each landed attack from the intact Titan reduces the victim's armor and magic resistance by 5 for the rest of the fight (minimum 0). Break it to free the Cloven Fist and Cloven Heart (%d%% HP each): the fist attacks while the heart retreats and repairs it with a finite reserve." \
 			% roundi(AutoBattleManager.CLOVEN_HALF_HP * 100.0))
 	u.set_meta("cloven_split", true)
 
@@ -2012,12 +2232,8 @@ static func create_cloven_titan(lvl: int = 1) -> VisualUnit:
 # either Heart still burns, killing the body only banks it: it revives once at
 # EMBERHOLLOW_REVIVE_HP. Kill both Hearts first and the body stays down.
 #
-# The reason this is fair here when a "kill the healer" check would not be: the
-# Hearts are placed as FRONT-row units, so they stand BETWEEN the player and the
-# boss. Nearest-enemy targeting (the only targeting this game has) sends the
-# team into them automatically. The player never has to issue an order — the
-# geometry answers the question for them, and the fight just reads as a
-# two-stage set-piece. Design geometry, not orders.
+# The body starts in the forward centre; two stationary Hearts flank it.
+# Each Heart retreats to its rear tile once, at half its own HP.
 static func create_ember_heart(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Ember Heart"
@@ -2036,7 +2252,7 @@ static func create_ember_heart(lvl: int = 1) -> VisualUnit:
 	u.attack_speed    = 0.45
 	u.hp_regen        = 0.0
 	u.mana_regen      = 0.0
-	u.movement_speed  = 1          # a brazier on stubby legs
+	u.movement_speed  = 0          # fixed on its tile; retreats once at half HP
 	u.attack_range    = 1
 	u.gold_reward     = 0
 	u.crystal_reward  = 0
@@ -2046,13 +2262,14 @@ static func create_ember_heart(lvl: int = 1) -> VisualUnit:
 	u.set_meta("ember_heart", true)   # read by the Emberhollow revive check
 
 	u.skill_name = "Cinder Spit"
+	u.ultimate_charge_max = 0   # declares no ultimate — see the Triarch note (2026-09-28)
 	u.skill_damage_multiplier = 1.1
 	u.skill_range = 2
 	u.skill_cooldown_max = 4
 	u.skill_mana_cost = 0
 	u.skill_description = "Coughs an ember for 110% ATK. · 4s CD"
 	u.set_meta("passive_name", "Kindling")
-	u.set_meta("passive_desc", "While any Ember Heart still burns, Emberhollow can return from death once.")
+	u.set_meta("passive_desc", "Stays fixed on its tile. At half its own health, vanishes and reappears behind Emberhollow with its remaining HP. While any Ember Heart still burns, Emberhollow can return from death once.")
 
 	if lvl > 1: u.set_level(lvl)
 	return u
@@ -2087,6 +2304,7 @@ static func create_emberhollow(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Backdraft"
+	u.ultimate_charge_max = 0   # declares no ultimate — see the Triarch note (2026-09-28)
 	u.skill_damage_multiplier = 1.5
 	u.skill_range = 1
 	u.skill_cooldown_max = 4
@@ -2101,14 +2319,11 @@ static func create_emberhollow(lvl: int = 1) -> VisualUnit:
 	return u
 
 # ── Arcfang (wave-60 boss — the Lightning decade capstone) ───────────────────
-# The question: is your carry protected? Thunder Run teleports it beside whoever
-# is dealing the most damage on your side every ARCFANG_BLINK_INTERVAL seconds,
-# straight past whatever frontline you built (see _arcfang_blink).
-#
-# Distinct from the round-55 Tempest Conduit, which chains between ADJACENT
-# heroes and punishes clumping — Arcfang punishes the opposite arrangement, a
-# carry left alone in open space. The two Lightning encounters therefore pull
-# your formation in different directions instead of asking the same thing twice.
+# The Storm That Hunts: mark recent damage leader -> charge -> teleport and
+# pursue -> Spent Storm vulnerability. Last Howl adds one warned second prey.
+# Tempest (55) owns moving circuits; this wolf owns a committed single-target
+# hunt that rewards bodyguards, shielding, taunt, and burst during recovery.
+# Controller: ArcfangHunt. The Architect retains its separate legacy blink.
 #
 # Statline is a glass cannon by boss standards: it hits hard and fast but has the
 # thinnest pool and armour of any decade boss, because it deliberately puts
@@ -2142,16 +2357,16 @@ static func create_arcfang(lvl: int = 1) -> VisualUnit:
 	u.is_boss         = true
 	u.tenacity        = TENACITY_BOSS
 
-	u.skill_name = "Sunder Bite"
+	u.skill_name = "Thunderjaw"
+	u.ultimate_charge_max = 0   # declares no ultimate — see the Triarch note (2026-09-28)
 	u.skill_damage_multiplier = 1.45
 	u.skill_range = 1
 	u.skill_cooldown_max = 3
 	u.skill_mana_cost = 0
-	u.skill_description = "Savage bite for 145% ATK. · 3s CD"
+	u.skill_description = "Clamps down for 95% ATK physical damage, then snaps lightning for 50% ATK magic damage after 0.6s if the target remains in reach. Shields and defenses apply to each hit. · 3s CD"
 	u.set_meta("mob_passive", "arcfang_blink")
-	u.set_meta("passive_name", "Thunder Run")
-	u.set_meta("passive_desc", "Every %ds it flashes across the field beside your strongest attacker, past your frontline." \
-			% int(AutoBattleManager.ARCFANG_BLINK_INTERVAL))
+	u.set_meta("passive_name", "The Storm That Hunts")
+	u.set_meta("passive_desc", "The thunder is his footfall. By the time you hear it, he has chosen you.\n\nEye of the Storm: every 10s, marks the living hero with the most damage since the last mark (ATK breaks a no-damage tie). Charges for 1.5s, then Thunder Run flashes beside the prey and pursues for 4s. Taunt overrides pursuit.\n\nSpent Storm: recovers without attacking or moving for 2s; armor and magic resist fall by 40%.\n\nLast Howl: once below 40% HP, the next completed hunt adds a fully warned second hunt against a different hero, then a 3s recovery. No additional prey means immediate recovery.")
 	u.set_meta("arcfang_timer", 0.0)
 
 	if lvl > 1: u.set_level(lvl)
@@ -2196,6 +2411,7 @@ static func create_gravekeeper(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Grave Toll"
+	u.ultimate_charge_max = 0   # declares no ultimate — see the Triarch note (2026-09-28)
 	u.skill_damage_multiplier = 1.5
 	u.skill_range = 1
 	u.skill_cooldown_max = 4
@@ -2256,6 +2472,7 @@ static func create_the_architect(lvl: int = 1) -> VisualUnit:
 	u.tenacity        = TENACITY_BOSS
 
 	u.skill_name = "Cornerstone"
+	u.ultimate_charge_max = 0   # declares no ultimate — see the Triarch note (2026-09-28)
 	u.skill_damage_multiplier = 1.7
 	u.skill_range = 2
 	u.skill_cooldown_max = 4
@@ -2270,18 +2487,8 @@ static func create_the_architect(lvl: int = 1) -> VisualUnit:
 	if lvl > 1: u.set_level(lvl)
 	return u
 
-# ── Hydra (wave-30 final boss — player-chosen element) ───────────────────────
-# The player picks which element the Hydra fights as before the battle (see
-# main_game.gd's element-pick screen + WaveScaler.boss_code_for's chosen_element
-# param) — the pick is a matchup/strategy call, not a difficulty toggle; the
-# Hydra hits just as hard whichever element you choose. Its threat scales with
-# TIME instead of HP thresholds like the other bosses: every
-# AutoBattleManager.HYDRA_REGROW_INTERVAL seconds it survives, it grows another
-# head (up to HYDRA_MAX_HEADS) — see AutoBattleManager._hydra_regrow_tick,
-# dispatched every tick from _tick_passive. Each head bites a different nearby
-# target simultaneously on its "Serpent Strike" skill (see the "hydra_strike"
-# case in _use_mob_skill), so a slow fight snowballs into being hit from
-# several sides at once — a DPS race, not a gimmick fight like Khagan/Triarch.
+# ── Hydra (wave-80 boss — player-chosen element) ─────────────────────
+# Three permanent head-health segments and one authored elemental signature.
 const HYDRA_ELEMENT_NAMES := {
 	UnitBase.Element.NORMAL:    "Normal",
 	UnitBase.Element.FIRE:      "Fire",
@@ -2304,7 +2511,7 @@ static func _create_hydra(element: UnitBase.Element, lvl: int = 1) -> VisualUnit
 	u.unit_name       = "%s Hydra" % HYDRA_ELEMENT_NAMES[element]
 	u.unit_class      = UnitBase.UnitClass.HYDRA
 	# Boss-sized growth (2026-07-12) — see the Hill Giant note. The steepest
-	# table in the game: at boss_level(30)=20 (plus the late-wave multiplier)
+	# table in the game: scaled by the wave-80 boss level and late-wave multiplier
 	# the Hydra is MEANT to be unbeatable without crystal upgrades.
 	u.growth_base     = {"hp": 550, "mana": 0, "atk": 9, "magic": 4, "res": 1, "aspd": 0.018, "hpregen": 0.3, "manaregen": 0.0}
 	u.current_element = element
@@ -2333,17 +2540,18 @@ static func _create_hydra(element: UnitBase.Element, lvl: int = 1) -> VisualUnit
 	# (own-element affinity now comes from set_affinity_profile — 2026-07-16)
 
 	u.skill_name = "Serpent Strike"
+	u.ultimate_charge_max = 0   # declares no ultimate — see the Triarch note (2026-09-28)
 	u.skill_damage_multiplier = 1.2
 	u.skill_range = 1
 	u.skill_cooldown_max = 5
 	u.skill_mana_cost = 0
 	u.skill_description = "Each head bites a different nearby target for 120% ATK (scales with own elemental affinity). · 5s CD"
-	u.set_meta("passive_name", "Regrowth")
-	u.set_meta("passive_desc", "Grows another head every %ds it survives, up to %d, and hits a little harder each time." % [
-		int(AutoBattleManager.HYDRA_REGROW_INTERVAL), AutoBattleManager.HYDRA_MAX_HEADS])
+	u.set_meta("passive_name", "Head Health / " + HydraKit.MOVE_NAMES[element])
+	u.set_meta("passive_desc", "Three heads each own one third of its HP. Severed heads stay dead; kill the last head to win. " + HydraKit.MOVE_NAMES[element] + ": " + HydraKit.SUMMARIES[element])
 	u.set_meta("mob_skill", "hydra_strike")
-	u.set_meta("hydra_heads", 1)
-	u.set_meta("hydra_regrow_accum", 0.0)
+	u.set_meta("hydra_signature_t", HydraKit.FIRST)
+	u.set_meta("hydra_heads", HydraKit.HEADS)
+	u.set_meta("hydra_lost_heads", 0)
 
 	if lvl > 1: u.set_level(lvl)
 	return u
@@ -2374,8 +2582,8 @@ static func create_hydra_lightning(lvl: int = 1) -> VisualUnit: return _create_h
 static func create_ogre(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Ogre"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.OGRE
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.EARTH
 	u.is_player_unit  = false
 	u.max_hp          = 900
@@ -2419,8 +2627,8 @@ static func create_ogre(lvl: int = 1) -> VisualUnit:
 static func create_minotaur(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Minotaur"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.MINOTAUR
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.FIRE
 	u.is_player_unit  = false
 	u.max_hp          = 750
@@ -2463,8 +2671,8 @@ static func create_minotaur(lvl: int = 1) -> VisualUnit:
 static func create_gargoyle(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Gargoyle"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.GARGOYLE
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.AIR
 	u.is_player_unit  = false
 	u.max_hp          = 1000
@@ -2513,8 +2721,8 @@ static func create_gargoyle(lvl: int = 1) -> VisualUnit:
 static func create_stone_golem(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Stone Golem"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.STONE_GOLEM
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.EARTH
 	u.is_player_unit  = false
 	u.max_hp          = 1500
@@ -2558,8 +2766,8 @@ static func create_stone_golem(lvl: int = 1) -> VisualUnit:
 static func create_crystal_crab(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Crystal Crab"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.CRYSTAL_CRAB
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.EARTH
 	u.is_player_unit  = false
 	u.max_hp          = 620
@@ -2603,8 +2811,8 @@ static func create_crystal_crab(lvl: int = 1) -> VisualUnit:
 static func create_root_walker(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Root Walker"
-	u.unit_class      = UnitBase.UnitClass.RANGER
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.ROOT_WALKER
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.EARTH
 	u.is_player_unit  = false
 	u.max_hp          = 340
@@ -2660,8 +2868,8 @@ static func create_root_walker(lvl: int = 1) -> VisualUnit:
 static func create_fire_giant(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Fire Giant"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = {"hp": 156, "mana": 3, "atk": 3, "magic": 1, "res": 1, "aspd": 0.01, "hpregen": 0.06, "manaregen": 0.03}
+	u.unit_class      = UnitBase.UnitClass.FIRE_GIANT
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.FIRE
 	u.is_player_unit  = false
 	u.cell_size       = 2          # occupies a 2×2 area — the decade's anchor
@@ -2708,8 +2916,8 @@ static func create_fire_giant(lvl: int = 1) -> VisualUnit:
 static func create_hellhound(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Hellhound"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.HELLHOUND
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.FIRE
 	u.is_player_unit  = false
 	u.max_hp          = 380
@@ -2746,8 +2954,8 @@ static func create_hellhound(lvl: int = 1) -> VisualUnit:
 static func create_ember_phoenix(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Ember Phoenix"
-	u.unit_class      = UnitBase.UnitClass.RANGER
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.EMBER_PHOENIX
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.FIRE
 	u.is_player_unit  = false
 	u.max_hp          = 300
@@ -2803,8 +3011,8 @@ static func create_ember_phoenix(lvl: int = 1) -> VisualUnit:
 static func create_storm_giant(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Storm Giant"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = {"hp": 148, "mana": 3, "atk": 3, "magic": 1, "res": 1, "aspd": 0.01, "hpregen": 0.06, "manaregen": 0.03}
+	u.unit_class      = UnitBase.UnitClass.STORM_GIANT
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.LIGHTNING
 	u.is_player_unit  = false
 	u.cell_size       = 2          # occupies a 2×2 area — the decade's anchor
@@ -2849,8 +3057,8 @@ static func create_storm_giant(lvl: int = 1) -> VisualUnit:
 static func create_storm_crow(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Storm Crow"
-	u.unit_class      = UnitBase.UnitClass.RANGER
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.STORM_CROW
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.LIGHTNING
 	u.is_player_unit  = false
 	u.max_hp          = 260
@@ -2907,8 +3115,8 @@ static func create_storm_crow(lvl: int = 1) -> VisualUnit:
 static func create_sky_wyvern(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Sky Wyvern"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = {"hp": 145, "mana": 3, "atk": 3, "magic": 1, "res": 1, "aspd": 0.01, "hpregen": 0.06, "manaregen": 0.03}
+	u.unit_class      = UnitBase.UnitClass.SKY_WYVERN
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.AIR
 	u.is_player_unit  = false
 	u.cell_size       = 2          # occupies a 2×2 area — the Air decade's anchor
@@ -2957,8 +3165,8 @@ static func create_sky_wyvern(lvl: int = 1) -> VisualUnit:
 static func create_tidepool_horror(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Tidepool Horror"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = {"hp": 158, "mana": 3, "atk": 3, "magic": 1, "res": 1, "aspd": 0.01, "hpregen": 0.06, "manaregen": 0.03}
+	u.unit_class      = UnitBase.UnitClass.TIDEPOOL_HORROR
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.WATER
 	u.is_player_unit  = false
 	u.cell_size       = 2          # occupies a 2×2 area — the Water decade's anchor
@@ -3013,8 +3221,8 @@ static func create_tidepool_horror(lvl: int = 1) -> VisualUnit:
 static func create_harpy(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Harpy"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.HARPY
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.AIR
 	u.is_player_unit  = false
 	u.max_hp          = 300        # frail — it survives by not being hit
@@ -3061,8 +3269,8 @@ static func create_harpy(lvl: int = 1) -> VisualUnit:
 static func create_coral_husk(lvl: int = 1) -> VisualUnit:
 	var u := VisualUnit.new()
 	u.unit_name       = "Coral Husk"
-	u.unit_class      = UnitBase.UnitClass.WARRIOR
-	u.growth_base     = UnitFactory.CLASS_GROWTH_PER_LEVEL.get(u.unit_class, {}).duplicate()
+	u.unit_class      = UnitBase.UnitClass.CORAL_HUSK
+	u.growth_base     = MONSTER_GROWTH_PER_LEVEL[u.unit_class].duplicate()
 	u.current_element = UnitBase.Element.WATER
 	u.is_player_unit  = false
 	u.max_hp          = 480

@@ -34,6 +34,17 @@ func vacuum_all(target: Vector2) -> void:
 			c.start_vacuum(local_target, float(i) * 0.05)
 			i += 1
 
+# Instant, animation-free collect of every drop still on the field (idle OR
+# mid-vacuum) — for a lost round, where the run ends before a vacuum could land.
+# set_process(false) stops a mid-vacuum drop from emitting a second time before
+# queue_free takes effect.
+func collect_all_now() -> void:
+	for c in get_children():
+		if c is FieldDrop and not c.is_queued_for_deletion():
+			c.set_process(false)
+			item_collected.emit(c.payload)
+			c.queue_free()
+
 # Hand-collect: any IDLE drop under the mouse starts vacuuming toward `target`
 # immediately, individually, with no stagger delay. Call every frame with the
 # current mouse position — repeated calls while still hovering are harmless

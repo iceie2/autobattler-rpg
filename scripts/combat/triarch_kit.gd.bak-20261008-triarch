@@ -1,0 +1,321 @@
+extends RefCounted
+class_name TriarchKit
+
+# One controller owned by the real manager; every timer consumes battle dt.
+const FALL := 0.8
+const LEAVE := 0.6
+const GAP := 0.6
+const CHALLENGE_CD := 9.0
+const TAUNT := 2.0
+const DISENGAGE_CD := 8.0
+const LEAP_RANGE := 3.0
+const LEAP_TIME := 0.6
+const VOLLEY_WARNING := 0.6
+const CLEAVE_CONTACT := 0.35
+const METEOR_WARNING := 1.5
+const ECHO_FRACTION := 0.25
+const ECHO_LIFE := 10.0
+var manager
+var transitions: Dictionary = {}
+var leaps: Dictionary = {}
+var echoes: Array = []
+var effects: Array = []
+var highest_phase := 1
+
+func _init(mgr) -> void:
+	manager = mgr
+
+static func configure(u: UnitBase) -> void:
+	var p: int = int(u.get_meta("triarch_phase", u.get_meta("triarch_echo", 1)))
+	var descriptions := [
+		"Cleave target and its two perpendicular neighbours for 130% ATK. · 3s CD",
+		"Telegraph one full row or column, then pierce every hero there for 100% ATK. · 4s CD",
+		"Three different hero cells, clumps first; after 1.5s, meteors hit each cell and neighbours for 220% MAG. · 6s CD"]
+	u.skill_description = descriptions[p - 1]
+	var moves: Array = [{"slot": "ACTIVE", "name": u.skill_name, "desc": u.skill_description}]
+	if not u.has_meta("triarch_echo"):
+		var names := ["Challenge", "Disengage", "Echoes"]
+		var desc := ["Taunt heroes within 2 tiles for 2s (reduced by their Tenacity). · 9s CD", "When a melee hero is adjacent, leap up to 3 tiles to the safest open enemy cell. · 8s CD", "Once at 50% HP: Knight and Hunter Echoes at 25% form stats; last 10s. No rewards."]
+		moves.append({"slot": "ACTIVE", "name": names[p - 1], "desc": desc[p - 1]})
+	u.set_meta("kit_moves", moves)
+	u.set_meta("triarch_secondary_cd", 0.0)
+
+func heroes() -> Array:
+	return manager.player_units.filter(func(h): return is_instance_valid(h) and h.current_hp > 0)
+
+# Enemy half is the four upper rows. Maximise nearest-hero distance; stable
+# ties prefer the back, then the centre. Disengage uses the same score.
+func landing_cell(u: UnitBase, arcane := false, radius := INF) -> Vector2i:
+	var grid: BattleGrid = manager.battle_grid
+	var best := Vector2i(-1, -1)
+	var best_score := -INF
+	var centre := float(grid.grid_width - 1) / 2.0
+	for y in range(grid.grid_height / 2):
+		for x in grid.grid_width:
+			var cell := Vector2i(x, y)
+			if grid.is_cell_occupied(cell) or cell == u.grid_position: continue
+			if Vector2(cell).distance_to(Vector2(u.grid_position)) > radius: continue
+			var score := -Vector2(cell).distance_squared_to(Vector2(centre, 0)) if arcane else INF
+			if not arcane:
+				for h in heroes():
+					score = minf(score, Vector2(cell).distance_squared_to(Vector2(h.grid_position)))
+			if best.x < 0 or score > best_score or (is_equal_approx(score, best_score) and (y < best.y or (y == best.y and absf(x - centre) < absf(best.x - centre)))):
+				best = cell
+				best_score = score
+	return best
+
+func begin_transition(u: VisualUnit) -> bool:
+	if int(u.get_meta("triarch_phase", 1)) >= 3 or u.has_meta("triarch_echo"): return false
+	if transitions.has(u): return true
+	manager.cancel_channel(u, "form change")
+	if leaps.has(u): finish_leap(u)
+	u.set_meta("triarch_transition", true)
+	u.untargetable_time = FALL + LEAVE + GAP + 1.0
+	u.is_moving = false
+	manager.unit_paths.erase(u)
+	u.target_unit = null
+	for h in heroes():
+		if h.target_unit == u: h.target_unit = null
+	var dest := landing_cell(u, int(u.get_meta("triarch_phase", 1)) == 2)
+	transitions[u] = {"time": 0.0, "origin": u.grid_position, "landing": dest, "left": false}
+	if u.model3d:
+		u.model3d.cancel_oneshot()
+		u.model3d.play("death")
+	fx("plates" if int(u.get_meta("triarch_phase")) == 1 else "bow", [u.grid_position], FALL)
+	return true
+
+func tick(dt: float) -> void:
+	for u in transitions.keys():
+		if not is_instance_valid(u): transitions.erase(u); continue
+		var state: Dictionary = transitions[u]
+		state.time += dt
+		if state.time >= FALL and not state.left:
+			manager.battle_grid.purge_unit(u)
+			# Re-score at take-off: units may have moved during the fall.
+			state.landing = landing_cell(u, int(u.get_meta("triarch_phase")) == 2)
+			if state.landing.x < 0: state.landing = state.origin
+			if not manager.battle_grid.place_unit(u, state.landing): continue
+			state.left = true
+			fx("dust", [state.origin], LEAVE)
+		if state.time >= FALL:
+			var rise := clampf((state.time - FALL) / LEAVE, 0.0, 1.0)
+			u._aloft_offset = Vector2(0, -650.0 * rise)
+			u.set_meta("triarch_render_scale", 1.0 - 0.85 * rise)
+		if state.time >= FALL + LEAVE and not state.has("marker"):
+			state.marker = fx("landing", [state.landing], GAP)
+		if state.time >= FALL + LEAVE + GAP and state.left:
+			EnemyFactory.advance_triarch_phase(u)
+			u.grid_position = state.landing
+			u.position = manager.battle_grid.grid_to_world(u.grid_position)
+			u._aloft_offset = Vector2.ZERO
+			u.remove_meta("triarch_render_scale")
+			u.remove_meta("triarch_transition")
+			u.untargetable_time = 0.0
+			transitions.erase(u)
+			highest_phase = maxi(highest_phase, int(u.get_meta("triarch_phase")))
+			fx("impact", [u.grid_position], 0.65)
+			fx("card", [u.grid_position], 1.4, "II · The Hunter" if highest_phase == 2 else "III · The Arcane Core")
+	for u in leaps.keys():
+		if not is_instance_valid(u): leaps.erase(u); continue
+		var jump: Dictionary = leaps[u]
+		jump.time += dt
+		var t := clampf(jump.time / LEAP_TIME, 0.0, 1.0)
+		u.position = jump.start.lerp(manager.battle_grid.grid_to_world(u.grid_position), t)
+		u._aloft_offset = Vector2(0, -110.0 * sin(PI * t))
+		if t >= 1.0: finish_leap(u)
+	for entry in echoes.duplicate():
+		entry.time -= dt
+		if not is_instance_valid(entry.unit) or not is_instance_valid(entry.owner) or entry.owner.current_hp <= 0 or entry.time <= 0.0:
+			remove_echo(entry)
+
+func secondary(u: UnitBase, dt: float) -> bool:
+	if not u.has_meta("triarch_phase") or u.has_meta("triarch_echo"): return false
+	var cd := maxf(0.0, float(u.get_meta("triarch_secondary_cd", 0.0)) - dt)
+	u.set_meta("triarch_secondary_cd", cd)
+	if u.channel or u.stun_time > 0 or u.action_time > 0 or u.has_meta("triarch_transition") or leaps.has(u): return false
+	match int(u.get_meta("triarch_phase")):
+		1:
+			if cd <= 0.0 and heroes().any(func(h): return u.combat_distance_to(h) <= 2.0):
+				challenge(u)
+				u.set_meta("triarch_secondary_cd", CHALLENGE_CD)
+				return true
+		2:
+			if cd <= 0.0 and heroes().any(func(h): return h.attack_range <= 1 and u.combat_distance_to(h) <= 1.0):
+				if disengage(u):
+					u.set_meta("triarch_secondary_cd", DISENGAGE_CD)
+					return true
+		3:
+			if not u.get_meta("triarch_echoes_used", false) and u.current_hp <= u.max_hp / 2:
+				spawn_echoes(u)
+				return true
+	return false
+
+func challenge(u: UnitBase) -> void:
+	for h in heroes():
+		if u.combat_distance_to(h) <= 2.0: manager.apply_taunt(h, u, TAUNT)
+	u.action_time = 0.4
+	fx("shout", [u.grid_position], 0.4)
+
+func disengage(u: VisualUnit) -> bool:
+	var dest := landing_cell(u, false, LEAP_RANGE)
+	if dest.x < 0: return false
+	var start := u.position
+	manager.battle_grid.purge_unit(u)
+	if not manager.battle_grid.place_unit(u, dest):
+		manager.battle_grid.place_unit(u, u.grid_position)
+		return false
+	u.grid_position = dest
+	u.is_moving = false
+	manager.unit_paths.erase(u)
+	u.set_meta("triarch_leaping", true)
+	leaps[u] = {"start": start, "time": 0.0}
+	fx("landing", [dest], LEAP_TIME)
+	return true
+
+func finish_leap(u: VisualUnit) -> void:
+	leaps.erase(u)
+	u.remove_meta("triarch_leaping")
+	u._aloft_offset = Vector2.ZERO
+	u.position = manager.battle_grid.grid_to_world(u.grid_position)
+	fx("dust", [u.grid_position], 0.4)
+
+func cleave_cells(u: UnitBase) -> Array:
+	var target: UnitBase = u.target_unit
+	if not is_instance_valid(target) or target.current_hp <= 0: target = manager._choose_target(u, heroes())
+	if not is_instance_valid(target): return []
+	var d: Vector2i = target.grid_position - u.grid_position
+	var side := Vector2i(0, 1) if absi(d.x) > absi(d.y) else Vector2i(1, 0)
+	return [target.grid_position, target.grid_position + side, target.grid_position - side]
+
+func volley_cells(u: UnitBase) -> Array:
+	var grid: BattleGrid = manager.battle_grid
+	var target: UnitBase = u.target_unit
+	var best: Array = []
+	var count := -1
+	var best_tie := false
+	for axis in 2:
+		for line in (grid.grid_height if axis == 0 else grid.grid_width):
+			var cells: Array = []
+			for k in (grid.grid_width if axis == 0 else grid.grid_height):
+				cells.append(Vector2i(k, line) if axis == 0 else Vector2i(line, k))
+			var n := 0
+			for h in heroes():
+				if cells.has(h.grid_position): n += 1
+			var tie := is_instance_valid(target) and cells.has(target.grid_position)
+			if n > count or (n == count and tie and not best_tie): best = cells; count = n; best_tie = tie
+	return best
+
+func meteor_cells() -> Array:
+	var candidates := heroes()
+	candidates.sort_custom(func(a, b):
+		var na := 0; var nb := 0
+		for h in heroes():
+			if Vector2(h.grid_position).distance_to(Vector2(a.grid_position)) <= 1.5: na += 1
+			if Vector2(h.grid_position).distance_to(Vector2(b.grid_position)) <= 1.5: nb += 1
+		return na > nb or (na == nb and a.get_instance_id() < b.get_instance_id()))
+	var cells: Array = []
+	for h in candidates:
+		if not cells.has(h.grid_position): cells.append(h.grid_position)
+		if cells.size() == 3: break
+	return cells
+
+func cast(u: UnitBase) -> void:
+	var phase: int = int(u.get_meta("triarch_phase", u.get_meta("triarch_echo", 1)))
+	var cells: Array = cleave_cells(u) if phase == 1 else (volley_cells(u) if phase == 2 else meteor_cells())
+	if cells.is_empty(): return
+	var hold := CLEAVE_CONTACT if phase == 1 else (VOLLEY_WARNING if phase == 2 else METEOR_WARNING)
+	var warning = fx("cleave" if phase == 1 else ("line" if phase == 2 else "meteors"), cells, hold)
+	manager.start_channel(u, "triarch_%d" % phase, hold, func():
+		if not is_instance_valid(u) or u.has_meta("triarch_transition"): return
+		if is_instance_valid(warning): warning.queue_free()
+		impact(u, phase, cells), {"on_interrupt": func(_reason):
+			if is_instance_valid(warning): warning.queue_free()})
+
+func impact(u: UnitBase, phase: int, cells: Array) -> void:
+	# The warning and impact consume the same clock as this damage callback.
+	if phase == 3:
+		for cell in cells:
+			fx("meteor_impact", [cell], 0.55)
+			for h in heroes():
+				if h.footprint_at(h.grid_position).any(func(p): return maxi(absi(p.x - cell.x), absi(p.y - cell.y)) <= 1):
+					h.take_damage(int(u.magic_power * 2.2), u.current_element, u, true)
+	else:
+		fx("arrow" if phase == 2 else "slash", cells, 0.25)
+		for h in heroes():
+			if h.footprint_at(h.grid_position).any(func(p): return cells.has(p)):
+				h.take_damage(int(u.attack_damage * (1.3 if phase == 1 else 1.0)), u.current_element, u)
+
+func spawn_echoes(u: VisualUnit) -> void:
+	u.set_meta("triarch_echoes_used", true)
+	var base: Dictionary = u.get_meta("triarch_base_stats", {})
+	for phase in [1, 2]:
+		var cell := landing_cell(u)
+		if cell.x < 0: continue
+		var echo := EnemyFactory.create_triarch()
+		for stat in {"hp": "max_hp", "mana": "max_mana", "atk": "attack_damage", "magic": "magic_power", "res": "resistance", "aspd": "attack_speed", "hpregen": "hp_regen", "manaregen": "mana_regen"}:
+			var keys := {"hp": "max_hp", "mana": "max_mana", "atk": "attack_damage", "magic": "magic_power", "res": "resistance", "aspd": "attack_speed", "hpregen": "hp_regen", "manaregen": "mana_regen"}
+			echo.set(keys[stat], base.get(stat, echo.get(keys[stat])))
+		if phase == 2: EnemyFactory.advance_triarch_phase(echo)
+		echo.remove_meta("triarch_phase")
+		echo.set_meta("triarch_echo", phase)
+		for stat in ["max_hp", "max_mana", "attack_damage", "magic_power", "resistance", "magic_resist", "attack_speed", "hp_regen", "mana_regen"]:
+			echo.set(stat, echo.get(stat) * ECHO_FRACTION)
+		echo.max_hp = maxi(1, echo.max_hp)
+		echo.current_hp = echo.max_hp
+		echo.current_mana = echo.max_mana
+		echo.unit_name = "Knight Echo" if phase == 1 else "Hunter Echo"
+		echo.is_boss = false
+		echo.is_summoned = true
+		echo.summon_owner = u
+		echo.gold_reward = 0; echo.xp_reward = 0; echo.crystal_reward = 0
+		echo.modulate = Color(0.65, 0.75, 1.0, 0.48)
+		echo.battle_manager = manager
+		echo.grid_position = cell
+		echo.position = manager.battle_grid.grid_to_world(cell)
+		configure(echo)
+		if not manager.battle_grid.place_unit(echo, cell): echo.free(); continue
+		manager.enemy_units.append(echo)
+		manager.unit_summoned.emit(echo)
+		echoes.append({"unit": echo, "owner": u, "time": ECHO_LIFE})
+	fx("shout", [u.grid_position], 0.8)
+
+func remove_echo(entry: Dictionary) -> void:
+	echoes.erase(entry)
+	var u = entry.unit
+	if not is_instance_valid(u): return
+	manager.battle_grid.purge_unit(u)
+	manager.enemy_units.erase(u)
+	manager.unit_paths.erase(u)
+	u.queue_free()
+
+func clear() -> void:
+	for entry in echoes.duplicate(): remove_echo(entry)
+	for u in transitions:
+		if not is_instance_valid(u): continue
+		manager.battle_grid.purge_unit(u)
+		manager.cancel_channel(u, "reset")
+		u.remove_meta("triarch_transition")
+		u.remove_meta("triarch_render_scale")
+		u.untargetable_time = 0.0
+		u._aloft_offset = Vector2.ZERO
+	transitions.clear()
+	for u in leaps.keys():
+		if is_instance_valid(u): finish_leap(u)
+	leaps.clear()
+	for u in manager.enemy_units:
+		if is_instance_valid(u) and (u.has_meta("triarch_phase") or u.has_meta("triarch_echo")):
+			manager.cancel_channel(u, "reset")
+			u.remove_meta("triarch_echoes_used")
+			u.set_meta("triarch_secondary_cd", 0.0)
+	for effect in effects:
+		if is_instance_valid(effect): effect.queue_free()
+	effects.clear()
+
+func fx(kind: String, cells: Array, life: float, title := ""):
+	if not manager.skill_effect_container: return null
+	var effect := TriarchVFX.new()
+	manager.skill_effect_container.add_child(effect)
+	effect.setup(manager, kind, cells, life, title)
+	effects = effects.filter(func(e): return is_instance_valid(e))
+	effects.append(effect)
+	return effect

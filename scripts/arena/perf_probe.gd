@@ -42,6 +42,14 @@ func _ready() -> void:
 	add_child(mg)
 	for i in range(30):
 		await get_tree().process_frame
+	# Optional reproducible starting roster and per-hero AA comparison. Seed
+	# after main_game startup so its initial UI/offer generation cannot shift it.
+	var probe_msaa := -1
+	for argument in OS.get_cmdline_user_args():
+		if argument.begins_with("--seed="):
+			seed(int(argument.substr(7)))
+		if argument.begins_with("--msaa="):
+			probe_msaa = int(argument.substr(7))
 
 	# ── Force a 15-hero roster ──
 	# Raise the level-gated team cap BEFORE placing (find_empty_player_slot
@@ -63,6 +71,9 @@ func _ready() -> void:
 		u.grid_position = pos
 		u.position = mg.battle_grid.grid_to_world(pos)
 		mg.battle_grid_node.add_child(u)
+		if u.model3d and probe_msaa >= 0:
+			u.model3d._viewport.msaa_3d = ({0: Viewport.MSAA_DISABLED,
+				2: Viewport.MSAA_2X, 4: Viewport.MSAA_4X}.get(probe_msaa, Viewport.MSAA_DISABLED))
 		if mg.battle_grid.place_unit(u, pos):
 			u.home_position = pos
 			mg.player_units.append(u)
@@ -73,11 +84,29 @@ func _ready() -> void:
 		else:
 			u.queue_free()
 	# ── Beef up the enemy side to ~14 units ──
+	var enemy_types: Array = []
+	var enemy_style := {}
+	for argument in OS.get_cmdline_user_args():
+		if argument.begins_with("--enemies="):
+			enemy_types = Array(argument.trim_prefix("--enemies=").split(","))
+		if argument.begins_with("--enemy-resolution="):
+			enemy_style["resolution"] = int(argument.trim_prefix("--enemy-resolution="))
+		if argument.begins_with("--enemy-msaa="):
+			enemy_style["msaa"] = {0:Viewport.MSAA_DISABLED,2:Viewport.MSAA_2X,4:Viewport.MSAA_4X}.get(int(argument.trim_prefix("--enemy-msaa=")),Viewport.MSAA_4X)
 	for i in range(12):
-		var e: VisualUnit = EnemyFactory.create_goblin(4)
+		var e: VisualUnit = EnemyFactory.create_goblin(4) if enemy_types.is_empty() else EnemyFactory.create_by_type(enemy_types[i % enemy_types.size()])
+		var previous_style := Model3DSprite.debug_style_override
+		Model3DSprite.debug_style_override = enemy_style
 		mg._place_enemy(e, false)
+		Model3DSprite.debug_style_override = previous_style
+	print("PERF_ENEMY_STYLE: ",enemy_style)
 
 	print("PERF_SETUP: players=%d enemies=%d" % [mg.player_units.size(), mg.enemy_units.size()])
+	var starting_stats: Array = []
+	for u in mg.player_units:
+		starting_stats.append([u.unit_class, u.max_hp, u.max_mana, u.attack_damage])
+	print("PERF_STARTING_STATS: ", JSON.stringify(starting_stats).sha256_text(),
+		" msaa=", probe_msaa)
 
 	# Make goblins spongy so the battle lasts through both sample phases.
 	for e in mg.enemy_units:
@@ -110,12 +139,20 @@ func _ready() -> void:
 
 func _sample(label: String) -> bool:
 	var samples: Array[float] = []
+	var cpu_ms := 0.0
+	var physics_ms := 0.0
+	var draw_calls := 0.0
+	var primitives := 0.0
 	var t_end := Time.get_ticks_usec() + int(SAMPLE_SECONDS * 1e6)
 	var last := Time.get_ticks_usec()
 	while Time.get_ticks_usec() < t_end:
 		await get_tree().process_frame
 		var now := Time.get_ticks_usec()
 		samples.append(float(now - last) / 1000.0)
+		cpu_ms += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
+		physics_ms += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
+		draw_calls += Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+		primitives += Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
 		last = now
 	if samples.is_empty():
 		return false
@@ -127,4 +164,7 @@ func _sample(label: String) -> bool:
 	var mx: float = samples[samples.size() - 1]
 	print("PERF_RESULT %s: frames=%d avg=%.2fms p95=%.2fms max=%.2fms (fps~%.0f)"
 			% [label, samples.size(), avg, p95, mx, 1000.0 / maxf(avg, 0.001)])
+	print("PERF_WORK %s: process=%.2fms physics=%.2fms draws=%.0f primitives=%.0f"
+		% [label, cpu_ms / samples.size(), physics_ms / samples.size(),
+			draw_calls / samples.size(), primitives / samples.size()])
 	return true

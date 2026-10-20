@@ -87,16 +87,12 @@ const ICON_SLUGS := {
 # behind the silhouette, so a row still reads as one question at three settings.
 #
 # That splits the row's two questions cleanly across two channels:
-#   ICON COLOUR = how hard  (tier — one warm heat ramp, cream → orange → red)
+#   ICON COLOUR = how hard  (tier — green → blue → red)
 #   RING COLOUR = how rich  (the node's reward grade, D grey → S gold)
 # The intensity pips stay under the node as a non-colour fallback.
-# Palette A, owner pick 2026-09-30 (VD-13 swatch). The old green / blue tiers
-# merged with the C / B grade rings drawn on the same node; a heat ramp stays
-# clear of the loot-rarity colours. A 4th tier (Nemesis) would be crimson
-# 0.80, 0.16, 0.45 — not added until that tier exists.
 const TIER_COLORS := [
-	Color(0.93, 0.89, 0.80),   # Normal  — cream
-	Color(0.98, 0.62, 0.22),   # Veteran — orange
+	Color(0.30, 0.78, 0.40),   # Normal  — green
+	Color(0.32, 0.58, 0.92),   # Veteran — blue
 	Color(0.92, 0.27, 0.24),   # Brutal  — red
 ]
 
@@ -336,10 +332,8 @@ var preview_probe: Callable = Callable()
 # say "a Gale Warden lives up there" with no icon generation at all.
 var sprite_probe: Callable = Callable()
 var _sprite_cache: Dictionary = {}
-# resource_path -> bool, "is this art a cut-out we can silhouette?" See _is_cutout.
-# Keyed by path rather than node, because several nodes share one creature.
-var _cutout_cache: Dictionary = {}
-var _mask_cache: Dictionary = {}      # sprite path -> white stamp of its shape
+# The cut-out test and the white-stamp masks are cached per resource path in
+# MapRouteArt (shared with the run recap), not per screen.
 # Probing builds a whole wave spec, so each node's answer is cached for the life
 # of the screen — hovering back and forth across a row shouldn't rebuild specs.
 var _preview_cache: Dictionary = {}
@@ -605,7 +599,7 @@ func _build_ui() -> void:
 	_tip_wave = Label.new()
 	_tip_wave.visible = false
 	_tip_wave.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	UITheme.apply_font(_tip_wave, UITheme.FONT_BODY)
+	UITheme.apply_read_font(_tip_wave, UITheme.FONT_BODY)   # prose -> Inter (2026-09-29)
 	_tip_wave.add_theme_color_override("font_color", TIP_TEXT)
 	box.add_child(_tip_wave)
 
@@ -630,6 +624,7 @@ func _build_ui() -> void:
 	formation_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_tip_formation_text = formation_box.get_meta("value") as Label
 	_tip_formation_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UITheme.apply_read_font(_tip_formation_text, UITheme.FONT_BODY)   # prose -> Inter (2026-09-29)
 	_tip_facts.add_child(formation_box)
 
 	# Reward gets its real inventory icon and its own horizontal band. It should
@@ -663,7 +658,7 @@ func _build_ui() -> void:
 
 	_tip_body = Label.new()
 	_tip_body.visible = false
-	UITheme.apply_font(_tip_body, UITheme.FONT_BODY)
+	UITheme.apply_read_font(_tip_body, UITheme.FONT_BODY)   # prose -> Inter (2026-09-29)
 	_tip_body.add_theme_color_override("font_color", TIP_TEXT)
 	_tip_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(_tip_body)
@@ -930,14 +925,17 @@ func _draw_map() -> void:
 				# antialiased strip has no overlapping joints, so a translucent
 				# curve doesn't pick up darker beads at every vertex.
 				var pts: PackedVector2Array = _edge_points(from, to, drawn)
-				_canvas.draw_polyline(pts, Color(0, 0, 0, 0.9 * depth_alpha),
-					(6.0 if (lit or live) else 3.0), true)
+				var choice_edge: bool = here and reachable.has(String(cid))
+				_canvas.draw_polyline(pts, Color(0, 0, 0, (0.9 if (lit or live or choice_edge) else 0.35) * depth_alpha),
+					(6.0 if (lit or live) else 3.0 if choice_edge else 1.5), true)
 				# Slightly stronger than it needs to be on a flat panel: these
 				# now run over a painted biome plate, and a hairline at 0.28
 				# disappeared into the rock. BACKDROP_DIM is the other half of
 				# this trade if the plates still read too busy.
-				var col := Color(1, 1, 1, 0.42 * depth_alpha)
-				var w := 2.0
+				# Crossings are allowed for difficulty freedom. Emphasize this
+				# stage's exits and keep unrelated routes in the background.
+				var col := Color(1, 1, 1, (0.72 if choice_edge else 0.16) * depth_alpha)
+				var w := 2.5 if choice_edge else 1.25
 				if lit:
 					col = ROAD_GOLD; w = 3.0
 				elif live:
@@ -1728,33 +1726,10 @@ func _creature_silhouette(node: Dictionary) -> Texture2D:
 #
 # Cached by resource path like the cut-out test beside it, so a biome pays for
 # each distinct creature once.
-const MASK_MAX_PX := 128
+const MASK_MAX_PX := MapRouteArt.MASK_MAX_PX
 
 func _silhouette_mask(tex: Texture2D) -> Texture2D:
-	var key: String = tex.resource_path
-	if key != "" and _mask_cache.has(key):
-		return _mask_cache[key]
-	var out: Texture2D = null
-	var src: Image = tex.get_image()
-	if src != null:
-		# Never mutate the texture's own image — decompress and resize below
-		# would otherwise edit the sprite every other screen is drawing from.
-		var img := Image.new()
-		img.copy_from(src)
-		if not img.is_compressed() or img.decompress() == OK:
-			var longest: int = maxi(img.get_width(), img.get_height())
-			if longest > MASK_MAX_PX:
-				var k: float = float(MASK_MAX_PX) / float(longest)
-				img.resize(maxi(1, int(img.get_width() * k)),
-					maxi(1, int(img.get_height() * k)), Image.INTERPOLATE_BILINEAR)
-			img.convert(Image.FORMAT_RGBA8)
-			for y in range(img.get_height()):
-				for x in range(img.get_width()):
-					img.set_pixel(x, y, Color(1, 1, 1, img.get_pixel(x, y).a))
-			out = ImageTexture.create_from_image(img)
-	if key != "":
-		_mask_cache[key] = out
-	return out
+	return MapRouteArt.silhouette_mask(tex)   # shared with the run recap (2026-10-07)
 
 # Is this texture a cut-out creature, or a full-bleed painted plate?
 #
@@ -1769,29 +1744,7 @@ func _silhouette_mask(tex: Texture2D) -> Texture2D:
 # creature would have to reach into all four corners at once to fool it, which
 # no sprite drawn on a transparent canvas does.
 func _is_cutout(tex: Texture2D) -> bool:
-	var key: String = tex.resource_path
-	if key != "" and _cutout_cache.has(key):
-		return bool(_cutout_cache[key])
-	var ok: bool = true
-	var img: Image = tex.get_image()
-	if img == null:
-		ok = false
-	else:
-		# Imported textures usually arrive VRAM-compressed, and get_pixel on a
-		# compressed Image is garbage. Decompress a copy or decline to guess.
-		if img.is_compressed() and img.decompress() != OK:
-			ok = false
-		else:
-			var w: int = img.get_width()
-			var h: int = img.get_height()
-			for p: Vector2i in [Vector2i(0, 0), Vector2i(w - 1, 0),
-					Vector2i(0, h - 1), Vector2i(w - 1, h - 1)]:
-				if img.get_pixelv(p).a > 0.06:
-					ok = false
-					break
-	if key != "":
-		_cutout_cache[key] = ok
-	return ok
+	return MapRouteArt.is_cutout(tex)   # shared with the run recap (2026-10-07)
 
 # Is this node drawing a creature sprite rather than an emblem? A silhouette is
 # a filled shape, so it's drawn dark on a lit disc rather than tinted like the
@@ -1829,24 +1782,7 @@ static func _edge_points(from: Vector2, to: Vector2, upto: float = 1.0) -> Packe
 # even however the curve bends. `phase` slides the pattern forward from the
 # polyline's start toward its end.
 func _draw_flow(pts: PackedVector2Array, phase: float, col: Color, width: float) -> void:
-	var period: float = FLOW_DASH + FLOW_GAP
-	var s: float = 0.0
-	for i in range(pts.size() - 1):
-		var a: Vector2 = pts[i]
-		var b: Vector2 = pts[i + 1]
-		var seg: float = a.distance_to(b)
-		if seg <= 0.001:
-			continue
-		var d: float = 0.0
-		while d < seg:
-			var local: float = fposmod(s + d - phase, period)
-			var dashing: bool = local < FLOW_DASH
-			var step: float = maxf(0.01, (FLOW_DASH - local) if dashing else (period - local))
-			var d2: float = minf(seg, d + step)
-			if dashing:
-				_canvas.draw_line(a.lerp(b, d / seg), a.lerp(b, d2 / seg), col, width, true)
-			d = d2
-		s += seg
+	MapRouteArt.draw_flow(_canvas, pts, phase, col, width)   # shared with the run recap
 
 # The boss's haze and ripple. The boss row holds one boss per tier, so the aura
 # is ONE lair around the whole row, an ellipse spanning its nodes: three

@@ -93,51 +93,33 @@ func _test_purchase() -> void:
 	print("purchase path:")
 	Progression.upgrade_levels.clear()
 	Progression.crystals = 100000
-	# Tree parents are PREREQUISITES: hero_unlock_pastor hangs off "max_level",
-	# so buying it from an empty tree is refused by is_locked(). This test
-	# predates that gate and was silently failing all five of its checks; grant
-	# the parent so it exercises the purchase path it means to (2026-08-07).
-	var granted_cost := 0
-	for parent: String in Progression._tree_parents.get("hero_unlock_pastor", []):
-		granted_cost += Progression.next_cost(parent)
-		Progression.upgrade_levels[parent] = 1
-	var cost := Progression.next_cost("hero_unlock_pastor")
-	_check(cost > 10, "generated cost_mult reached next_cost (%dc)" % cost)
+	# starting_gold hangs off the hub (no tree parents) and is a one-level node.
+	var key := "starting_gold"
+	var cost := Progression.next_cost(key)
+	_check(cost > 0, "next_cost reads the catalogue (%dc)" % cost)
 	var before := Progression.crystals
-	_check(Progression.buy("hero_unlock_pastor"), "buy succeeds")
+	_check(Progression.buy(key), "buy succeeds")
 	_eq(before - Progression.crystals, cost, "exact cost deducted")
-	_check(Progression.next_cost("hero_unlock_pastor") == -1, "maxed at 1 level")
-	_check(Progression.is_hero_unlocked(UnitBase.UnitClass.PASTOR),
-		"hero unlock takes effect")
-	# total_spent replays EVERY owned level, including the prereq granted above.
-	_check(Progression.total_spent() == cost + granted_cost,
-		"total_spent replays the generated cost")
-	_test_hero_price_ladder()
+	_check(Progression.next_cost(key) == -1, "maxed at 1 level")
+	_check(Progression.total_spent() == cost, "total_spent replays the generated cost")
+	Progression.upgrade_levels.clear()
+	_test_hero_pool()
 
-# Hero unlocks share one ladder: all unbought heroes cost the same, and each
-# purchase raises every remaining one (2026-09-25).
-func _test_hero_price_ladder() -> void:
-	print("hero price ladder:")
+# Hero unlocks left the tree (2026-10-01): the whole roster is recruitable with
+# nothing bought, and no hero_unlock_* node survives in the catalogue or tree.
+func _test_hero_pool() -> void:
+	print("hero pool:")
 	Progression.upgrade_levels.clear()
-	var keys: Array = Progression.HERO_UNLOCK_KEYS.values()
-	var first := Progression.next_cost(keys[0])
-	var all_same := true
-	for k: String in keys:
-		all_same = all_same and Progression.next_cost(k) == first
-	_check(all_same, "every unbought hero costs the same (%dc)" % first)
-	Progression.upgrade_levels[keys[0]] = 1
-	var second := Progression.next_cost(keys[1])
-	_check(second > first, "buying one raises the rest (%dc -> %dc)" % [first, second])
-	_check(Progression.next_cost(keys[5]) == second, "raise applies to every remaining hero")
-	for i in range(11):
-		Progression.upgrade_levels[keys[i]] = 1
-	print("    12th hero costs %dc" % Progression.next_cost(keys[11]))
-	var replay := 0
-	for i in range(11):
-		replay += Progression._hero_unlock_cost(i)
-	_eq(Progression.total_spent(), replay, "total_spent replays the shared ladder")
-	Progression.upgrade_levels.clear()
-	Progression.upgrade_levels.clear()
+	_check(Progression.ROSTER.size() == 26, "roster is all 26 heroes (%d)" % Progression.ROSTER.size())
+	var all_in := true
+	for cls in Progression.ROSTER:
+		all_in = all_in and Progression.is_hero_unlocked(cls)
+	_check(all_in, "every roster hero is recruitable with nothing bought")
+	var leftovers := 0
+	for k: String in Progression._by_key.keys():
+		if k.begins_with("hero_unlock_"):
+			leftovers += 1
+	_eq(leftovers, 0, "no hero_unlock_* upgrades in the catalogue")
 
 func _test_level_cap() -> void:
 	print("hero level cap:")

@@ -1,0 +1,550 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+[Battle] occupied_cells count: 7
+[Battle] Started — players: 7, enemies: 1
+[Battle] occupied_cells count: 7
+[Battle] Started — players: 7, enemies: 1
+[Battle] occupied_cells count: 7
+[Battle] Started — players: 7, enemies: 1
+ARENA_RESULT_BEGIN
+{
+  "enemy": "wave:55",
+  "formation": "default",
+  "layout": [
+    {
+      "class": "SABLE",
+      "range": 6,
+      "x": 0,
+      "y": 8
+    },
+    {
+      "class": "NEMI",
+      "range": 4,
+      "x": 1,
+      "y": 8
+    },
+    {
+      "class": "RIOT",
+      "range": 1,
+      "x": 2,
+      "y": 8
+    },
+    {
+      "class": "CROSS",
+      "range": 1,
+      "x": 3,
+      "y": 8
+    },
+    {
+      "class": "BLOODHOUND",
+      "range": 1,
+      "x": 4,
+      "y": 8
+    },
+    {
+      "class": "LORDEE",
+      "range": 1,
+      "x": 5,
+      "y": 8
+    },
+    {
+      "class": "BOUNCER",
+      "range": 1,
+      "x": 6,
+      "y": 8
+    }
+  ],
+  "losses": 0,
+  "mode": "sim",
+  "results": [
+    {
+      "after_action": [
+        {
+          "damage": 50102,
+          "first": 0.02,
+          "healing": 0,
+          "name": "Air Sable",
+          "taken": 0
+        },
+        {
+          "damage": 11480,
+          "first": 0.02,
+          "healing": 0,
+          "name": "Water Nemi",
+          "taken": 0
+        },
+        {
+          "damage": 2419,
+          "first": 0.02,
+          "healing": 0,
+          "name": "Lightning Riot",
+          "taken": 30030
+        },
+        {
+          "damage": 8346,
+          "first": 0.58,
+          "healing": 65368,
+          "name": "Normal Cross",
+          "taken": 4355
+        },
+        {
+          "damage": 18152,
+          "first": 0.02,
+          "healing": 0,
+          "name": "Earth Bloodhound",
+          "taken": 3254
+        },
+        {
+          "damage": 21067,
+          "first": 0.02,
+          "healing": 0,
+          "name": "Normal Lordee",
+          "taken": 2144
+        },
+        {
+          "damage": 7683,
+          "first": 1.35333333333333,
+          "healing": 0,
+          "name": "Normal Bouncer",
+          "taken": 2538
+        }
+      ],
+      "enemy_deaths": 1,
+      "invalid_reasons": [],
+      "outcome": "win",
+      "run": 0,
+      "seed": 55,
+      "sim_seconds": 51.3,
+      "survivors_enemy": 0,
+      "survivors_player": 7,
+      "team": [
+        {
+          "alive": true,
+          "class": "SABLE",
+          "damage_dealt": 50102,
+          "healing_done": 0,
+          "hp_pct": 1.0,
+          "kills": 0,
+          "level": 36,
+          "name": "Air Sable",
+          "pos": [
+            0,
+            7
+          ]
+        },
+        {
+          "alive": true,
+          "class": "NEMI",
+          "damage_dealt": 11480,
+          "healing_done": 0,
+          "hp_pct": 1.0,
+          "kills": 0,
+          "level": 36,
+          "name": "Water Nemi",
+          "pos": [
+            2,
+            6
+          ]
+        },
+        {
+          "alive": true,
+          "class": "RIOT",
+          "damage_dealt": 2419,
+          "healing_done": 0,
+          "hp_pct": 0.33,
+          "kills": 0,
+          "level": 36,
+          "name": "Lightning Riot",
+          "pos": [
+            2,
+            4
+          ]
+        },
+        {
+          "alive": true,
+          "class": "CROSS",
+          "damage_dealt": 8346,
+          "healing_done": 65368,
+          "hp_pct": 0.6,
+          "kills": 0,
+          "level": 36,
+          "name": "Normal Cross",
+          "pos": [
+            2,
+            2
+          ]
+        },
+        {
+          "alive": true,
+          "class": "BLOODHOUND",
+          "damage_dealt": 18152,
+          "healing_done": 0,
+          "hp_pct": 0.77,
+          "kills": 0,
+          "level": 36,
+          "name": "Earth Bloodhound",
+          "pos": [
+            1,
+            3
+          ]
+        },
+        {
+          "alive": true,
+          "class": "LORDEE",
+          "damage_dealt": 21067,
+          "healing_done": 0,
+          "hp_pct": 0.83,
+          "kills": 0,
+          "level": 36,
+          "name": "Normal Lordee",
+          "pos": [
+            2,
+            1
+          ]
+        },
+        {
+          "alive": true,
+          "class": "BOUNCER",
+          "damage_dealt": 7683,
+          "healing_done": 0,
+          "hp_pct": 0.67,
+          "kills": 0,
+          "level": 36,
+          "name": "Normal Bouncer",
+          "pos": [
+            1,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "after_action": [
+        {
+          "damage": 51570,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Air Sable",
+          "taken": 0
+        },
+        {
+          "damage": 12822,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Water Nemi",
+          "taken": 0
+        },
+        {
+          "damage": 1306,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Lightning Riot",
+          "taken": 21783
+        },
+        {
+          "damage": 5125,
+          "first": 0.586666666666667,
+          "healing": 57420,
+          "name": "Normal Cross",
+          "taken": 2647
+        },
+        {
+          "damage": 14207,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Earth Bloodhound",
+          "taken": 791
+        },
+        {
+          "damage": 26972,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Normal Lordee",
+          "taken": 556
+        },
+        {
+          "damage": 6423,
+          "first": 1.36,
+          "healing": 0,
+          "name": "Normal Bouncer",
+          "taken": 2182
+        }
+      ],
+      "enemy_deaths": 1,
+      "invalid_reasons": [],
+      "outcome": "win",
+      "run": 1,
+      "seed": 56,
+      "sim_seconds": 46.8,
+      "survivors_enemy": 0,
+      "survivors_player": 7,
+      "team": [
+        {
+          "alive": true,
+          "class": "SABLE",
+          "damage_dealt": 51570,
+          "healing_done": 0,
+          "hp_pct": 1.0,
+          "kills": 0,
+          "level": 36,
+          "name": "Air Sable",
+          "pos": [
+            0,
+            7
+          ]
+        },
+        {
+          "alive": true,
+          "class": "NEMI",
+          "damage_dealt": 12822,
+          "healing_done": 0,
+          "hp_pct": 1.0,
+          "kills": 0,
+          "level": 36,
+          "name": "Water Nemi",
+          "pos": [
+            5,
+            7
+          ]
+        },
+        {
+          "alive": true,
+          "class": "RIOT",
+          "damage_dealt": 1306,
+          "healing_done": 0,
+          "hp_pct": 0.78,
+          "kills": 0,
+          "level": 36,
+          "name": "Lightning Riot",
+          "pos": [
+            3,
+            6
+          ]
+        },
+        {
+          "alive": true,
+          "class": "CROSS",
+          "damage_dealt": 5125,
+          "healing_done": 57420,
+          "hp_pct": 0.97,
+          "kills": 0,
+          "level": 36,
+          "name": "Normal Cross",
+          "pos": [
+            4,
+            5
+          ]
+        },
+        {
+          "alive": true,
+          "class": "BLOODHOUND",
+          "damage_dealt": 14207,
+          "healing_done": 0,
+          "hp_pct": 0.93,
+          "kills": 0,
+          "level": 36,
+          "name": "Earth Bloodhound",
+          "pos": [
+            6,
+            5
+          ]
+        },
+        {
+          "alive": true,
+          "class": "LORDEE",
+          "damage_dealt": 26972,
+          "healing_done": 0,
+          "hp_pct": 1.0,
+          "kills": 0,
+          "level": 36,
+          "name": "Normal Lordee",
+          "pos": [
+            6,
+            4
+          ]
+        },
+        {
+          "alive": true,
+          "class": "BOUNCER",
+          "damage_dealt": 6423,
+          "healing_done": 0,
+          "hp_pct": 0.62,
+          "kills": 0,
+          "level": 36,
+          "name": "Normal Bouncer",
+          "pos": [
+            5,
+            5
+          ]
+        }
+      ]
+    },
+    {
+      "after_action": [
+        {
+          "damage": 64810,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Air Sable",
+          "taken": 0
+        },
+        {
+          "damage": 11042,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Water Nemi",
+          "taken": 843
+        },
+        {
+          "damage": 973,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Lightning Riot",
+          "taken": 28716
+        },
+        {
+          "damage": 9948,
+          "first": 0.586666666666667,
+          "healing": 55378,
+          "name": "Normal Cross",
+          "taken": 1793
+        },
+        {
+          "damage": 14023,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Earth Bloodhound",
+          "taken": 2570
+        },
+        {
+          "damage": 11043,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Normal Lordee",
+          "taken": 1220
+        },
+        {
+          "damage": 6514,
+          "first": 1.36,
+          "healing": 0,
+          "name": "Normal Bouncer",
+          "taken": 1443
+        }
+      ],
+      "enemy_deaths": 1,
+      "invalid_reasons": [],
+      "outcome": "win",
+      "run": 2,
+      "seed": 57,
+      "sim_seconds": 47.5,
+      "survivors_enemy": 0,
+      "survivors_player": 7,
+      "team": [
+        {
+          "alive": true,
+          "class": "SABLE",
+          "damage_dealt": 64810,
+          "healing_done": 0,
+          "hp_pct": 1.0,
+          "kills": 0,
+          "level": 36,
+          "name": "Air Sable",
+          "pos": [
+            0,
+            7
+          ]
+        },
+        {
+          "alive": true,
+          "class": "NEMI",
+          "damage_dealt": 11042,
+          "healing_done": 0,
+          "hp_pct": 0.81,
+          "kills": 0,
+          "level": 36,
+          "name": "Water Nemi",
+          "pos": [
+            3,
+            6
+          ]
+        },
+        {
+          "alive": true,
+          "class": "RIOT",
+          "damage_dealt": 973,
+          "healing_done": 0,
+          "hp_pct": 0.12,
+          "kills": 0,
+          "level": 36,
+          "name": "Lightning Riot",
+          "pos": [
+            2,
+            6
+          ]
+        },
+        {
+          "alive": true,
+          "class": "CROSS",
+          "damage_dealt": 9948,
+          "healing_done": 55378,
+          "hp_pct": 0.89,
+          "kills": 0,
+          "level": 36,
+          "name": "Normal Cross",
+          "pos": [
+            3,
+            8
+          ]
+        },
+        {
+          "alive": true,
+          "class": "BLOODHOUND",
+          "damage_dealt": 14023,
+          "healing_done": 0,
+          "hp_pct": 0.8,
+          "kills": 0,
+          "level": 36,
+          "name": "Earth Bloodhound",
+          "pos": [
+            3,
+            7
+          ]
+        },
+        {
+          "alive": true,
+          "class": "LORDEE",
+          "damage_dealt": 11043,
+          "healing_done": 0,
+          "hp_pct": 0.86,
+          "kills": 0,
+          "level": 36,
+          "name": "Normal Lordee",
+          "pos": [
+            6,
+            7
+          ]
+        },
+        {
+          "alive": true,
+          "class": "BOUNCER",
+          "damage_dealt": 6514,
+          "healing_done": 0,
+          "hp_pct": 1.0,
+          "kills": 0,
+          "level": 36,
+          "name": "Normal Bouncer",
+          "pos": [
+            4,
+            6
+          ]
+        }
+      ]
+    }
+  ],
+  "runs": 3,
+  "stalls": 0,
+  "team": "SABLE:36,NEMI:36,RIOT:36,CROSS:36,BLOODHOUND:36,LORDEE:36,BOUNCER:36",
+  "win_rate": 1.0,
+  "wins": 3
+}
+ARENA_RESULT_END

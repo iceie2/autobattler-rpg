@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/probes/arcfang_hunt_probe.gd" id="1"]
+
+[node name="ArcfangHuntProbe" type="Node"]
+script = ExtResource("1")

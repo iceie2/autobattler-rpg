@@ -358,7 +358,8 @@ const SLOT_COLORS := [
 # Numbers at rest. Hover overrides changed ones with the perk's grade color.
 const ABIL_VALUE_COL := Color(0.92, 0.94, 1.0)
 
-var _ability_rows: Array = []   # [{name_lbl, desc_rt}] one per slot
+var _ability_rows: Array = []   # [{badge, name_lbl, desc_rt, plain}] one per slot
+var _ability_bg: ColorRect
 
 func _build_ability_panel() -> void:
 	var bg := ColorRect.new()
@@ -367,6 +368,7 @@ func _build_ability_panel() -> void:
 	bg.color        = Color(0.05, 0.05, 0.10, 0.5)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_child(bg)
+	_ability_bg = bg
 
 	_lbl(_panel, "ABILITIES", 12, Color(0.48, 0.50, 0.70),
 		Vector2(ABIL_X + 10, INFO_Y - 26), Vector2(ABIL_W, 18))
@@ -394,12 +396,13 @@ func _build_ability_panel() -> void:
 		desc.position        = Vector2(ABIL_X + 10, ry + TITLE_H + 2.0)
 		desc.size            = Vector2(ABIL_W - 20, ABIL_ROW_H - TITLE_H - 6.0)
 		desc.mouse_filter    = Control.MOUSE_FILTER_IGNORE
-		UITheme.apply_rich_font(desc, UITheme.body_font(16))
-		desc.add_theme_color_override("default_color", Color(0.68, 0.70, 0.84))
+		# Inter (2026-09-27): prose the player reads, see UITheme "Role, not size".
+		UITheme.apply_read_rich(desc)
+		desc.add_theme_color_override("default_color", Color(0.80, 0.82, 0.92))
 		_panel.add_child(desc)
 
 		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_ability_rows.append({name_lbl = name_lbl, desc_rt = desc})
+		_ability_rows.append({badge = badge, name_lbl = name_lbl, desc_rt = desc, plain = ""})
 
 # Maps a perk offer onto the ABSOLUTE stat values AbilityFormulas expects. Only
 # the stats that actually appear in ability formulas are worth previewing —
@@ -424,6 +427,7 @@ func _refresh_ability_panel(overrides: Dictionary, hi_col: Color) -> void:
 		if base["terms"].is_empty():
 			row.name_lbl.text = ""
 			row.desc_rt.text  = ""
+			row.plain = ""
 			continue
 		row.name_lbl.text = str(base["name"])
 
@@ -440,9 +444,37 @@ func _refresh_ability_panel(overrides: Dictionary, hi_col: Color) -> void:
 			var col: Color = hi_col if changed else ABIL_VALUE_COL
 			var shown: String = str(pt["display"]) if changed else str(bt["display"])
 			var chunk := "[font_size=%d][color=#%s]%s[/color][/font_size]" \
-				% [UITheme.body_font(ABIL_VALUE_FONT), col.to_html(false), shown]
+				% [UITheme.FONT_READ + 2, col.to_html(false), shown]
 			body = body.replace("{%s}" % bt["id"], chunk)
 		row.desc_rt.text = body
+		var plain: String = str(base["template"])
+		for t in preview["terms"]:
+			plain = plain.replace("{%s}" % t["id"], str(t["display"]))
+		row.plain = plain
+	_layout_ability_rows()
+
+# Rows flow instead of sitting on a fixed ABIL_ROW_H grid (2026-09-27): with
+# the Inter reading face a long kit (Bouncer's "Reel In") runs to four lines,
+# and on the fixed grid it ran straight under the next row's title. Each row is
+# measured from its own plain text; short kits land where they always did.
+func _layout_ability_rows() -> void:
+	var ry := INFO_Y - 4.0
+	var w := ABIL_W - 20.0
+	for row in _ability_rows:
+		var desc: RichTextLabel = row.desc_rt
+		var font: Font = desc.get_theme_font("normal_font")
+		var px: int = UITheme.FONT_READ
+		var text_w: float = font.get_string_size(str(row.plain), HORIZONTAL_ALIGNMENT_LEFT, -1, px).x * 1.08
+		var lines: int = maxi(1, ceili(text_w / w))
+		var desc_h: float = lines * (font.get_height(px) + 2.0) + 4.0
+		(row.badge as Control).position.y = ry
+		(row.name_lbl as Control).position.y = ry
+		desc.position.y = ry + TITLE_H + 2.0
+		desc.size.y = desc_h
+		ry += TITLE_H + 2.0 + desc_h + 8.0
+	# The backing follows the rows so the last line never sits on its edge.
+	if _ability_bg:
+		_ability_bg.size.y = maxf(ABIL_ROW_H * 3.0 + 26.0, ry - _ability_bg.position.y)
 
 # ── Hover handlers ────────────────────────────────────────────────────────────
 func _on_perk_hover(perk: Dictionary) -> void:
@@ -575,7 +607,8 @@ func _rebuild_cards() -> void:
 	var gap     := 13.0
 	var total_w := CARD_W * 3.0 + gap * 2.0
 	var start_x := (PANEL_W - total_w) / 2.0
-	var card_y  := PANEL_H - CARD_H - 65.0
+	# -45 (was -65): 20px more room above for the flowing ability rows.
+	var card_y  := PANEL_H - CARD_H - 45.0
 
 	for i in range(_cur_offers.size()):
 		var card := _make_card(_cur_offers[i], Vector2(start_x + i * (CARD_W + gap), card_y), i)
@@ -627,10 +660,15 @@ static func format_perk_value(perk: Dictionary) -> String:
 # finishes, then card 2 lands, then card 3 shortly after — all settle in a
 # tight cluster instead of waiting each other out in full (too slow).
 const NEUTRAL_COL   := Color(0.14, 0.14, 0.19)
-const REEL_TICKS    := 8
-const REEL_START    := 0.035
-const REEL_GROWTH   := 1.22
-const REEL_DURATION := 0.62
+# 2026-10-04 (owner: "a bit slower than I want" by the 50th level-up): reels
+# were 8 ticks / 0.62s, all three cards settling at ~3.7s. Now 7 ticks / 0.43s
+# per reel, all cards settled at ~2.6s (about 30% faster). Same slot-machine
+# look, just a shorter spin. Only this screen: hero_shop / relic keep their own
+# copies of these numbers.
+const REEL_TICKS    := 7
+const REEL_START    := 0.033
+const REEL_GROWTH   := 1.2
+const REEL_DURATION := 0.43   # = REEL_START*(REEL_GROWTH^REEL_TICKS-1)/(REEL_GROWTH-1)
 const CARD_STAGGER  := REEL_DURATION * 3.0 / 2.0   # half the identity+rank+value cascade
 
 func _make_card(perk: Dictionary, pos: Vector2, idx: int) -> Button:
@@ -693,8 +731,8 @@ func _make_card(perk: Dictionary, pos: Vector2, idx: int) -> Button:
 	var desc := Label.new()
 	desc.position             = Vector2(16, desc_y)
 	desc.size                 = Vector2(CARD_W - 32, DESC_H)
-	UITheme.apply_font(desc, UITheme.FONT_VALUE)
-	desc.add_theme_color_override("font_color", Color(0.72, 0.70, 0.82))
+	UITheme.apply_read_font(desc)
+	desc.add_theme_color_override("font_color", Color(0.82, 0.80, 0.90))
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.vertical_alignment   = VERTICAL_ALIGNMENT_TOP
 	desc.autowrap_mode        = TextServer.AUTOWRAP_WORD_SMART
@@ -793,8 +831,14 @@ func _build_ui() -> void:
 	# previously) left the flat panel color exposed wherever the 650x450 art
 	# fell short of the 1100x700 panel — that read as a second background.
 	# Cover-and-crop instead so the art itself fills every pixel of the panel.
-	var bg_tex: Texture2D = load(CUSTOM_BG_PATH) as Texture2D \
-		if not UITheme.is_light() and ResourceLoader.exists(CUSTOM_BG_PATH) else null
+	#
+	# 2026-09-27 screen audit: switched OFF. level_up_bg.png has its own painted
+	# frame and black margins baked in, so "cover" put that frame ~90px short of
+	# the real panel and offset from the menu_header banner — the perk cards
+	# appeared to hang out of the bottom of the panel. The shared
+	# menu_surface_box (already used in Light mode) matches every other
+	# menu-chrome screen. The branch is kept so a frameless art pass can drop in.
+	var bg_tex: Texture2D = null
 	if bg_tex:
 		_panel.add_theme_stylebox_override("panel", _flat(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 12))
 	else:

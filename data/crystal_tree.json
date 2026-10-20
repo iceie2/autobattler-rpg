@@ -70,50 +70,6 @@
       "y": -2440.0
     },
     {
-      "icon": "hero_pastor.png",
-      "key": "hero_unlock_pastor",
-      "max_level": 1,
-      "parents": [
-        "max_level"
-      ],
-      "size": 96.0,
-      "x": -167.3,
-      "y": -1077.1
-    },
-    {
-      "icon": "hero_coal.png",
-      "key": "hero_unlock_coal",
-      "max_level": 1,
-      "parents": [
-        "max_level"
-      ],
-      "size": 96.0,
-      "x": -327.8,
-      "y": -1039.6
-    },
-    {
-      "icon": "hero_sear.png",
-      "key": "hero_unlock_sear",
-      "max_level": 1,
-      "parents": [
-        "max_level"
-      ],
-      "size": 96.0,
-      "x": -480.8,
-      "y": -978.2
-    },
-    {
-      "icon": "hero_ember.png",
-      "key": "hero_unlock_ember",
-      "max_level": 1,
-      "parents": [
-        "max_level"
-      ],
-      "size": 96.0,
-      "x": -223.3,
-      "y": -1255.3
-    },
-    {
       "icon": "fire_def_affinity.png",
       "key": "def_affinity_fire",
       "max_level": 1,
@@ -699,50 +655,6 @@
       "y": -1220.0
     },
     {
-      "icon": "hero_rush.png",
-      "key": "hero_unlock_rush",
-      "max_level": 1,
-      "parents": [
-        "max_level_2_3_2"
-      ],
-      "size": 96.0,
-      "x": 849.2,
-      "y": -683.4
-    },
-    {
-      "icon": "hero_rift.png",
-      "key": "hero_unlock_rift",
-      "max_level": 1,
-      "parents": [
-        "max_level_2_3_2"
-      ],
-      "size": 96.0,
-      "x": 736.4,
-      "y": -803.6
-    },
-    {
-      "icon": "hero_zolt.png",
-      "key": "hero_unlock_zolt",
-      "max_level": 1,
-      "parents": [
-        "max_level_2_3_2"
-      ],
-      "size": 96.0,
-      "x": 606.8,
-      "y": -905.5
-    },
-    {
-      "icon": "hero_lumen.png",
-      "key": "hero_unlock_lumen",
-      "max_level": 1,
-      "parents": [
-        "max_level_2_3_2"
-      ],
-      "size": 96.0,
-      "x": 975.5,
-      "y": -821.0
-    },
-    {
       "icon": "lightning_def_aff.png",
       "key": "def_affinity_lightning",
       "max_level": 1,
@@ -1263,61 +1175,6 @@
       "y": 1220.0
     },
     {
-      "icon": "hero_lordee.png",
-      "key": "hero_unlock_lordee",
-      "max_level": 1,
-      "parents": [
-        "max_level_market_1"
-      ],
-      "size": 96.0,
-      "x": 1016.4,
-      "y": 393.7
-    },
-    {
-      "icon": "hero_necro.png",
-      "key": "hero_unlock_necro",
-      "max_level": 1,
-      "parents": [
-        "max_level_market_1"
-      ],
-      "size": 96.0,
-      "x": 1064.2,
-      "y": 235.9
-    },
-    {
-      "icon": "hero_riot.png",
-      "key": "hero_unlock_riot",
-      "max_level": 1,
-      "parents": [
-        "max_level_2_3_2"
-      ],
-      "size": 96.0,
-      "x": 861.4,
-      "y": -940.0
-    },
-    {
-      "icon": "hero_stitch.png",
-      "key": "hero_unlock_stitch",
-      "max_level": 1,
-      "parents": [
-        "max_level_market_1"
-      ],
-      "size": 96.0,
-      "x": 1087.6,
-      "y": 72.7
-    },
-    {
-      "icon": "hero_cross.png",
-      "key": "hero_unlock_cross",
-      "max_level": 1,
-      "parents": [
-        "max_level_market_1"
-      ],
-      "size": 96.0,
-      "x": 1198.8,
-      "y": 434.3
-    },
-    {
       "icon": "normal_def_affinity.png",
       "key": "def_affinity_normal",
       "max_level": 1,
@@ -1781,39 +1638,6 @@
       "size": 104.0,
       "x": 0.0,
       "y": 2440.0
-    },
-    {
-      "icon": "hero_sheildor.png",
-      "key": "hero_unlock_sheildor",
-      "max_level": 1,
-      "parents": [
-        "max_level_armory_1"
-      ],
-      "size": 96.0,
-      "x": 167.3,
-      "y": 1077.1
-    },
-    {
-      "icon": "hero_june.png",
-      "key": "hero_unlock_june",
-      "max_level": 1,
-      "parents": [
-        "max_level_armory_1"
-      ],
-      "size": 96.0,
-      "x": 327.8,
-      "y": 1039.6
-    },
-    {
-      "icon": "hero_spore.png",
-      "key": "hero_unlock_spore",
-      "max_level": 1,
-      "parents": [
-        "max_level_armory_1"
-      ],
-      "size": 96.0,
-      "x": 480.8,
-      "y": 978.2
     },
     {
       "icon": "earth_def_affinity.png",
@@ -2666,28 +2490,6 @@
       "y": 1220.0
     },
     {
-      "icon": "hero_sable.png",
-      "key": "hero_unlock_sable",
-      "max_level": 1,
-      "parents": [
-        "max_level_mentor_1"
-      ],
-      "size": 96.0,
-      "x": -849.2,
-      "y": 683.4
-    },
-    {
-      "icon": "hero_vail.png",
-      "key": "hero_unlock_vail",
-      "max_level": 1,
-      "parents": [
-        "max_level_mentor_1"
-      ],
-      "size": 96.0,
-      "x": -736.4,
-      "y": 803.6
-    },
-    {
       "icon": "air_def_affinity.png",
       "key": "def_affinity_air",
       "max_level": 1,
@@ -3360,28 +3162,6 @@
       "size": 104.0,
       "x": -2113.1,
       "y": -1220.0
-    },
-    {
-      "icon": "hero_doc.png",
-      "key": "hero_unlock_doc",
-      "max_level": 1,
-      "parents": [
-        "max_level_scholar_1"
-      ],
-      "size": 96.0,
-      "x": -1016.4,
-      "y": -393.7
-    },
-    {
-      "icon": "hero_reed.png",
-      "key": "hero_unlock_reed",
-      "max_level": 1,
-      "parents": [
-        "max_level_scholar_1"
-      ],
-      "size": 96.0,
-      "x": -1064.2,
-      "y": -235.9
     },
     {
       "icon": "water_def_affinity.png",

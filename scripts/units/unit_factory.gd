@@ -13,6 +13,7 @@ const STAT_ICONS: Dictionary = {
 	"res":       "res://assets/icons/stat_icons/defense.png",
 	"mres":      "res://assets/icons/stat_icons/defense.png",   # shared art until a magic-armor icon lands
 	"ten":       "res://assets/icons/stat_icons/defense.png",   # ditto — stand-in until a tenacity icon lands
+	"ability_haste": "res://assets/icons/stat_icons/magic_dmg.png", # placeholder until dedicated haste art lands
 	"aspd":      "res://assets/icons/stat_icons/attack_speed.png",
 	"hpregen":   "res://assets/icons/stat_icons/hp_regen.png",
 	"manaregen": "res://assets/icons/stat_icons/mp_regen.png",
@@ -32,6 +33,7 @@ const STAT_NAMES: Dictionary = {
 	"res":       "Armor",
 	"mres":      "Magic Armor",
 	"ten":       "Tenacity — shortens stun/root/taunt/slow (100/(100+TEN)); never blocks them outright",
+	"ability_haste": "Ability Haste — shortens skill cooldowns (100/(100+Haste))",
 	"aspd":      "Attack Speed",
 	"hpregen":   "HP Regen",
 	"manaregen": "MP Regen",
@@ -182,7 +184,7 @@ const CLASS_BASE_STATS = {
 	UnitBase.UnitClass.CROSS: { "hp":1300,"mana":550, "atk":15,"magic":13,"res":20,"aspd":0.64,"hpregen":0.6,"manaregen":3.67, "move":2,"range":1, "off_affinity":125.0,"def_affinity":72.0 },
 	UnitBase.UnitClass.SEAR: { "hp":900,"mana":600, "atk":18,"magic":19,"res":16,"aspd":0.7,"hpregen":0.55,"manaregen":4.17, "move":3,"range":2, "off_affinity":150.0,"def_affinity":87.0 },
 	UnitBase.UnitClass.EMBER: { "hp":640,"mana":400, "atk":19,"magic":16,"res":12,"aspd":0.86,"hpregen":0.42,"manaregen":3.33, "move":3,"range":5, "off_affinity":155.0,"def_affinity":93.0 },
-	UnitBase.UnitClass.RIFT: { "hp":950,"mana":650, "atk":17,"magic":19,"res":18,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":3,"range":2, "off_affinity":145.0,"def_affinity":82.0 },
+	UnitBase.UnitClass.RIFT: { "hp":950,"mana":650, "atk":17,"magic":19,"res":18,"aspd":0.7,"hpregen":0.53,"manaregen":4.17, "move":3,"range":5, "off_affinity":145.0,"def_affinity":82.0 },
 	UnitBase.UnitClass.ZOLT: { "hp":720,"mana":850, "atk":9,"magic":21,"res":14,"aspd":0.68,"hpregen":0.5,"manaregen":5.83, "move":2,"range":5, "off_affinity":160.0,"def_affinity":89.0 },
 	UnitBase.UnitClass.LUMEN: { "hp":700,"mana":800, "atk":10,"magic":20,"res":13,"aspd":0.72,"hpregen":0.45,"manaregen":5.33, "move":2,"range":5, "off_affinity":158.0,"def_affinity":91.0 },
 	UnitBase.UnitClass.STATIC: { "hp":820,"mana":700, "atk":12,"magic":18,"res":16,"aspd":0.72,"hpregen":0.47,"manaregen":4.67, "move":2,"range":3, "off_affinity":145.0,"def_affinity":85.0 },
@@ -191,8 +193,8 @@ const CLASS_BASE_STATS = {
 	UnitBase.UnitClass.SPORE: { "hp":780,"mana":820, "atk":9,"magic":20,"res":15,"aspd":0.68,"hpregen":0.47,"manaregen":5.5, "move":2,"range":2, "off_affinity":150.0,"def_affinity":85.0 },
 	UnitBase.UnitClass.ZOMBIE: { "hp":110,"mana":0, "atk":10,"magic":2,"res":5,"aspd":0.58,"hpregen":0.17,"manaregen":0.33, "move":2,"range":1, "off_affinity":120.0,"def_affinity":91.0 },
 	UnitBase.UnitClass.BAT: { "hp":70,"mana":0, "atk":9,"magic":2,"res":3,"aspd":0.7,"hpregen":0.12,"manaregen":0.33, "move":4,"range":1, "off_affinity":120.0,"def_affinity":95.0 },
-	# Ant (2026-07-15): only the round-15 Ant Hill spawns these (always level 1,
-	# no set_level — see _spawn_ant), so this base row IS the round-15 statline.
+	# Ant base stats. _spawn_ant scales each new ant to its hill's current level
+	# using CLASS_GROWTH_PER_LEVEL, like other summoned units.
 	UnitBase.UnitClass.ANT: { "hp":400,"mana":0, "atk":50,"magic":0,"res":1,"aspd":0.9,"hpregen":0.0,"manaregen":0.0, "move":6,"range":1, "off_affinity":115.0,"def_affinity":95.0 },
 }
 
@@ -203,41 +205,41 @@ const CLASS_GROWTH_PER_LEVEL = {
 	# magic 0 -> 2, matching atk (2026-08-03): his abilities scale off MAG now, so
 	# without magic growth they would flatline the moment he leveled. See the
 	# CLASS_BASE_STATS comment above.
-	UnitBase.UnitClass.BLOODHOUND: {"hp":44,"mana":0,"atk":2,"magic":2,"res":5,"aspd":0.02,"hpregen":0.1,"manaregen":0.333},
-	UnitBase.UnitClass.BOUNCER: {"hp":56,"mana":0,"atk":1,"magic":2,"res":5,"aspd":0.02,"hpregen":0.05,"manaregen":0.667},
-	UnitBase.UnitClass.HEADHUNTER: {"hp":20,"mana":0,"atk":2,"magic":0,"res":4,"aspd":0.02,"hpregen":0.05,"manaregen":0.167},
-	UnitBase.UnitClass.SHAUNA: {"hp":24,"mana":0,"atk":2,"magic":0,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.333},
-	UnitBase.UnitClass.NEMI: {"hp":28,"mana":20,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":1.0},
-	UnitBase.UnitClass.SHEILDOR: {"hp":36,"mana":15,"atk":1,"magic":2,"res":5,"aspd":0.02,"hpregen":0.075,"manaregen":0.833},
-	UnitBase.UnitClass.LORDEE: {"hp":44,"mana":12,"atk":1,"magic":3,"res":5,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.NECRO: {"hp":20,"mana":25,"atk":1,"magic":4,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":1.167},
-	UnitBase.UnitClass.DOC: {"hp":28,"mana":20,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":1.167},
-	UnitBase.UnitClass.RIOT: {"hp":40,"mana":0,"atk":2,"magic":0,"res":6,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.PASTOR: {"hp":28,"mana":18,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":1.0},
-	UnitBase.UnitClass.SABLE: {"hp":22,"mana":0,"atk":3,"magic":0,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.RUSH: {"hp":28,"mana":0,"atk":3,"magic":0,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.STITCH: {"hp":26,"mana":18,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.COAL: {"hp":44,"mana":0,"atk":3,"magic":0,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":0.167},
-	UnitBase.UnitClass.JUNE: {"hp":32,"mana":18,"atk":1,"magic":2,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
+	UnitBase.UnitClass.BLOODHOUND: {"hp":44,"mana":0,"atk":2,"magic":2,"res":5,"aspd":0.02,"hpregen":0.1,"manaregen":0.1},
+	UnitBase.UnitClass.BOUNCER: {"hp":56,"mana":0,"atk":1,"magic":2,"res":5,"aspd":0.02,"hpregen":0.05,"manaregen":0.3},
+	UnitBase.UnitClass.HEADHUNTER: {"hp":20,"mana":0,"atk":2,"magic":0,"res":4,"aspd":0.02,"hpregen":0.05,"manaregen":0.1},
+	UnitBase.UnitClass.SHAUNA: {"hp":24,"mana":0,"atk":2,"magic":0,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.1},
+	UnitBase.UnitClass.NEMI: {"hp":28,"mana":20,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.3},
+	UnitBase.UnitClass.SHEILDOR: {"hp":36,"mana":15,"atk":1,"magic":2,"res":5,"aspd":0.02,"hpregen":0.075,"manaregen":0.233},
+	UnitBase.UnitClass.LORDEE: {"hp":44,"mana":12,"atk":1,"magic":3,"res":5,"aspd":0.02,"hpregen":0.025,"manaregen":0.267},
+	UnitBase.UnitClass.NECRO: {"hp":20,"mana":25,"atk":1,"magic":4,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.367},
+	UnitBase.UnitClass.DOC: {"hp":28,"mana":20,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":3.67},
+	UnitBase.UnitClass.RIOT: {"hp":40,"mana":0,"atk":2,"magic":0,"res":6,"aspd":0.02,"hpregen":0.075,"manaregen":0.067},
+	UnitBase.UnitClass.PASTOR: {"hp":28,"mana":18,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.3},
+	UnitBase.UnitClass.SABLE: {"hp":22,"mana":0,"atk":3,"magic":0,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.67},
+	UnitBase.UnitClass.RUSH: {"hp":28,"mana":0,"atk":3,"magic":0,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.7},
+	UnitBase.UnitClass.STITCH: {"hp":26,"mana":18,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.237},
+	UnitBase.UnitClass.COAL: {"hp":44,"mana":0,"atk":3,"magic":0,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":0.08},
+	UnitBase.UnitClass.JUNE: {"hp":32,"mana":18,"atk":1,"magic":2,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":0.333},
 	# Balance 2026-07-24: growth trimmed to match RIOT (his closest stat-twin —
 	# identical hp/res/atk/aspd growth) instead of exceeding it: hpregen
 	# 0.1->0.075, manaregen 0.333->0.167, res growth 6->5. Cross's hp_regen
 	# and mana_regen growth used to OUTPACE Riot's despite Cross alone having
 	# Penance (heals off all damage taken) — a tank shouldn't out-sustain the
 	# roster's dedicated CC tank on raw regen AND have a unique heal passive.
-	UnitBase.UnitClass.CROSS: {"hp":60,"mana":0,"atk":2,"magic":0,"res":5,"aspd":0.02,"hpregen":0.075,"manaregen":0.167},
-	UnitBase.UnitClass.SEAR: {"hp":32,"mana":16,"atk":2,"magic":3,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.667},
-	UnitBase.UnitClass.EMBER: {"hp":22,"mana":0,"atk":1,"magic":2,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.5},
-	UnitBase.UnitClass.RIFT: {"hp":34,"mana":16,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.ZOLT: {"hp":20,"mana":24,"atk":1,"magic":4,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":1.167},
-	UnitBase.UnitClass.LUMEN: {"hp":20,"mana":22,"atk":1,"magic":4,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.833},
-	UnitBase.UnitClass.STATIC: {"hp":26,"mana":18,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.667},
-	UnitBase.UnitClass.REED: {"hp":30,"mana":20,"atk":1,"magic":2,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
-	UnitBase.UnitClass.VAIL: {"hp":28,"mana":20,"atk":1,"magic":2,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":1.0},
-	UnitBase.UnitClass.SPORE: {"hp":24,"mana":22,"atk":1,"magic":4,"res":4,"aspd":0.02,"hpregen":0.05,"manaregen":1.0},	# Summons don'''t level, but give them a small fallback so set_level() never crashes.
+	UnitBase.UnitClass.CROSS: {"hp":60,"mana":0,"atk":2,"magic":0,"res":5,"aspd":0.02,"hpregen":0.075,"manaregen":0.55},
+	UnitBase.UnitClass.SEAR: {"hp":32,"mana":16,"atk":2,"magic":3,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.267},
+	UnitBase.UnitClass.EMBER: {"hp":22,"mana":0,"atk":1,"magic":2,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.2},
+	UnitBase.UnitClass.RIFT: {"hp":34,"mana":16,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.267},
+	UnitBase.UnitClass.ZOLT: {"hp":20,"mana":24,"atk":1,"magic":4,"res":4,"aspd":0.02,"hpregen":0.075,"manaregen":0.367},
+	UnitBase.UnitClass.LUMEN: {"hp":20,"mana":22,"atk":1,"magic":4,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.233},
+	UnitBase.UnitClass.STATIC: {"hp":26,"mana":18,"atk":1,"magic":3,"res":4,"aspd":0.02,"hpregen":0.025,"manaregen":0.267},
+	UnitBase.UnitClass.REED: {"hp":30,"mana":20,"atk":1,"magic":2,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":0.333},
+	UnitBase.UnitClass.VAIL: {"hp":28,"mana":20,"atk":1,"magic":2,"res":4,"aspd":0.02,"hpregen":0.1,"manaregen":0.333},
+	UnitBase.UnitClass.SPORE: {"hp":24,"mana":22,"atk":1,"magic":4,"res":4,"aspd":0.02,"hpregen":0.05,"manaregen":0.333},	# Summons don'''t level, but give them a small fallback so set_level() never crashes.
 	UnitBase.UnitClass.ZOMBIE: {"hp":10,"mana":0,"atk":1,"magic":0,"res":1,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
 	UnitBase.UnitClass.BAT:    {"hp":6,"mana":0,"atk":1,"magic":0,"res":1,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
-	UnitBase.UnitClass.ANT:    {"hp":4,"mana":0,"atk":1,"magic":0,"res":1,"aspd":0.0,"hpregen":0.0,"manaregen":0.0},
+	UnitBase.UnitClass.ANT:    {"hp":400,"mana":0,"atk":4,"magic":0,"res":4,"aspd":0.02,"hpregen":1.0,"manaregen":0.0},
 }
 
 static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Element = UnitBase.Element.NORMAL, is_player: bool = true) -> VisualUnit:
@@ -378,9 +380,9 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_name          = "Raise Zombie"
 			unit.skill_damage_multiplier = 0.0
 			unit.skill_range         = 3
-			unit.skill_cooldown_max  = 5
-			unit.skill_mana_cost     = 120
-			unit.skill_description   = "Summon a zombie minion in front to fight by your side. · 120 MP · 5s CD"
+			unit.skill_cooldown_max  = 6
+			unit.skill_mana_cost     = 50
+			unit.skill_description   = "Summon a zombie minion in front to fight by your side. · 200 MP + 100 MP per living zombie you own · 6s CD"
 			unit.ultimate_name       = "Bat Swarm"
 			unit.ultimate_damage_mult = 0.6
 			unit.ultimate_range      = 5
@@ -445,7 +447,7 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.ultimate_name       = "Afterimage"
 			unit.ultimate_damage_mult = 1.2
 			unit.ultimate_range      = 99
-			unit.ultimate_charge_max = 400
+			unit.ultimate_charge_max = 1000
 		UnitBase.UnitClass.STITCH:
 			unit.passive_name        = "Threadguard"
 			unit.skill_name          = "Link"
@@ -538,22 +540,23 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_name          = "Thunderstorm"
 			unit.skill_damage_multiplier = 0.0
 			unit.skill_range         = 6
-			unit.skill_cooldown_max  = 4
-			unit.skill_mana_cost     = 90
-			unit.skill_description   = "Summon a drifting storm: its own tile takes 50% MAG lightning damage and a 0.5s stun, the 8 tiles around it take half that damage. Moves every second. · 90 MP · 4s CD"
+			unit.skill_cooldown_max  = 3
+			unit.skill_mana_cost     = 175
+			unit.skill_description   = "Summon a drifting storm: its own tile takes 50% MAG lightning damage and a 0.5s stun, the 8 tiles around it take half that damage. Moves every second. Each storm drains 3 mana per second; all storms disappear at 0 mana. · 90 MP · 4s CD"
 			unit.ultimate_name       = "Thunderhammer"
 			unit.ultimate_damage_mult = 4.5
 			unit.ultimate_range      = 99
 			unit.ultimate_charge_max = 480
 		UnitBase.UnitClass.LUMEN:
-			unit.passive_name        = "Refraction"
-			unit.skill_name          = "Refract"
+			# Kit rework 2026-10-06 ("The Lens") -- see LUMEN_KIT_AUDIT.md s5.
+			unit.passive_name        = "Focused Light"
+			unit.skill_name          = "Flare"
 			unit.skill_damage_multiplier = 0.9
-			unit.skill_range         = 5
+			unit.skill_range         = 2
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 60
-			unit.skill_description   = "Chain beam hitting up to 5 enemies for 90% MAG, decaying 15% per bounce. · 60 MP · 4s CD"
-			unit.ultimate_name       = "Prism"
+			unit.skill_description   = "A flash from his core blinds every enemy within 2 tiles for 3s (50% miss). Only fires with an enemy that close. · 60 MP · 4s CD"
+			unit.ultimate_name       = "Dawnbreaker"
 			unit.ultimate_damage_mult = 1.4
 			unit.ultimate_range      = 99
 			unit.ultimate_charge_max = 460
@@ -600,14 +603,14 @@ static func create_unit(unit_class: UnitBase.UnitClass, element: UnitBase.Elemen
 			unit.skill_range         = 4
 			unit.skill_cooldown_max  = 4
 			unit.skill_mana_cost     = 50
-			unit.skill_description   = "Instantly max spore stacks on the nearest enemy, triggering a toxic burst next tick. · 50 MP · 4s CD"
+			unit.skill_description   = "Plant a mushroom patch on the nearest enemy's tile and its neighbours — foes standing on it gather spores 3x faster for 5s. · 50 MP · 4s CD"
 			unit.ultimate_name       = "Release"
 			unit.ultimate_damage_mult = 0.0
 			unit.ultimate_range      = 99
 			unit.ultimate_charge_max = 440
 		UnitBase.UnitClass.ZOMBIE:
 			unit.skill_name          = "Claw"
-			unit.skill_damage_multiplier = 1.0
+			unit.skill_damage_multiplier = 2.0
 			unit.skill_range         = 1
 			unit.skill_cooldown_max  = 3
 			unit.skill_mana_cost     = 0
@@ -635,6 +638,7 @@ const GRADE_COLORS := {
 	"B": Color(0.30, 0.55, 0.95),
 	"A": Color(0.68, 0.35, 0.95),
 	"S": Color(1.0,  0.85, 0.0),
+	"S+": Color(1.0, 0.55, 0.20),   # merge-only tier (2026-09-28) — hotter than S gold
 }
 
 # Per-stat growth ROLL MULTIPLIER ranges 0.3 to 1.7 (see generate_recruit_rolls
@@ -651,6 +655,174 @@ static func grade_letter_for_growth(growth: float) -> String:
 
 static func grade_color_for_growth(growth: float) -> Color:
 	return GRADE_COLORS.get(grade_letter_for_growth(growth), Color(0.86, 0.86, 1.0))
+
+# ── Hero merging (2026-09-28) ─────────────────────────────────────────────────
+# Two copies of the same hero merge: the survivor climbs one grade, which is
+# exactly one 0.3-wide growth band (see grade_letter_for_growth) added to every
+# stat's roll multiplier. S+ is merge-only — recruits cap at S.
+const GRADE_LADDER := ["D", "C", "B", "A", "S", "S+"]
+const MERGE_GROWTH_STEP := 0.3
+const MERGE_XP_CARRY := 0.5
+
+# Merge "value" of a copy by grade, in D-units: each grade is worth TWICE the one
+# below, so two same-grade copies make exactly one copy of the next grade. A copy
+# merged into a HIGHER-grade hero adds its value to that hero's merge_progress,
+# and reaching the hero's own grade value ranks it up (owner 2026-10-07: "so u
+# can use lesser versions to still help rank up the hero"). A C into a B is half
+# a merge, a D into a B a quarter; two As make an S (an A is worth the 8 an A
+# needs to reach S).
+const GRADE_VALUE := {"D": 1, "C": 2, "B": 4, "A": 8, "S": 16, "S+": 32}
+
+static func next_grade(grade: String) -> String:
+	var i: int = GRADE_LADDER.find(grade if grade != "" else "B")
+	if i < 0:
+		i = GRADE_LADDER.find("B")
+	return GRADE_LADDER[mini(i + 1, GRADE_LADDER.size() - 1)]
+
+# Grade of a hero for merge purposes (a blank legacy grade counts as B).
+static func grade_of(u: UnitBase) -> String:
+	return u.recruit_grade if u.recruit_grade != "" else "B"
+
+static func grade_index(u: UnitBase) -> int:
+	var i: int = GRADE_LADDER.find(grade_of(u))
+	return i if i >= 0 else GRADE_LADDER.find("B")
+
+static func merge_value(grade: String) -> int:
+	return int(GRADE_VALUE.get(grade if grade != "" else "B", 4))
+
+# Which copy survives a merge: the HIGHER grade (it receives the progress); the
+# same grade → the higher level; still tied → `target` (the one dropped ON /
+# picked second). Shared by drag and the Merge panel so the panel's preview
+# always matches the result.
+static func merge_survivor(dragged: UnitBase, target: UnitBase) -> UnitBase:
+	var gd := grade_index(dragged)
+	var gt := grade_index(target)
+	if gd != gt:
+		return dragged if gd > gt else target
+	return dragged if dragged.level > target.level else target
+
+# Empty string = mergeable; otherwise the reason it isn't (shown to the player).
+static func merge_block_reason(survivor: UnitBase, consumed: UnitBase) -> String:
+	if survivor == null or consumed == null or survivor == consumed:
+		return "Nothing to merge."
+	if not (survivor.is_player_unit and consumed.is_player_unit) \
+			or survivor.is_summoned or consumed.is_summoned:
+		return "Only your own heroes can merge."
+	if survivor.unit_class != consumed.unit_class:
+		return "Only two copies of the same hero can merge."
+	if grade_index(consumed) > grade_index(survivor):
+		return "The higher-grade copy has to be the one that ranks up."
+	if survivor.recruit_grade == GRADE_LADDER[-1]:
+		return "%s is already S+ — the highest grade." % survivor.unit_name
+	return ""
+
+# What merging `consumed` into `survivor` does, without touching either:
+#   steps            grade-ups it causes (0 = only progress, a "partial merge")
+#   grade_after      the survivor's grade afterwards
+#   progress_before / progress_after / threshold_before / threshold_after
+#                    merge_progress and the amount that ranks the hero up, in
+#                    D-units, before and after
+#   added            what the consumed copy is worth
+# Progress carries over: a B at 2/4 merged with another B (4) ranks up to A and
+# keeps 2 toward the next grade. S+ is the top: nothing is kept there.
+static func merge_plan(survivor: UnitBase, consumed: UnitBase) -> Dictionary:
+	var g := grade_index(survivor)
+	var last := GRADE_LADDER.size() - 1
+	var progress: int = survivor.merge_progress + merge_value(grade_of(consumed))
+	var steps := 0
+	while g < last and progress >= merge_value(GRADE_LADDER[g]):
+		progress -= merge_value(GRADE_LADDER[g])
+		g += 1
+		steps += 1
+	if g >= last:
+		progress = 0
+	return {"steps": steps, "grade_after": GRADE_LADDER[g], "added": merge_value(grade_of(consumed)),
+		"progress_before": survivor.merge_progress, "progress_after": progress,
+		"threshold_before": merge_value(grade_of(survivor)), "threshold_after": merge_value(GRADE_LADDER[g])}
+
+# "1/2", "3/4", "0": merge progress as a reduced fraction of one full merge.
+static func progress_text(progress: int, threshold: int) -> String:
+	if progress <= 0 or threshold <= 0:
+		return "0"
+	var a := progress
+	var b := threshold
+	while b != 0:
+		var t := a % b
+		a = b
+		b = t
+	return "%d/%d" % [roundi(float(progress) / a), roundi(float(threshold) / a)]
+
+# Rank the survivor up (each earned grade) and fold the consumed copy's XP in. Stats are
+# stored as FINAL numbers (relics, scars, crystal bonuses, gear all baked in),
+# so this never re-derives them — it adds only the growth DIFFERENCE, backfilled
+# for every level the survivor already has (level 1 counts: apply_recruit_rolls
+# ticks growth once at recruit). Everything else on the unit is untouched.
+# Caller owns removing `consumed` from the board/bench and returning its gear.
+const MERGE_KEYS := ["hp", "mana", "atk", "magic", "res", "aspd", "hpregen", "manaregen"]
+
+# Per-level growth a merge adds to one stat for this unit's class.
+static func merge_growth_step(unit: UnitBase, key: String) -> float:
+	var d: float = float(unit.growth_base.get(key, 0.0)) * MERGE_GROWTH_STEP
+	# apply_stat_growth truncates res growth with int() — a whole-number step
+	# keeps the backfill and future level-ups identical.
+	return float(round(d)) if key == "res" else snappedf(d, 0.01)
+
+# What merge_heroes WOULD add right now for `steps` grade-ups, for the Merge
+# panel's preview: {key: {"now": immediate stat gain, "per_level": growth added}}.
+# Int stats report the rounded gain exactly as merge_heroes applies it.
+static func merge_preview(survivor: UnitBase, steps: int = 1) -> Dictionary:
+	var out := {}
+	for key in MERGE_KEYS:
+		var d := merge_growth_step(survivor, key) * steps
+		if d == 0.0:
+			continue
+		var now: float = d * survivor.level
+		if key in ["hp", "mana", "atk", "magic"]:
+			now = float(int(round(now)))
+		elif key == "res":
+			now = float(int(now))
+		out[key] = {"now": now, "per_level": d}
+	return out
+
+# Merge `consumed` into `survivor` (see merge_plan): each grade-up it earns adds
+# its growth backfill and raises the grade; the remainder becomes merge_progress.
+# Half the consumed copy's XP carries over either way.
+static func merge_heroes(survivor: UnitBase, consumed: UnitBase) -> void:
+	var plan := merge_plan(survivor, consumed)
+	for i in range(int(plan["steps"])):
+		_apply_grade_step(survivor)
+	survivor.merge_progress = int(plan["progress_after"])
+	if consumed.current_xp > 0.0:
+		survivor.grant_xp(consumed.current_xp * MERGE_XP_CARRY)
+
+static func _apply_grade_step(survivor: UnitBase) -> void:
+	var lv: int = survivor.level
+	for key in MERGE_KEYS:
+		var d := merge_growth_step(survivor, key)
+		if d == 0.0:
+			continue
+		survivor.growth_bonus[key] = float(survivor.growth_bonus.get(key, 0.0)) + d
+		var gain := d * lv
+		match key:
+			"hp":
+				survivor.max_hp += int(round(gain)); survivor.current_hp += int(round(gain))
+			"mana":
+				survivor.max_mana += int(round(gain))
+				survivor.current_mana = mini(survivor.current_mana + int(round(gain)), survivor.max_mana)
+			"atk":
+				survivor.attack_damage += int(round(gain))
+			"magic":
+				survivor.magic_power += int(round(gain))
+			"res":
+				survivor.resistance += int(gain); survivor.magic_resist += int(gain)
+			"aspd":
+				survivor.attack_speed += gain
+			"hpregen":
+				survivor.hp_regen += gain
+			"manaregen":
+				survivor.mana_regen += gain
+	survivor.recruit_grade = next_grade(survivor.recruit_grade)
+	survivor.current_hp = mini(survivor.current_hp, survivor.max_hp)
 
 # Roll per-stat bonuses for a recruit offer.
 # "flat" scales the STARTING stat (class base → this recruit's current stat).

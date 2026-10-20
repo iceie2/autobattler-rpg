@@ -104,7 +104,7 @@ func _build_ui() -> void:
 	_dossier_comp = Label.new()
 	if font:
 		_dossier_comp.add_theme_font_override("font", font)
-	UITheme.apply_font(_dossier_comp, UITheme.FONT_VALUE)
+	UITheme.apply_read_font(_dossier_comp)   # prose -> Inter (2026-09-29)
 	_dossier_comp.add_theme_color_override("font_color", Color(0.62, 0.70, 0.78, 1.0))
 	_dossier_comp.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_dossier_comp.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -114,70 +114,13 @@ func _build_ui() -> void:
 	# Heading (held in a member so briefing mode can retitle it)
 	var heading := Label.new()
 	_heading_lbl = heading
-	heading.text = "ENEMY DIFFICULTY"
+	heading.text = "THIS FIGHT"
 	if font:
 		heading.add_theme_font_override("font", font)
 	UITheme.apply_font(heading, UITheme.FONT_HEADER)
 	heading.add_theme_color_override("font_color", Color(0.83, 0.69, 0.22, 1.0))
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(heading)
-
-	# Three columns — button + power per difficulty
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	add_child(row)
-
-	# Radio-style group — toggle_mode + a shared ButtonGroup means the
-	# selected difficulty's button STAYS drawn with its "pressed" stylebox
-	# until a different one is chosen, instead of springing back to "normal"
-	# the instant the mouse is released.
-	var group := ButtonGroup.new()
-
-	_diff_btns = []
-	for i in range(3):
-		var col := VBoxContainer.new()
-		col.add_theme_constant_override("separation", 2)
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(col)
-
-		var btn := Button.new()
-		# Text is the power number only (set in update_display); the button's
-		# own art already conveys which difficulty it is (green/blue/red).
-		btn.text = ""
-		if font:
-			btn.add_theme_font_override("font", font)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.custom_minimum_size = Vector2(0, 56)
-		UITheme.apply_font(btn, UITheme.FONT_HEADER)
-		btn.add_theme_color_override("font_color", Color(0.10, 0.08, 0.04))
-		btn.add_theme_color_override("font_hover_color", Color(0.10, 0.08, 0.04))
-		btn.add_theme_color_override("font_pressed_color", Color(0.05, 0.04, 0.02))
-		var art: Dictionary = _DIFF_ART[i]
-		var normal_box := _diff_tex_box(art["normal"])
-		var pressed_box := _diff_tex_box(art["pressed"])
-		btn.add_theme_stylebox_override("normal", normal_box)
-		btn.add_theme_stylebox_override("hover", normal_box)
-		btn.add_theme_stylebox_override("pressed", pressed_box)
-		# Kill Godot's default focus-ring stylebox — otherwise whichever button
-		# was last clicked keeps a light focus box drawn over the pixel art.
-		btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.toggle_mode = true
-		btn.button_group = group
-		btn.button_pressed = (i == current_difficulty)   # Easy selected by default
-		btn.pressed.connect(_on_difficulty_button_pressed.bind(i))
-		col.add_child(btn)
-		_diff_btns.append(btn)
-
-		var name_lbl := Label.new()
-		name_lbl.text = _DIFF_NAMES[i]
-		if font:
-			name_lbl.add_theme_font_override("font", font)
-		UITheme.apply_font(name_lbl, UITheme.FONT_HEADER)
-		name_lbl.add_theme_color_override("font_color", Color(0.78, 0.78, 0.88))
-		name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col.add_child(name_lbl)
 
 	# Single reward display for whichever difficulty is currently selected —
 	# item icon sits centered in its own 1x1 bag-style slot, name/rarity below.
@@ -246,7 +189,7 @@ func set_briefing_only(on: bool) -> void:
 		if b:
 			b.mouse_default_cursor_shape = Control.CURSOR_ARROW if on else Control.CURSOR_POINTING_HAND
 	if _heading_lbl:
-		_heading_lbl.text = "THIS FIGHT" if on else "ENEMY DIFFICULTY"
+		_heading_lbl.text = "THIS FIGHT"
 
 func set_panel_visible(show: bool) -> void:
 	visible = show
@@ -373,7 +316,7 @@ func _build_tooltip() -> void:
 	vb.add_child(_tip_passive_lbl)
 
 	_tip_passive_desc = Label.new()
-	UITheme.apply_font(_tip_passive_desc, UITheme.FONT_VALUE)
+	UITheme.apply_read_font(_tip_passive_desc)   # prose -> Inter (2026-09-29)
 	_tip_passive_desc.add_theme_color_override("font_color", Color(0.70, 0.70, 0.82))
 	_tip_passive_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_tip_passive_desc.custom_minimum_size = Vector2(304, 0)

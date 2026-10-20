@@ -34,11 +34,13 @@ const BANNERS := {
 }
 
 # Outcome-line colors — dark variants, they sit on the gold button texture.
-const OUT_GAIN    := Color(0.10, 0.42, 0.12)
-const OUT_COST    := Color(0.62, 0.10, 0.06)
-const OUT_MIXED   := Color(0.55, 0.28, 0.02)
-const OUT_GAMBLE  := Color(0.45, 0.22, 0.55)
-const OUT_NEUTRAL := Color(0.40, 0.35, 0.25)
+# One step darker (2026-09-27 audit): these sit on the gold choice buttons,
+# where the previous values read as medium-contrast green-on-orange.
+const OUT_GAIN    := Color(0.05, 0.32, 0.08)
+const OUT_COST    := Color(0.52, 0.06, 0.04)
+const OUT_MIXED   := Color(0.44, 0.21, 0.00)
+const OUT_GAMBLE  := Color(0.36, 0.14, 0.46)
+const OUT_NEUTRAL := Color(0.30, 0.25, 0.16)
 
 # Words that get their icon drawn right after them in outcome text (2026-09-24,
 # owner ask: "add icons for hp and gold, here and for other events too"). The
@@ -65,6 +67,7 @@ var _art: TextureRect
 var _choices_box: VBoxContainer
 var _resolution: RichTextLabel
 var _grade_lbl: Label          # the outcome-grade reel (see show_resolution)
+var _grade_cap: Label          # "OUTCOME" caption above it — a lone letter read as noise
 var _current_event: EventBlessing = null
 var _choice_buttons: Array[Button] = []
 
@@ -95,6 +98,7 @@ func _build_ui() -> void:
 	_title  = _lbl(_panel, "", 26, UITheme.menu_title_color(), Vector2.ZERO, Vector2(PANEL_W, 44), true)
 	_desc   = _lbl(_panel, "", 19, UITheme.menu_body_color(), Vector2.ZERO, Vector2(CONTENT_W, 48), true)
 	_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UITheme.apply_read_font(_desc)   # flavour prose → Inter (2026-09-27)
 
 	_art = TextureRect.new()
 	_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -109,7 +113,7 @@ func _build_ui() -> void:
 
 	# Rich text so the outcome sentence carries the same gold/health icons as the
 	# buttons did, and wraps — outcomes are full sentences now, not "+12g".
-	_resolution = _rich(UITheme.body_font(22))
+	_resolution = _rich(UITheme.FONT_VALUE)
 	_resolution.size = Vector2(CHOICE_W, 60)
 	_panel.add_child(_resolution)
 	_resolution.visible = false
@@ -119,6 +123,10 @@ func _build_ui() -> void:
 	_grade_lbl = _lbl(_panel, "", UITheme.FONT_DISPLAY, Color.WHITE,
 		Vector2.ZERO, Vector2(CHOICE_W, 52), true)
 	_grade_lbl.visible = false
+	_grade_cap = _lbl(_panel, "OUTCOME", 0, UITheme.menu_subtitle_color(),
+		Vector2.ZERO, Vector2(CHOICE_W, 22), true)
+	UITheme.apply_font(_grade_cap, UITheme.FONT_BODY)
+	_grade_cap.visible = false
 
 	visible = false
 
@@ -128,6 +136,8 @@ func show_event(event: EventBlessing) -> void:
 		_resolution.visible = false   # clear any leftover outcome from last event
 	if _grade_lbl:
 		_grade_lbl.visible = false
+	if _grade_cap:
+		_grade_cap.visible = false
 	if _choices_box:
 		_choices_box.visible = true   # re-show choices (hidden after last resolution)
 	_refresh_display()
@@ -221,7 +231,7 @@ func _make_choice_button(choice, index: int) -> Button:
 	# what it does: green gain, red cost, orange trade-off, purple gamble.
 	var line: String = choice.button_line()
 	if line != "":
-		var px: int = UITheme.body_font(15)
+		var px: int = UITheme.FONT_READ
 		var outcome := _rich(px)
 		outcome.text = with_icons(line, px)
 		outcome.add_theme_color_override("default_color", _choice_line_color(choice))
@@ -241,7 +251,8 @@ func _rich(px: int) -> RichTextLabel:
 	rt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	rt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	rt.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	UITheme.apply_rich_font(rt, px)
+	# Outcome sentences are prose → Inter (2026-09-27, UITheme "Role, not size").
+	UITheme.apply_read_rich(rt, px)
 	return rt
 
 # "gains 12 gold" → "gains 12 gold[coin]". Whole words only, so a title-case
@@ -263,7 +274,8 @@ static func with_icons(text: String, px: int) -> String:
 	return out
 
 func _font_for(px: int) -> Font:
-	var f: Font = UITheme.body_face() if px <= UITheme.BODY_FACE_MAX_PX else null
+	# Measures the prose lines, which are Inter at any size now (see _rich).
+	var f: Font = UITheme.body_face()
 	if f == null:
 		f = ThemeDB.fallback_font
 		var project_theme := ThemeDB.get_project_theme()
@@ -364,6 +376,8 @@ func show_resolution(text: String, good: bool, grade: String = "", band: String 
 	if reel:
 		_grade_lbl.visible = true
 		_grade_lbl.position = Vector2(x, mid - 62.0)
+		_grade_cap.visible = true
+		_grade_cap.position = Vector2(x, mid - 86.0)
 		_resolution.text = ""
 		var paint := func(g: String) -> void:
 			_grade_lbl.text = g
@@ -373,6 +387,7 @@ func show_resolution(text: String, good: bool, grade: String = "", band: String 
 			0.0, 14, 0.04, 1.15, punch)
 	else:
 		_grade_lbl.visible = false
+		_grade_cap.visible = false
 
 	_resolution.text = with_icons(text, UITheme.body_font(26))
 	_resolution.add_theme_color_override("default_color",
@@ -380,6 +395,7 @@ func show_resolution(text: String, good: bool, grade: String = "", band: String 
 		else (Color(0.55, 1.0, 0.6) if good else Color(1.0, 0.55, 0.5)))
 	await get_tree().create_timer(1.4).timeout
 	_grade_lbl.visible = false
+	_grade_cap.visible = false
 	visible = false
 	resolved.emit()
 

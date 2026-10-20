@@ -69,7 +69,7 @@ func _hp_h() -> float:
 # Total stacked height of HP + MP + ult rows. Used by VisualUnit to park status
 # icons clear of the bar instead of on top of it (2026-08-02).
 func total_height() -> float:
-	return _hp_h() + sub_height * 2.0 + gap * 2.0
+	return _hp_h() + (sub_height + gap) * maxi(2, ability_timers.size())
 
 var hp_current:     float = 1.0
 var hp_max:         float = 1.0
@@ -105,6 +105,22 @@ var gear_badge: String = ""
 # while an ability channels; hidden (< 0) otherwise.
 var channel_frac: float = -1.0
 var channel_color: Color = Color(0.95, 0.85, 0.45)
+# Ability timers (2026-10-03, bosses): [[frac 0..1 (1 = ready), Color], ...].
+# When set they REPLACE the MP strip -- a boss whose moves are timers, not
+# mana, otherwise shows a meaningless mana bar.
+var form_phase: int = 0
+var hydra_heads: int = 0
+var hydra_head_max: int = 0
+var hydra_head_color := Color.WHITE
+
+func set_hydra_heads(heads: int, maximum: int, color: Color) -> void:
+	hydra_heads = heads; hydra_head_max = maximum; hydra_head_color = color
+	queue_redraw()
+var ability_timers: Array = []
+
+func set_ability_timers(timers: Array) -> void:
+	ability_timers = timers
+	queue_redraw()
 
 func set_channel(frac: float, color: Color = Color(0.95, 0.85, 0.45)) -> void:
 	if not is_equal_approx(frac, channel_frac) or color != channel_color:
@@ -215,6 +231,11 @@ func update_ward(hits: int, maximum: int) -> void:
 	queue_redraw()
 
 func _draw() -> void:
+	if form_phase > 0:
+		for i in 3:
+			var p := Vector2(bar_width / 2.0 + 14.0, -12.0 + i * 12.0)
+			draw_arc(p, 4.0, 0, TAU, 20, Color(1.0, 0.85, 0.4), 1.5)
+			if i < form_phase: draw_circle(p, 3.0, Color(1.0, 0.85, 0.4))
 	var hp_h: float = _hp_h()
 	var hp_width: float = _draw_hp_tiles(hp_h)
 	# Recent-damage ghost: pale segment from the current fill edge out to the
@@ -247,7 +268,16 @@ func _draw() -> void:
 	# stat — no more permanently-empty black tracks under manaless/ultless mobs.
 	var sub_x: float = -hp_width / 2.0
 	var sub_y: float = hp_h + gap
-	if mp_max > 0.0:
+	if not ability_timers.is_empty():
+		for tm in ability_timers:
+			var f: float = clampf(float(tm[0]), 0.0, 1.0)
+			var col: Color = tm[1]
+			draw_rect(Rect2(sub_x, sub_y, hp_width, sub_height), Color(0.05, 0.05, 0.07, 0.85))
+			# Ready = full and brightened, so "about to fire" pops.
+			draw_rect(Rect2(sub_x, sub_y, hp_width * f, sub_height),
+				col.lightened(0.35) if f >= 1.0 else col)
+			sub_y += sub_height + gap
+	elif mp_max > 0.0:
 		var mp_pct: float = clamp(mp_current / mp_max, 0.0, 1.0)
 		_draw_bar(sub_x, sub_y, sub_height, mp_pct, _sb_mp, hp_width)
 		sub_y += sub_height + gap
@@ -277,6 +307,11 @@ func _draw() -> void:
 # Returns the total drawn width so the caller can position the shield overlay
 # and HP number over it.
 func _draw_hp_tiles(hp_h: float) -> float:
+	if hydra_head_max > 0:
+		return _draw_hydra_heads(hp_h)
+	return _draw_hp_pool(hp_current, hp_max, bar_width, 0.0, hp_h)
+
+func _draw_hp_pool(current: float, maximum: float, width: float, center_x: float, hp_h: float, fixed_width: bool = false) -> float:
 	var mid_empty_src: Rect2 = _content_rect(TEX_EMPTY_MID)
 	var mid_full_src:  Rect2 = _content_rect(TEX_FULL_MID)
 	var left_full_src:  Rect2 = _content_rect(TEX_FULL_LEFT)
@@ -288,7 +323,7 @@ func _draw_hp_tiles(hp_h: float) -> float:
 	# health ramp (2026-09-15) — a team-solid-red enemy bar used to read the
 	# same at full HP and near death. Team identity stays legible via
 	# BarPlacement (TOP/enemy vs BOTTOM/player); empty/track tiles stay shared.
-	var fill_tint: Color = _health_ramp_color(hp_current / hp_max if hp_max > 0.0 else 1.0)
+	var fill_tint: Color = _health_ramp_color(current / maximum if maximum > 0.0 else 1.0)
 
 	# Vertical scale keeps the sprite's pixel-art proportions (derived from the
 	# mid tile's content height), then HP_WIDTH_SCALE narrows the result
@@ -297,12 +332,12 @@ func _draw_hp_tiles(hp_h: float) -> float:
 	var cap_w: float = maxf(left_empty_src.size.x, right_empty_src.size.x) * scale * HP_WIDTH_SCALE
 	var mid_w: float = mid_empty_src.size.x * scale * HP_WIDTH_SCALE
 
-	var seg_hp: float = SEGMENT_HP_BIG if hp_max > BIG_POOL_THRESHOLD else SEGMENT_HP
-	var mid_units: float = max(1.0, hp_max / seg_hp)
+	var seg_hp: float = SEGMENT_HP_BIG if maximum > BIG_POOL_THRESHOLD else SEGMENT_HP
+	var mid_units: float = max(1.0, maximum / seg_hp)
 	# Clamp the drawn width (see the constants' note), stretching/squeezing the
 	# body segments to fit — caps keep their art proportions.
 	var natural_width: float = cap_w * 2.0 + mid_w * mid_units
-	var clamped_width: float = clampf(natural_width, bar_width * MIN_WIDTH_FACTOR, bar_width + MAX_WIDTH_EXTRA)
+	var clamped_width: float = width if fixed_width else clampf(natural_width, width * MIN_WIDTH_FACTOR, width + MAX_WIDTH_EXTRA)
 	if not is_equal_approx(natural_width, clamped_width):
 		mid_w = (clamped_width - cap_w * 2.0) / mid_units
 
@@ -312,13 +347,13 @@ func _draw_hp_tiles(hp_h: float) -> float:
 		frac = 0.0
 	var rendered_tiles: int = full_tiles + (1 if frac > 0.0 else 0)
 	var total_width: float = cap_w * 2.0 + mid_w * mid_units
-	var filled_units: float = clamp(hp_current / seg_hp, 0.0, mid_units)
+	var filled_units: float = clamp(current / seg_hp, 0.0, mid_units)
 
-	var x_cursor: float = -total_width / 2.0
+	var x_cursor: float = center_x - total_width / 2.0
 
-	var left_tex: Texture2D = TEX_FULL_LEFT if hp_current > 0.0 else TEX_EMPTY_LEFT
-	var left_src: Rect2 = left_full_src if hp_current > 0.0 else left_empty_src
-	var left_tint: Color = fill_tint if hp_current > 0.0 else Color(1, 1, 1, 1)
+	var left_tex: Texture2D = TEX_FULL_LEFT if current > 0.0 else TEX_EMPTY_LEFT
+	var left_src: Rect2 = left_full_src if current > 0.0 else left_empty_src
+	var left_tint: Color = fill_tint if current > 0.0 else Color(1, 1, 1, 1)
 	draw_texture_rect_region(left_tex, Rect2(x_cursor, 0.0, cap_w, hp_h), left_src, left_tint)
 	x_cursor += cap_w
 
@@ -335,9 +370,9 @@ func _draw_hp_tiles(hp_h: float) -> float:
 			draw_texture_rect_region(TEX_FULL_MID, Rect2(x_cursor, 0.0, seg_w * fill_frac, hp_h), fill_src, fill_tint)
 		x_cursor += seg_w
 
-	var right_tex: Texture2D = TEX_FULL_RIGHT if hp_current >= hp_max else TEX_EMPTY_RIGHT
-	var right_src: Rect2 = right_full_src if hp_current >= hp_max else right_empty_src
-	var right_tint: Color = fill_tint if hp_current >= hp_max else Color(1, 1, 1, 1)
+	var right_tex: Texture2D = TEX_FULL_RIGHT if current >= maximum else TEX_EMPTY_RIGHT
+	var right_src: Rect2 = right_full_src if current >= maximum else right_empty_src
+	var right_tint: Color = fill_tint if current >= maximum else Color(1, 1, 1, 1)
 	draw_texture_rect_region(right_tex, Rect2(x_cursor, 0.0, cap_w, hp_h), right_src, right_tint)
 
 	return total_width
@@ -358,7 +393,27 @@ static func _health_ramp_color(pct: float) -> Color:
 # Numeric HP readout inside the bar (2026-07-03, user request: "maybe a health
 # total inside the hp bar"). "cur/max" when it fits, else just current HP.
 # Outlined so it reads over both the tile fill and the empty track.
+func _draw_hydra_heads(hp_h: float) -> float:
+	# Separate head pools, rendered by the same tile artwork and health ramp
+	# as every other unit. No replacement silhouette or elemental fill color.
+	var width := bar_width
+	var spacing := 6.0
+	var pool_width := (width - spacing * (hydra_head_max - 1)) / hydra_head_max
+	for i in hydra_head_max:
+		var lower := ceilf(hp_max * i / hydra_head_max)
+		var upper := ceilf(hp_max * (i + 1) / hydra_head_max)
+		var current := clampf(hp_current - lower, 0.0, upper - lower) if i < hydra_heads else 0.0
+		var center := -width / 2.0 + pool_width / 2.0 + i * (pool_width + spacing)
+		_draw_hp_pool(current, upper - lower, pool_width, center, hp_h, true)
+	return width
 func _draw_hp_number(hp_width: float, hp_h: float) -> void:
+	if hydra_head_max > 0:
+		var head_font: Font = ThemeDB.fallback_font
+		var text := "%d/%d HEADS" % [hydra_heads, hydra_head_max]
+		var size := head_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16)
+		draw_string_outline(head_font, Vector2(-size.x / 2, -7), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, 3, Color.BLACK)
+		draw_string(head_font, Vector2(-size.x / 2, -7), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
+		return
 	var font: Font = ThemeDB.fallback_font
 	var fsize: int = 16 if hp_width < 100.0 else 20
 	var txt: String = "%d/%d" % [maxi(int(hp_current), 0), int(hp_max)]

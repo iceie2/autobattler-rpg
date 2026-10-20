@@ -52,6 +52,15 @@ static func describe(reward: Dictionary) -> String:
 
 static func roll(difficulty: int, round: int) -> Dictionary:
 	var odds: Dictionary = ODDS.get(difficulty, ODDS[WaveScaler.Difficulty.NORMAL])
+	# Component equipment needs fewer items per tier: shrink the ITEM weight and
+	# hand what it loses to GOLD, so a harder wave still always pays.
+	var supply: float = ComponentEquipmentGateway.supply_mult()
+	if supply < 1.0 and odds.has(Type.ITEM):
+		odds = odds.duplicate()
+		# (+0.5 then int, not round(): this function's `round` parameter shadows it)
+		var moved: int = int(odds[Type.ITEM]) - int(float(odds[Type.ITEM]) * supply + 0.5)
+		odds[Type.ITEM] = int(odds[Type.ITEM]) - moved
+		odds[Type.GOLD] = int(odds.get(Type.GOLD, 0)) + moved
 	var total := 0
 	for w in odds.values():
 		total += int(w)

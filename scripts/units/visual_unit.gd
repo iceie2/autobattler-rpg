@@ -39,15 +39,19 @@ const HERO_MODEL_PATHS: Dictionary = {
 	UnitBase.UnitClass.BLOODHOUND: "res://assets/3d pipeline/hero/bloodhound/bloodhound_v003.glb",
 	UnitBase.UnitClass.CROSS: "res://assets/3d pipeline/hero/cross/cross_v002.glb",
 	UnitBase.UnitClass.STITCH: "res://assets/3d pipeline/hero/stitch/stitch.glb",
-	UnitBase.UnitClass.DOC: "res://assets/3d pipeline/hero/doc/doc.glb",
+	UnitBase.UnitClass.DOC: "res://assets/3d pipeline/hero/doc/doc_v002.glb",
 	# Versioned Coal candidate: magma-rock brawler with a complete unarmed clip set.
 	UnitBase.UnitClass.COAL: "res://assets/3d pipeline/hero/coal/coal_v001.glb",
 	# Versioned prototype candidates pending the grouped in-game art review.
 	UnitBase.UnitClass.ZOLT: "res://assets/3d pipeline/hero/zolt/zolt_v001.glb",
 	UnitBase.UnitClass.JUNE: "res://assets/3d pipeline/hero/june/june_v002.glb",
-	UnitBase.UnitClass.RIFT: "res://assets/3d pipeline/hero/rift/rift_v014.glb",
+	UnitBase.UnitClass.RIFT: "res://assets/3d pipeline/hero/rift/rift_v018.glb",
 	# Versioned Static candidate: rigged duck electrician with a flexible live-wire prop.
-	UnitBase.UnitClass.STATIC: "res://assets/3d pipeline/hero/static/static_v018.glb",
+	# v019 (2026-10-01) = v018 with only the texture swapped: leather/steel pushed
+	# darker in Lab (review/recolor_v019.py) so the harness reads against the body.
+	# v020 (same day): v019 + brawler idle (review/build_idle_v020.py) — crouch,
+	# hunch, left guard up, two-dip bounce; wire fist held where v018 had it.
+	UnitBase.UnitClass.STATIC: "res://assets/3d pipeline/hero/static/static_v020.glb",
 	# Versioned candidate remains reversible until the human art review promotes it.
 	UnitBase.UnitClass.SHEILDOR: "res://assets/3d pipeline/hero/sheildor/sheildor_v043.glb",
 	# Riot, rebuilt 2026-09-18 as an anthropomorphic pig riot officer (was a human
@@ -59,7 +63,8 @@ const HERO_MODEL_PATHS: Dictionary = {
 	# portrait ends in a legless tornado, which the fixed 24-bone Meshy biped
 	# cannot rig, so the coil became an ankle-length wrap gown wide enough to
 	# hold legs. She carries nothing — no sockets, no props.
-	UnitBase.UnitClass.VAIL: "res://assets/3d pipeline/hero/vail/vail_v001.glb",
+	# v002: material-only polish; reduced body emission reveals the pale folds.
+	UnitBase.UnitClass.VAIL: "res://assets/3d pipeline/hero/vail/vail_v002.glb",
 	# Reed, 2026-09-19. Versioned candidate pending human art review. An
 	# anthropomorphic frog whose head is ~29% of his height, which put his
 	# shoulders 11 points lower than a human's and made every retargeted library
@@ -77,7 +82,8 @@ const HERO_MODEL_PATHS: Dictionary = {
 	# Knee-length rigid tassets instead of a gown: every clip scores 1.19-1.46x
 	# on skirt_stress (Vail's gown hit 3.16x on this same run cycle). He carries
 	# nothing — no sockets, no props.
-	UnitBase.UnitClass.LUMEN: "res://assets/3d pipeline/hero/lumen/lumen_v001.glb",
+	# v002: native PBR armor and selective violet emission; rig/clips unchanged.
+	UnitBase.UnitClass.LUMEN: "res://assets/3d pipeline/hero/lumen/lumen_v002.glb",
 	# Lordee, 2026-09-20. Versioned candidate pending human art review. REDESIGNED
 	# rather than converted, on the owner's call: his 2D portrait is an ordinary
 	# human pirate with a sword, which does not carry a kit whose ult blinks in
@@ -88,11 +94,47 @@ const HERO_MODEL_PATHS: Dictionary = {
 	# with soul flames: that is Necro's silhouette already.
 	# He carries a cutlass, bound 100% to weapon_r under RightHand.
 	UnitBase.UnitClass.LORDEE: "res://assets/3d pipeline/hero/lordee/lordee_v001.glb",
+	# Sear / Spore / Pastor, 2026-10-01. Versioned candidates pending human art
+	# review, built as one batch on the last of an expiring credit pot (105 of
+	# 112 spent). All three carry SYNTHESIZED idles (freeze_pose.py from the
+	# tightest-stance frame of their walk cycle) — the engine adds a procedural
+	# bob + breathe over every clip, so a frozen idle is not static on the board.
+	# None of them holds anything: no sockets, no props.
+	UnitBase.UnitClass.SEAR: "res://assets/3d pipeline/hero/sear/sear_v001.glb",
+	# Spore is a REDESIGN: his 2D art is a hooded figure whose robe ends in root
+	# tendrils with no feet, which the fixed 24-bone rig cannot represent. He is
+	# now a solid bark-and-moss creature standing on two real root legs, with the
+	# mushroom cap worn as a helmet. He is also the only one of the three with no
+	# cloth — but his layered leg plates still skin to the legs and still tear,
+	# which is why his run was dropped for the walk cycle (3.36x -> 2.28x).
+	UnitBase.UnitClass.SPORE: "res://assets/3d pipeline/hero/spore/spore_v001.glb",
+	# Ember (2026-10-04) is a REDESIGN under the elemental rule: a small fire
+	# sprite whose body is solid molten glass, flame crest instead of hair, no
+	# cloth at all (her 2D split skirt would have torn on every archery stance).
+	# Bow is a make_prop.py primitive bound to LeftHand at full draw.
+	UnitBase.UnitClass.EMBER: "res://assets/3d pipeline/hero/ember/ember_v001.glb",
+	# Rush (2026-10-05): cheetah-man street brawler, kept to his 2D design. The
+	# tail curves up beside his hip and is 100% Hips-weighted (zero leg weight,
+	# measured), so it rides the pelvis instead of tearing on his move-15 run.
+	# Idle is his boxing guard (frozen from the punch combo + breathing).
+	UnitBase.UnitClass.RUSH: "res://assets/3d pipeline/hero/rush/rush_v001.glb",
+	# Necro (2026-10-07): kept to his 2D design (hooded skull, green-lit ribcage,
+	# gauntlet fist), robe split at the front and cut to mid-shin so it does
+	# not tear on the walk. The skull-topped vertebra staff is built in Blender
+	# (owner: Meshy makes the body, props are hand-built) and bound 100% to
+	# LeftHand. Meshy's text-to-motion casts came back unusable, so idle /
+	# attack / skill / ult are hand-authored in review/build_necro_v001.py.
+	UnitBase.UnitClass.NECRO: "res://assets/3d pipeline/hero/necro/necro_v001.glb",
+	# Pastor's joke is that he is a DEVIL dressed as an ordinary preacher — black
+	# cassock, white dog collar, spectacles — so the horns and cloven hooves are
+	# the only things out of place. The first concept came back in a runed cult
+	# robe, which killed the gag; runes/sigils/rope belts are banned in his prompt.
+	UnitBase.UnitClass.PASTOR: "res://assets/3d pipeline/hero/pastor/pastor_v001.glb",
 }
-# On-screen pixel height of a 1-cell 3D character. Tuned to sit between the
-# HERO_SPRITE_RENDER_H the 2D heroes use and the LPC scale, so a converted hero
-# doesn't suddenly tower over the ones still on sprites.
+# On-screen pixel heights for 1-cell 3D units. Enemy models retain the older
+# board scale; 3D heroes use the reviewed PBR presentation size.
 const MODEL_RENDER_H := 115.0
+const HERO_MODEL_RENDER_H := 140.0
 # Downward camera tilt for every 3D hero, so they visually sit IN the board's
 # tabletop-perspective look instead of standing perfectly frontal to it (the
 # board itself fakes a downward-looking angle via BoardPerspective's trapezoid
@@ -159,6 +201,63 @@ const HERO_SPRITE_PATHS: Dictionary = {
 # the whole economic case for converting enemies: the second variant costs
 # nothing beyond its own attack motion.
 const MONSTER_MODEL_PATHS: Dictionary = {
+	"gargoyle": "res://assets/3d pipeline/enemy/gargoyle/gargoyle_v002.glb",
+	"ogre": "res://assets/3d pipeline/enemy/ogre/ogre_v002.glb",
+	"minotaur": "res://assets/3d pipeline/enemy/minotaur/minotaur_v002.glb",
+	"stone_golem": "res://assets/3d pipeline/enemy/stone_golem/stone_golem_v002.glb",
+	"crystal_crab": "res://assets/3d pipeline/enemy/crystal_crab/crystal_crab_v002.glb",
+	"root_walker": "res://assets/3d pipeline/enemy/root_walker/root_walker_v002.glb",
+	"coral_husk": "res://assets/3d pipeline/enemy/coral_husk/coral_husk_v002.glb",
+	"hellhound": "res://assets/3d pipeline/enemy/hellhound/hellhound_v002.glb",
+	"ember_phoenix": "res://assets/3d pipeline/enemy/ember_phoenix/ember_phoenix_v001.glb",
+	"storm_crow": "res://assets/3d pipeline/enemy/storm_crow/storm_crow_v001.glb",
+	"sky_wyvern": "res://assets/3d pipeline/enemy/sky_wyvern/sky_wyvern_v001.glb",
+	"harpy": "res://assets/3d pipeline/enemy/harpy/harpy_v001.glb",
+	"tidepool_horror": "res://assets/3d pipeline/enemy/tidepool_horror/tidepool_horror_v002.glb",
+	"rat": "res://assets/3d pipeline/enemy/rat/rat_v002.glb",
+	"skeleton": "res://assets/3d pipeline/enemy/skeleton/skeleton_v002.glb",
+	"orc_normal": "res://assets/3d pipeline/enemy/orc/orc_v002.glb",
+	"orc_fire": "res://assets/3d pipeline/enemy/orc/orc_v002.glb",
+	"orc_water": "res://assets/3d pipeline/enemy/orc/orc_v002.glb",
+	"orc_earth": "res://assets/3d pipeline/enemy/orc/orc_v002.glb",
+	"orc_air": "res://assets/3d pipeline/enemy/orc/orc_v002.glb",
+	"orc_lightning": "res://assets/3d pipeline/enemy/orc/orc_v002.glb",
+	"troll_normal": "res://assets/3d pipeline/enemy/troll/troll_v002.glb",
+	"troll_fire": "res://assets/3d pipeline/enemy/troll/troll_v002.glb",
+	"troll_water": "res://assets/3d pipeline/enemy/troll/troll_v002.glb",
+	"troll_earth": "res://assets/3d pipeline/enemy/troll/troll_v002.glb",
+	"troll_air": "res://assets/3d pipeline/enemy/troll/troll_v002.glb",
+	"troll_lightning": "res://assets/3d pipeline/enemy/troll/troll_v002.glb",
+	"windup_bot_normal": "res://assets/3d pipeline/enemy/windup_bot/windup_bot_v001.glb",
+	"windup_bot_fire": "res://assets/3d pipeline/enemy/windup_bot/windup_bot_v001.glb",
+	"windup_bot_water": "res://assets/3d pipeline/enemy/windup_bot/windup_bot_v001.glb",
+	"windup_bot_earth": "res://assets/3d pipeline/enemy/windup_bot/windup_bot_v001.glb",
+	"windup_bot_air": "res://assets/3d pipeline/enemy/windup_bot/windup_bot_v001.glb",
+	"windup_bot_lightning": "res://assets/3d pipeline/enemy/windup_bot/windup_bot_v001.glb",
+	"bear_normal": "res://assets/3d pipeline/enemy/bear/bear_v001.glb",
+	"bear_fire": "res://assets/3d pipeline/enemy/bear/bear_v001.glb",
+	"bear_water": "res://assets/3d pipeline/enemy/bear/bear_v001.glb",
+	"bear_earth": "res://assets/3d pipeline/enemy/bear/bear_v001.glb",
+	"bear_air": "res://assets/3d pipeline/enemy/bear/bear_v001.glb",
+	"bear_lightning": "res://assets/3d pipeline/enemy/bear/bear_v001.glb",
+	"slime_normal": "res://assets/3d pipeline/enemy/slime/slime_v002.glb",
+	"slime_fire": "res://assets/3d pipeline/enemy/slime/slime_v002.glb",
+	"slime_water": "res://assets/3d pipeline/enemy/slime/slime_v002.glb",
+	"slime_earth": "res://assets/3d pipeline/enemy/slime/slime_v002.glb",
+	"slime_air": "res://assets/3d pipeline/enemy/slime/slime_v002.glb",
+	"slime_lightning": "res://assets/3d pipeline/enemy/slime/slime_v002.glb",
+	"lizard_normal": "res://assets/3d pipeline/enemy/lizard/lizard_v003.glb",
+	"lizard_fire": "res://assets/3d pipeline/enemy/lizard/lizard_v003.glb",
+	"lizard_water": "res://assets/3d pipeline/enemy/lizard/lizard_v003.glb",
+	"lizard_earth": "res://assets/3d pipeline/enemy/lizard/lizard_v003.glb",
+	"lizard_air": "res://assets/3d pipeline/enemy/lizard/lizard_v003.glb",
+	"lizard_lightning": "res://assets/3d pipeline/enemy/lizard/lizard_v003.glb",
+	"goblin_shaman_normal": "res://assets/3d pipeline/enemy/goblin_shaman/goblin_shaman_v004.glb",
+	"goblin_shaman_fire": "res://assets/3d pipeline/enemy/goblin_shaman/goblin_shaman_v004.glb",
+	"goblin_shaman_water": "res://assets/3d pipeline/enemy/goblin_shaman/goblin_shaman_v004.glb",
+	"goblin_shaman_earth": "res://assets/3d pipeline/enemy/goblin_shaman/goblin_shaman_v004.glb",
+	"goblin_shaman_air": "res://assets/3d pipeline/enemy/goblin_shaman/goblin_shaman_v004.glb",
+	"goblin_shaman_lightning": "res://assets/3d pipeline/enemy/goblin_shaman/goblin_shaman_v004.glb",
 	# v010 (2026-09-24): goblin.glb + a re-authored `attack_bow` (v009's Meshy
 	# clip aimed 137 deg off target, never drew, held the bow like a stick; kept
 	# as `attack_bow_meshy_v009`). Every other clip is unchanged. Both variants
@@ -166,6 +265,57 @@ const MONSTER_MODEL_PATHS: Dictionary = {
 	# shared path (split paths showed the archer holding the melee knife).
 	"goblin":        "res://assets/3d pipeline/enemy/goblin/goblin_v010.glb",
 	"goblin_archer": "res://assets/3d pipeline/enemy/goblin/goblin_v010.glb",
+	# Elites/bosses, 2026-10-02 overnight batch — candidates pending owner art
+	# review. Delete a line to fall back to the 2D sprite.
+	"hill_giant":    "res://assets/3d pipeline/enemy/hill_giant/hill_giant_v002.glb",   # v002: + slam/stuck/yank (Groundbreaker, 2026-10-06)
+	"fire_giant": "res://assets/3d pipeline/enemy/hill_giant/hill_giant_v002.glb",
+	"storm_giant": "res://assets/3d pipeline/enemy/hill_giant/hill_giant_v002.glb",
+	# ⚠ skill + hurt tear the flank (arms were generated fused to the body);
+	# low-arm replacement clips pending owner OK.
+	"tidecaller":    "res://assets/3d pipeline/enemy/tidecaller/tidecaller_v001.glb",
+	# Non-bipeds: Meshy body + custom rig/clips (tools/model3d/creature_rig.py).
+	"gale_warden":   "res://assets/3d pipeline/enemy/gale_warden/gale_warden_v001.glb",
+	"skyrender":     "res://assets/3d pipeline/enemy/skyrender/skyrender_v002.glb",   # v002: spread-wing body, own wing rig (2026-10-04)
+	"drowned_maw":   "res://assets/3d pipeline/enemy/drowned_maw/drowned_maw_v003.glb",
+	# Khagan (wave 10): phase 1 = the octopus riding its crab (2x2), phase 2 =
+	# the octopus alone (1x1, also clings to the possessed hero in phase 3).
+	"khagan_phase1": "res://assets/3d pipeline/enemy/khagan_phase1/khagan_phase1_v003.glb",   # v003: new body, rider's arms modelled wrapped round the crab (2026-10-03)
+	"khagan_phase2": "res://assets/3d pipeline/enemy/khagan_phase2/khagan_phase2_v001.glb",
+	# Batch 2 (2026-10-03): Meshy bipeds with GRAFTED clips (tools/model3d/assemble_biped.py).
+	"terracotta_colossus": "res://assets/3d pipeline/enemy/terracotta_colossus/terracotta_colossus_v001.glb",
+	"cloven_titan": "res://assets/3d pipeline/enemy/cloven_titan/cloven_titan_v001.glb",
+	"cloven_fist": "res://assets/3d pipeline/enemy/cloven_fist/cloven_fist_v001.glb",
+	"cloven_heart": "res://assets/3d pipeline/enemy/cloven_heart/cloven_heart_v001.glb",
+	"magma_heart": "res://assets/3d pipeline/enemy/magma_heart/magma_heart_v001.glb",
+	"emberhollow": "res://assets/3d pipeline/enemy/emberhollow/emberhollow_v001.glb",
+	"stat_stealer": "res://assets/3d pipeline/enemy/stat_stealer/stat_stealer_v001.glb",
+	"gravekeeper": "res://assets/3d pipeline/enemy/gravekeeper/gravekeeper_v001.glb",
+	"the_architect": "res://assets/3d pipeline/enemy/the_architect/the_architect_v001.glb",
+	# Batch 2 non-bipeds: Meshy body (ant_hill: procedural, tools/model3d/make_ant_hill.py)
+	# + custom rig/clips (creature_rig.py --kind serpent/quad/insect/static).
+	"tempest_conduit": "res://assets/3d pipeline/enemy/tempest_conduit/tempest_head_v004.glb",
+	"arcfang": "res://assets/3d pipeline/enemy/arcfang/arcfang_v002.glb",   # v002: storm wolf (2026-10-05)
+	"aspect_devourer": "res://assets/3d pipeline/enemy/aspect_devourer/aspect_devourer_v001.glb",
+	"mirrorplate_warden": "res://assets/3d pipeline/enemy/mirrorplate_warden/mirrorplate_warden_v001.glb",
+	"ant": "res://assets/3d pipeline/enemy/ant/ant_v001.glb",
+	# Necro's summons (2026-10-07), built entirely in Blender (owner: summons
+	# are hand-built, not Meshy). The bat hovers: its body sits ~0.9 above a
+	# ground-level bounds bone, so it floats over its cell.
+	"bat_minion": "res://assets/3d pipeline/enemy/bat_minion/bat_minion_v001.glb",
+	"ant_hill": "res://assets/3d pipeline/enemy/ant_hill/ant_hill_v001.glb",
+	"ember_heart": "res://assets/3d pipeline/enemy/ember_heart/ember_heart_v001.glb",
+	# Hydra (wave 80, player-chosen element): one body per element, `--kind hydra`.
+	"hydra_normal": "res://assets/3d pipeline/enemy/hydra_normal/hydra_normal_v002.glb",
+	"hydra_fire": "res://assets/3d pipeline/enemy/hydra_fire/hydra_fire_v002.glb",
+	"hydra_water": "res://assets/3d pipeline/enemy/hydra_water/hydra_water_v002.glb",
+	"hydra_earth": "res://assets/3d pipeline/enemy/hydra_earth/hydra_earth_v002.glb",
+	"hydra_air": "res://assets/3d pipeline/enemy/hydra_air/hydra_air_v002.glb",
+	"hydra_lightning": "res://assets/3d pipeline/enemy/hydra_lightning/hydra_lightning_v002.glb",
+	# The Triarch (wave 70): one champion shedding layers -- Knight (greatsword),
+	# Hunter (bow), Arcane Core (floating crown). Swapped per phase by sprite_folder.
+	"triarch_phase1": "res://assets/3d pipeline/enemy/triarch_phase1/triarch_phase1_v001.glb",
+	"triarch_phase2": "res://assets/3d pipeline/enemy/triarch_phase2/triarch_phase2_v001.glb",
+	"triarch_phase3": "res://assets/3d pipeline/enemy/triarch_phase3/triarch_phase3_v002.glb",
 }
 
 # Which socketed props each monster variant shows, and any clip renames it
@@ -173,9 +323,116 @@ const MONSTER_MODEL_PATHS: Dictionary = {
 # archer's "attack" resolves to the bow draw while the melee goblin's resolves
 # to the knife slash -- both live in the shared file.
 const MONSTER_MODEL_PROPS: Dictionary = {
-	"goblin":        {"props": ["Knife_Held"], "clips": {}},
+	"gargoyle": {"props": [], "pbr": true, "scale": 0.78, "frame_grow": 2.0},
+	"ogre": {"props": [], "pbr": true, "frame_grow": 1.6},
+	"minotaur": {"props": ["Axe_Held"], "pbr": true, "frame_grow": 1.8},
+	"stone_golem": {"props": [], "pbr": true, "frame_grow": 1.6},
+	"crystal_crab": {"props": [], "pbr": true, "scale": 0.58, "frame_grow": 2.0},
+	"root_walker": {"props": [], "pbr": true, "scale": 0.85, "frame_grow": 1.8},
+	"coral_husk": {"props": [], "pbr": true, "frame_grow": 1.6},
+	"hellhound": {"props": [], "pbr": true, "scale": 0.72, "frame_grow": 1.8},
+	"ember_phoenix": {"props": [], "pbr": true, "scale": 0.65, "frame_grow": 1.8},
+	"storm_crow": {"props": [], "pbr": true, "scale": 0.65, "frame_grow": 1.8},
+	"sky_wyvern": {"props": [], "pbr": true, "scale": 0.8, "frame_grow": 2.0},
+	"harpy": {"props": [], "pbr": true, "scale": 0.65, "frame_grow": 2.0},
+	"tidepool_horror": {"props": [], "pbr": true, "scale": 0.8, "frame_grow": 1.8},
+	"rat": {"props": [], "pbr": true, "scale": 0.76, "frame_grow": 1.6},
+	"skeleton": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"orc_normal": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"orc_fire": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"orc_water": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"orc_earth": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"orc_air": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"orc_lightning": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"troll_normal": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"troll_fire": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"troll_water": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"troll_earth": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"troll_air": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"troll_lightning": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"windup_bot_normal": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"windup_bot_fire": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"windup_bot_water": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"windup_bot_earth": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"windup_bot_air": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"windup_bot_lightning": {"props": [], "pbr": true, "frame_grow": 1.5},
+	"bear_normal": {"props": [], "pbr": true, "scale": 0.8, "frame_grow": 1.7},
+	"bear_fire": {"props": [], "pbr": true, "scale": 0.8, "frame_grow": 1.7},
+	"bear_water": {"props": [], "pbr": true, "scale": 0.8, "frame_grow": 1.7},
+	"bear_earth": {"props": [], "pbr": true, "scale": 0.8, "frame_grow": 1.7},
+	"bear_air": {"props": [], "pbr": true, "scale": 0.8, "frame_grow": 1.7},
+	"bear_lightning": {"props": [], "pbr": true, "scale": 0.8, "frame_grow": 1.7},
+	"slime_normal": {"props": [], "pbr": true, "scale": 0.78, "frame_grow": 1.7},
+	"slime_fire": {"props": [], "pbr": true, "scale": 0.78, "frame_grow": 1.7},
+	"slime_water": {"props": [], "pbr": true, "scale": 0.78, "frame_grow": 1.7},
+	"slime_earth": {"props": [], "pbr": true, "scale": 0.78, "frame_grow": 1.7},
+	"slime_air": {"props": [], "pbr": true, "scale": 0.78, "frame_grow": 1.7},
+	"slime_lightning": {"props": [], "pbr": true, "scale": 0.78, "frame_grow": 1.7},
+	"lizard_normal": {"props": [], "pbr": true, "scale": 0.65, "frame_grow": 2.0},
+	"lizard_fire": {"props": [], "pbr": true, "scale": 0.65, "frame_grow": 2.0},
+	"lizard_water": {"props": [], "pbr": true, "scale": 0.65, "frame_grow": 2.0},
+	"lizard_earth": {"props": [], "pbr": true, "scale": 0.65, "frame_grow": 2.0},
+	"lizard_air": {"props": [], "pbr": true, "scale": 0.65, "frame_grow": 2.0},
+	"lizard_lightning": {"props": [], "pbr": true, "scale": 0.65, "frame_grow": 2.0},
+	"goblin_shaman_normal": {"props": ["Staff_Held"], "pbr": true, "frame_grow": 1.25},
+	"goblin_shaman_fire": {"props": ["Staff_Held"], "pbr": true, "frame_grow": 1.25},
+	"goblin_shaman_water": {"props": ["Staff_Held"], "pbr": true, "frame_grow": 1.25},
+	"goblin_shaman_earth": {"props": ["Staff_Held"], "pbr": true, "frame_grow": 1.25},
+	"goblin_shaman_air": {"props": ["Staff_Held"], "pbr": true, "frame_grow": 1.25},
+	"goblin_shaman_lightning": {"props": ["Staff_Held"], "pbr": true, "frame_grow": 1.25},
+	# Goblins on the hero presentation (graphics audit 2026-10-02): the 128px
+	# nearest toon render was the one enemy still stair-stepped next to smooth
+	# PBR heroes. Material_1 imports metallic=1.0 (glTF default, no metallic
+	# texture), which renders it dark/pale with no diffuse -- matte it.
+	"goblin":        {"props": ["Knife_Held"], "clips": {}, "pbr": true,
+					  "pbr_overrides": {"Material_1": {"metallic": 0.0, "roughness": 0.85}}},
 	"goblin_archer": {"props": ["Bow_Held", "Quiver_Back"],
-					  "clips": {"attack": "attack_bow"}},
+					  "clips": {"attack": "attack_bow"}, "pbr": true,
+					  "pbr_overrides": {"Material_1": {"metallic": 0.0, "roughness": 0.85}}},
+	# Charged_Ground_Slam is NAME_MAPped to "ult" (Cross); the giant plays it as
+	# his Smash skill.
+	"hill_giant":    {"props": ["Club_Held"], "clips": {"skill": "ult"}, "pbr": true, "frame_grow": 1.9},
+	"fire_giant": {"props": ["Club_Held"], "pbr": true, "frame_grow": 1.9},
+	"storm_giant": {"props": ["Club_Held"], "pbr": true, "frame_grow": 1.9},
+	"tidecaller":    {"props": [], "clips": {}, "pbr": true},
+	"gale_warden":   {"props": [], "clips": {}, "pbr": true},
+	# Skyrender's "fly" loop plays while `skyrender_aloft` is set (_update_model3d_animation).
+	# v002 spread wings: sized by height, the span left the body tiny on its 2x2
+	# -- scaled up, and the frame grown so the wingtips aren't cut off.
+	"skyrender":     {"props": [], "clips": {}, "pbr": true, "scale": 1.6, "frame_grow": 1.8},
+	"drowned_maw":   {"props": [], "clips": {}, "pbr": true},
+	"khagan_phase1": {"props": [], "clips": {}, "pbr": true},
+	"khagan_phase2": {"props": [], "clips": {}, "pbr": true},
+	"terracotta_colossus": {"props": [], "clips": {"skill": "ult"}, "pbr": true},
+	"cloven_titan": {"props": [], "clips": {"skill": "ult"}, "pbr": true, "scale": 1.4},
+	"cloven_fist": {"props": [], "clips": {"skill": "ult"}, "pbr": true},
+	"cloven_heart": {"props": [], "clips": {}, "pbr": true, "scale": 0.85},
+	"magma_heart": {"props": [], "clips": {"skill": "ult"}, "pbr": true},
+	"emberhollow": {"props": [], "clips": {"skill": "ult"}, "pbr": true},
+	"stat_stealer": {"props": [], "clips": {}, "pbr": true},
+	"gravekeeper": {"props": ["Shovel_Held"], "clips": {"skill": "ult"}, "pbr": true},
+	"the_architect": {"props": [], "clips": {"skill": "ult"}, "pbr": true},
+	"tempest_conduit": {"props": [], "clips": {}, "pbr": true, "scale": 0.82},
+	"arcfang": {"props": [], "clips": {}, "pbr": true},
+	"aspect_devourer": {"props": [], "clips": {}, "pbr": true, "scale": 0.62},
+	"mirrorplate_warden": {"props": [], "clips": {}, "pbr": true, "scale": 0.7},
+	"ant": {"props": [], "clips": {}, "pbr": true},
+	# Summons' "skill" is the extra claw strike (_summon_basic_attack).
+	# frame_grow: the hurt flinch snaps the wings up past the idle frame.
+	"bat_minion": {"props": [], "clips": {"skill": "attack"}, "pbr": true, "scale": 0.8, "frame_grow": 1.25},
+	"ant_hill": {"props": [], "clips": {}, "pbr": true, "scale": 0.36, "frame_grow": 2.4},
+	"ember_heart": {"props": [], "clips": {}, "pbr": true},
+	"hydra_normal": {"props": [], "clips": {}, "pbr": true},
+	"hydra_fire": {"props": [], "clips": {}, "pbr": true},
+	"hydra_water": {"props": [], "clips": {}, "pbr": true},
+	"hydra_earth": {"props": [], "clips": {}, "pbr": true},
+	"hydra_air": {"props": [], "clips": {}, "pbr": true},
+	"hydra_lightning": {"props": [], "clips": {}, "pbr": true},
+	"triarch_phase1": {"props": ["Sword_Held"], "clips": {"skill": "ult"}, "pbr": true, "scale": 1.75, "frame_grow": 2.0},
+	# The volley clip's off-hand pose turned the bow edge-on, so the skill reuses
+	# the clean draw-and-loose; Piercing Volley's VFX carries the difference.
+	"triarch_phase2": {"props": ["Bow_Held"], "clips": {"attack": "archery_shot_2", "skill": "archery_shot_2"}, "pbr": true, "scale": 1.75, "frame_grow": 2.0},
+	"triarch_phase3": {"props": ["Focus_Held"], "clips": {"skill": "triarch_cast"}, "pbr": true, "scale": 1.75, "frame_grow": 2.0},
 }
 
 # AI-generated monster sprites keyed by sprite_folder string
@@ -319,6 +576,16 @@ const HERO_SPRITE_RENDER_H := 115.0
 const SPRITE_SCALE_OVERRIDE := {
 	"nemi": 1.35,
 	"headhunter": 1.2,
+	# Gale Warden flock bird (2026-09-28). Its 256px frames are mostly empty
+	# canvas — the idle bird fills only 58% × 53% — so at 1.0 it was ~67px in a
+	# 110px cell, and the first 0.72 pass looked lost on the board (owner: "it
+	# should at least fill the square"). 1.5 puts the idle body ~100px wide.
+	"gale_warden": 1.5,
+}
+# Health-bar drop (px) for sprites whose frame canvas has empty space above the
+# art, so the bar sits on the body instead of floating over it.
+const HEALTH_BAR_DROP := {
+	"gale_warden": 17.0,
 }
 var sprite_variant: int = -1  # set by factory; -1 = pick randomly in _ready
 
@@ -335,10 +602,13 @@ const STATUS_ICON_SHEETS := {
 
 # Display order for status icons, so an icon never jumps sideways just because a
 # different status expired. Add new keys here AND to STATUS_ICON_SHEETS.
-const STATUS_ICON_ORDER := ["stun"]
-const STATUS_ICON_SPACING := 24.0
+const STATUS_ICON_ORDER := ["stun", "root", "taunt", "slow", "burn", "disease", "venom",
+	"bleed", "heal_cut", "weaken", "corroded", "dread", "blind", "ink_poison", "exposed", "hunted"]
+const STATUS_BADGE_SIZE := 26.0
+const STATUS_ICON_SPACING := 34.0
 
-var _status_icons: Dictionary = {}   # status_key -> StatusIcon node (lazily created)
+var _status_icons: Dictionary = {}   # status_key -> StatusBadge node (lazily created)
+var _status_peaks: Dictionary = {}   # status_key -> longest remaining time seen (ring scale)
 
 # Skill-cooldown badge, floated to the left of the health bar (2026-07-06 user
 # request — first skill icon art in the game, "Corrosive Goo" on Slime). Lit up
@@ -418,7 +688,10 @@ var _foot_anchor_y: float = 55.0
 # Faked-perspective depth (see BoardPerspective): 1.0 on the front row, smaller
 # toward the back. Multiplied into the sprite scale in _apply_animation().
 var _depth_scale: float = 1.0
+var snake_body: TempestSnakeBody
 var _shadow: Node2D = null
+var soft_contact_shadow: bool = false
+static var _soft_shadow_texture: GradientTexture2D
 # Per-animation correction so the character reads as the same physical size no
 # matter which generated sheet (walk/idle/attack/...) is playing — each is its
 # own AI-generated clip on the same 256x256 canvas, but the character isn't
@@ -437,6 +710,32 @@ var _lunge_offset: Vector2 = Vector2.ZERO    # attack
 var _recoil_offset: Vector2 = Vector2.ZERO   # hit knockback
 var _toss_offset: Vector2 = Vector2.ZERO     # Long Fall (Skyrender) — hurled off-screen and back
 var _updraft_offset: Vector2 = Vector2.ZERO  # Vail Updraft — whirled airborne
+# Skyrender aloft (2026-10-04): the body rises off the board while its Cyclone
+# Ascent window is open, eased in/out in _update_model3d_animation.
+const ALOFT_LIFT := 45.0   # the fly clip lifts the body too; more ran the bar off the top row
+var _aloft_offset: Vector2 = Vector2.ZERO
+var _shove_offset: Vector2 = Vector2.ZERO    # forced displacement: body slides from the old tile
+# FLIERS (Gale Warden, 2026-10-06; `flier` meta): the body hovers off the board
+# with a wingbeat bob, drops low on a dive and climbs on the recovery, and banks
+# into its turns. All on the battle clock (frozen while paused). The ground
+# shadow stays put, which is what sells the height. See _update_flight_pose.
+const FLY_HOVER := 16.0        # px off the board while circling
+const FLY_DIVE_H := 3.0        # ... skimming the target on a dive pass
+const FLY_RECOVER_H := 30.0    # ... climbing out after it
+const FLY_BOB := 3.0           # wingbeat bob amplitude
+const FLY_BANK_MAX := 0.26     # rad (~15°) of roll into a turn
+var _fly_offset: Vector2 = Vector2.ZERO
+var _fly_bank: float = 0.0
+var _fly_clock: float = 0.0
+var _fly_height: float = FLY_HOVER
+var _fly_turn: float = 0.0
+var _fly_prev_dir: Vector2 = Vector2.ZERO
+# Rift's Tear (2026-10-01). The victim is teleported by the grid INSTANTLY; these
+# two channels let the BODY fall into a portal at the old tile and drop out of one
+# at the new tile, without the grid ever disagreeing with itself. Same contract as
+# _shove_offset: purely visual, so it cannot desync targeting or movement.
+var _portal_offset: Vector2 = Vector2.ZERO
+var _portal_scale: Vector2 = Vector2.ONE
 # Vail Updraft — horizontal spin, faked via a scale.x cosine wave (a real Z
 # rotation would tumble the sprite head-over-heels like a clock hand; this
 # reads as spinning around the vertical axis instead — squash to edge-on,
@@ -529,6 +828,10 @@ func _ready():
 
 	_setup_lpc_sprite()
 	_assign_element_particles()
+	if get_meta("segmented_snake", false):
+		snake_body = TempestSnakeBody.new()
+		add_child(snake_body)
+		snake_body.setup(self)
 
 	fill_color = get_element_color()
 	if element_glow:
@@ -543,6 +846,17 @@ func _ready():
 	# defaults, so normal units are unchanged.)
 	health_bar.bar_width = 70.0 + (cell_size - 1) * 120.0   # 70 / 190 / …
 	health_bar.offset_y  = 60.0 + (cell_size - 1) * 35.0    # 60 / 95 / …
+	# A SHRUNK sprite (SPRITE_SCALE_OVERRIDE < 1, e.g. the Gale Warden flock
+	# birds) keeps its feet pinned, so its top drops — drop the bar with it or
+	# it floats a whole head above the body. Enlarged sprites (Nemi, Headhunter)
+	# are left exactly as tuned.
+	var ov_key: String = get_enemy_sprite_override()   # enemies: their own folder, not the stats-host class
+	if ov_key == "":
+		ov_key = get_class_sprite_folder()
+	var ov: float = SPRITE_SCALE_OVERRIDE.get(ov_key, 1.0)
+	if ov < 1.0:
+		health_bar.offset_y -= (1.0 - ov) * HERO_SPRITE_RENDER_H
+	health_bar.offset_y -= float(HEALTH_BAR_DROP.get(ov_key, 0.0))
 	add_child(health_bar)
 	# health_bar's own _ready() (triggered by add_child above, since this unit
 	# is already inside the tree) sets its resting position.y for TOP/BOTTOM
@@ -554,6 +868,7 @@ func _ready():
 	_setup_skill_icon()
 	_setup_role_badge()
 	health_bar.update_hp(current_hp, max_hp)
+	if unit_class == UnitBase.UnitClass.HYDRA: HydraKit.sync_heads(self)
 	if is_player_unit:
 		health_bar.update_mp(current_mana, max_mana)
 	else:
@@ -561,6 +876,11 @@ func _ready():
 	# Pass the REAL max — 0 means "this unit has no ultimate" and the bar hides
 	# the strip entirely instead of drawing a forever-empty track.
 	health_bar.update_ult(ultimate_charge, ultimate_charge_max)
+	if get_meta("mob_passive", "") == "magma_pulse":
+		health_bar.set_ability_timers([[AutoBattleManager.magma_pulse_progress(self), MagmaVFX.MAGMA]])
+	_update_reef_cooldown_bars()
+	_update_arcfang_cooldown_bars()
+	_update_ant_hill_cooldown_bar()
 
 	health_changed.connect(_on_health_changed)
 	mana_changed.connect(_on_mana_changed)
@@ -616,6 +936,126 @@ func _setup_model3d(path: String, prop_nodes: Variant = null,
 		push_warning("VisualUnit: 3D model missing at %s — falling back to 2D art" % path)
 		return false
 	var m := Model3DSprite.new()
+	# Approved 3D hero presentation: native GLB materials at smooth 256px,
+	# with a thin screen-space silhouette. Enemy models keep their own settings.
+	# A monster opts into the same presentation with "pbr": true in
+	# MONSTER_MODEL_PROPS (2026-10-02 batch, pending owner review — the toon
+	# path's 1.55x saturation lift blew Tidecaller's already-vivid texture out).
+	var monster_pbr: bool = bool(MONSTER_MODEL_PROPS.get(
+			get_meta("sprite_folder", "") if has_meta("sprite_folder") else "", {}).get("pbr", false))
+	if HERO_MODEL_PATHS.get(unit_class, "") == path or monster_pbr:
+		soft_contact_shadow = true
+		m.render_size = Vector2i(256, 256)
+		m.texture_filter_nearest = false
+		m.toon = false
+		m.outline_with_pbr = true
+		m.outline_px = 1.5
+		m.outline_soft_edges = true
+		m.msaa_3d = Viewport.MSAA_4X
+		if unit_class == UnitBase.UnitClass.LUMEN:
+			# The v002 GLB contains a grayscale seam mask. Apply its violet tint
+			# explicitly using native PBR multiply mode after Godot import.
+			m.pbr_material_overrides = {"Material_1": {
+				"emission_color": Color(0.60, 0.30, 1.0), "emission_energy": 2.0}}
+		# Meshy bodies import Material_1 at metallic=1.0 with no metallic texture
+		# (the glTF default). With no environment to reflect, a full metal gets
+		# no diffuse light and shows its texture only through the key's
+		# highlight, so dark costumes went to flat silhouettes. Matte ONLY the
+		# heroes that measured darker AND kept their contrast when matted
+		# (graphics audit 2026-10-02, variants/set3): Rift 0.22->0.32,
+		# Lordee 0.20->0.31, Zolt 0.42->0.55 figure luma. Bright bodies (Vail,
+		# Bouncer, Static, June, Doc) washed out when matted -- left alone.
+		# Riot keeps a little metal for his armour.
+		if unit_class in [UnitBase.UnitClass.RIFT, UnitBase.UnitClass.LORDEE,
+				UnitBase.UnitClass.ZOLT]:
+			m.pbr_material_overrides = {"Material_1": {"metallic": 0.0, "roughness": 0.75}}
+		elif unit_class == UnitBase.UnitClass.RIOT:
+			m.pbr_material_overrides = {"Material_1": {"metallic": 0.3, "roughness": 0.6}}
+		elif unit_class == UnitBase.UnitClass.RUSH:
+			# Matte alone washed his light-gold fur to cream; metallic 1.0 kept the
+			# gold but went dark and shiny. Matte + a warm tint keeps the concept's
+			# gold on both grass and volcano (rush_3d_20261005/fur_material_AtoE.png, D).
+			m.pbr_material_overrides = {"Material_1": {"metallic": 0.0, "roughness": 0.75,
+				"albedo_tint": Color(0.92, 0.80, 0.62)}}
+		elif unit_class == UnitBase.UnitClass.EMBER:
+			# Inner glow from her OWN texture as the emission map (multiply), so
+			# the bright glass glows and the dark cooled seams stay dark -- a flat
+			# emission colour would wash the seams out. The bow's primitive
+			# "Wood" is tinted ember-gold with a faint glow of its own.
+			m.pbr_material_overrides = {
+				"Material_0": {"emission_color": Color(1.0, 0.62, 0.30),
+					"emission_energy": 0.55,
+					"emission_texture": load("res://assets/3d pipeline/hero/ember/ember_v001_Image_0.png")},
+				"Wood": {"albedo_tint": Color(2.5, 2.1, 1.3),
+					"emission_color": Color(1.0, 0.45, 0.12), "emission_energy": 0.35}}
+		elif unit_class == UnitBase.UnitClass.NECRO:
+			# Dark robe: matte like the other dark bodies. Soul-light from his OWN
+			# texture as the emission map, green-tinted, so the ribcage and eye
+			# sockets glow while the charcoal robe stays dark (Ember's recipe).
+			# The staff's skull eyes carry their own emissive material.
+			m.pbr_material_overrides = {
+				"Material_0": {"metallic": 0.0, "roughness": 0.75,
+					"emission_color": Color(0.45, 1.0, 0.55), "emission_energy": 0.6,
+					"emission_texture": load("res://assets/3d pipeline/hero/necro/necro_v001_Image_0.png")},
+				"Necro_Soul_Green": {"emission_color": Color(0.35, 1.0, 0.45), "emission_energy": 2.5}}
+		if monster_pbr:
+			m.pbr_material_overrides = MONSTER_MODEL_PROPS.get(
+				str(get_meta("sprite_folder", "")), {}).get("pbr_overrides", {})
+			var shaman_folder := str(get_meta("sprite_folder", ""))
+			if shaman_folder.begins_with("orc_") or shaman_folder.begins_with("troll_"):
+				m.pbr_material_overrides = {"Material_0": {"roughness": 0.82, "metallic": 0.0}}
+				if current_element != UnitBase.Element.NORMAL:
+					m.pbr_material_overrides["Material_0"]["element_color"] = OrcVFX.body_color(current_element)
+			if shaman_folder.begins_with("windup_bot_"):
+				var shell_color := WindUpBotVFX.body_color(current_element)
+				m.pbr_material_overrides = {
+					"Bot_Shell": {"albedo_color": shell_color},
+					"Bot_Eye": {"albedo_color": GoblinShamanVFX.element_colors(current_element)[1]}}
+			if shaman_folder.begins_with("bear_"):
+				var palette := BearVFX.body_colors(current_element)
+				m.pbr_material_overrides = {
+					"Bear_Fur": {"albedo_color": palette[0]},
+					"Bear_Plates": {"albedo_color": palette[1]},
+					"Bear_Muzzle": {"albedo_color": palette[1].lightened(0.18)}}
+			if shaman_folder.begins_with("slime_"):
+				var jelly := SlimeVFX._slime_tint(current_element)
+				m.pbr_material_overrides = {
+					"Slime_Jelly": {"albedo_color": jelly},
+					"Slime_Rim": {"albedo_color": jelly.darkened(0.45)},
+					"Slime_Sheen": {"albedo_color": jelly.lightened(0.65)}}
+
+			if uses_shared_giant():
+				var form: String = HillGiantVFX.element_name(current_element)
+				m.pbr_material_overrides = {
+					"Material_0": {"albedo_texture": load("res://assets/3d pipeline/enemy/hill_giant/giant_%s_albedo.png" % form)},
+					"Stone": {"albedo_tint": Color.WHITE if current_element == UnitBase.Element.EARTH else HillGiantVFX.element_colors(current_element)[1]}}
+
+			if shaman_folder.begins_with("lizard_"):
+				var palette := LizardVFX.body_colors(current_element)
+				m.pbr_material_overrides = {
+					"Lizard_Skin": {"albedo_color": palette[0]},
+					"Lizard_Belly": {"albedo_color": palette[1]},
+					"Lizard_Marks": {"albedo_color": palette[2]}}
+			if shaman_folder.begins_with("goblin_shaman_"):
+				var palette := shaman_folder.trim_prefix("goblin_shaman_")
+				var glow: Color = GoblinShamanVFX.element_colors(current_element)[1]
+				m.glow_material = "Shaman_Focus"
+				m.glow_base = Color(glow.r, glow.g, glow.b, 0.2)
+				m.glow_energy = 1.5
+				m.glow_by_clip = {
+					"attack": Color(glow.r, glow.g, glow.b, 0.65),
+					"skill": Color(glow.r, glow.g, glow.b, 1.0)}
+				m.pbr_material_overrides = {
+					"Material_1": {"metallic": 0.0, "roughness": 0.85,
+						"albedo_texture": load("res://assets/3d pipeline/enemy/goblin_shaman/shaman_%s_albedo.png" % palette)},
+					"Shaman_Focus": {"albedo_tint": glow,
+						"emission_color": glow, "emission_energy": 1.5}}
+		# These five had the largest unblended action-to-idle pose gaps in the
+		# quality audit. Blend only returns/travel; action entries stay immediate.
+		if unit_class in [UnitBase.UnitClass.PASTOR, UnitBase.UnitClass.LORDEE,
+				UnitBase.UnitClass.REED, UnitBase.UnitClass.SPORE, UnitBase.UnitClass.RIOT,
+				UnitBase.UnitClass.NECRO]:
+			m.clip_blend_by_clip = {"idle": 0.10, "walk": 0.06}
 	# Monsters pass their prop set straight in; heroes leave these null and are
 	# configured by the per-class blocks below.
 	if prop_nodes != null:
@@ -624,6 +1064,12 @@ func _setup_model3d(path: String, prop_nodes: Variant = null,
 		m.clip_aliases = clip_aliases
 	if not managed_props.is_empty():
 		m.managed_prop_nodes = managed_props
+	# A monster wider than its square render frame (the dirt mound) gets its
+	# sides clipped; "frame_grow" widens the frame without changing density.
+	if has_meta("sprite_folder"):
+		var fg: float = float(MONSTER_MODEL_PROPS.get(get_meta("sprite_folder"), {}).get("frame_grow", 0.0))
+		if fg > 0.0:
+			m.frame_grow = fg
 	# Bouncer's whole kit is reaching out and dragging the board to himself
 	# (Presence / Slam / Gravity Drop), so his punches stretch. Opt-in per hero
 	# rather than global — it would look wrong on a swordsman.
@@ -641,10 +1087,13 @@ func _setup_model3d(path: String, prop_nodes: Variant = null,
 	# that switches on only during abilities.
 	# Alpha is intensity — see Model3DSprite._update_glow().
 	if unit_class == UnitBase.UnitClass.DOC:
-		# The cyan tunic shares Material_1 with Doc's body. Reduce that material's
-		# saturation by 20%; the separately authored syringe Body/Fluid slots keep
-		# their original colour and ability glow.
-		m.material_saturation_scale = {"Material_1": 0.80}
+		# v002 (2026-09-26): scrubs toned down in the texture AND here — the toon
+		# shader's 1.55x saturation still pumped them to neon cyan and the tan apron
+		# to orange without this. His fur is raccoon grey now, so damping Material_1
+		# no longer greys out a brown body; the syringe's Body/Fluid slots keep their
+		# own colour and ability glow.
+		m.material_saturation_scale = {"Material_1": 0.60}
+		m.material_brightness_scale = {"Material_1": 0.92}
 		m.glow_material = "Fluid"
 		m.glow_base = Color(0.35, 0.95, 0.45, 0.35)
 		m.glow_by_clip = {
@@ -677,6 +1126,11 @@ func _setup_model3d(path: String, prop_nodes: Variant = null,
 		# (top) and 1.44x (side), measured on bone heads + claw length; 1.55
 		# clears both. Same on-screen size and pixel density, bigger canvas.
 		m.frame_grow = 1.55
+	if unit_class == UnitBase.UnitClass.NECRO:
+		# Bat Swarm raises the staff overhead: its skull reaches z 2.43 against a
+		# frame fitted to idle + death bones, and clipped the top on 4 of 12
+		# clip_frame_check samples at 1.0. Same on-screen size, bigger canvas.
+		m.frame_grow = 1.35
 	if unit_class == UnitBase.UnitClass.HEADHUNTER:
 		# idle (2026-09-07): user supplied a REAL Meshy idle clip ("Idle_9"),
 		# replacing the earlier hand-frozen-from-attack workaround — see
@@ -772,16 +1226,54 @@ func _setup_model3d(path: String, prop_nodes: Variant = null,
 		# only for the non-gameplay rest reference.
 		m.weapon_variants = {"rest_reference": "LiveWire_Flexible"}
 		m.weapon_default_node = ["LiveWire_Cast", "LiveWire_Sparks"]
+		# Audit 2026-10-01: the body texture is already vivid (median sat 0.77), so
+		# the global 1.55x toon lift clipped him to sat 1.00 on every board vs ~0.3
+		# for the rest of the roster — goggles/harness/beak merged into one blob.
+		# Same fix as Doc; the wire's cyan materials keep the full lift.
+		# Tried darkening Static_Cable_Rubber too (2026-10-01): read on air but the
+		# cable vanished on water/fire, so the teal stays.
+		m.material_saturation_scale = {"Material_1": 0.60}
+		m.material_brightness_scale = {"Material_1": 0.92}
+		# Flexible live wire (2026-10-01): the rigid cable surface is hidden and a
+		# simulated rope runs plug -> belt, sagging and trailing the fist. Points
+		# are model REST space measured on v019 (plug bottom at the fist; belt front
+		# at the right hip, so the slack loop hangs in FRONT of the leg instead of
+		# hiding behind the forearm — the first cut anchored at the hip side and
+		# only a sliver showed). The capsule is the belly band (y 0.45-0.85, r ~0.33).
+		m.cable_config = {
+			"start_bone": "RightHand", "start": Vector3(-0.67, 0.55, 0.10),
+			"end_bone": "Hips", "end": Vector3(-0.22, 0.50, 0.24),
+			"material": "Static_Cable_Rubber", "hide_material": "Static_Cable_Rubber",
+			"length": 1.30, "radius": 0.042,
+			# Top of the cyan voltage forks above the plug (v019 rest).
+			"tip": Vector3(-0.67, 0.76, 0.12),
+			"colliders": [{"bottom": Vector3(0.0, 0.45, -0.03),
+				"top": Vector3(0.0, 0.85, -0.03), "radius": 0.33}],
+		}
+		# The voltage forks were authored as Static_Electric_Cyan but never lit.
+		# Only ~3 px at 115 px tall, so this alone does not sell "electric" —
+		# a real spark VFX is the open follow-up.
+		m.glow_material = "Static_Electric_Cyan"
+		m.glow_base = Color(0.45, 0.95, 1.00, 0.60)
+		m.glow_by_clip = {
+			"attack": Color(0.70, 1.00, 1.00, 1.40),
+			"skill": Color(0.70, 1.00, 1.00, 1.60),
+			"ult": Color(0.85, 1.00, 1.00, 2.20),
+		}
 		# Head-front measurements against idle put the attack/skill cast centers
 		# about 14 degrees counter-clockwise. Center those clips on model-forward;
 		# the ultimate keeps its authored turn but starts and resolves on-axis.
 		m.clip_yaw_bias_deg = {"attack": 14.0, "skill": 14.0, "ult": 14.0}
+		# The v020 guard idle no longer matches the first frame of the casts.
+		m.clip_blend_sec = 0.12
 	if unit_class == UnitBase.UnitClass.RIFT:
 		# Staff remains in the left hand; the free right hand performs basic casts.
 		m.weapon_default_node = "Staff_Held"
 		m.clip_yaw_bias_deg = {"attack": 32.0}
 	add_child(m)
-	var render_h: float = MODEL_RENDER_H * (SPRITE_RENDER_H_2X_MULT if cell_size >= 2 else 1.0)
+	var base_render_h: float = (HERO_MODEL_RENDER_H
+			if HERO_MODEL_PATHS.get(unit_class, "") == path else MODEL_RENDER_H)
+	var render_h: float = base_render_h * (SPRITE_RENDER_H_2X_MULT if cell_size >= 2 else 1.0)
 	# June's plant body is intentionally broad and imposing in the 2D design.
 	# Give that silhouette more of the occupied cell after the v002 width pass.
 	if unit_class == UnitBase.UnitClass.JUNE:
@@ -794,11 +1286,25 @@ func _setup_model3d(path: String, prop_nodes: Variant = null,
 		var halo := CrossHaloGlow.new()
 		add_child(halo)
 		halo.setup(self)
+	if unit_class == UnitBase.UnitClass.STATIC and m.has_cable():
+		var sparks := StaticWireSparks.new()
+		add_child(sparks)
+		sparks.setup(self)
 	# Players hold the bottom of the board and face up-screen, enemies the top —
 	# same convention the flip_h on the 2D sprites encodes.
 	m.set_facing_right(is_player_unit)
 
 	var inner := m.get_sprite()
+	# Monsters: Model3DSprite pins IDLE HEIGHT to render_h, so a body much wider
+	# than tall (a beetle, a tortoise, a dirt mound) comes out far wider than its
+	# cell. Per-variant "scale" in MONSTER_MODEL_PROPS (tuned on the board render,
+	# 2026-10-03). An automatic aspect cap was tried and dropped: bone bounds do
+	# not see a shell's width, so it never triggered on the cases that needed it.
+	if has_meta("sprite_folder") and MONSTER_MODEL_PATHS.get(get_meta("sprite_folder"), "") == path:
+		var k: float = float(MONSTER_MODEL_PROPS.get(get_meta("sprite_folder"), {}).get("scale", 1.0))
+		if not is_equal_approx(k, 1.0):
+			inner.scale *= k
+			render_h *= k
 	var anchor_half: float = 55.0 * cell_size
 	_sprite_half_h = render_h * 0.5
 	_sprite_base_offset = Vector2(0.0, anchor_half - render_h * 0.5)
@@ -807,6 +1313,7 @@ func _setup_model3d(path: String, prop_nodes: Variant = null,
 	_base_sprite_scale = inner.scale
 	if cell_size >= 2:
 		shape_size = 100.0
+	_measure_foot_trim(m, path)   # fire-and-forget: waits for the first drawn frame
 	return true
 
 
@@ -1076,6 +1583,10 @@ func _rebuild_skill_icon() -> void:
 ## inner sprite up as plain_sprite and computes the bottom anchor, and a
 ## monster that skipped it rendered detached from its cell.
 func _setup_monster_model3d(folder: String) -> bool:
+	# Necro's summons reach here through get_class_sprite_folder(), not a
+	# sprite_folder meta, and _setup_model3d reads the meta for "pbr"/"scale".
+	if not has_meta("sprite_folder"):
+		set_meta("sprite_folder", folder)
 	var cfg: Dictionary = MONSTER_MODEL_PROPS.get(folder, {})
 	# The unit must also be told about the props belonging to the OTHER variants
 	# sharing this .glb, or it cannot hide them — see
@@ -1191,7 +1702,32 @@ func show_held_item_icon(tex: Texture2D, rarity_color: Color) -> void:
 # (2026-07-10 user report: "too big, should be on the unit's head").
 const POSSESSION_ICON_TARGET_PX := 56.0
 var possession_icon: Sprite2D
+# 3D phase 3 (2026-10-02, owner: "he jumps on one of your heroes and takes
+# control of them"): Khagan's phase-2 octopus model, small, CLINGING to the
+# possessed hero's head and playing its `cling` loop -- the creature is
+# literally riding the hero. Falls back to the flat icon if the model is missing.
+const POSSESSION_MODEL_PX := 52.0
+var possession_model: Model3DSprite
 func show_possession_icon(tex: Texture2D) -> void:
+	var path: String = MONSTER_MODEL_PATHS.get("khagan_phase2", "")
+	if path != "" and ResourceLoader.exists(path):
+		if not possession_model:
+			possession_model = Model3DSprite.new()
+			possession_model.z_index = 7
+			add_child(possession_model)
+			if not possession_model.setup(path, POSSESSION_MODEL_PX):
+				possession_model.queue_free()
+				possession_model = null
+		if possession_model:
+			possession_model.visible = true
+			possession_model.set_facing_right(is_player_unit)
+			possession_model.play("cling")
+			# sit ON the head, below the health bar (the clinger frame has headroom above its body, so its sprite centre sits lower than the crown)
+			var top: float = _sprite_base_offset.y - _sprite_half_h if _sprite_half_h > 0.0 					else -shape_size * 1.0
+			possession_model.get_sprite().position = Vector2(0, top + POSSESSION_MODEL_PX * 0.30)
+			if possession_icon:
+				possession_icon.visible = false
+			return
 	if not possession_icon:
 		possession_icon = Sprite2D.new()
 		possession_icon.z_index = 7
@@ -1206,6 +1742,9 @@ func show_possession_icon(tex: Texture2D) -> void:
 func hide_possession_icon() -> void:
 	if possession_icon and is_instance_valid(possession_icon):
 		possession_icon.visible = false
+	if possession_model and is_instance_valid(possession_model):
+		possession_model.queue_free()
+		possession_model = null
 
 func _on_health_changed(current: int, maximum: int) -> void:
 	if health_bar:
@@ -1229,10 +1768,13 @@ func _on_attacked(target) -> void:
 		return
 	if not (target and is_instance_valid(target)):
 		return
+	if is_instance_valid(snake_body):
+		snake_body.fire_tail(target)
+		return
 	if str(get_meta("sprite_folder", "")) == "goblin" and battle_manager \
 			and battle_manager.has_method("spawn_goblin_auto_impact"):
 		battle_manager.spawn_goblin_auto_impact(target.global_position)
-	var dir_world: Vector2 = target.global_position - global_position
+	var dir_world: Vector2 = target.combat_aim_position(global_position) - global_position if target is UnitBase else target.global_position - global_position
 	if dir_world.length() > 0.01:
 		_engaged_dir = dir_world
 		_engaged_until_ms = Time.get_ticks_msec() + ENGAGED_HOLD_MS
@@ -1250,6 +1792,9 @@ func _on_attacked(target) -> void:
 			# haste/slow source through attacks_per_second and shares its release
 			# fraction with UnitBase.spawn_projectile.
 			played = model3d.play_oneshot_timed("attack", 1.0 / attacks_per_second, "idle")
+		elif unit_class == UnitBase.UnitClass.EMBER and model3d and model3d.has_animation("attack"):
+			_ember_shot_duration = ember_shot_seconds()
+			played = model3d.play_oneshot_timed("attack", _ember_shot_duration, _resume_clip())
 		elif _is_goblin_archer() and model3d and model3d.has_animation("attack"):
 			played = play_goblin_bow_shot(target)
 		else:
@@ -1269,7 +1814,7 @@ func _on_attacked(target) -> void:
 			# Zolt's custom muzzle particle is emitted by Projectile on the authored
 			# hands-out frame; an immediate generic burst would double/lead that cue.
 			# The goblin archer's arrow waits for the string release the same way.
-			if unit_class != UnitBase.UnitClass.ZOLT and not _is_goblin_archer():
+			if unit_class not in [UnitBase.UnitClass.ZOLT, UnitBase.UnitClass.EMBER] and not _is_goblin_archer():
 				_spawn_particle(attack_particle_pack, 0.22, global_position + dir * 24.0)
 			if unit_class == UnitBase.UnitClass.STATIC:
 				_static_discharge_recoil(dir)
@@ -1279,6 +1824,17 @@ func _on_attacked(target) -> void:
 	# If this unit has a real attack sheet, play the swing and keep just the
 	# impact particles — skip the procedural lunge so the two don't fight.
 	var played2 := false
+	if uses_shared_giant() and model3d and model3d.has_animation("attack"):
+		# Keep the authored contact frame (Hill Giant: 0.50 battle seconds),
+		# while allowing live pace changes to affect the whole swing.
+		play_giant_timed("attack", model3d.animation_length("attack"), "idle")
+		_face_target_3d(dir_world)
+		if battle_manager and battle_manager.skill_effect_container:
+			var accent := HillGiantVFX.new()
+			battle_manager.skill_effect_container.add_child(accent)
+			accent.set_clock(battle_manager)
+			accent.setup_swing(self, AutoBattleManager.HILL_GIANT_AUTO_CONTACT)
+		return
 	# June's authored attack clip is SIX SECONDS long against a 1.47s attack
 	# interval, so the untimed path restarted it from frame 0 every swing and the
 	# player only ever saw the first ~24% — the strike itself never played.
@@ -1521,11 +2077,61 @@ func play_skill_oneshot() -> void:
 		model3d.play_oneshot("skill", "idle")
 		_face_stitch_cast_3d()
 
+func play_magma_eruption() -> void:
+	# Planted pressure release; the imported ult is an overhead punch.
+	var beat := create_tween()
+	beat.tween_method(_set_punch, Vector2.ONE, Vector2(1.04, 0.98), 0.08)
+	beat.tween_method(_set_punch, Vector2(1.04, 0.98), Vector2.ONE, 0.22)
+	create_tween().tween_method(_set_flash, 0.45, 0.0, 0.22)
+
 ## Start a generic skill clip only when the ability itself has not already
 ## started an authored action (for example a lunge or wind-up).
 func play_generic_skill_action() -> void:
+	if model3d and _regular_art_family() != "":
+		# These abilities already start their action at a committed contact beat.
+		if str(get_meta("mob_skill", "")) in ["brute_crush", "bear_swipe", "windup_punch", "rat_bite", "lizard_shot"]:
+			return
+		if model3d.has_animation("skill") and not model3d.is_oneshot_playing():
+			model3d.play_oneshot_timed("skill", _regular_skill_seconds() / _battle_ts(), "idle")
+			_regular_move_accent()
+		return
 	if model3d and model3d.has_animation("skill") and not model3d.is_oneshot_playing():
 		play_skill_oneshot()
+
+const REGULAR_ART_FAMILIES := {
+	"goblin_shaman":true,"lizard":true,"orc":true,"slime":true,"bear":true,"troll":true,
+	"windup_bot":true,"skeleton":true,"rat":true,"ogre":true,"minotaur":true,"gargoyle":true,
+	"stone_golem":true,"crystal_crab":true,"root_walker":true,"hellhound":true,"ember_phoenix":true,
+	"storm_crow":true,"sky_wyvern":true,"tidepool_horror":true,"harpy":true,"coral_husk":true}
+
+func _regular_art_family() -> String:
+	var folder := str(get_meta("sprite_folder", ""))
+	var suffix := folder.get_slice("_",folder.get_slice_count("_") - 1)
+	if suffix in ["normal","fire","water","earth","air","lightning"]:
+		folder = folder.trim_suffix("_" + suffix)
+	return folder if REGULAR_ART_FAMILIES.has(folder) else ""
+
+func _regular_skill_seconds() -> float:
+	match _regular_art_family():
+		"goblin_shaman": return AutoBattleManager.SHAMAN_MEND_CONTACT * 2.0
+		"lizard": return 0.5
+		"slime": return AutoBattleManager.SLIME_GOO_CONTACT * 2.0
+		"bear", "harpy", "gargoyle": return AutoBattleManager.BEAR_LUNGE_LEAD * 2.0
+		"orc", "ogre", "tidepool_horror": return AutoBattleManager.ORC_LUNGE_LEAD * 2.0
+		"windup_bot": return AutoBattleManager.WINDUP_AUTO_CONTACT * 2.0
+		"minotaur": return AutoBattleManager.WINDUP_PUNCH_CONTACT * 2.0
+		"rat", "sky_wyvern": return AutoBattleManager.RAT_LUNGE_LEAD * 2.0
+		"hellhound": return AutoBattleManager.RAT_LUNGE_LEAD / 0.4
+	return model3d.animation_length("skill") if model3d else 0.45
+
+func _regular_move_accent() -> void:
+	# Six-form families already include this accent in their main ability VFX.
+	if _regular_art_family() in ["goblin_shaman","lizard","orc","slime","bear","troll","windup_bot"]:
+		return
+	if current_element == UnitBase.Element.NORMAL: return
+	var accent := ElementalMoveAccent.new()
+	add_child(accent)
+	accent.setup(self,minf(_regular_skill_seconds(),0.6))
 
 ## As above for ultimates. Ability-specific timing may start its own ultimate
 ## clip later, so do not restart an action that has already begun.
@@ -1539,10 +2145,132 @@ func play_skill_attack(target) -> void:
 	if _is_dying or not (target and is_instance_valid(target)):
 		return
 	var dir_world: Vector2 = target.global_position - global_position
+	if model3d and _regular_art_family() != "" and model3d.has_animation("skill"):
+		model3d.play_oneshot_timed("skill", _regular_skill_seconds() / _battle_ts(), "idle")
+		_face_target_3d(dir_world)
+		_regular_move_accent()
+		return
+	if str(get_meta("sprite_folder", "")) == "hill_giant" and model3d and model3d.has_animation("slam"):
+		play_giant_timed("slam", AutoBattleManager.HILL_GIANT_SMASH_CONTACT, "idle")
+		_face_target_3d(dir_world)
+		return
 	var played := _play_oneshot("attack")
 	_face_target_3d(dir_world)
 	if not played:
 		play_attack(dir_world)
+
+# ── Groundbreaker / Stuck Club (round-5 elite Hill Giant, 2026-10-06) ─────────
+# Authored clips in hill_giant_v002.glb (tools/model3d/hill_giant_groundbreaker.py):
+# `slam` ENDS on contact, so playing it over exactly the windup lands the club
+# on the frame the manager deals damage; `stuck` holds the planted heave; `yank`
+# rips it free back into idle. Durations are BATTLE seconds -> divided by the
+# battle time_scale, like the rubber arm. 2D art falls back to the slam beats.
+func play_lizard_aim(target) -> void:
+	if model3d and model3d.has_animation("aim"):
+		model3d.play_oneshot_timed("aim", AutoBattleManager.LIZARD_AIM_TIME / _battle_ts(), "")
+		if is_instance_valid(target): _face_target_3d(target.global_position - global_position)
+
+func _battle_ts() -> float:
+	if battle_manager and battle_manager.get("time_scale") != null:
+		return maxf(float(battle_manager.time_scale), 0.05)
+	return 1.0
+
+## 0 while the battle is paused, else its time_scale — for loops and poses that
+## must freeze with the fight (one-shot clips still run in real time).
+func _battle_clock() -> float:
+	if battle_manager and bool(battle_manager.get("paused")) and bool(battle_manager.get("battle_active")):
+		return 0.0
+	return _battle_ts()
+
+## Gale Warden Cyclone Shove (2026-10-06): the skill clip played over `duration`
+## BATTLE seconds, so its forward wing sweep lands on the manager's contact beat
+## (GALE_SHOVE_CONTACT) at any pace. Resumes the wingbeat, never idle.
+func play_gale_shove(duration: float, dir_world: Vector2) -> void:
+	if _is_dying:
+		return
+	if model3d and model3d.has_animation("skill"):
+		model3d.play_oneshot_timed("skill", duration / _battle_ts(), "walk")
+		_face_target_3d(dir_world)
+	else:
+		play_attack(dir_world)
+
+## Hover height, wingbeat bob and banking for a `flier`. Height follows the
+## manager's `fly_phase` (orbit / dive / recover); the bank leans into the
+## direction of travel and rolls harder through a turn.
+func _update_flight_pose() -> void:
+	var cdt: float = get_process_delta_time() * _battle_clock()
+	_fly_clock += cdt
+	var k: float = 1.0 - exp(-7.0 * cdt)
+	var h: float = FLY_HOVER
+	match str(get_meta("fly_phase", "orbit")):
+		"dive": h = FLY_DIVE_H
+		"recover": h = FLY_RECOVER_H
+	if _is_dying:
+		h = 0.0   # the death clip falls; let the body settle onto the board
+	_fly_height = lerpf(_fly_height, h, k)
+	# 1.25 Hz = one bob per 0.8 s walk (flap) cycle at 1x.
+	var bob: float = 0.0 if _is_dying else sin(_fly_clock * TAU * 1.25) * FLY_BOB
+	_fly_offset.y = -(_fly_height + bob)
+	var dir: Vector2 = last_move_direction.normalized() if last_move_direction.length() > 0.01 else Vector2.ZERO
+	if dir != Vector2.ZERO and dir != _fly_prev_dir:
+		if _fly_prev_dir != Vector2.ZERO:
+			_fly_turn = clampf(_fly_prev_dir.cross(dir) * 1.6, -1.0, 1.0)
+		_fly_prev_dir = dir
+	_fly_turn = lerpf(_fly_turn, 0.0, 1.0 - exp(-2.5 * cdt))
+	var want: float = 0.0
+	if not _is_dying and is_moving:
+		want = clampf(dir.x * 0.45 + _fly_turn * 0.75, -1.0, 1.0) * FLY_BANK_MAX
+	_fly_bank = lerpf(_fly_bank, want, 1.0 - exp(-6.0 * cdt))
+
+var _giant_clip := ""
+var _giant_duration := 1.0
+
+func uses_shared_giant() -> bool:
+	return str(get_meta("sprite_folder", "")) in ["hill_giant", "fire_giant", "storm_giant"]
+
+func play_giant_timed(clip: String, duration: float, resume: String = "idle") -> void:
+	_giant_clip = clip
+	_giant_duration = duration
+	model3d.play_oneshot_timed(clip, duration / _battle_ts(), resume)
+	_sync_giant_clock()
+
+func _sync_giant_clock() -> void:
+	if model3d and _giant_clip != "":
+		if model3d._current == _giant_clip:
+			model3d.set_speed_scale(model3d.animation_length(_giant_clip) / maxf(_giant_duration, 0.05) * _battle_clock())
+		else:
+			_giant_clip = ""
+
+func cancel_giant_action() -> void:
+	_giant_clip = ""
+	if model3d and uses_shared_giant() and not _is_dying:
+		model3d.cancel_oneshot()
+		model3d.play("idle")
+
+func play_gb_slam(windup: float, dir_world: Vector2) -> void:
+	if _is_dying:
+		return
+	if model3d and model3d.has_animation("slam"):
+		play_giant_timed("slam", windup, "")
+		_face_target_3d(dir_world)
+	else:
+		play_slam_wind(windup)
+
+func play_gb_stuck(duration: float) -> void:
+	if _is_dying:
+		return
+	if model3d and model3d.has_animation("stuck"):
+		play_giant_timed("stuck", duration, "")
+	else:
+		play_slam_hit()
+
+func play_gb_yank(duration: float) -> void:
+	if _is_dying:
+		return
+	if model3d and model3d.has_animation("yank"):
+		play_giant_timed("yank", duration, "idle")
+	else:
+		play_slam_hit()
 
 func play_stitch_rupture_stab(duration: float) -> void:
 	if model3d and model3d.has_animation("attack"):
@@ -1570,8 +2298,15 @@ func play_attack(dir_world: Vector2) -> void:
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 # ── Hit: white flash + knockback recoil + squash + particles ────────────────
-func _on_took_damage(_amount: int, attacker) -> void:
+func _on_took_damage(_amount: int, attacker, animate_impact: bool) -> void:
 	if _is_dying:
+		return
+	if is_instance_valid(snake_body) and combat_hit_section > 0:
+		snake_body.flash_section(combat_hit_section)
+		return
+	# Burn ticks keep the flash without moving or resizing the character.
+	if not animate_impact:
+		create_tween().tween_method(_set_flash, 1.0, 0.0, 0.18)
 		return
 	# DEFERRED, not decided here. Every stunning ability in auto_battle_manager
 	# calls take_damage() THEN apply_stun() (Pounce, Riot Shield Bash, Crushing
@@ -1639,9 +2374,11 @@ func die() -> void:
 		return
 	# Triple-Threat boss: transform into its next attack-type phase instead of
 	# dying, until the final phase is actually defeated (see EnemyFactory).
-	if has_meta("triarch_phase") and current_hp <= 0 \
-			and EnemyFactory.advance_triarch_phase(self):
-		return
+	if has_meta("triarch_phase") and current_hp <= 0 and int(get_meta("triarch_phase")) < 3:
+		if battle_manager and battle_manager.triarch_kit.begin_transition(self):
+			return
+		if not battle_manager and EnemyFactory.advance_triarch_phase(self):
+			return
 	# Khagan (mount-swap boss): phase 1→2 transforms in place (same mechanism as
 	# Triarch above); phase 2's "death" instead channels into a captured hero
 	# (see EnemyFactory.advance_khagan_phase) and then Khagan's own body really
@@ -1726,6 +2463,10 @@ func die() -> void:
 		stop_khagan_body_pulse()
 	_is_dying = true
 	can_be_dragged = false
+	# Terracotta Colossus: a REAL death crumbles into falling masonry.
+	if has_meta("mob_passive") and str(get_meta("mob_passive")) == "terracotta_harden" \
+			and battle_manager and battle_manager.has_method("spawn_terracotta_rubble"):
+		battle_manager.spawn_terracotta_rubble(self)
 	# Stat Stealer: return any stats it's currently holding stolen — only on a
 	# REAL death (this point), not the phase-transform / relic-revive returns above.
 	if battle_manager and battle_manager.has_method("restore_stat_theft"):
@@ -1787,8 +2528,17 @@ func revive(hp_pct: float) -> void:
 	visible = true
 	if model3d:
 		model3d.set_paused(false)   # undo the park in _after_death_anim
+		# A revive can land while the death clip is still running; its one-shot
+		# guard would keep _update_model3d_animation away and leave the body lying
+		# in the death pose (health bar back) until the hero's next action.
+		model3d.cancel_oneshot()
+		model3d.play("idle")
 	_death_alpha = 1.0
 	_death_rotation = 0.0
+	# Thrown off the board by Skyrender's (fatal) Long Fall: the body was left
+	# parked off-screen -- bring it back with the hero (2026-10-04, revived heroes
+	# were invisible all through the next prep phase).
+	_toss_offset = Vector2.ZERO
 	_punch_scale = Vector2.ONE
 	_hit_squash = Vector2.ONE
 	_flash = 0.0
@@ -1797,6 +2547,7 @@ func revive(hp_pct: float) -> void:
 	# Wipe the damage-over-time / control statuses that were on them when they
 	# fell — reviving into an active burn would just kill them again.
 	burn_time = 0.0; bleed_time = 0.0
+	clear_ink_poison()
 	stun_time = 0.0; root_time = 0.0; slow_time = 0.0
 	taunt_time = 0.0; taunt_source = null
 	spore_stacks = 0.0
@@ -1813,7 +2564,7 @@ func revive(hp_pct: float) -> void:
 # board edge before throwing (see the manager's _skyrender_long_fall for why —
 # user feedback on the first cut was "sudden with no logic"; the carry IS the
 # logic). Sequence: GRAB (hoist) → CARRY (footstep-bounce trek toward the edge,
-# in step with the boss's own play_carry_lurch below) → a held beat at the edge
+# in step with the boss's own play_aerial_snatch below) → a held beat at the edge
 # → THROW (launches off-screen) → GONE (real absence) → RE-ENTRY (falls from
 # the opposite edge) → lands, impact squash. `carry_dir` is +1 toward the
 # bottom of the screen, -1 toward the top — the exit and re-entry edges always
@@ -1821,8 +2572,15 @@ func revive(hp_pct: float) -> void:
 const LONG_FALL_OFFSCREEN := 1400.0        # px of travel — must clear the tallest viewport
 const LONG_FALL_CARRY_DISTANCE := 260.0    # px hauled toward the edge before the throw
 
+## `lead_t` holds the hero in place first (the aerial snatch: the boss is still
+## swooping in). `glide` carries them in one smooth line -- they're flown, not
+## hauled on foot -- instead of the footstep bounce.
+## `carry_px` (> 0): how far to carry, in this unit's local px -- the measured
+## distance to the board edge (owner 2026-10-04: "should go to the edge", the
+## fixed 260 dropped front-liners mid-board). 0 keeps the old fixed distance.
 func play_long_fall(grab_t: float, carry_t: float, edge_pause_t: float, throw_t: float,
-		gone_t: float, reentry_t: float, carry_dir: float = 1.0) -> void:
+		gone_t: float, reentry_t: float, carry_dir: float = 1.0, lead_t: float = 0.0,
+		glide: bool = false, carry_px: float = 0.0, fatal: bool = false) -> void:
 	if _is_dying:
 		return
 	# The bar would otherwise hang in mid-air over an empty square, which reads
@@ -1830,15 +2588,18 @@ func play_long_fall(grab_t: float, carry_t: float, edge_pause_t: float, throw_t:
 	if health_bar:
 		health_bar.visible = false
 
-	var carry_y: float = LONG_FALL_CARRY_DISTANCE * carry_dir
+	var carry_y: float = (carry_px if carry_px > 0.0 else LONG_FALL_CARRY_DISTANCE) * carry_dir
 	var t := create_tween()
+	if lead_t > 0.0:
+		t.tween_interval(lead_t)
 	# GRAB — snatched upward first, anticipation that sells being GRABBED.
 	t.tween_method(_set_toss, Vector2.ZERO, Vector2(0, -50), grab_t) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 	# CARRY — three footstep-bounce steps toward the edge rather than one smooth
-	# glide, or the hero reads as floating instead of being hauled along.
-	var steps := 3
+	# glide, or the hero reads as floating instead of being hauled along. (In the
+	# aerial snatch it IS flown, so it glides.)
+	var steps := 1 if glide else 3
 	var step_t: float = carry_t / float(steps)
 	var prev: Vector2 = Vector2(0, -50)
 	for i in range(steps):
@@ -1864,6 +2625,10 @@ func play_long_fall(grab_t: float, carry_t: float, edge_pause_t: float, throw_t:
 			Vector2(90 * carry_dir, LONG_FALL_OFFSCREEN * carry_dir), throw_t) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
+	# `fatal` (Skyrender, owner 2026-10-04): thrown off the board for good -- no
+	# re-entry; the manager kills the unit as it leaves.
+	if fatal:
+		return
 	# GONE — real absence. Parked far off-screen so nothing peeks in at any
 	# resolution.
 	t.tween_interval(gone_t)
@@ -1874,26 +2639,47 @@ func play_long_fall(grab_t: float, carry_t: float, edge_pause_t: float, throw_t:
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	t.tween_callback(_on_long_fall_land)
 
-# The BOSS's half of the Long Fall — a shorter lean toward the edge (a fraction
-# of the victim's travel distance, so it reads as "carrying something heavy"
-# rather than a full board crossing) then a snap back to its true position once
-# it lets go. Purely visual; the boss's grid_position never moves for this.
-const LONG_FALL_BOSS_LURCH_FRACTION := 0.35
+# The aerial snatch (owner 2026-10-04: the Long Fall happens from the sky now
+# that Skyrender has real wings). The BOSS body swoops from its own square to
+# hover just above the victim, rides along over them through the carry, lets go
+# at the edge and climbs, then flies home. `to_victim` is the victim's feet in
+# this unit's local space. Purely visual -- grid_position never moves; drawn on
+# top of everything for the duration so its talons sit OVER the hero.
+const SNATCH_HOVER := 40.0   # px the boss's feet ride above the victim's
 
-func play_carry_lurch(grab_t: float, carry_t: float, edge_pause_t: float, throw_t: float,
-		carry_dir: float = 1.0) -> void:
+func play_aerial_snatch(to_victim: Vector2, swoop_t: float, grab_t: float, carry_t: float,
+		edge_pause_t: float, throw_t: float, return_t: float, carry_dir: float = 1.0,
+		to_edge: Vector2 = Vector2.INF) -> void:
 	if _is_dying:
 		return
-	var lurch_y: float = LONG_FALL_CARRY_DISTANCE * LONG_FALL_BOSS_LURCH_FRACTION * carry_dir
+	# `to_edge`: the board-edge point under the victim's column, in THIS unit's
+	# local space (the boss and the hero sit at different row scales, so a shared
+	# px distance would part them mid-carry). INF = old fixed distance.
+	var carry_y: float = LONG_FALL_CARRY_DISTANCE * carry_dir
+	if to_edge != Vector2.INF:
+		carry_y = to_edge.y - to_victim.y
+	var over := func(victim_toss_y: float) -> Vector2:
+		return to_victim + Vector2(0, victim_toss_y - SNATCH_HOVER)
+	var old_z: int = z_index
+	z_index = 40
 	var t := create_tween()
-	# Reaching down for the grab — a quick squash sells the effort.
-	t.tween_method(_set_squash, Vector2(0.85, 1.15), Vector2.ONE, grab_t) \
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	t.tween_method(_set_toss, Vector2.ZERO, Vector2(0, lurch_y), carry_t) \
+	# SWOOP -- in over the victim, still standing on its square.
+	t.tween_method(_set_toss, Vector2.ZERO, over.call(0.0), swoop_t) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	# GRAB -- talons close as the hero is hoisted.
+	t.tween_method(_set_toss, over.call(0.0), over.call(-50.0), grab_t) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# CARRY -- flown toward the edge with the hero underneath.
+	t.tween_method(_set_toss, over.call(-50.0), over.call(carry_y), carry_t) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	t.tween_interval(edge_pause_t)
-	t.tween_method(_set_toss, Vector2(0, lurch_y), Vector2.ZERO, throw_t) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# DROP -- lets go and climbs away as the hero is flung off.
+	t.tween_method(_set_toss, over.call(carry_y), over.call(carry_y) + Vector2(0, -70), throw_t) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	# HOME -- back to its own square.
+	t.tween_method(_set_toss, over.call(carry_y) + Vector2(0, -70), Vector2.ZERO, return_t) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	t.tween_callback(func(): z_index = old_z)
 
 func _on_long_fall_land() -> void:
 	_set_toss(Vector2.ZERO)
@@ -1968,6 +2754,80 @@ func clear_long_fall() -> void:
 # with the battle-start hard reset above (an interrupted knock-up cannot leave
 # a hero parked in mid-air next round).
 const KNOCKUP_PEAK_HEIGHT := 129.0
+## Terracotta Colossus slam (2026-09-30): the body rears UP through the windup
+## (taller, narrower), then crashes DOWN (squashed wide) and settles. Still art
+## has no slam clip, so this is done on the same punch-scale layer as attacks.
+func play_slam_wind(duration: float) -> void:
+	var t := create_tween()
+	t.tween_method(_set_punch, Vector2.ONE, Vector2(0.93, 1.10), duration) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+
+func play_slam_hit() -> void:
+	var t := create_tween()
+	t.tween_method(_set_punch, Vector2(1.14, 0.84), Vector2.ONE, 0.32) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+## Forced displacement (Cyclone Shove etc.): the unit has ALREADY been placed
+## on its new tile; this only makes the body visibly slide there from
+## `from_world` instead of snapping. Purely visual — grid position, targeting
+## and movement are untouched, so it can't desync the board.
+func play_shove_slide(from_world: Vector2, duration: float = 0.22) -> void:
+	var start: Vector2 = to_local(from_world)   # local: units carry a per-row perspective scale
+	var t := create_tween()
+	t.tween_method(_set_shove, start, Vector2.ZERO, duration) 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+## Rift's Tear: the victim FALLS INTO a portal where it stood and DROPS OUT of
+## one at the destination (owner 2026-10-01). Like play_shove_slide, the unit has
+## ALREADY been placed on its new tile by the grid — this only decides where the
+## BODY is while it gets there, so targeting, pathing and the grid never disagree.
+##
+## Three beats, and the shrink is what sells it: a 2D sprite has no depth, so
+## "goes down a hole" has to be read as sinking AND getting smaller, the same
+## trick the toss uses in reverse. The body is squashed to a sliver at the bottom
+## of the sink so it vanishes into the portal's mouth rather than clipping through
+## the ground plane.
+##   SINK  stand on the OLD tile, drop into the portal, squash to a sliver
+##   HANG  gone — nothing drawn where either portal is
+##   DROP  reappear high over the NEW tile and accelerate down, landing squash
+##
+## SPEED: the tween runs on Godot's REAL clock, but battle pace is a manual
+## `time_scale` the simulation applies to its own deltas (it is NOT
+## Engine.time_scale), so an unscaled tween ignores the pace control entirely --
+## at 0.25x the board crawled while this still played full speed. set_speed_scale
+## binds it to the battle clock. A pace change MID-DROP is not re-applied; the
+## whole move is ~1s, so it would have to be changed inside that window.
+const PORTAL_SINK_PX := 34.0    # how far the body drops into the mouth
+const PORTAL_RISE_PX := 88.0    # how high above the destination it re-enters
+func play_portal_drop(from_world: Vector2, sink: float = 0.34,
+		hang: float = 0.12, drop: float = 0.38) -> void:
+	if _is_dying:
+		return
+	var start: Vector2 = to_local(from_world)   # local: units carry a per-row perspective scale
+	var gone := Vector2(0.62, 0.04)
+	_set_portal_off(start)
+	_set_portal_scl(Vector2.ONE)
+	var t := create_tween()
+	var pace: float = 1.0
+	if battle_manager and is_instance_valid(battle_manager):
+		var ts = battle_manager.get("time_scale")
+		if ts != null:
+			pace = maxf(0.05, float(ts))
+	t.set_speed_scale(pace)
+	t.tween_method(_set_portal_off, start, start + Vector2(0.0, PORTAL_SINK_PX), sink) 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	t.parallel().tween_method(_set_portal_scl, Vector2.ONE, gone, sink) 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	# Park it at the destination's entry point while it is invisible, so the
+	# drop does not start by sliding across the board in full view.
+	t.tween_callback(func() -> void: _set_portal_off(Vector2(0.0, -PORTAL_RISE_PX)))
+	t.tween_interval(hang)
+	t.tween_method(_set_portal_off, Vector2(0.0, -PORTAL_RISE_PX), Vector2.ZERO, drop) 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	t.parallel().tween_method(_set_portal_scl, gone, Vector2.ONE, drop * 0.7) 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# Land. Reset both channels to identity so nothing leaks into the next clip.
+	t.tween_method(_set_portal_scl, Vector2(1.18, 0.80), Vector2.ONE, 0.16) 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_callback(func() -> void:
+		_set_portal_off(Vector2.ZERO)
+		_set_portal_scl(Vector2.ONE))
+
+
 func play_knockup(duration: float) -> void:
 	if _is_dying:
 		return
@@ -2132,6 +2992,9 @@ func _set_khagan_pulse(v: float) -> void: _khagan_pulse_strength = v
 # _apply_animation() runs every frame in _process, so these only write state.
 func _set_toss(v: Vector2) -> void:        _toss_offset = v
 func _set_updraft(v: Vector2) -> void:     _updraft_offset = v
+func _set_shove(v: Vector2) -> void:       _shove_offset = v
+func _set_portal_off(v: Vector2) -> void:  _portal_offset = v
+func _set_portal_scl(v: Vector2) -> void:  _portal_scale = v
 func _set_lunge(v: Vector2) -> void:       _lunge_offset = v
 func _set_recoil(v: Vector2) -> void:      _recoil_offset = v
 func _set_punch(v: Vector2) -> void:       _punch_scale = v
@@ -2159,6 +3022,7 @@ func _update_depth() -> void:
 func _update_shadow() -> void:
 	if not _shadow:
 		_shadow = Node2D.new()
+		_shadow.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		_shadow.z_index = -1
 		_shadow.draw.connect(_draw_shadow)
 		add_child(_shadow)
@@ -2178,22 +3042,51 @@ func _update_shadow() -> void:
 func ground_offset() -> float:
 	return _foot_anchor_y
 
+const SHADOW_ALPHA := 0.55   # was 0.32; the one knob for how dark the contact shadow is
+
 func _draw_shadow() -> void:
 	if _is_dying and _death_alpha < 0.05:
 		return
 	var w: float = 34.0 * cell_size * _depth_scale
-	var h: float = w * 0.34
+	# 2026-10-06 (owner: units look like they float). Measured on the real board the
+	# shadow was only ~12-17% darker than open grass, and its lower half sat behind
+	# the health bar, so it barely read. Taller ellipse, ~1.7x the opacity, and the
+	# centre lifted so most of it falls UNDER the feet instead of below the bar.
+	var h: float = w * 0.42
 	# The SAME foot line the sprite is pinned to. Previously a flat 46px, which
 	# sat ~9px above where the sprite's feet actually were — a contact shadow
 	# that isn't at the contact point is the thing that makes a unit read as
 	# hovering, so these two must be driven from one number.
-	var y: float = _foot_anchor_y
-	var a: float = 0.32 * _death_alpha
+	var y: float = _foot_anchor_y - h * 0.40
+	var a: float = SHADOW_ALPHA * _death_alpha
 	# Two stacked ellipses: a soft wide one and a tighter core, which reads as a
 	# contact shadow rather than a flat blob.
 	_shadow.draw_set_transform(Vector2(0, y), 0.0, Vector2(1.0, h / w))
-	_shadow.draw_circle(Vector2.ZERO, w, Color(0, 0, 0, a * 0.45))
-	_shadow.draw_circle(Vector2.ZERO, w * 0.62, Color(0, 0, 0, a))
+	if soft_contact_shadow and model3d:
+		if _soft_shadow_texture == null:
+			var gradient := Gradient.new()
+			gradient.offsets = PackedFloat32Array([0.0, 0.25, 0.65, 1.0])
+			gradient.colors = PackedColorArray([Color(0, 0, 0, 1),
+				Color(0, 0, 0, 0.85), Color(0, 0, 0, 0.30), Color(0, 0, 0, 0)])
+			_soft_shadow_texture = GradientTexture2D.new()
+			_soft_shadow_texture.gradient = gradient
+			_soft_shadow_texture.width = 64
+			_soft_shadow_texture.height = 64
+			_soft_shadow_texture.fill = GradientTexture2D.FILL_RADIAL
+			_soft_shadow_texture.fill_from = Vector2(0.5, 0.5)
+			_soft_shadow_texture.fill_to = Vector2(1.0, 0.5)
+		_shadow.draw_texture_rect(_soft_shadow_texture,
+			Rect2(Vector2(-w, -w), Vector2(w * 2, w * 2)), false, Color(1, 1, 1, a))
+		# Graphics audit 2026-10-02: at board size the soft falloff alone barely
+		# registered, worst on the dark Earth/Volcano boards, and units read as
+		# floating. A tighter core at the feet (0.7w) brings the centre to ~0.5
+		# opacity while the outer falloff stays soft.
+		var core: float = w * 0.7
+		_shadow.draw_texture_rect(_soft_shadow_texture,
+			Rect2(Vector2(-core, -core), Vector2(core * 2, core * 2)), false, Color(1, 1, 1, a * 0.95))
+	else:
+		_shadow.draw_circle(Vector2.ZERO, w, Color(0, 0, 0, a * 0.45))
+		_shadow.draw_circle(Vector2.ZERO, w * 0.62, Color(0, 0, 0, a))
 	# Rift's locomotion is magical levitation. At native board scale the imported
 	# leg and robe motion is largely hidden inside one silhouette, so a violet
 	# pulse at the fixed ground plane makes the air gap and motion readable.
@@ -2222,11 +3115,59 @@ func _draw_shadow() -> void:
 func _foot_pinned_offset(scl: Vector2) -> Vector2:
 	if _sprite_half_h <= 0.0:
 		return _sprite_base_offset
-	return Vector2(_sprite_base_offset.x, _foot_anchor_y - _sprite_half_h * scl.y)
+	# _foot_trim: this model's own frame padding (see _measure_foot_trim), scaled
+	# with the sprite so it holds through depth scaling and squashes.
+	return Vector2(_sprite_base_offset.x,
+			_foot_anchor_y - _sprite_half_h * scl.y + _foot_trim * scl.y)
 
+## Stand a 3D model's FEET on the cell line. Its frame carries padding that
+## differs per model, and the frame bottom is what gets pinned, so some models
+## hovered up to ~17px above the line while their contact shadow sat on it.
+## Measured once per model from its first rendered idle frame and cached; only
+## ever moves a model DOWN (a model already at/below the line is left alone —
+## standing slightly into the tile reads as grounded, not floating).
+const FOOT_TRIM_MIN := 2.0   # ignore sub-2px gaps
+static var _foot_trim_cache: Dictionary = {}
+var _foot_trim := 0.0
+
+func _measure_foot_trim(m: Model3DSprite, path: String) -> void:
+	var key := "%s|%d" % [path, cell_size]
+	if _foot_trim_cache.has(key):
+		_foot_trim = float(_foot_trim_cache[key])
+		return
+	for _i in range(3):
+		await get_tree().process_frame
+		if not is_instance_valid(self) or not is_instance_valid(m):
+			return
+	await RenderingServer.frame_post_draw
+	if not is_instance_valid(self) or not is_instance_valid(m):
+		return
+	var pad: float = m.bottom_pad_px()
+	if pad < 0.0:
+		return   # no renderer (headless) or nothing drawn: leave the model as it was
+	var sy: float = _base_sprite_scale.y
+	# Where the frame bottom sits relative to the cell line at scale 1, then where
+	# the lowest opaque pixel sits; positive = feet ABOVE the line.
+	var frame_bottom_below_line: float = sy * m.frame_px_height() * 0.5 - _sprite_half_h
+	var feet_above_line: float = pad * sy - frame_bottom_below_line
+	var trim: float = feet_above_line if feet_above_line > FOOT_TRIM_MIN else 0.0
+	_foot_trim_cache[key] = trim
+	_foot_trim = trim
+
+
+## Where the body is drawn relative to the unit's origin right now (lift +
+## swoop/toss) -- for effects that ride the body, like Skyrender's wind.
+func body_visual_offset() -> Vector2:
+	return _toss_offset + _aloft_offset + _fly_offset
 
 func _apply_animation() -> void:
-	var off: Vector2 = _bob_offset + _lunge_offset + _recoil_offset + _toss_offset + _updraft_offset
+	var off: Vector2 = _bob_offset + _lunge_offset + _recoil_offset + _toss_offset + _updraft_offset + _shove_offset + _portal_offset + _aloft_offset + _fly_offset
+	# `shadow_follows_toss` (Skyrender's aerial snatch): the ground shadow tracks
+	# the body across the board instead of staying on the home square -- on the
+	# ground under it, so the swoop's hover height is taken back out.
+	if _shadow and has_meta("shadow_follows_toss"):
+		var hover: float = SNATCH_HOVER * clampf(_toss_offset.length() / SNATCH_HOVER, 0.0, 1.0)
+		_shadow.position = _toss_offset + Vector2(0, hover)
 	# The bar is a sibling of the sprite, parked on the unit ROOT, which the
 	# battle manager owns for grid movement — it never moves during an attack
 	# lunge/hurt recoil/death toss. Carry it along with the same offset the
@@ -2238,7 +3179,12 @@ func _apply_animation() -> void:
 	var anim_mult: float = 1.0
 	if animated_sprite and _anim_scale_mult.has(animated_sprite.animation):
 		anim_mult = _anim_scale_mult[animated_sprite.animation]
-	var scl: Vector2 = _breathe_scale * _punch_scale * _hit_squash * Vector2(_updraft_spin_x, 1.0) * anim_mult * _depth_scale
+	var scl: Vector2 = _breathe_scale * _punch_scale * _hit_squash * Vector2(_updraft_spin_x, 1.0) * anim_mult * _depth_scale * _portal_scale
+	scl *= float(get_meta("triarch_render_scale", 1.0))
+	if get_meta("arcfang_state", "") == "warning":
+		# Feet stay pinned as the storm wolf lowers into its pounce.
+		var charge: float = clampf(1.0 - float(get_meta("arcfang_remaining", 1.5)) / ArcfangHunt.WARNING, 0.0, 1.0)
+		scl *= Vector2(1.0 + charge * 0.06, 1.0 - charge * 0.16)
 	# element_glow is a sibling of the sprite (added straight to the unit, not
 	# inside it), so it never inherited any of the above offsets. Unnoticeable
 	# for bob/lunge/recoil (a couple px), but the Long Fall's _toss_offset can
@@ -2253,24 +3199,44 @@ func _apply_animation() -> void:
 		# bottom-anchored on a fixed canvas exactly like _setup_plain_sprite.
 		animated_sprite.position = _foot_pinned_offset(scl) + off
 		animated_sprite.scale = _base_sprite_scale * scl
-		animated_sprite.rotation = _death_rotation
+		animated_sprite.rotation = _death_rotation + _fly_bank
 		var m: Color = Color(1, 1, 1, 1).lerp(Color(2.2, 2.2, 2.2, 1), _flash)
 		if _khagan_pulse_strength > 0.0:
 			m = m.lerp(_khagan_pulse_color, _khagan_pulse_strength)
 		m.a = _death_alpha
 		animated_sprite.modulate = m
+		if not _is_dying:
+			animated_sprite.modulate = _arcfang_storm_tint(m)
 	elif plain_sprite:
 		plain_sprite.position = _foot_pinned_offset(scl) + off
 		plain_sprite.scale = _base_sprite_scale * scl
-		plain_sprite.rotation = _death_rotation
+		plain_sprite.rotation = _death_rotation + _fly_bank
 		var m: Color = Color(1, 1, 1, 1).lerp(Color(2.2, 2.2, 2.2, 1), _flash)
 		if _khagan_pulse_strength > 0.0:
 			m = m.lerp(_khagan_pulse_color, _khagan_pulse_strength)
 		m.a = _death_alpha
 		plain_sprite.modulate = m
+		if not _is_dying:
+			plain_sprite.modulate = _arcfang_storm_tint(m)
 	else:
 		queue_redraw()   # shape-drawn units read these layers in _draw()
 
+
+func begin_arcfang_rest() -> void:
+	if model3d:
+		model3d.cancel_oneshot()
+		model3d.play("idle")
+
+func end_arcfang_rest() -> void:
+	if model3d:
+		model3d.set_speed_scale(1.0)
+
+func _arcfang_storm_tint(color: Color) -> Color:
+	match str(get_meta("arcfang_state", "")):
+		"warning": return color * Color(1.12, 1.12, 1.35)
+		"hunt": return color * Color(1.08, 1.08, 1.22)
+		"recovery": return color * Color(0.65, 0.70, 0.78)
+	return color
 
 func _create_glow_texture() -> Texture2D:
 	var img = Image.create(64, 64, false, Image.FORMAT_RGBA8)
@@ -2284,7 +3250,15 @@ func _create_glow_texture() -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
+var _ember_shot_duration := 1.0
+
 func _process(delta: float) -> void:
+	_sync_giant_clock()
+	if unit_class == UnitBase.UnitClass.HYDRA and model3d and get_meta("hydra_busy", false):
+		model3d.set_speed_scale(model3d.animation_length(HydraKit.CLIPS[current_element]) / (HydraKit.WINDUP + HydraKit.RECOVERY) * _battle_clock())
+	if unit_class == UnitBase.UnitClass.EMBER and model3d and model3d._current == "attack" and model3d.is_oneshot_playing():
+		var pace: float = 0.0 if battle_manager and battle_manager.paused else (battle_manager.time_scale if battle_manager else 1.0)
+		model3d.set_speed_scale(model3d.animation_length("attack") / maxf(_ember_shot_duration, 0.05) * pace)
 	_anim_time += delta
 	# Idle layer: a gentle vertical bob + breathing squash. Phase-shifted per unit
 	# so a row of units doesn't pulse in unison (that reads as robotic).
@@ -2324,6 +3298,44 @@ func _process(delta: float) -> void:
 	if health_bar and ultimate_charge_max > 0 and ultimate_charge != _last_ult_charge_drawn:
 		_last_ult_charge_drawn = ultimate_charge
 		health_bar.update_ult(ultimate_charge, ultimate_charge_max)
+	_update_reef_cooldown_bars()
+	_update_arcfang_cooldown_bars()
+	_update_ant_hill_cooldown_bar()
+
+func _update_ant_hill_cooldown_bar() -> void:
+	if not health_bar or unit_class != UnitBase.UnitClass.ANT_HILL:
+		return
+	var progress := clampf(1.0 - summon_spawn_timer / ant_hill_spawn_interval(), 0.0, 1.0)
+	health_bar.set_ability_timers([[progress, Color(0.78, 0.57, 0.28)]])
+
+func _update_arcfang_cooldown_bars() -> void:
+	if health_bar and (has_meta("triarch_phase") or has_meta("triarch_echo")):
+		var p: int = int(get_meta("triarch_phase", get_meta("triarch_echo", 1)))
+		var timers: Array = [[clampf(1.0 - skill_cd_time / maxf(skill_cooldown_max, 0.001), 0.0, 1.0), Color(1.0, 0.72, 0.25)]]
+		if not has_meta("triarch_echo"):
+			var cd: float = 9.0 if p == 1 else 8.0
+			var frac: float = (0.0 if get_meta("triarch_echoes_used", false) else 1.0) if p == 3 else clampf(1.0 - float(get_meta("triarch_secondary_cd", 0.0)) / cd, 0.0, 1.0)
+			timers.append([frac, Color(0.75, 0.4, 1.0)])
+			health_bar.form_phase = p
+		health_bar.set_ability_timers(timers)
+	if not health_bar or get_meta("mob_passive", "") != "arcfang_blink":
+		return
+	var old_height := health_bar.total_height()
+	var timers: Array = []
+	for row in ArcfangHunt.timer_rows(self):
+		timers.append([row[0], row[1]])
+	health_bar.set_ability_timers(timers)
+	if not is_equal_approx(old_height, health_bar.total_height()):
+		health_bar.apply_placement()
+		_health_bar_base_pos = health_bar.position
+
+func _update_reef_cooldown_bars() -> void:
+	if not health_bar or get_meta("mob_passive", "") != "tide_font":
+		return
+	var ward_progress: float = 1.0 - skill_cd_time / maxf(float(skill_cooldown_max), 0.001)
+	health_bar.set_ability_timers([
+		[AutoBattleManager.reef_call_progress(self), TideVFX.CORAL_PINK],
+		[ward_progress, TideVFX.SAPPHIRE]])
 
 
 ## Flips the health bar to the free side when its default side is blocked.
@@ -2374,10 +3386,48 @@ func _bar_row_blocked(bg, dir: int) -> bool:
 			return true
 	return false
 
-# Shows/hides each registered status icon based on its matching UnitBase timer.
-# Add a new "key": timer_field pair here whenever a new status sheet is wired up.
+# Shows/hides every status badge from its matching UnitBase timer, and feeds
+# each badge's drain ring (remaining / longest seen since it was applied).
+# 2026-09-26 status layer: every status now has a badge, not just stun.
 func _update_status_icons() -> void:
-	_set_status_icon_active("stun", stun_time > 0.0)
+	var dot_key := "burn"
+	if burn_flavor == "disease" or burn_flavor == "venom":
+		dot_key = burn_flavor
+	var weak_key := "weaken"
+	if weaken_flavor == "corrosion": weak_key = "corroded"
+	elif weaken_flavor == "dread": weak_key = "dread"   # Khagan's Dread Gaze
+	var timers := {
+		"stun": stun_time,
+		"burn": burn_time if dot_key == "burn" else 0.0,
+		"disease": burn_time if dot_key == "disease" else 0.0,
+		"venom": burn_time if dot_key == "venom" else 0.0,
+		"bleed": bleed_time,
+		"slow": slow_time if slow_pct > 0.0 else 0.0,
+		"root": root_time,
+		"taunt": taunt_time,
+		"heal_cut": heal_cut_time,
+		"weaken": weakened_time if weak_key == "weaken" else 0.0,
+		"corroded": weakened_time if weak_key == "corroded" else 0.0,
+		"dread": weakened_time if weak_key == "dread" else 0.0,
+		"blind": blind_time,
+		"ink_poison": ink_poison_time,
+		"exposed": exposed_time,   # Hill Giant's Stuck Club: armor + MR down
+		"hunted": float(get_meta("gale_hunted_t", 0.0)),   # Gale Warden Vengeful Flock mark
+	}
+	for key in timers:
+		var left: float = float(timers[key])
+		if left > 0.0:
+			var peak: float = maxf(float(_status_peaks.get(key, 0.0)), left)
+			_status_peaks[key] = peak
+			_set_status_icon_active(key, true)
+			var badge: StatusBadge = _status_icons.get(key)
+			if badge:
+				badge.frac = left / peak
+				if key == "ink_poison":
+					badge.stack_count = ink_poison_stacks
+		else:
+			_status_peaks.erase(key)
+			_set_status_icon_active(key, false)
 	_layout_status_icons()
 
 # Lays the visible status icons out in a centred row BELOW the unit, in
@@ -2393,7 +3443,7 @@ func _update_status_icons() -> void:
 func _layout_status_icons() -> void:
 	var shown: Array = []
 	for key in STATUS_ICON_ORDER:
-		var icon: StatusIcon = _status_icons.get(key)
+		var icon: StatusBadge = _status_icons.get(key)
 		if icon and icon.visible:
 			shown.append(icon)
 	if shown.is_empty():
@@ -2406,23 +3456,18 @@ func _layout_status_icons() -> void:
 	for i in range(shown.size()):
 		shown[i].position = Vector2(start_x + float(i) * STATUS_ICON_SPACING, y)
 
-func _set_status_icon_active(key: String, active: bool, tint_elem: int = -1) -> void:
+func _set_status_icon_active(key: String, active: bool) -> void:
 	if not active:
 		if _status_icons.has(key):
 			_status_icons[key].visible = false
 		return
 
-	var icon: StatusIcon = _status_icons.get(key)
+	var icon: StatusBadge = _status_icons.get(key)
 	if not icon:
-		var meta: Dictionary = STATUS_ICON_SHEETS.get(key, {})
-		var tex: Texture2D = load(meta.get("path", "")) as Texture2D
-		if not tex:
-			return
-		icon = StatusIcon.new()
+		icon = StatusBadge.new()
 		add_child(icon)
-		var tint: Color = SynergyData.element_color(tint_elem) if tint_elem >= 0 else Color.WHITE
-		icon.setup(tex, meta.get("frame_w", 32), meta.get("frame_h", 32),
-			meta.get("frames", 1), meta.get("size", Vector2(28, 28)), 6.0, tint)
+		# A registered sheet (real art) replaces the drawn glyph; the ring stays.
+		icon.setup(key, STATUS_BADGE_SIZE, STATUS_ICON_SHEETS.get(key, {}))
 		_status_icons[key] = icon
 		# Position is owned by _layout_status_icons(), not set here — a hardcoded
 		# spot per icon is exactly what made them pile up on each other.
@@ -2605,6 +3650,10 @@ func _oneshot_duration(name: String) -> float:
 ## Procedural and VFX-only skills still get a short readable beat when no clip
 ## exists for them.
 func combat_action_duration(action_type: String) -> float:
+	if _regular_art_family() != "":
+		# These families previously used static sprites, so new animation lengths
+		# must not silently change their combat recovery or movement/skill cadence.
+		return float({"attack":0.30,"skill":0.45,"ultimate":0.70}.get(action_type,0.0))
 	var clip := ""
 	var fallback := 0.0
 	match action_type:
@@ -2628,6 +3677,9 @@ func _update_animation() -> void:
 	# (which a preview dummy never has) — never set by real gameplay code.
 	if has_meta("anim_preview_lock"):
 		return
+
+	if has_meta("flier"):
+		_update_flight_pose()
 
 	if model3d:
 		_update_model3d_animation()
@@ -2689,11 +3741,70 @@ func _update_animation() -> void:
 # 3D equivalent of the walk/idle picker below. Much shorter, because a rigged
 # model has no per-direction sheets to fall back through — the character TURNS
 # instead, so direction is a yaw and not an animation name.
+const SCUTTLE_ANIM_SPEED := 2.2   # walk-clip speed while scuttling down a charge lane
+var _scuttle_speed_on := false
+
 func _update_model3d_animation() -> void:
+	if _regular_art_family() != "":
+		if model3d.is_oneshot_playing():
+			var duration := _regular_skill_seconds() if model3d._current == "skill" else model3d.animation_length(model3d._current)
+			if model3d._current == "aim": duration = AutoBattleManager.LIZARD_AIM_TIME
+			model3d.set_speed_scale(model3d.animation_length(model3d._current) / maxf(duration,0.01) * _battle_clock())
+			return
+		model3d.set_speed_scale(_battle_clock())
+	if has_meta("triarch_cast_duration") and model3d.is_oneshot_playing():
+		model3d.set_speed_scale(model3d.animation_length("skill") / maxf(float(get_meta("triarch_cast_duration")), 0.01) * _battle_clock())
+		return
+	if has_meta("triarch_transition") or has_meta("triarch_leaping"):
+		model3d.set_speed_scale(_battle_clock())
+		return
 	if _is_dying:
+		_aloft_offset = Vector2.ZERO
 		return   # the death clip holds its final pose
+	if get_meta("arcfang_state", "") in ["warning", "recovery"]:
+		model3d.play("idle")
+		model3d.set_speed_scale(_battle_clock())
+		var prey = get_meta("arcfang_prey") if has_meta("arcfang_prey") else null
+		if is_instance_valid(prey):
+			model3d.face_direction(prey.global_position - global_position)
+		return
+	# Aloft (Skyrender's Cyclone Ascent): ease the body up off the board, and
+	# down again on landing -- the lift holds through attacks too.
+	var aloft: bool = bool(get_meta("skyrender_aloft", false)) and model3d.has_animation("fly")
+	var lift_k: float = 1.0 - exp(-5.0 * get_process_delta_time())
+	_aloft_offset.y = lerpf(_aloft_offset.y, -ALOFT_LIFT if aloft else 0.0, lift_k)
 	if model3d.is_oneshot_playing():
 		return   # attack/hurt still running — don't stomp it back to idle
+	if aloft:
+		model3d.play("fly")
+		if is_moving and last_move_direction.length() > 0.0:
+			model3d.face_direction(last_move_direction)
+		else:
+			model3d.set_facing_right(is_player_unit)
+		return
+	# Scuttle (Khagan's Sidestep Charge, 2026-10-03): the body is slid along
+	# the lane while the grid says "not moving", so without this the legs froze
+	# in idle. Plays the walk fast, still facing forward -- a crab strafes.
+	if has_meta("scuttle"):
+		model3d.play("walk")
+		model3d.set_speed_scale(SCUTTLE_ANIM_SPEED)
+		_scuttle_speed_on = true
+		model3d.set_facing_right(is_player_unit)
+		return
+	if _scuttle_speed_on:
+		model3d.set_speed_scale(1.0)
+		_scuttle_speed_on = false
+	# A flier never lands: the wingbeat (`walk`, a full flap cycle on the Gale
+	# Warden) loops the whole fight, on the battle clock so pace / pause apply.
+	# Faces where it flies; between steps it looks at its target.
+	if has_meta("flier") and model3d.has_animation("walk"):
+		model3d.play("walk")
+		model3d.set_speed_scale(_battle_clock())
+		if is_moving and last_move_direction.length() > 0.0:
+			model3d.face_direction(last_move_direction)
+		elif target_unit and is_instance_valid(target_unit):
+			model3d.face_direction(target_unit.global_position - global_position)
+		return
 	var moving: bool = is_moving and move_target_pos != move_start_pos
 	# Weapon-up states, for a character that has them. Mid-fight the rifle
 	# stays on the target whether or not he happens to be walking — standing
@@ -2710,7 +3821,10 @@ func _update_model3d_animation() -> void:
 		return
 	if moving:
 		model3d.play("walk")
-		if last_move_direction.length() > 0.0:
+		# `strafe_walk`: walks without turning to face the way it goes (crabs).
+		if has_meta("strafe_walk"):
+			model3d.set_facing_right(is_player_unit)
+		elif last_move_direction.length() > 0.0:
 			model3d.face_direction(last_move_direction)
 		return
 	model3d.play("idle")
@@ -2724,8 +3838,8 @@ func _draw():
 	if animated_sprite or plain_sprite:
 		return
 	# Shape-drawn units read the same animation layers as the sprite path.
-	var off: Vector2 = _bob_offset + _lunge_offset + _recoil_offset + _toss_offset + _updraft_offset
-	var scl: Vector2 = _breathe_scale * _punch_scale * _hit_squash * Vector2(_updraft_spin_x, 1.0)
+	var off: Vector2 = _bob_offset + _lunge_offset + _recoil_offset + _toss_offset + _updraft_offset + _shove_offset + _portal_offset + _aloft_offset + _fly_offset
+	var scl: Vector2 = _breathe_scale * _punch_scale * _hit_squash * Vector2(_updraft_spin_x, 1.0) * _portal_scale
 	draw_set_transform(off, _death_rotation, scl)
 	var color: Color = (fill_color if fill_color else get_element_color()).lerp(Color.WHITE, _flash)
 	color.a = _death_alpha
@@ -2889,8 +4003,8 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		var mouse_pos: Vector2 = get_canvas_transform().affine_inverse() * event.position
 		if event.pressed:
-			var mouse_pos = get_global_mouse_position()
 			if global_position.distance_to(mouse_pos) <= shape_size:
 				mouse_down_position = mouse_pos
 				drag_offset = global_position - mouse_pos
@@ -2899,24 +4013,25 @@ func _input(event: InputEvent) -> void:
 		else:
 			if is_dragging:
 				is_dragging = false
-				# Resolve the drop FIRST: _set_placement_zone_visible(false)
-				# hides the sell zone, and the drop test reads its visibility —
-				# hiding first would make every sell-drop silently miss.
-				_try_place_at_mouse()
+				_try_place_at_mouse(mouse_pos)
 				_set_placement_zone_visible(false)
 				get_viewport().set_input_as_handled()
+			mouse_down_position = Vector2.ZERO
 
 	if event is InputEventMouseMotion:
+		var mouse_pos: Vector2 = get_canvas_transform().affine_inverse() * event.position
+		var left_held: bool = (event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0
+		if not left_held:
+			mouse_down_position = Vector2.ZERO
+			return
 		if not is_dragging and mouse_down_position != Vector2.ZERO:
-			if mouse_down_position.distance_to(get_global_mouse_position()) > drag_threshold:
+			if mouse_down_position.distance_to(mouse_pos) > drag_threshold:
 				is_dragging = true
 				_set_placement_zone_visible(true)
 				get_viewport().set_input_as_handled()
 		if is_dragging:
-			global_position = get_global_mouse_position() + drag_offset
+			global_position = mouse_pos + drag_offset
 			get_viewport().set_input_as_handled()
-		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-			mouse_down_position = Vector2.ZERO
 
 
 # ── Drag-to-sell drop zone ────────────────────────────────────────────────────
@@ -2926,6 +4041,8 @@ func _input(event: InputEvent) -> void:
 # connect `died`, and every future spawn path would silently miss it.
 static var sell_zone: Control = null
 static var sell_handler: Callable = Callable()
+# Same pattern for merging two copies of a hero: (dragged, target) -> void.
+static var merge_handler: Callable = Callable()
 
 static func _sell_zone_ready() -> bool:
 	return sell_zone != null and is_instance_valid(sell_zone)
@@ -2974,7 +4091,7 @@ func _snap_to_grid_cell() -> void:
 		w += Vector2(off, off)
 	position = w
 
-func _try_place_at_mouse() -> void:
+func _try_place_at_mouse(release_position: Vector2) -> void:
 	# Dropped on the sell zone → hand off to main_game and stop; it decides
 	# whether the sale is legal (prep phase only, can't sell your last hero)
 	# and snaps us back itself if it refuses.
@@ -2988,9 +4105,17 @@ func _try_place_at_mouse() -> void:
 	if not bg:
 		_snap_to_grid_cell()
 		return
-	var new_pos = bg.world_to_grid(get_global_mouse_position())
+	var new_pos = bg.world_to_grid(release_position)
 	if not _is_valid_placement(new_pos, bg):
 		_snap_to_grid_cell()
+		return
+	# Dropped onto another copy of this same hero → merge (2026-09-28). main_game
+	# owns the rules and snaps us back itself if it refuses.
+	var occupant = bg.get_unit_at(new_pos)
+	if is_player_unit and not is_summoned and occupant != null and occupant != self \
+			and is_instance_valid(occupant) and occupant is UnitBase \
+			and occupant.unit_class == unit_class and merge_handler.is_valid():
+		merge_handler.call(self, occupant)
 		return
 	bg.purge_unit(self)
 	if bg.place_unit(self, new_pos):

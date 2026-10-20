@@ -1,0 +1,265 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2548)
+[Battle] occupied_cells count: 10
+[Battle] Started — players: 2, enemies: 8
+[Battle] occupied_cells count: 10
+[Battle] Started — players: 2, enemies: 8
+[Battle] occupied_cells count: 10
+[Battle] Started — players: 2, enemies: 8
+[Battle] occupied_cells count: 10
+[Battle] Started — players: 2, enemies: 8
+ARENA_RESULT_BEGIN
+{
+  "enemy": "wave:8",
+  "formation": "default",
+  "layout": [
+    {
+      "class": "EMBER",
+      "range": 5,
+      "x": 0,
+      "y": 8
+    },
+    {
+      "class": "RIOT",
+      "range": 1,
+      "x": 1,
+      "y": 8
+    }
+  ],
+  "losses": 4,
+  "mode": "sim",
+  "results": [
+    {
+      "after_action": [
+        {
+          "damage": 1048,
+          "first": 0.02,
+          "healing": 0,
+          "name": "Fire Ember",
+          "taken": 706
+        },
+        {
+          "damage": 224,
+          "first": 0.02,
+          "healing": 0,
+          "name": "Lightning Riot",
+          "taken": 1886
+        }
+      ],
+      "enemy_deaths": 5,
+      "invalid_reasons": [],
+      "outcome": "loss",
+      "run": 0,
+      "seed": 42,
+      "sim_seconds": 23.2,
+      "survivors_enemy": 3,
+      "survivors_player": 0,
+      "team": [
+        {
+          "alive": false,
+          "class": "EMBER",
+          "damage_dealt": 1048,
+          "healing_done": 0,
+          "hp_pct": 0.0,
+          "kills": 0,
+          "level": 3,
+          "name": "Fire Ember",
+          "pos": [
+            0,
+            7
+          ]
+        },
+        {
+          "alive": false,
+          "class": "RIOT",
+          "damage_dealt": 224,
+          "healing_done": 0,
+          "hp_pct": 0.0,
+          "kills": 0,
+          "level": 3,
+          "name": "Lightning Riot",
+          "pos": [
+            1,
+            6
+          ]
+        }
+      ]
+    },
+    {
+      "after_action": [
+        {
+          "damage": 707,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Fire Ember",
+          "taken": 898
+        },
+        {
+          "damage": 168,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Lightning Riot",
+          "taken": 1992
+        }
+      ],
+      "enemy_deaths": 4,
+      "invalid_reasons": [],
+      "outcome": "loss",
+      "run": 1,
+      "seed": 43,
+      "sim_seconds": 21.8,
+      "survivors_enemy": 4,
+      "survivors_player": 0,
+      "team": [
+        {
+          "alive": false,
+          "class": "EMBER",
+          "damage_dealt": 707,
+          "healing_done": 0,
+          "hp_pct": 0.0,
+          "kills": 0,
+          "level": 3,
+          "name": "Fire Ember",
+          "pos": [
+            0,
+            7
+          ]
+        },
+        {
+          "alive": false,
+          "class": "RIOT",
+          "damage_dealt": 168,
+          "healing_done": 0,
+          "hp_pct": 0.0,
+          "kills": 0,
+          "level": 3,
+          "name": "Lightning Riot",
+          "pos": [
+            1,
+            6
+          ]
+        }
+      ]
+    },
+    {
+      "after_action": [
+        {
+          "damage": 927,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Fire Ember",
+          "taken": 611
+        },
+        {
+          "damage": 195,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Lightning Riot",
+          "taken": 1634
+        }
+      ],
+      "enemy_deaths": 4,
+      "invalid_reasons": [],
+      "outcome": "loss",
+      "run": 2,
+      "seed": 44,
+      "sim_seconds": 19.7,
+      "survivors_enemy": 4,
+      "survivors_player": 0,
+      "team": [
+        {
+          "alive": false,
+          "class": "EMBER",
+          "damage_dealt": 927,
+          "healing_done": 0,
+          "hp_pct": 0.0,
+          "kills": 0,
+          "level": 3,
+          "name": "Fire Ember",
+          "pos": [
+            0,
+            7
+          ]
+        },
+        {
+          "alive": false,
+          "class": "RIOT",
+          "damage_dealt": 195,
+          "healing_done": 0,
+          "hp_pct": 0.0,
+          "kills": 0,
+          "level": 3,
+          "name": "Lightning Riot",
+          "pos": [
+            1,
+            6
+          ]
+        }
+      ]
+    },
+    {
+      "after_action": [
+        {
+          "damage": 743,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Fire Ember",
+          "taken": 688
+        },
+        {
+          "damage": 236,
+          "first": 0.0266666666666667,
+          "healing": 0,
+          "name": "Lightning Riot",
+          "taken": 1785
+        }
+      ],
+      "enemy_deaths": 4,
+      "invalid_reasons": [],
+      "outcome": "loss",
+      "run": 3,
+      "seed": 45,
+      "sim_seconds": 20.9,
+      "survivors_enemy": 4,
+      "survivors_player": 0,
+      "team": [
+        {
+          "alive": false,
+          "class": "EMBER",
+          "damage_dealt": 743,
+          "healing_done": 0,
+          "hp_pct": 0.0,
+          "kills": 0,
+          "level": 3,
+          "name": "Fire Ember",
+          "pos": [
+            0,
+            7
+          ]
+        },
+        {
+          "alive": false,
+          "class": "RIOT",
+          "damage_dealt": 236,
+          "healing_done": 0,
+          "hp_pct": 0.0,
+          "kills": 0,
+          "level": 3,
+          "name": "Lightning Riot",
+          "pos": [
+            1,
+            6
+          ]
+        }
+      ]
+    }
+  ],
+  "runs": 4,
+  "stalls": 0,
+  "team": "EMBER:3,RIOT:3",
+  "win_rate": 0.0,
+  "wins": 0
+}
+ARENA_RESULT_END

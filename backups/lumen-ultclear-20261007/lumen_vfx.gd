@@ -1,0 +1,245 @@
+extends Node2D
+class_name LumenVFX
+
+# Lumen is a hollow suit of armour holding caged light (kit "The Lens",
+# LUMEN_KIT_AUDIT.md s5). His language is REFRACTED LIGHT: straight, clean
+# beams with a white core and violet falloff, flat facets, a lens-flare cross.
+# NEVER jagged: zig-zag bolts belong to Zolt and Static (element VFX language
+# rule -- Vail once read as lightning because she borrowed their stroke).
+# Every beam leaves from his CHEST CAGE (Spine02), not his feet.
+#
+#   BEAM  persistent, one per Lumen: his basic attack HELD on a target. Lit
+#         across the whole attack interval so it reads as one beam, not shots,
+#         and widens/brightens with Focused Light (meta lumen_focus_frac).
+#   FLARE one-shot: the anti-dive flash -- white core burst, lens-flare cross,
+#         and a ground ring at the blind radius.
+#   DAWN  persistent for the channel: a beam from his raised hands toward the
+#         biggest enemy group, to the board edge; the brighter core band is
+#         where it hits full damage. Pulses per damage tick.
+#
+# A handful of line/polygon calls per node per frame -- no per-triangle loops
+# (VailVFX's per-triangle ribbons cost 33-120ms/frame; see GRAPHICS_AUDIT).
+enum Mode { BEAM, FLARE, DAWN }
+
+const WHITE  := Color(1.00, 0.97, 1.00)
+const LILAC  := Color(0.84, 0.74, 1.00)
+const VIOLET := Color(0.60, 0.38, 1.00)
+const INDIGO := Color(0.16, 0.08, 0.34)   # value backing: reads on the pale air board
+const PLANE_SQUASH := 0.42
+## Held past the last shot so the beam bridges his attack interval (aspd 0.72
+## -> 1.39s between shots).
+const HOLD := 1.6
+
+var mode: Mode = Mode.BEAM
+var elapsed := 0.0
+var lifetime := 0.6
+var bm: Node = null
+var caster: Node2D = null
+var target: Node2D = null
+var _since_shot := 99.0
+var _radius_px := 100.0
+var _lane: PackedVector2Array = PackedVector2Array()   ## DAWN: beam band start-L, start-R, end-R, end-L (global)
+var _core: PackedVector2Array = PackedVector2Array()   ## DAWN: the full-damage core band, same order
+var _ending := -1.0
+var _seeds: PackedFloat32Array = PackedFloat32Array()
+
+func _init() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	for i in 32:
+		_seeds.append(rng.randf())
+
+static func chest_of(u: Node2D) -> Vector2:
+	var m = u.get("model3d") if u else null
+	if m and is_instance_valid(m):
+		return m.bone_canvas_position("Spine02")
+	return u.global_position + Vector2(0, -40)
+
+## The basic-attack beam leaves from whichever HAND is reaching toward the
+## target, so it follows his attack clip. Owner review 2026-10-06: from the
+## chest bone (Spine02) it read as coming out of his stomach.
+static func hand_toward(u: Node2D, to: Vector2) -> Vector2:
+	var m = u.get("model3d") if u else null
+	if not (m and is_instance_valid(m)):
+		return u.global_position + Vector2(0, -40)
+	var l: Vector2 = m.bone_canvas_position("LeftHand")
+	var r: Vector2 = m.bone_canvas_position("RightHand")
+	return l if l.distance_squared_to(to) < r.distance_squared_to(to) else r
+
+func setup_beam(lumen: Node2D, manager: Node) -> void:
+	mode = Mode.BEAM
+	caster = lumen
+	bm = manager
+	lifetime = INF
+	z_index = 9
+	global_position = Vector2.ZERO
+
+func shot(on: Node2D) -> void:
+	target = on
+	_since_shot = 0.0
+
+func setup_flare(lumen: Node2D, radius_px: float, manager: Node) -> void:
+	mode = Mode.FLARE
+	caster = lumen
+	bm = manager
+	_radius_px = radius_px
+	lifetime = 0.6
+	z_index = 9
+	global_position = chest_of(lumen)
+
+func setup_dawn(lumen: Node2D, band: PackedVector2Array, core: PackedVector2Array,
+		manager: Node) -> void:
+	mode = Mode.DAWN
+	caster = lumen
+	bm = manager
+	lifetime = INF
+	z_index = 9
+	global_position = Vector2.ZERO
+	_lane = band
+	_core = core
+
+func _clock() -> float:
+	if bm == null or not is_instance_valid(bm):
+		return 1.0
+	if bm.get("paused"):
+		return 0.0
+	var ts = bm.get("time_scale")
+	return float(ts) if ts != null else 1.0
+
+func _process(delta: float) -> void:
+	var dt := delta * _clock()
+	elapsed += dt
+	match mode:
+		Mode.BEAM:
+			_since_shot += dt
+			if not (caster and is_instance_valid(caster)) or caster.current_hp <= 0:
+				queue_free()
+				return
+			# Hidden while Dawnbreaker channels: one beam from him at a time.
+			if _since_shot > HOLD + 0.3 or not (target and is_instance_valid(target)) \
+					or target.current_hp <= 0 or caster.has_meta("dawn_ray"):
+				if visible:
+					visible = false
+				return
+			visible = true
+		Mode.DAWN:
+			# Lives exactly as long as the channel: the manager clears the
+			# caster's dawn_ray meta on completion or interrupt.
+			var live: bool = caster and is_instance_valid(caster) and caster.has_meta("dawn_ray")
+			if not live and _ending < 0.0:
+				_ending = elapsed
+			if _ending >= 0.0 and elapsed - _ending > 0.35:
+				queue_free()
+				return
+		Mode.FLARE:
+			if elapsed >= lifetime:
+				queue_free()
+				return
+	queue_redraw()
+
+func _draw() -> void:
+	match mode:
+		Mode.BEAM:  _draw_beam()
+		Mode.FLARE: _draw_flare()
+		Mode.DAWN:  _draw_dawn()
+
+# ── BEAM ─────────────────────────────────────────────────────────────────────
+func _draw_beam() -> void:
+	var frac: float = float(caster.get_meta("lumen_focus_frac", 0.0))
+	var fade: float = 1.0 - clampf((_since_shot - HOLD) / 0.3, 0.0, 1.0)
+	var a: float = fade * (0.55 + 0.45 * frac)
+	var aim: Vector2 = target.global_position + Vector2(0, -6)
+	var hand: Vector2 = hand_toward(caster, aim)
+	# Only while the casting hand is RAISED (above the chest): between swings
+	# his arm hangs at his side and a beam from there reads as his hip/stomach.
+	var chest_y: float = chest_of(caster).y
+	a *= clampf((chest_y - hand.y + 4.0) / 14.0, 0.0, 1.0)
+	if a <= 0.01:
+		return
+	var from: Vector2 = to_local(hand)
+	var to: Vector2 = to_local(aim)
+	# A faint shimmer on the core so a held beam is alive, never a static line.
+	var shimmer: float = 0.85 + 0.15 * sin(elapsed * 22.0)
+	draw_line(from, to, Color(INDIGO.r, INDIGO.g, INDIGO.b, a * 0.55), 7.0 + 5.0 * frac, true)
+	draw_line(from, to, Color(VIOLET.r, VIOLET.g, VIOLET.b, a * 0.9), 3.6 + 3.4 * frac, true)
+	draw_line(from, to, Color(WHITE.r, WHITE.g, WHITE.b, a * shimmer), 1.3 + 1.7 * frac, true)
+	# Source: the cage glows. Impact: a small four-point lens glint -- light, not
+	# a spark burst.
+	draw_circle(from, 4.0 + 3.0 * frac, Color(LILAC.r, LILAC.g, LILAC.b, a))
+	var g: float = (7.0 + 9.0 * frac) * shimmer
+	draw_line(to + Vector2(-g, 0), to + Vector2(g, 0), Color(WHITE.r, WHITE.g, WHITE.b, a * 0.9), 1.6, true)
+	draw_line(to + Vector2(0, -g * 0.7), to + Vector2(0, g * 0.7), Color(WHITE.r, WHITE.g, WHITE.b, a * 0.9), 1.6, true)
+	draw_circle(to, 3.0 + 3.0 * frac, Color(VIOLET.r, VIOLET.g, VIOLET.b, a * 0.8))
+
+# ── FLARE ────────────────────────────────────────────────────────────────────
+func _draw_flare() -> void:
+	var t: float = elapsed / lifetime
+	var a: float = 1.0 - t
+	# Ground ring at the blind radius, on the board plane, at his feet.
+	var feet: Vector2 = Vector2.ZERO
+	if caster and is_instance_valid(caster):
+		var off: float = caster.ground_offset() if caster.has_method("ground_offset") else 40.0
+		feet = to_local(caster.global_position + Vector2(0, off))
+	var r: float = _radius_px * clampf(t / 0.3, 0.15, 1.0)
+	var ring := PackedVector2Array()
+	for i in 41:
+		var ang := TAU * float(i) / 40.0
+		ring.append(feet + Vector2(cos(ang) * r, sin(ang) * r * PLANE_SQUASH))
+	draw_polyline(ring, Color(INDIGO.r, INDIGO.g, INDIGO.b, a * 0.6), 5.0, true)
+	draw_polyline(ring, Color(LILAC.r, LILAC.g, LILAC.b, a), 2.0, true)
+	# Core burst and the lens-flare cross (straight, long horizontal streak).
+	var core: float = 8.0 + 26.0 * minf(t / 0.2, 1.0)
+	draw_circle(Vector2.ZERO, core * 1.35, Color(VIOLET.r, VIOLET.g, VIOLET.b, a * 0.35))
+	draw_circle(Vector2.ZERO, core, Color(WHITE.r, WHITE.g, WHITE.b, a * 0.85))
+	var lx: float = 40.0 + 120.0 * minf(t / 0.25, 1.0)
+	var ly: float = lx * 0.45
+	draw_line(Vector2(-lx, 0), Vector2(lx, 0), Color(LILAC.r, LILAC.g, LILAC.b, a * 0.9), 3.0, true)
+	draw_line(Vector2(-lx * 0.6, 0), Vector2(lx * 0.6, 0), Color(WHITE.r, WHITE.g, WHITE.b, a), 1.6, true)
+	draw_line(Vector2(0, -ly), Vector2(0, ly), Color(LILAC.r, LILAC.g, LILAC.b, a * 0.8), 2.0, true)
+
+# ── DAWN ─────────────────────────────────────────────────────────────────────
+# Owner review 2026-10-06: the beam must come FROM him. A ground band from his
+# position to the board edge (the exact area the tick tests), the brighter core
+# band where it really hits full, and light pouring from his raised hands into
+# the start of the band. The earlier sky shaft is gone.
+func _draw_dawn() -> void:
+	if _lane.size() != 4 or _core.size() != 4:
+		return
+	var intro: float = clampf(elapsed / 0.18, 0.0, 1.0)
+	var out: float = 1.0
+	if _ending >= 0.0:
+		out = 1.0 - clampf((elapsed - _ending) / 0.35, 0.0, 1.0)
+	var pulse: float = 0.75 + 0.25 * cos(elapsed * TAU / 0.25)   # once per damage tick
+	var a: float = intro * out
+	var b := _band(_lane, intro)
+	var c := _band(_core, intro)
+	draw_colored_polygon(b, Color(VIOLET.r, VIOLET.g, VIOLET.b, a * 0.32 * pulse))
+	draw_colored_polygon(c, Color(WHITE.r, WHITE.g, WHITE.b, a * 0.45 * pulse))
+	for e in [[b[0], b[3]], [b[1], b[2]]]:
+		draw_line(e[0], e[1], Color(INDIGO.r, INDIGO.g, INDIGO.b, a * 0.6), 5.0, true)
+		draw_line(e[0], e[1], Color(LILAC.r, LILAC.g, LILAC.b, a * 0.95), 2.2, true)
+	# Source: light pours from his raised hands into the start of the band.
+	if caster and is_instance_valid(caster):
+		var m = caster.get("model3d")
+		var src: Vector2 = chest_of(caster)
+		if m and is_instance_valid(m):
+			src = (m.bone_canvas_position("LeftHand") + m.bone_canvas_position("RightHand")) * 0.5
+		src = to_local(src)
+		draw_colored_polygon(PackedVector2Array([src, b[0], b[1]]),
+			Color(VIOLET.r, VIOLET.g, VIOLET.b, a * 0.45 * pulse))
+		draw_colored_polygon(PackedVector2Array([src, c[0], c[1]]),
+			Color(WHITE.r, WHITE.g, WHITE.b, a * 0.55 * pulse))
+		draw_circle(src, 9.0 + 3.0 * pulse, Color(WHITE.r, WHITE.g, WHITE.b, a * 0.9))
+		draw_line(src + Vector2(-26, 0), src + Vector2(26, 0), Color(LILAC.r, LILAC.g, LILAC.b, a * 0.8), 2.0, true)
+	# Motes rising along the core.
+	for i in 12:
+		var ph: float = fmod(elapsed * (0.8 + _seeds[i]) + _seeds[i + 14], 1.0)
+		var u: float = _seeds[i + 1] * intro
+		var base: Vector2 = c[0].lerp(c[1], 0.5).lerp(c[3].lerp(c[2], 0.5), u)
+		draw_circle(base + Vector2(0, -ph * 40.0), 2.0, Color(WHITE.r, WHITE.g, WHITE.b, a * sin(ph * PI)))
+
+## A band (start-L, start-R, end-R, end-L) grown from its start by `t`, in local space.
+func _band(q: PackedVector2Array, t: float) -> PackedVector2Array:
+	var sl: Vector2 = to_local(q[0])
+	var sr: Vector2 = to_local(q[1])
+	return PackedVector2Array([sl, sr, sr.lerp(to_local(q[2]), t), sl.lerp(to_local(q[3]), t)])

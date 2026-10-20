@@ -1,0 +1,684 @@
+class_name UnitDetailsController
+extends RefCounted
+# ══════════════════════════════════════════════════════════════════════════════
+# Unit Details panel logic, extracted from main_game.gd (2026-07-04 refactor,
+# increment 3). Owns panel population/refresh/close; main_game keeps the panel
+# node itself, drag handling and signal wiring, and delegates here.
+# Verified end-to-end by scenes/ui_smoke.tscn (opens the panel on a live enemy).
+# ══════════════════════════════════════════════════════════════════════════════
+
+var game                          # main_game node (untyped — avoids cyclic dep)
+var current_unit: UnitBase = null
+var _icons_ready: bool = false
+
+# Panel node refs, resolved once from main_game's _dpanel_root in _init.
+var panel: Control
+var portrait_frame: PanelContainer
+var portrait: TextureRect
+var hero_portrait_anim: HeroPortrait
+var unit_name_lbl: Label
+var class_lbl: Label
+var element_icon: TextureRect
+var element_lbl: Label
+var level_lbl: Label
+var hp_bar: ProgressBar
+var hp_val: Label
+var mp_bar: ProgressBar
+var mp_val: Label
+var xp_bar: ProgressBar
+var xp_val: Label
+var combat_grid: GridContainer
+var affinity_grid: GridContainer
+var growth_grid: GridContainer
+var item_bag: GridContainer
+# Contents-hash of the bag as last built, so the per-frame refresh can skip the
+# rebuild and leave hovered slot buttons (and their tooltips) alive.
+var _bag_signature: String = ""
+var skill_icon_rect: TextureRect
+var skill_name_lbl: Label
+var skill_desc_lbl: RichTextLabel
+
+# Skill icons keyed by skill_name — the display name shown in SkillName/kit[0],
+# so it works identically for heroes and enemies alike (both hero factories in
+# unit_factory.gd and EnemyFactory set skill_name to a unique string per kit).
+# Also read directly by VisualUnit for the in-battle cooldown badge, so this is
+# the single source of truth for "does this skill have art yet". Add an entry
+# here whenever new skill/ultimate art arrives (heroes are getting a full set
+# soon, per user 2026-07-06) — anything missing just hides its icon slot.
+const SKILL_ICONS: Dictionary = {
+	"Corrosive Goo": "res://assets/icons/unit icons/enemies/corrosive_goo.png",
+}
+
+# Combat-stat grid cells (node name -> STAT_ICONS key) and affinity element order
+const _COMBAT_CELLS := [
+	["CellAtk", "atk"], ["CellDef", "res"], ["CellMagRes", "mres"], ["CellTenacity", "ten"],
+	["CellMag", "magic"], ["CellAspd", "aspd"],
+	["CellHpRegen", "hpregen"], ["CellMpRegen", "manaregen"], ["CellMove", "move"], ["CellRange", "range"],
+	["CellCritChance", "crit_chance"], ["CellCritDamage", "crit_damage"],
+]
+const _AFF_ELEMENTS := [
+	[UnitBase.Element.NORMAL, "Normal"], [UnitBase.Element.FIRE, "Fire"],
+	[UnitBase.Element.WATER, "Water"], [UnitBase.Element.EARTH, "Earth"],
+	[UnitBase.Element.AIR, "Air"], [UnitBase.Element.LIGHTNING, "Lightning"],
+]
+# Growth-grid cells (node name -> stat key). Stats without a per-level growth
+# roll (move/range) are excluded — see UnitBase.apply_stat_growth.
+const _GROWTH_CELLS := [
+	["CellGHp", "hp"], ["CellGAtk", "atk"], ["CellGMana", "mana"], ["CellGMag", "magic"],
+	["CellGDef", "res"], ["CellGAspd", "aspd"], ["CellGHpRegen", "hpregen"], ["CellGMpRegen", "manaregen"],
+]
+# Stats whose growth is a fractional roll (rounded to 0.01/level) rather than
+# a whole-number roll — see UnitFactory.apply_recruit_rolls.
+const _GROWTH_FLOAT_STATS := ["aspd", "hpregen", "manaregen"]
+
+# Short on-panel labels so a new player can tell stats apart without hovering
+# a 16px icon for a tooltip (2026-09-16 redesign — armor/magic-armor used to
+# share the same gold-shield icon and render as two bare numbers).
+const _COMBAT_ABBR := {
+	"CellAtk": "ATK", "CellDef": "ARM", "CellMagRes": "MR", "CellTenacity": "TEN",
+	"CellMag": "MAG", "CellAspd": "ASPD", "CellHpRegen": "HP+", "CellMpRegen": "MP+",
+	"CellMove": "SPD", "CellRange": "RNG", "CellCritChance": "CRIT", "CellCritDamage": "CDMG",
+}
+const _GROWTH_ABBR := {
+	"hp": "HP", "atk": "ATK", "mana": "MP", "magic": "MAG",
+	"res": "ARM", "aspd": "ASPD", "hpregen": "HP+", "manaregen": "MP+",
+}
+
+const DETAILS_BAG_SLOTS := 6
+
+func _init(p_game) -> void:
+	game = p_game
+	panel = game.unit_details_panel
+	var root: Control = game._dpanel_root
+	portrait_frame = root.get_node("Header/PortraitFrame")
+	portrait       = root.get_node("Header/PortraitFrame/Portrait")
+	hero_portrait_anim = HeroPortrait.new()
+	hero_portrait_anim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hero_portrait_anim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait.get_parent().add_child(hero_portrait_anim)
+	hero_portrait_anim.visible = false
+	unit_name_lbl  = root.get_node("Header/HeaderInfo/UnitName")
+	class_lbl      = root.get_node("Header/HeaderInfo/ChipRow/ClassChip/ClassLabel")
+	element_icon   = root.get_node("Header/HeaderInfo/ChipRow/ElementChip/EChipRow/ElementIcon")
+	element_lbl    = root.get_node("Header/HeaderInfo/ChipRow/ElementChip/EChipRow/ElementLabel")
+	level_lbl      = root.get_node("Header/HeaderInfo/ChipRow/LevelChip/LevelLabel")
+	hp_bar         = root.get_node("Vitals/HPBar")
+	hp_val         = root.get_node("Vitals/HPBar/Value")
+	mp_bar         = root.get_node("Vitals/MPBar")
+	mp_val         = root.get_node("Vitals/MPBar/Value")
+	xp_bar         = root.get_node("Vitals/XPBar")
+	xp_val         = root.get_node("Vitals/XPBar/Value")
+	combat_grid    = root.get_node("CombatGrid")
+	affinity_grid  = root.get_node("AffinityRow/AffinityCol/AffinityGrid")
+	growth_grid    = root.get_node("AffinityRow/GrowthCol/GrowthGrid")
+	item_bag       = root.get_node("Header/HeaderInfo/ChipRow/ItemBag")
+	skill_icon_rect = root.get_node("SkillRow/SkillIcon")
+	skill_name_lbl  = root.get_node("SkillRow/SkillTextCol/SkillName")
+	skill_desc_lbl  = root.get_node("SkillRow/SkillTextCol/SkillDesc")
+
+# ── Public API (main_game delegates here) ─────────────────────────────────────
+
+func show_unit(unit: UnitBase) -> void:
+	current_unit = unit
+	panel.visible = true
+	_ensure_icons()
+	_refresh()
+
+func close() -> void:
+	panel.visible = false
+	current_unit = null
+
+# Live refresh during battle — called from main_game._process via delegate.
+func refresh_live() -> void:
+	if not panel.visible:
+		return
+	if not current_unit or not is_instance_valid(current_unit):
+		current_unit = null
+		panel.visible = false
+		return
+	_refresh()
+
+func on_hero_equipment_changed(unit_id: String) -> void:
+	if not (current_unit and is_instance_valid(current_unit) and panel.visible):
+		return
+	var cur_id: String = current_unit.unit_name + "_" + str(current_unit.get_instance_id())
+	if cur_id == unit_id:
+		_update_bag(current_unit)
+
+# ── Internals (moved verbatim from main_game, refs rewritten) ─────────────────
+
+# Assign the static combat-stat and element glyph textures once (they never
+# change per unit). Value labels are updated every refresh in _refresh().
+func _ensure_icons() -> void:
+	if _icons_ready:
+		return
+	_icons_ready = true
+	# Crit + magic-armor cells aren't in the .tscn (added after that scene was
+	# built) — create them at runtime, matching the existing CellAtk/etc.
+	# HBoxContainer+Icon+Value structure exactly, so _set_combat_cell's
+	# "%s/Value" lookup finds them too. CellMagRes is moved up beside CellDef.
+	for crit_cell in ["CellMagRes", "CellTenacity", "CellCritChance", "CellCritDamage"]:
+		if combat_grid.get_node_or_null(crit_cell):
+			continue
+		var cell := HBoxContainer.new()
+		cell.name = crit_cell
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.add_theme_constant_override("separation", 6)
+		var icon := TextureRect.new()
+		icon.name = "Icon"
+		icon.custom_minimum_size = Vector2(16, 16)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		cell.add_child(icon)
+		var val := Label.new()
+		val.name = "Value"
+		UITheme.apply_font(val, UITheme.FONT_VALUE)
+		val.text = "-"
+		cell.add_child(val)
+		combat_grid.add_child(cell)
+		if crit_cell == "CellMagRes":
+			combat_grid.move_child(cell, 2)   # sit right beside CellDef (armor)
+		elif crit_cell == "CellTenacity":
+			combat_grid.move_child(cell, 3)   # third defensive stat, next to magic armor
+	for pair in _COMBAT_CELLS:
+		var stat_key: String = pair[1]
+		var path: String = UnitFactory.STAT_ICONS.get(stat_key, "")
+		if path == "":
+			continue
+		var cell := combat_grid.get_node_or_null(pair[0])
+		var icon := cell.get_node_or_null("Icon") as TextureRect if cell else null
+		if icon:
+			icon.texture = load(path) as Texture2D
+			var tip: String = UnitFactory.STAT_NAMES.get(stat_key, stat_key)
+			icon.tooltip_text = tip
+			icon.mouse_filter = Control.MOUSE_FILTER_STOP
+			cell.get_node_or_null("Value").tooltip_text = tip
+	for pair in _AFF_ELEMENTS:
+		var epath: String = UnitFactory.ELEMENT_ICONS.get(pair[0], "")
+		if epath == "":
+			continue
+		var eicon := affinity_grid.get_node_or_null("Icon%s" % pair[1]) as TextureRect
+		if eicon:
+			eicon.texture = load(epath) as Texture2D
+			eicon.tooltip_text = pair[1]
+			eicon.mouse_filter = Control.MOUSE_FILTER_STOP
+	for pair in _GROWTH_CELLS:
+		var gstat_key: String = pair[1]
+		var gpath: String = UnitFactory.STAT_ICONS.get(gstat_key, "")
+		if gpath == "":
+			continue
+		var gcell := growth_grid.get_node_or_null(pair[0])
+		var gicon := gcell.get_node_or_null("Icon") as TextureRect if gcell else null
+		if gicon:
+			gicon.texture = load(gpath) as Texture2D
+			var gtip: String = UnitFactory.STAT_NAMES.get(gstat_key, gstat_key)
+			gicon.tooltip_text = gtip
+			gicon.mouse_filter = Control.MOUSE_FILTER_STOP
+			gcell.get_node_or_null("Value").tooltip_text = gtip
+
+# Portrait for the header: heroes use their full sprite; monsters use their
+# using/ override if present. Returns null when nothing suitable exists.
+func _get_portrait_texture(unit: UnitBase) -> Texture2D:
+	var path := ""
+	if VisualUnit.HERO_SPRITE_PATHS.has(unit.unit_class):
+		path = VisualUnit.HERO_SPRITE_PATHS[unit.unit_class]
+	else:
+		# Resolve a sprite folder: enemy override meta, else class-based folder.
+		var folder := ""
+		if unit.has_meta("sprite_folder"):
+			folder = str(unit.get_meta("sprite_folder"))
+		elif unit.has_method("get_class_sprite_folder"):
+			folder = unit.get_class_sprite_folder()
+		if folder != "":
+			if VisualUnit.MONSTER_SPRITE_PATHS.has(folder):
+				path = VisualUnit.MONSTER_SPRITE_PATHS[folder]
+			else:
+				var gen := "res://assets/sprites/generated/%s/0/single.png" % folder
+				if ResourceLoader.exists(gen):
+					path = gen
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
+func _cell_int_text(current: int, bonus: float) -> String:
+	return ("%d → %d" % [current - int(bonus), current]) if bonus > 0 else ("%d" % current)
+
+func _cell_float_text(current: float, bonus: float) -> String:
+	return ("%.2f → %.2f" % [current - bonus, current]) if bonus > 0 else ("%.2f" % current)
+
+# Returns [display_current, display_bonus] for a combat-grid cell, combining
+# equipment (eq_bonus — always baked into unit.<stat> live) with synergy set
+# bonuses. Synergy is only physically applied to unit.<stat> during battle (see
+# _apply_team_synergies/syn_backup meta) — outside of battle this previews the
+# same multiplier so the base→boosted arrow is never one round stale.
+func _combat_cell_values(unit: UnitBase, stat: String, eq_bonus: float) -> Array:
+	var current: float = float(unit.get(stat))
+	if unit.is_player_unit and unit.has_meta("syn_backup"):
+		var bk: Dictionary = unit.get_meta("syn_backup")
+		if bk.has(stat):
+			return [current, current - (float(bk[stat]) - eq_bonus)]
+	var mult := 1.0
+	if unit.is_player_unit:
+		game._synergy_tracker.update_from_team(game.player_units)
+		mult = float(game._synergy_tracker.team_bonuses().get(stat, 1.0))
+	var boosted: float = current * mult
+	return [boosted, boosted - (current - eq_bonus)]
+
+# Player heroes track equipment in EquipmentInventory; enemies carry their held
+# item(s) directly on the unit (see UnitBase.held_items). This is the one place
+# both UI paths (stat display, bag panel) should read from.
+func get_unit_held_items(unit: UnitBase) -> Array:
+	if unit.is_player_unit:
+		return game._equipment_inventory.get_hero_equipment(unit) if game._equipment_inventory else []
+	return unit.held_items
+
+# Crystal-shop stat-tree bonuses baked into every player hero at recruit time
+# (main_game._apply_progression_bonuses) — recovered from Progression here so
+# the panel can show them in the same base → boosted style as equipment and
+# synergies. Enemies never get these; neither do player-side SUMMONS (ants/
+# zombies/bats spawn through the battle manager, not the recruit flow).
+func _shop_bonuses(unit: UnitBase) -> Dictionary:
+	if not unit.is_player_unit or unit.get("is_summoned") == true:
+		return {}
+	return {
+		"hp":          float(Progression.get_bonus("team_hp")),
+		"mana":        float(Progression.get_bonus("mana_well")),
+		"magic":       float(Progression.get_bonus("spellpower")),
+		"atk":         float(Progression.get_bonus("might")),
+		"res":         float(Progression.get_bonus("bulwark")),
+		"mres":        float(Progression.get_bonus("warding")),
+		"aspd":        Progression.get_bonus_float("fleetfoot"),
+		"hpregen":     Progression.get_bonus_float("vitality_flow"),
+		"manaregen":   Progression.get_bonus_float("mana_flow"),
+		"move":        float(Progression.get_bonus("swiftness")),
+		"crit_chance": float(Progression.get_bonus("lethality")) / 100.0,
+		"crit_damage": float(Progression.get_bonus("killing_blow")) / 100.0,
+	}
+
+func _sum_equipment_stats(unit: UnitBase) -> Dictionary:
+	var totals: Dictionary = {}
+	for item in get_unit_held_items(unit):
+		for stat in item.stat_bonus:
+			var v: float = float(item.stat_bonus[stat])
+			if v > 0:
+				totals[stat] = totals.get(stat, 0.0) + v
+	return totals
+
+# Populates the whole panel from current_unit. Used on open and for live
+# refresh during battle (see refresh_live).
+func _refresh() -> void:
+	var unit := current_unit
+	if not (unit and is_instance_valid(unit)):
+		return
+
+	# ── Header: portrait, name, chips ──
+	if VisualUnit.HERO_SPRITE_PATHS.has(unit.unit_class):
+		hero_portrait_anim.setup(unit.unit_class)
+		hero_portrait_anim.visible = true
+		portrait.visible = false
+		portrait_frame.visible = true
+	else:
+		hero_portrait_anim.visible = false
+		portrait.visible = true
+		var ptex := _get_portrait_texture(unit)
+		portrait.texture = ptex
+		portrait_frame.visible = ptex != null
+	unit_name_lbl.text = unit.unit_name
+	class_lbl.text = unit.get_class_name_string()
+	UITheme.apply_font(class_lbl, UITheme.FONT_VALUE)
+	# ── Scars (2026-09-19) ───────────────────────────────────────────────────
+	# A scar event permanently trades one of this hero's stats for another. That
+	# has to be READABLE afterwards or the hero just becomes a stat mystery — a
+	# tank with inexplicably low HP and no way to find out why. The chip says it
+	# happened; the tooltip lists every trade, in order.
+	var scars: Array = unit.get_meta("scars", [])
+	if scars.is_empty():
+		class_lbl.add_theme_color_override("font_color", UITheme.TEXT_BODY)
+		class_lbl.tooltip_text = ""
+		class_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	else:
+		class_lbl.text = "%s  ·  SCARRED ×%d" % [unit.get_class_name_string(), scars.size()]
+		class_lbl.add_theme_color_override("font_color", Color(0.86, 0.38, 0.34))
+		class_lbl.tooltip_text = "Permanent trades:\n• %s" % "\n• ".join(scars)
+		class_lbl.mouse_filter = Control.MOUSE_FILTER_STOP
+	element_lbl.text = unit.get_element_name_string()
+	element_lbl.add_theme_color_override("font_color", Color(element_color_hex(unit.current_element)))
+	UITheme.apply_font(element_lbl, UITheme.FONT_VALUE)
+	element_icon.texture = load(UnitFactory.ELEMENT_ICONS.get(unit.current_element, "")) as Texture2D
+	level_lbl.text = "Lv %d" % unit.level
+	UITheme.apply_font(level_lbl, UITheme.FONT_VALUE)
+
+	var eq := _sum_equipment_stats(unit)
+	var shop := _shop_bonuses(unit)
+
+	# ── Vitals ── (crystal-shop HP/mana show as "cur / base → boosted", same
+	# green treatment as boosted combat cells)
+	var hp_shop: int = int(shop.get("hp", 0.0))
+	hp_bar.max_value = max(1, unit.max_hp)
+	hp_bar.value = unit.current_hp
+	if hp_shop > 0:
+		hp_val.text = "HP  %d / %d → %d" % [unit.current_hp, unit.max_hp - hp_shop, unit.max_hp]
+	else:
+		hp_val.text = "HP  %d / %d" % [unit.current_hp, unit.max_hp]
+	hp_val.add_theme_color_override("font_color",
+		Color(0.4, 0.95, 0.5) if hp_shop > 0 else Color(0.9, 0.9, 0.95))
+	var mana_shop: int = int(shop.get("mana", 0.0))
+	mp_bar.max_value = max(1, unit.max_mana)
+	mp_bar.value = unit.current_mana
+	if mana_shop > 0:
+		mp_val.text = "MP  %d / %d → %d" % [unit.current_mana, unit.max_mana - mana_shop, unit.max_mana]
+	else:
+		mp_val.text = "MP  %d / %d" % [unit.current_mana, unit.max_mana]
+	mp_val.add_theme_color_override("font_color",
+		Color(0.4, 0.95, 0.5) if mana_shop > 0 else Color(0.9, 0.9, 0.95))
+	xp_bar.max_value = max(1.0, unit.xp_to_level)
+	xp_bar.value = unit.current_xp
+	xp_val.text = "XP  %.0f / %.0f" % [unit.current_xp, unit.xp_to_level]
+
+	# ── Combat grid ──
+	# Synergy set bonuses only get physically applied to unit stats during battle
+	# (see _apply_team_synergies) — outside of battle, _combat_cell_values previews
+	# the same amount so the base→boosted display never has to "wait for the round
+	# to start" to reflect a set bonus the player can already see in SET BONUSES.
+	# Crystal-shop bonuses ride the same eq-bonus slot — both are flat amounts
+	# already baked into unit.<stat>, so base → boosted math is identical.
+	var atk := _combat_cell_values(unit, "attack_damage", eq.get("atk", 0.0) + shop.get("atk", 0.0))
+	var def := _combat_cell_values(unit, "resistance", eq.get("res", 0.0) + shop.get("res", 0.0))
+	var mres := _combat_cell_values(unit, "magic_resist", eq.get("mres", 0.0) + shop.get("mres", 0.0))
+	var mag := _combat_cell_values(unit, "magic_power", eq.get("magic", 0.0) + shop.get("magic", 0.0))
+	var aspd := _combat_cell_values(unit, "attack_speed", eq.get("aspd", 0.0) + shop.get("aspd", 0.0))
+	var hpreg_b: float = eq.get("hpregen", 0.0) + shop.get("hpregen", 0.0)
+	var mpreg_b: float = eq.get("manaregen", 0.0) + shop.get("manaregen", 0.0)
+	var move_b: int = int(shop.get("move", 0.0))
+	var cc_b: float = shop.get("crit_chance", 0.0)
+	var cd_b: float = shop.get("crit_damage", 0.0)
+	_set_combat_cell("CellAtk", _cell_int_text(int(round(atk[0])), atk[1]), atk[1] > 0)
+	_set_combat_cell("CellDef", _cell_int_text(int(round(def[0])), def[1]), def[1] > 0)
+	_set_combat_cell("CellMagRes", _cell_int_text(int(round(mres[0])), mres[1]), mres[1] > 0)
+	# Tenacity shows the raw stat AND what it actually buys, because the number
+	# alone means nothing to a player: 60 → "60 (·0.63)" = CC lasts 63% as long.
+	_set_combat_cell("CellTenacity",
+		"%d (x%.2f)" % [unit.tenacity, unit.status_duration_mult()], false)
+	_set_combat_cell("CellMag", _cell_int_text(int(round(mag[0])), mag[1]), mag[1] > 0)
+	_set_combat_cell("CellAspd", _cell_float_text(aspd[0], aspd[1]), aspd[1] > 0)
+	_set_combat_cell("CellHpRegen", _cell_float_text(unit.hp_regen, hpreg_b), hpreg_b > 0)
+	_set_combat_cell("CellMpRegen", _cell_float_text(unit.mana_regen, mpreg_b), mpreg_b > 0)
+	_set_combat_cell("CellMove", _cell_int_text(unit.movement_speed, move_b), move_b > 0)
+	_set_combat_cell("CellRange", "%d" % unit.attack_range, false)
+	if cc_b > 0.0:
+		_set_combat_cell("CellCritChance", "%.0f%% → %.0f%%" % [(unit.crit_chance - cc_b) * 100.0, unit.crit_chance * 100.0], true)
+	else:
+		_set_combat_cell("CellCritChance", "%.0f%%" % (unit.crit_chance * 100.0), false)
+	if cd_b > 0.0:
+		_set_combat_cell("CellCritDamage", "x%.2f → x%.2f" % [unit.crit_damage - cd_b, unit.crit_damage], true)
+	else:
+		_set_combat_cell("CellCritDamage", "x%.2f" % unit.crit_damage, false)
+
+	# ── Growth per level (final — base class growth + this unit's personal roll) ──
+	for pair in _GROWTH_CELLS:
+		var gcell := growth_grid.get_node_or_null(pair[0])
+		var glbl := gcell.get_node_or_null("Value") as Label if gcell else null
+		if not glbl:
+			continue
+		var amount: float = unit.stat_growth(pair[1])
+		var gabbr: String = _GROWTH_ABBR.get(pair[1], "")
+		var gnum: String = ("+%.2f" % amount) if pair[1] in _GROWTH_FLOAT_STATS else ("+%d" % int(round(amount)))
+		glbl.text = "%s  %s" % [gabbr, gnum] if gabbr != "" else gnum
+
+	# ── Skill (2026-07-06 user report: heroes have a passive + active + ultimate,
+	# but unit.skill_name/skill_description only ever held the ACTIVE one — Rush
+	# showed just "Blitz" when the player expected to see all three moves.
+	# ClassBrowser.CLASSES already has a curated passive+active+ultimate blurb
+	# per hero (used by the class browser), so heroes read from there. Enemies/
+	# mobs piggyback hero UnitClass values for stats (see EnemyFactory) — a
+	# goblin's unit_class is UnitBase.UnitClass.WARRIOR, which WOULD wrongly
+	# match the "Warrior" hero's flavor text, so only player heroes take this
+	# path; enemies and summons (ZOMBIE/BAT, not in CLASSES) keep using their
+	# own skill_name/skill_description straight off the unit, unchanged. ──
+	# 2026-08-02: the blurb is now GENERATED from AbilityFormulas against THIS
+	# unit, so the panel shows what this hero — at its level, with its gear and
+	# its rolled stats — actually hits for, instead of the curated ClassBrowser
+	# prose whose percentages were hand-written and already drifting from the
+	# code. ClassBrowser text remains the fallback for anything the registry does
+	# not cover (enemies, summons, legacy base classes).
+	var kit := _hero_kit_text(unit)
+	# 2026-09-25: enemies list every move they own too (passive, skill,
+	# ultimate), not just the skill — see _enemy_kit_text.
+	var enemy_kit := _enemy_kit_text(unit)
+	if skill_name_lbl:
+		if enemy_kit[0] != "":
+			skill_name_lbl.text = enemy_kit[0]
+		else:
+			skill_name_lbl.text = kit[0] if kit[0] != "" else (unit.skill_name if unit.skill_name != "" else "-")
+	if skill_desc_lbl:
+		var resolved: String = enemy_kit[1] if enemy_kit[1] != "" else _kit_numbers_text(unit)
+		if resolved != "":
+			skill_desc_lbl.text = resolved
+		else:
+			var fallback: String = kit[1] if kit[1] != "" else (unit.skill_description if unit.skill_description != "" else "-")
+			skill_desc_lbl.text = fallback
+	if skill_icon_rect:
+		# Keyed on unit.skill_name specifically (NOT kit[0]) — kit[0] is the
+		# curated "Passive / Active / Ultimate" combo label for heroes (see
+		# ClassBrowser.CLASSES), but the icon+cooldown badge only ever tracks
+		# the single active skill that skill_cd_time actually governs.
+		var icon_path: String = SKILL_ICONS.get(unit.skill_name, "")
+		if icon_path != "" and ResourceLoader.exists(icon_path):
+			skill_icon_rect.texture = load(icon_path)
+			skill_icon_rect.visible = true
+		else:
+			skill_icon_rect.visible = false
+
+	# ── Affinity matrix + item bag ──
+	_refresh_affinity(unit)
+	_update_bag(unit)
+
+# Returns [skill_label, skill_desc] from ClassBrowser.CLASSES for player heroes
+# whose unit_class is a real recruitable class, else ["", ""] so the caller
+# falls back to the unit's own skill_name/skill_description.
+# Slot colours match the level-up screen's ability panel so the two readouts of
+# the same kit look like the same thing.
+const KIT_SLOT_COLORS := ["#8cc7f2", "#f2cc6b", "#d98cfa"]
+const KIT_SLOT_LABELS := ["PASSIVE", "ACTIVE", "ULTIMATE"]
+const KIT_VALUE_COLOR := "#eef0ff"
+# Sized rather than bolded: [b] makes RichTextLabel fall back to a bold face that
+# renders denser and reads smaller than the body text around it.
+const KIT_VALUE_FONT := 20
+
+# Builds the passive/active/ultimate blurb with THIS unit's resolved numbers.
+# Returns "" when the unit has no AbilityFormulas entry (enemies, summons, the
+# legacy base classes) so the caller can fall back to the curated prose.
+func _kit_numbers_text(unit: UnitBase) -> String:
+	if not unit.is_player_unit:
+		return ""
+	if not AbilityFormulas.has_entry(unit.unit_class, AbilityFormulas.PASSIVE):
+		return ""
+	var slots := [AbilityFormulas.PASSIVE, AbilityFormulas.ACTIVE, AbilityFormulas.ULTIMATE]
+	var out: Array[String] = []
+	for i in 3:
+		var r := AbilityFormulas.resolve(unit, slots[i])
+		if r["terms"].is_empty():
+			continue
+		var body: String = str(r["template"])
+		for t in r["terms"]:
+			body = body.replace("{%s}" % t["id"],
+				"[font_size=%d][color=%s]%s[/color][/font_size]"
+					% [UITheme.body_font(KIT_VALUE_FONT), KIT_VALUE_COLOR, t["display"]])
+		out.append("[color=%s]%s[/color]  [color=%s]%s[/color]\n%s" % [
+			KIT_SLOT_COLORS[i], KIT_SLOT_LABELS[i],
+			KIT_SLOT_COLORS[i], str(r["name"]), body])
+	if out.is_empty():
+		return ""
+	return "\n\n".join(out)
+
+# [names_line, blurb] for a non-player unit, in the same PASSIVE / ACTIVE /
+# ULTIMATE layout the hero kit uses. Reads the passive from the passive_name /
+# passive_desc metas, the skill straight off the unit, and the ultimate from
+# ultimate_name + the ultimate_desc meta (EnemyFactory sets all of these). Empty
+# slots are skipped; ["", ""] when there is nothing at all, so the caller falls
+# back to the old single-skill readout.
+func _enemy_kit_text(unit: UnitBase) -> Array:
+	if unit.is_player_unit:
+		return ["", ""]
+	var slots := [
+		[String(unit.get_meta("passive_name", "")), String(unit.get_meta("passive_desc", ""))],
+		[unit.skill_name, unit.skill_description],
+		[unit.ultimate_name, String(unit.get_meta("ultimate_desc", ""))],
+	]
+	var names: Array[String] = []
+	var out: Array[String] = []
+	for i in 3:
+		var slot_name: String = slots[i][0]
+		var slot_desc: String = slots[i][1]
+		if slot_name == "" and slot_desc == "":
+			continue
+		if slot_name != "":
+			names.append(slot_name)
+		out.append("[color=%s]%s[/color]  [color=%s]%s[/color]\n%s" % [
+			KIT_SLOT_COLORS[i], KIT_SLOT_LABELS[i],
+			KIT_SLOT_COLORS[i], slot_name, slot_desc])
+	if out.is_empty():
+		return ["", ""]
+	return [" / ".join(names), "\n\n".join(out)]
+
+func _hero_kit_text(unit: UnitBase) -> Array:
+	if not unit.is_player_unit:
+		return ["", ""]
+	for entry in ClassBrowser.CLASSES:
+		if entry["unit_class"] == unit.unit_class:
+			return [entry["skill"], entry["skill_desc"]]
+	return ["", ""]
+
+func _set_combat_cell(cell: String, text: String, buffed: bool) -> void:
+	var lbl := combat_grid.get_node_or_null("%s/Value" % cell) as Label
+	if not lbl:
+		return
+	var abbr: String = _COMBAT_ABBR.get(cell, "")
+	lbl.text = "%s  %s" % [abbr, text] if abbr != "" else text
+	lbl.add_theme_color_override("font_color", Color(0.4, 0.95, 0.5) if buffed else Color(0.9, 0.9, 0.95))
+
+func _refresh_affinity(unit: UnitBase) -> void:
+	for pair in _AFF_ELEMENTS:
+		var element: UnitBase.Element = pair[0]
+		var suffix: String = pair[1]
+		var atk_lbl := affinity_grid.get_node_or_null("Atk%s" % suffix) as Label
+		var def_lbl := affinity_grid.get_node_or_null("Def%s" % suffix) as Label
+		if not (atk_lbl and def_lbl):
+			continue
+		# Affinity RATINGS (2026-07-16 rework): both rows display the rating
+		# directly and higher is better for both — 100 is neutral.
+		var atk_pct := int(round(float(unit.offensive_affinity.get(element, 100.0))))
+		var def_pct := int(round(float(unit.defensive_affinity.get(element, 100.0))))
+		atk_lbl.text = "%d%%" % atk_pct
+		def_lbl.text = "%d%%" % def_pct
+		atk_lbl.add_theme_color_override("font_color", _aff_color(atk_pct, true))
+		def_lbl.add_theme_color_override("font_color", _aff_color(def_pct, true))
+
+# Neutral (100%) fades into the grid; otherwise green = favourable, red = weak.
+# higher_is_good is true for offensive %, false for defensive % (lower = tankier).
+func _aff_color(pct: int, higher_is_good: bool) -> Color:
+	if pct == 100:
+		return Color(0.5, 0.5, 0.55)
+	var good := (pct > 100) if higher_is_good else (pct < 100)
+	return Color(0.3, 0.92, 0.45) if good else Color(0.95, 0.32, 0.32)
+
+# ── Held-items bag ────────────────────────────────────────────────────────────
+# Shows up to 6 slots: player heroes show their real equipped items (from
+# EquipmentInventory); enemies show whatever they spawned wielding.
+func _update_bag(unit: UnitBase) -> void:
+	if not item_bag:
+		return
+
+	var items: Array = get_unit_held_items(unit)
+
+	# Player heroes show exactly as many slots as the crystal tree has unlocked
+	# (1 by default — see EquipmentInventory.hero_item_cap); enemies just show
+	# however many items they spawned wielding.
+	var slot_count: int = clampi(items.size(), 1, DETAILS_BAG_SLOTS)
+	if unit.is_player_unit and game._equipment_inventory:
+		slot_count = game._equipment_inventory.hero_item_cap()
+
+	# _refresh() runs every frame from refresh_live(), so an unconditional rebuild
+	# used to queue_free() the very button the mouse was hovering — mouse_entered
+	# fired, then the node died, and the item tooltip never stayed up. Only rebuild
+	# when the bag's actual contents change (2026-08-02).
+	var sig := "%d|" % unit.get_instance_id()
+	for it in items:
+		sig += "%d," % (it as EquipmentItem).get_instance_id()
+	if sig == _bag_signature and item_bag.get_child_count() == slot_count:
+		return
+	_bag_signature = sig
+
+	for c in item_bag.get_children():
+		item_bag.remove_child(c)
+		c.queue_free()
+
+	const SLOT_SIZE := Vector2(26, 26)
+
+	for i in range(slot_count):
+		var slot_bg := StyleBoxFlat.new()
+		slot_bg.corner_radius_top_left     = 4
+		slot_bg.corner_radius_top_right    = 4
+		slot_bg.corner_radius_bottom_left  = 4
+		slot_bg.corner_radius_bottom_right = 4
+
+		if i < items.size():
+			var item: EquipmentItem = items[i]
+			var btn := Button.new()
+			btn.custom_minimum_size = SLOT_SIZE
+			btn.mouse_filter = Control.MOUSE_FILTER_STOP
+
+			slot_bg.bg_color     = item.icon_color.darkened(0.55)
+			slot_bg.border_color = item.icon_color
+			slot_bg.set_border_width_all(1)
+			btn.add_theme_stylebox_override("normal", slot_bg)
+
+			var hover_bg := slot_bg.duplicate() as StyleBoxFlat
+			hover_bg.bg_color = item.icon_color.darkened(0.35)
+			btn.add_theme_stylebox_override("hover", hover_bg)
+
+			var tex: Texture2D = GearIcons.icon_for(item)   # legacy art or component composite
+			if tex:
+				btn.icon = tex
+				btn.expand_icon = true
+
+			var captured_item := item
+			# Click to unequip (2026-07-10 user request) — only meaningful for
+			# player heroes; enemies' held_items aren't tracked in
+			# EquipmentInventory, so there's nothing to remove them from.
+			var hint: String = "Click to unequip" if unit.is_player_unit else ""
+			btn.mouse_entered.connect(func(): game._show_item_tooltip(captured_item, game.get_viewport().get_mouse_position(), hint))
+			btn.mouse_exited.connect(func(): game._hide_item_tooltip())
+			if unit.is_player_unit:
+				var captured_unit := unit
+				btn.pressed.connect(func():
+					game._hide_item_tooltip()
+					if game._equipment_inventory and game._equipment_inventory.remove_from_hero(captured_item, captured_unit):
+						_refresh()
+				)
+			item_bag.add_child(btn)
+		else:
+			var ph := Panel.new()
+			ph.custom_minimum_size = SLOT_SIZE
+			ph.add_theme_stylebox_override("panel", UITheme.slot_box())
+			ph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			ph.tooltip_text = "Empty equipment slot"
+			item_bag.add_child(ph)
+
+static func element_color_hex(element: UnitBase.Element) -> String:
+	match element:
+		UnitBase.Element.FIRE:
+			return "#FF4D00"  # Orange-red
+		UnitBase.Element.WATER:
+			return "#33AAFF"  # Blue
+		UnitBase.Element.EARTH:
+			return "#B38052"  # Brown
+		UnitBase.Element.AIR:
+			return "#CCFFFF"  # Light cyan
+		UnitBase.Element.LIGHTNING:
+			return "#FFFF33"  # Yellow
+		UnitBase.Element.NORMAL:
+			return "#FFFFFF"  # White
+		_:
+			return "#FFFFFF"

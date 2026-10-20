@@ -52,9 +52,41 @@ func _ready() -> void:
 	# and streaked across this frame.
 	_reset_all()
 	await _settle()
+	# The board is GRASS, and these captures used to run on AnimPreview's flat
+	# dark colour, where violet-on-black flatters everything. Rift's own body is
+	# violet too, so the only honest question is whether his effects separate
+	# from HIM on the real ground. Sampled from the live board capture
+	# (captures/renders/normal/_model3d_board_rift.png): RGB 89,109,52.
+	# NOTE this is still a flat colour, not the textured BackgroundLayer — see
+	# the capture-harness note in the report. Closer, not correct.
+	bg_rect.color = Color(0.349, 0.427, 0.204)
 	mgr._rift_tear(caster, [dummy_enemy])
 	await get_tree().create_timer(0.14).timeout
 	await _shot(CapturePaths.out("rift_vfx_tear.png"))
+
+	# Tear, as the PORTAL DROP (owner 2026-10-01). Three frames along the one
+	# sequence, because a single still cannot show a fall: the mouth opening
+	# under the victim, the body sunk into it, and the body dropping out of the
+	# second mouth at the destination. Times track play_portal_drop's
+	# sink 0.34 / hang 0.12 / drop 0.38.
+	# Pin the victim to a cell that is actually ON SCREEN first. The banish
+	# destination is a RANDOM open edge cell, so without this the victim (and
+	# both of its mouths) can land outside the preview's view and the capture
+	# silently shows an empty board -- which is exactly what it did first time.
+	_reset_all()
+	await _settle()
+	grid.purge_unit(dummy_enemy)
+	dummy_enemy.grid_position = Vector2i(5, 4)
+	grid.place_unit(dummy_enemy, dummy_enemy.grid_position)
+	dummy_enemy.position = mgr._world_pos_for(dummy_enemy, dummy_enemy.grid_position)
+	await get_tree().process_frame
+	mgr._rift_tear(caster, [dummy_enemy])
+	await get_tree().create_timer(0.12).timeout
+	await _shot(CapturePaths.out("rift_vfx_portal_open.png"))
+	await get_tree().create_timer(0.20).timeout
+	await _shot(CapturePaths.out("rift_vfx_portal_sunk.png"))
+	await get_tree().create_timer(0.34).timeout
+	await _shot(CapturePaths.out("rift_vfx_portal_drop.png"))
 
 	# Ultimate: Collapse — telegraph, convergence, implosion.
 	_reset_all()

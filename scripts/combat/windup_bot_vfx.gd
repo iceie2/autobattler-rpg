@@ -25,6 +25,17 @@ const BRASS := Color(0.85, 0.62, 0.22)
 const BRASS_DARK := Color(0.42, 0.29, 0.10)
 const CORE := Color(1.0, 0.96, 0.80)
 
+static func body_color(element: int) -> Color:
+	match element:
+		UnitBase.Element.FIRE: return Color("b16c5c")
+		UnitBase.Element.WATER: return Color("679dab")
+		UnitBase.Element.EARTH: return Color("ad9971")
+		UnitBase.Element.AIR: return Color("b2c5bb")
+		UnitBase.Element.LIGHTNING: return Color("a094bd")
+	return Color("a0b2b5")
+
+var _element: int = UnitBase.Element.NORMAL
+
 var mode: Mode = Mode.AUTO_IMPACT
 var elapsed := 0.0
 var lifetime := 0.5
@@ -38,6 +49,7 @@ var _spin := 0.0
 var _tick_flash := 0.0         # brief flare on each milestone click
 
 func setup_point(kind: Mode, world_pos: Vector2, element: int, size: float, life: float) -> void:
+	_element = element
 	mode = kind
 	global_position = world_pos
 	accent = SynergyData.element_color(element)
@@ -47,6 +59,7 @@ func setup_point(kind: Mode, world_pos: Vector2, element: int, size: float, life
 	queue_redraw()
 
 func setup_windup(caster, element: int, size: float, life: float) -> void:
+	_element = element
 	mode = Mode.PUNCH_WINDUP
 	caster_unit = caster
 	accent = SynergyData.element_color(element)
@@ -75,6 +88,8 @@ func set_overclock_steps(steps: int) -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	if caster_unit and is_instance_valid(caster_unit) and caster_unit.has_method("_battle_clock"):
+		delta *= caster_unit._battle_clock()
 	elapsed += delta
 	_tick_flash = maxf(0.0, _tick_flash - delta * 3.0)
 	if mode in [Mode.PUNCH_WINDUP, Mode.OVERCLOCK]:
@@ -114,6 +129,8 @@ func _draw_gear(radius: float, teeth: int, phase: float, col: Color, width: floa
 func _draw() -> void:
 	var t := clampf(elapsed / lifetime, 0.0, 1.0) if is_finite(lifetime) else 0.0
 	var fade := 1.0 - t
+	if mode in [Mode.PUNCH_WINDUP, Mode.PUNCH_IMPACT, Mode.AUTO_IMPACT]:
+		LizardVFX.draw_accent(self, _element, Vector2(9, -reach * 0.13), reach * 0.10, _spin, 0.65 * fade)
 	match mode:
 		Mode.PUNCH_WINDUP: _draw_windup(t)
 		Mode.PUNCH_IMPACT: _draw_impact(t, fade, 1.0)

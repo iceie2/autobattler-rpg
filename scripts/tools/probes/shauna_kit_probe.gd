@@ -80,15 +80,23 @@ func _test_far_melee_ignored() -> void:
 	_check(mgr._skill_trigger_ready(sh, [gob]), "Kite did not fire at a melee enemy 2 tiles away")
 	_completed += 1
 
-# A shooter that can reach her triggers Kite, and the hop lands out of its range.
+# A shooter that can reach her triggers Kite, and the hop keeps the shooter in
+# HER attack range (2026-09-26: she used to dodge out and be stranded).
 func _test_ranged_dodge_leaves_range() -> void:
 	var s := _fresh(); var mgr = s["mgr"]; var grid = s["grid"]
 	var sh = _shauna(mgr, grid, Vector2i(4, 4))
-	var arc = _foe(mgr, grid, "goblin_archer", Vector2i(4, 1), sh)   # range 4, 3 tiles away
+	var arc = _foe(mgr, grid, "goblin_archer", Vector2i(4, 2), sh)   # range 4, 2 tiles away
 	_check(mgr._skill_trigger_ready(sh, [arc]), "Kite ignored a ranged enemy that can hit her")
 	var dest: Vector2i = mgr._best_retreat_cell(sh, arc)
-	_check(dest != Vector2i(-1, -1) and mgr._rect_dist(dest, 1, arc.grid_position, 1) > arc.attack_range,
-		"ranged dodge did not leave the shooter's range (landed %s)" % dest)
+	_check(dest != Vector2i(-1, -1), "ranged dodge found no cell")
+	_check(dest == Vector2i(-1, -1) or mgr._rect_dist(dest, 1, arc.grid_position, 1) <= sh.attack_range,
+		"ranged dodge left her own attack range (landed %s, range %d)" % [dest, sh.attack_range])
+	# Already at the edge of her range: any cell she picks must still be in range.
+	_move(grid, sh, Vector2i(4, 2 + sh.attack_range))
+	var edge: Vector2i = mgr._best_retreat_cell(sh, arc)
+	_check(edge == Vector2i(-1, -1) or mgr._rect_dist(edge, 1, arc.grid_position, 1) <= sh.attack_range,
+		"edge dodge left her own attack range (landed %s)" % edge)
+	_move(grid, sh, Vector2i(4, 4))
 	# Out of its range entirely: not a threat.
 	_move(grid, arc, Vector2i(4, 0))
 	_move(grid, sh, Vector2i(4, 6))

@@ -9,18 +9,25 @@ var element: UnitBase.Element = UnitBase.Element.NORMAL
 var is_magic: bool = false   # magic-scaled payloads are mitigated by magic armor
 var is_crit: bool = false     # drives gold crit floating text when this lands
 var is_basic_auto: bool = false   # a basic attack (component equipment on-hit passives key on this)
-var is_seventh_shot: bool = false   # Headhunter passive proc — bigger, gold-tinted bullet so it reads as more than a generic crit
-var is_true_damage: bool = false   # Shauna Glass Cannon proc — bypasses armor/resistance on landing
+var recap_action: int = 0         # caster's skill / ult tag at spawn (run recap breakdown)
+var is_seventh_shot: bool = false   # Headhunter passive proc â€” bigger, gold-tinted bullet so it reads as more than a generic crit
+var is_true_damage: bool = false   # Shauna Glass Cannon proc â€” bypasses armor/resistance on landing
 var is_static_arc: bool = false    # Static auto: jagged live-wire discharge instead of a generic orb
 var is_zolt_arc: bool = false      # Zolt auto: compact blue-white storm bolt
+var is_tempest_bolt: bool = false # tail-origin magic auto follows combat pause/speed
 var is_rift_void: bool = false     # Rift auto: compact violet void pulse
+## Lumen auto (2026-10-06): an invisible, near-instant damage carrier. What the
+## player sees is LumenVFX's held BEAM, which the manager lights on the swing.
+var is_lumen_beam: bool = false
 var is_sear_bolt: bool = false     # Sear auto: ember bolt with a trailing wake
 var is_lizard_bolt: bool = false    # Lizard Precision Shot: cold piercing bolt
+var is_lizard_spit: bool = false    # Basic shot shares the look, not row piercing.
 var is_phoenix_lance: bool = false  # Ember Phoenix Cinder Lance: forge-spark bolt
 # >= 0 means this bolt PIERCES that board row on arrival instead of damaging a
 # single target. The manager owns the row resolution (see resolve_precision_shot)
 # so the damage, accounting and VFX live in one place.
 var pierce_row: int = -1
+var is_ember_arrow: bool = false
 var is_goblin_arrow: bool = false
 var is_goblin_shaman_orb: bool = false
 # Vail is range 4, so her basic attack is a cast, not a swing. Without this
@@ -32,14 +39,20 @@ var slow_pct: float = 0.0
 var slow_duration: float = 0.0
 var focus_stacks: int = 0
 var target_unit = null
+var target_section: int = 0  # lock the selected snake section; home on its live position
 var caster = null          # tracks who fired this for damage_dealt attribution
+
+func live_target_position() -> Vector2:
+	if target_unit is UnitBase and is_instance_valid(target_unit):
+		return target_unit.section_canvas_position(target_section)
+	return target_unit.global_position if target_unit and is_instance_valid(target_unit) else target_pos
 var traveled_distance: float = 0.0
 var total_distance: float = 0.0
 
 # Muzzle delay: holds the bullet invisible/stationary for this many seconds
 # before it actually launches, so it leaves the gun on the animation's fire
 # frame instead of at the instant the attack call fires (which used to be
-# the instant the attack ANIMATION started too — the bullet was already
+# the instant the attack ANIMATION started too â€” the bullet was already
 # halfway to the target before the character finished raising the weapon).
 # Set per-hero from PROJECTILE_MUZZLE_DELAY in unit_base.gd; 0.0 (default)
 # reproduces the old immediate-launch behavior exactly.
@@ -51,7 +64,7 @@ var projectile_size: float = 8.0
 var projectile_color: Color = Color.WHITE
 
 # Optional sprite-sheet override (per-hero auto-attack visuals, e.g. Nemi's
-# water-slash frames) — when sprite_tex is set, _draw() plays a looping frame
+# water-slash frames) â€” when sprite_tex is set, _draw() plays a looping frame
 # strip instead of the plain colored circle. Unset for every other hero, so
 # the default stays exactly what it was.
 var sprite_tex: Texture2D = null
@@ -90,6 +103,9 @@ func setup(from: Vector2, to: Vector2, dmg: int, elem: UnitBase.Element, target 
 	queue_redraw()
 
 func _process(delta: float):
+	if (is_ember_arrow or is_tempest_bolt) and is_instance_valid(caster) and caster.battle_manager:
+		delta *= 0.0 if caster.battle_manager.paused else caster.battle_manager.time_scale
+		if delta <= 0.0: return
 	if not start_pos or not target_pos:
 		queue_free()
 		return
@@ -104,9 +120,11 @@ func _process(delta: float):
 			global_position = caster.global_position
 			start_pos = global_position
 		if target_unit and is_instance_valid(target_unit):
-			target_pos = target_unit.global_position
+			target_pos = live_target_position()
 		if spawn_delay > 0.0:
 			return
+		if is_ember_arrow:
+			delta = maxf(0.0, -spawn_delay) # only the remaining battle time belongs to flight
 		_launched = true
 		total_distance = global_position.distance_to(target_pos)
 		traveled_distance = 0.0
@@ -117,7 +135,7 @@ func _process(delta: float):
 			var muzzle_dir := (target_pos - global_position).normalized()
 			_spawn_zolt_point(ZoltVFX.Mode.AUTO_MUZZLE, global_position + muzzle_dir * 24.0, 0.3)
 
-	# Target died mid-flight (e.g. another hit killed it first) — fizzle out
+	# Target died mid-flight (e.g. another hit killed it first) â€” fizzle out
 	# instead of visibly flying on to hit a corpse.
 	if target_unit and is_instance_valid(target_unit) and "current_hp" in target_unit and target_unit.current_hp <= 0:
 		queue_free()
@@ -125,12 +143,12 @@ func _process(delta: float):
 
 	# Home in on the target's CURRENT position every frame. target_pos used to
 	# be a one-time snapshot taken at spawn (setup()'s `to` param), so any
-	# projectile fired at a unit that then moved — knockback, a push/pull
-	# effect, retreating mid-flight, anything — flew to the empty spot it used
+	# projectile fired at a unit that then moved â€” knockback, a push/pull
+	# effect, retreating mid-flight, anything â€” flew to the empty spot it used
 	# to occupy instead of following it. System-wide fix: every ranged
 	# hero/enemy routes through this same Projectile class.
 	if target_unit and is_instance_valid(target_unit):
-		target_pos = target_unit.global_position
+		target_pos = live_target_position()
 
 	# Move towards target using global position
 	var direction = (target_pos - global_position).normalized()
@@ -139,12 +157,12 @@ func _process(delta: float):
 	traveled_distance += move_amount
 
 	if sprite_tex or not sprite_frames.is_empty() or is_static_arc or is_zolt_arc \
-			or is_rift_void or is_sear_bolt or is_goblin_arrow or is_goblin_shaman_orb:
+			or is_rift_void or is_sear_bolt or is_goblin_arrow or is_goblin_shaman_orb or is_ember_arrow:
 		_sprite_anim_t += delta
 		queue_redraw()
 
 	# Reached: proximity-based, not the old traveled_distance>=total_distance
-	# check — that assumed a fixed target_pos and would fire early/late (or
+	# check â€” that assumed a fixed target_pos and would fire early/late (or
 	# never) once homing lets target_pos move frame to frame. The threshold
 	# tracks this frame's step size so a fast bullet can't tunnel past a
 	# moving target without ever registering as "close enough". total_distance
@@ -157,21 +175,21 @@ func _process(delta: float):
 func on_reach_target():
 	if is_static_arc:
 		_spawn_static_point(StaticVFX.Mode.AUTO_IMPACT,
-			target_unit.global_position if target_unit and is_instance_valid(target_unit) else target_pos,
+			live_target_position(),
 			0.42)
 	elif is_zolt_arc:
 		_spawn_zolt_point(ZoltVFX.Mode.AUTO_IMPACT,
-			target_unit.global_position if target_unit and is_instance_valid(target_unit) else target_pos,
+			live_target_position(),
 			0.42)
 	elif is_rift_void:
-		# The void pulse used to simply blink out of existence on contact — the
+		# The void pulse used to simply blink out of existence on contact â€” the
 		# only ranged hero auto with no impact beat at all.
 		_spawn_rift_point(RiftVFX.Mode.AUTO_IMPACT,
-			target_unit.global_position if target_unit and is_instance_valid(target_unit) else target_pos,
+			live_target_position(),
 			0.38)
 	elif is_sear_bolt:
 		_spawn_sear_point(SearVFX.Mode.AUTO_IMPACT,
-			target_unit.global_position if target_unit and is_instance_valid(target_unit) else target_pos,
+			live_target_position(),
 			0.40)
 	elif is_phoenix_lance:
 		var pcontainer := get_parent()
@@ -179,10 +197,10 @@ func on_reach_target():
 			var pfx := PhoenixVFX.new()
 			pcontainer.add_child(pfx)
 			pfx.setup_point(PhoenixVFX.Mode.LANCE_IMPACT,
-				target_unit.global_position if target_unit and is_instance_valid(target_unit) else target_pos,
+				live_target_position(),
 				88.0, 0.42)
 	elif is_goblin_shaman_orb:
-		_spawn_shaman_impact(target_unit.global_position if target_unit and is_instance_valid(target_unit) else target_pos)
+		_spawn_shaman_impact(live_target_position())
 	if pierce_row >= 0:
 		# Row-piercing bolt: every opponent in the promised row, resolved by the
 		# manager. Deliberately does NOT fall through to the single-target block
@@ -198,9 +216,20 @@ func on_reach_target():
 		var tag_basic: bool = is_basic_auto and is_instance_valid(caster) and "gear_basic_hit" in caster
 		if tag_basic:
 			caster.gear_basic_hit = true
+		# The shot lands frames after its cast: restore the cast's skill / ult tag
+		# for this hit only (read by the run recap's damage breakdown, nothing else).
+		var prev_action: int = -1
+		if recap_action != 0 and is_instance_valid(caster) and "recap_action" in caster:
+			prev_action = caster.recap_action
+			caster.recap_action = recap_action
+		if target_unit is UnitBase and not target_unit.segment_cells.is_empty():
+			target_unit.set_meta("projectile_hit_section", target_section)
 		target_unit.take_damage(damage, element, caster, is_true_damage, 0, is_magic, is_crit)
+		if is_instance_valid(target_unit): target_unit.remove_meta("projectile_hit_section")
 		if tag_basic:
 			caster.gear_basic_hit = false
+		if prev_action >= 0 and is_instance_valid(caster):
+			caster.recap_action = prev_action
 		var actual: int = max(0, pre_hp - target_unit.current_hp)
 		if is_crippling_arrow and actual > 0 and caster and is_instance_valid(caster) \
 				and caster.battle_manager:
@@ -217,10 +246,14 @@ func on_reach_target():
 			# UnitBase.attack).
 			if caster.has_method("apply_relic_on_hit"):
 				caster.apply_relic_on_hit(target_unit, actual, was_alive)
+		if is_ember_arrow and is_instance_valid(caster) and caster.battle_manager:
+			var manager = caster.battle_manager
+			manager._spawn_ember_fx(EmberVFX.Mode.IMPACT, target_unit.global_position, 0.38, 32.0)
+			manager._apply_on_hit_passives(caster, target_unit, manager.enemy_units if caster.is_player_unit else manager.player_units)
 		if is_vail_gust:
-			_spawn_vail_gust_impact(target_unit.global_position)
+			_spawn_vail_gust_impact(live_target_position())
 		if is_goblin_arrow:
-			_spawn_goblin_arrow_impact(target_unit.global_position, is_crippling_arrow)
+			_spawn_goblin_arrow_impact(live_target_position(), is_crippling_arrow)
 			if not is_crippling_arrow and actual > 0 and caster and is_instance_valid(caster) \
 					and caster.battle_manager:
 				var opponents: Array = caster.battle_manager.enemy_units if caster.is_player_unit \
@@ -307,7 +340,7 @@ func _spawn_shaman_impact(world_pos: Vector2) -> void:
 	fx.setup_impact(world_pos, element)
 
 func _draw():
-	if not _launched:
+	if not _launched or is_lumen_beam:
 		return
 	if not sprite_frames.is_empty():
 		_draw_sprite_frames_array()
@@ -327,11 +360,23 @@ func _draw():
 	if is_sear_bolt:
 		_draw_sear_bolt()
 		return
+	if is_ember_arrow:
+		EmberVFX.draw_arrow(self, (target_pos - global_position).normalized())
+		return
 	if is_goblin_arrow:
 		_draw_goblin_arrow()
 		return
 	if is_goblin_shaman_orb:
 		_draw_shaman_orb()
+		return
+	if is_lizard_bolt or is_lizard_spit:
+		var colors := LizardVFX.effect_colors(element)
+		var travel := (target_pos - global_position).normalized()
+		var tail := -travel * 55.0
+		draw_line(tail, Vector2.ZERO, Color(colors[0].r, colors[0].g, colors[0].b, 0.25), 10.0, true)
+		draw_line(tail, Vector2.ZERO, colors[0], 4.5, true)
+		draw_line(tail, Vector2.ZERO, colors[1], 1.8, true)
+		LizardVFX.draw_accent(self, element, tail * 0.5 + travel.orthogonal() * 7.0, 5.0, _sprite_anim_t, 0.85)
 		return
 	# Draw a simple circle projectile
 	draw_circle(Vector2.ZERO, projectile_size, projectile_color)
@@ -339,7 +384,7 @@ func _draw():
 	draw_arc(Vector2.ZERO, projectile_size, 0, TAU, 16, Color.WHITE, 1.5)
 
 # Purple lightning, built on the same three-pass polyline as _draw_zolt_arc so
-# the two read as the same PHENOMENON in different hands — Zolt's celestial
+# the two read as the same PHENOMENON in different hands â€” Zolt's celestial
 # blue-white storm vs Rift's violet void discharge. Was a soft round orb, which
 # looked like a generic magic missile and shared no language with his kit.
 func _draw_rift_void() -> void:
@@ -365,8 +410,8 @@ func _draw_goblin_arrow() -> void:
 	var dir := (target_pos - global_position).normalized()
 	if dir == Vector2.ZERO: dir = Vector2.RIGHT
 	var side := dir.orthogonal()
-	# Crippling Arrow is exactly 2× the complete normal-arrow silhouette—not
-	# merely a slightly longer shaft—so players can identify the signature shot
+	# Crippling Arrow is exactly 2Ã— the complete normal-arrow silhouetteâ€”not
+	# merely a slightly longer shaftâ€”so players can identify the signature shot
 	# immediately in a crowded volley.
 	if is_crippling_arrow:
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2(2.0, 2.0))
@@ -439,7 +484,7 @@ func _draw_zolt_arc() -> void:
 	draw_polyline(pts, Color(0.92, 0.98, 1.0), 2.5)
 	draw_circle(Vector2.ZERO, 5.0, Color(1.0, 0.76, 0.22))
 
-# Loops sprite_tex's frame strip while the projectile is in flight — same
+# Loops sprite_tex's frame strip while the projectile is in flight â€” same
 # "max bounding box, aspect preserved" sizing convention as
 # AutoBattleManager._spawn_sprite_sheet_effect, so this reads consistently
 # with every other sprite-sheet VFX in the game.

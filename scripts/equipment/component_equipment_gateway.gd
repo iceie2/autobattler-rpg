@@ -7,6 +7,17 @@ class_name ComponentEquipmentGateway
 const ENABLE_FOR_NEW_RUNS := true
 static var active_run: bool = false
 
+# Item supply (owner 2026-09-29: "still tuned to when it took 3 to merge").
+# Greys per tier went 3/9/27/81 -> 2/4/8/16, so the same drops reached every
+# tier far sooner. 0.45 keeps BLUE arriving when it used to (4 / 0.45 ~= 9 old
+# greys); green is a little slower, purple/gold still sooner. Scales the two
+# unasked-for sources (enemy-held drops, item rewards); shop and event items
+# are choices the player pays for, so they stay. Tune here only.
+const ITEM_SUPPLY_MULT := 0.45
+
+static func supply_mult() -> float:
+	return ITEM_SUPPLY_MULT if active_run else 1.0
+
 static func generate_item(round_number: int = 1,
 		max_rarity: int = EquipmentItem.Rarity.RARE) -> EquipmentItem:
 	if not active_run:

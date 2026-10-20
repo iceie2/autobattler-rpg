@@ -1,0 +1,133 @@
+extends Node
+# Defeat report through the REAL main_game (2026-10-07): a lone fragile hero loses
+# a real round-1 fight, and we check what the player is handed:
+#   - the result screen is the new report (not the compact fallback)
+#   - run history / crystal payout / run totals still happen exactly once
+#   - rounds cleared excludes the round that was lost
+#   - the report was frozen from the real fight (hero row, duration, takeaway)
+#   - starting the next run's battle clears it (no stale report)
+# It drives the real main_game, which writes the run and progression saves,
+# run history and telemetry, so it runs ONLY in a disposable profile:
+#   APPDATA=<scratch>/defeat-report/isolated-profile \
+#     godot --headless --path . res://scenes/tools/defeat_report_integration.tscn
+# Prints DEFEAT_REPORT_INTEGRATION: ALL PASS. Exit 0 pass, 1 fail, 2 refused.
+
+var failures: Array = []
+
+func check(ok: bool, label: String) -> void:
+	print("  %s: %s" % ["ok" if ok else "FAIL", label])
+	if not ok:
+		failures.append(label)
+
+func _frames(n: int) -> void:
+	for _i in range(n):
+		await get_tree().process_frame
+
+func _ready() -> void:
+	if not OS.get_user_data_dir().replace("\\", "/").contains("/defeat-report/isolated-profile/"):
+		push_error("Refusing the defeat-report integration test outside its disposable profile")
+		get_tree().quit(2)
+		return
+	RunSave.resume_on_start = false
+	var history_before: int = RunHistory.entries().size()
+	var mg = load("res://scenes/main_game.tscn").instantiate()
+	add_child(mg)
+	await _frames(30)
+	mg._on_relic_chosen(Relic.by_id("d_gold"))
+	await _frames(5)
+	if not mg._hero_shop._card_btns.is_empty():
+		mg._hero_shop._card_btns[0].emit_signal("pressed")
+	await _frames(5)
+	check(mg.player_units.size() == 1, "a starting hero is on the board")
+	if mg.player_units.is_empty():
+		_finish()
+		return
+	var hero: UnitBase = mg.player_units[0]
+	var start_name := String(hero.unit_name)
+
+	# Walk to the first real battle node.
+	var node: Dictionary = {}
+	for n in mg._run_map.available_next():
+		if RunMap.is_battle_node(n):
+			node = n
+	if node.is_empty():
+		for n in mg._run_map.available_next():
+			node = n
+	mg._on_map_node_chosen(node)
+	await _frames(5)
+	var round_fought: int = mg.game_state.battle_round
+	check(round_fought >= 1, "a battle round is set up (round %d)" % round_fought)
+
+	# Fragile enough to lose (shielded hits are covered by defeat_report_smoke).
+	hero.max_hp = 4
+	hero.current_hp = 4
+	mg._ready_nudged = true
+	mg.game_state.crystals = 7   # earned this run, paid out on defeat
+	var crystals_before: int = Progression.crystals
+	var run_crystals: int = mg.game_state.crystals
+	mg._on_ready_pressed()
+	await _frames(2)
+	mg.auto_battle_manager.set_time_scale(4.0)
+	var guard := 0
+	# Run recap (2026-10-07): a defeat now opens the whole-run recap; this
+	# per-fight report is reached from its overview, built from the same fight.
+	while mg._run_recap_screen == null and guard < 3000:
+		await get_tree().process_frame
+		guard += 1
+	var recap_screen: RunRecapScreen = mg._run_recap_screen
+	check(recap_screen != null, "the defeat opens the run recap (after %d frames)" % guard)
+	if recap_screen == null:
+		_finish()
+		return
+	recap_screen.skip()
+	await _frames(2)
+	check(recap_screen.open_fight(recap_screen.selected_key()), "the final fight opens in the per-fight report")
+	var view: DefeatReportView = recap_screen.fight_view()
+	check(view != null and not mg._game_over_screen.visible, "per-fight report shown from the recap; old panel hidden")
+	if view == null:
+		_finish()
+		return
+
+	var rep: Dictionary = mg.auto_battle_manager.last_report
+	check(not rep.is_empty() and not bool(rep["won"]), "the manager froze a lost-fight report")
+	check(rep["heroes"].size() == 1 and String(rep["heroes"][0]["name"]) == start_name,
+		"report has the one hero (%s)" % start_name)
+	var row: Dictionary = rep["heroes"][0]
+	check(row["taken_hp"] >= 1 and row["taken_hp"] <= 4, "HP taken is real and capped at the HP the hero had (%d)" % row["taken_hp"])
+	check(row["deaths"] == 1 and not row["survived"], "the hero is recorded as fallen")
+	check(rep["duration"] > 0.0 and row["alive_time"] <= rep["duration"] + 0.001,
+		"duration %.2fs; alive %.2fs never exceeds it" % [rep["duration"], row["alive_time"]])
+	check(String(rep["takeaway"]).contains(start_name), "takeaway names the hero: \"%s\"" % rep["takeaway"])
+	check(String(view._report.get("takeaway", "")) == String(rep["takeaway"]),
+		"the report opened from the recap says the same as the live one")
+
+	# Run-level behaviour preserved.
+	check(Progression.crystals == crystals_before + run_crystals,
+		"crystal payout unchanged (%d -> %d, run earned %d)" % [crystals_before, Progression.crystals, run_crystals])
+	var hist: Array = RunHistory.entries()
+	check(hist.size() == history_before + 1 and not bool(hist[0]["won"]) and int(hist[0]["wave"]) == round_fought,
+		"run history got exactly one defeat entry for round %d" % round_fought)
+	var cleared_ok: bool = recap_screen._where_lbl.text.contains("Waves cleared %d " % maxi(0, round_fought - 1))
+	check(cleared_ok, "waves cleared = %d (the lost round %d is not counted)" % [maxi(0, round_fought - 1), round_fought])
+	check(recap_screen._end_btn.text == "Return to Main Menu" and recap_screen._end_btn.pressed.get_connections().size() > 0,
+		"Return to Main Menu is wired")
+
+	# Next battle starts clean.
+	mg.auto_battle_manager.battle_active = false
+	mg.auto_battle_manager.recorder.begin([], [])
+	check(mg.auto_battle_manager.recorder.snapshot(false, [])["team"]["taken_hp"] == 0,
+		"a new battle's recorder carries nothing over")
+	_finish()
+
+func _collect(n: Node, out: Array) -> void:
+	if n is CanvasItem and not (n as CanvasItem).visible:
+		return
+	if n is Label:
+		out.append((n as Label).text)
+	for c in n.get_children():
+		_collect(c, out)
+
+func _finish() -> void:
+	print("DEFEAT_REPORT_INTEGRATION: %s" % ("ALL PASS" if failures.is_empty()
+		else "%d FAILED -> %s" % [failures.size(), ", ".join(failures)]))
+	get_tree().quit(0 if failures.is_empty() else 1)

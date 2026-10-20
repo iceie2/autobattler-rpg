@@ -73,9 +73,32 @@ static func round_scale(round: int) -> float:
 static func _price(base: float, mult: float, round: int) -> int:
 	return maxi(1, int(round(base * mult * round_scale(round))))
 
+# Merchant heroes are A or S only, at flat prices (owner 2026-10-02: 50 / 150).
+# Flat on purpose: no round scaling, so the sticker price is the price. Sales and
+# discounts still apply on top (they rewrite slot["price"] afterwards).
+const HERO_PRICE_BY_GRADE := {"A": 50, "S": 150}
+const HERO_S_CHANCE := 0.25          # of merchant hero slots; the rest are A
+
 static func hero_price(rolls: Dictionary, round: int) -> int:
-	var mult: float = GRADE_PRICE_MULT.get(rolls.get("grade", "C"), 1.0)
+	var grade: String = rolls.get("grade", "C")
+	if HERO_PRICE_BY_GRADE.has(grade):
+		return int(HERO_PRICE_BY_GRADE[grade])
+	# Not a merchant grade (nothing rolls one any more) — keep the old curve.
+	var mult: float = GRADE_PRICE_MULT.get(grade, 1.0)
 	return _price(HERO_BASE, mult, round)
+
+# Recruit rolls forced to a target grade. A plain roll is A only ~8% of the time
+# and S ~0.02%, so rejection-sample with a growth bias that centres the average
+# near the band; the grade is still the real one UnitFactory computes.
+static func _roll_hero_at_grade(target: String) -> Dictionary:
+	var bias: float = 0.4 if target == "S" else 0.15
+	var rolls: Dictionary = {}
+	for _i in range(600):
+		rolls = UnitFactory.generate_recruit_rolls(bias)
+		if str(rolls.get("grade", "")) == target:
+			return rolls
+	rolls["grade"] = target   # unreachable in practice; never ship an off-grade card
+	return rolls
 
 static func stat_price(perk: Dictionary, round: int) -> int:
 	return _price(STAT_BASE, float(perk.get("grade_mult", 1.0)), round)
@@ -110,7 +133,7 @@ static func roll_stock(round: int, owned_relic_ids: Array = []) -> Array:
 			continue
 		used_heroes.append(cls)
 		var elem := UnitFactory.element_for_class(cls)
-		var rolls := UnitFactory.generate_recruit_rolls()
+		var rolls := _roll_hero_at_grade("S" if randf() < HERO_S_CHANCE else "A")
 		stock.append({
 			"kind": "hero", "class": cls, "element": elem, "rolls": rolls,
 			"price": hero_price(rolls, round), "on_sale": false,

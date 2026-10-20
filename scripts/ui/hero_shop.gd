@@ -42,6 +42,11 @@ var _card_btns: Array = []
 # before open(). Heroes with one of these verbs are SEED_WEIGHT times as likely.
 const SEED_WEIGHT := 3.0
 var favored_verbs: Array = []
+# Hero merging (2026-09-28): classes the player already fields/benches are
+# OWNED_WEIGHT times as likely, so a second copy to merge turns up more often
+# (~11% → ~16% per shop for a given owned hero) without crowding out variety.
+const OWNED_WEIGHT := 1.5
+var owned_classes: Array = []
 # Slot indices the player has pinned so a reroll leaves them alone. Capacity
 # comes from the Hold That crystal upgrade; empty (and the toggle hidden) until
 # at least one node is bought. Cleared whenever a fresh shop opens.
@@ -174,7 +179,7 @@ func _generate_offers(preserve: Dictionary = {}) -> void:
 
 # With no seed owned this is the plain uniform draw, randi() call for call.
 func _pick_class(classes: Array) -> int:
-	if favored_verbs.is_empty():
+	if favored_verbs.is_empty() and owned_classes.is_empty():
 		return classes[randi() % classes.size()]
 	var total := 0.0
 	for c in classes:
@@ -187,10 +192,14 @@ func _pick_class(classes: Array) -> int:
 	return classes[-1]
 
 func _class_weight(cls: int) -> float:
+	var w := 1.0
 	for v in favored_verbs:
 		if HeroVerbs.has_verb(cls, String(v)):
-			return SEED_WEIGHT
-	return 1.0
+			w = SEED_WEIGHT
+			break
+	if cls in owned_classes:
+		w *= OWNED_WEIGHT
+	return w
 
 # ── UI shell (built once) ─────────────────────────────────────────────────────
 func _build_ui() -> void:
@@ -335,7 +344,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	# parsing ability prose. Rank already owns the corner badge, so the subtitle
 	# is reserved for element and growth rather than repeating the same grade.
 	var role_lbl := _clbl(btn, role_name(cls).to_upper(), 12,
-		Color(0.72, 0.74, 0.86), Vector2(0, y_name + 55), Vector2(CARD_W, 20), true)
+		Color(0.72, 0.74, 0.86), Vector2(0, y_name + 60), Vector2(CARD_W, 20), true)
 	role_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# ── Slot-machine reveal sequencing (2026-07-21) ────────────────────────────
@@ -349,7 +358,7 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 		badge_lbl, badge_bg, cls, elem, grade, avg_rel)
 
 	# ── Divider ───────────────────────────────────────────────────────────────
-	var div_y := y_name + 78.0
+	var div_y := y_name + 83.0
 	var div := ColorRect.new()
 	div.position = Vector2(16, div_y)
 	div.size     = Vector2(CARD_W - 32, 1)
@@ -365,11 +374,11 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 	# only the active + ultimate as curated prose, so the passive was invisible
 	# at the one moment the player is choosing between heroes. ────────────────
 	var kit_y := div_y + 8.0
-	_add_ability_rows(btn, tmp, cls, kit_y)
+	var kit_end: float = _add_ability_rows(btn, tmp, cls, kit_y)
 	tmp.free()
 
 	# ── Divider ───────────────────────────────────────────────────────────────
-	var div_ult_y := kit_y + ABIL_ROW_H * 3.0 + 4.0
+	var div_ult_y := kit_end + 4.0
 	var div_ult := ColorRect.new()
 	div_ult.position = Vector2(16, div_ult_y)
 	div_ult.size     = Vector2(CARD_W - 32, 1)
@@ -391,8 +400,13 @@ func _build_card(pos: Vector2, idx: int, gold: int) -> Button:
 		var spec: Array = stat_specs[s]
 		var flat: float = float((stats_dict.get(spec[1], {}) as Dictionary).get("flat", 0.0))
 		var value: float = float(base.get(spec[2], 0.0))
-		value = value + flat if spec[1] in ["move", "range"] else value * (1.0 + flat)
-		var value_text := "%.2f" % value if bool(spec[3]) else str(int(round(value)))
+		# Mirror UnitFactory.apply_recruit_rolls exactly, so the card can't
+		# promise a different hero than the one you get. That function never
+		# applies the move/range rolls (2026-09-27 audit: Bouncer showed RNG 0
+		# or -1 while its real range was 1), and it TRUNCATES the int stats.
+		if spec[1] not in ["move", "range"]:
+			value = value * (1.0 + flat)
+		var value_text := "%.2f" % value if bool(spec[3]) else str(maxi(1, int(value)))
 		var col: int = s % 4
 		var row: int = s / 4
 		_clbl(btn, "%s  %s" % [spec[0], value_text], 11,
@@ -479,8 +493,12 @@ func _refresh_lock_visual(idx: int) -> void:
 # ── Signal handlers ───────────────────────────────────────────────────────────
 func _on_choose(idx: int) -> void:
 	var offer: Dictionary = _offers[idx]
-	hero_chosen.emit(offer["class"], offer["element"], offer["rolls"])
+	# Hide BEFORE emitting. The handler (main_game._on_hero_chosen) spends the roll
+	# with clear_offers(), which deliberately refuses while the picker is visible.
+	# Emitting first left the roll alive, so B re-opened the same offers and every
+	# pick after the first was free (owner report 2026-09-30).
 	visible = false
+	hero_chosen.emit(offer["class"], offer["element"], offer["rolls"])
 
 func _on_cancel() -> void:
 	cancelled.emit()
@@ -681,12 +699,18 @@ const ABIL_SLOT_COLORS := [
 ]
 const ABIL_VALUE_COL := "eef0ff"
 
+# Returns the y just below the last row. Rows used to be a fixed ABIL_ROW_H
+# each, so a three-line description (Bouncer's "Reel In", 2026-09-27 audit)
+# ran into the next row's title and got clipped. Each row is now sized to its
+# own wrapped text, with ABIL_ROW_H kept as the minimum so short kits look
+# exactly as before.
 func _add_ability_rows(btn: Button, unit: UnitBase, cls: UnitBase.UnitClass,
-		top_y: float) -> void:
+		top_y: float) -> float:
 	var slots := [AbilityFormulas.PASSIVE, AbilityFormulas.ACTIVE, AbilityFormulas.ULTIMATE]
 	var has_registry := AbilityFormulas.has_entry(cls, AbilityFormulas.PASSIVE)
+	var ry := top_y
 	for i in 3:
-		var ry := top_y + i * ABIL_ROW_H
+		var row_top := ry
 
 		_clbl(btn, ABIL_SLOT_LABELS[i], 10, ABIL_SLOT_COLORS[i],
 			Vector2(14, ry), Vector2(ABIL_BADGE_W, ABIL_TITLE_H))
@@ -708,19 +732,36 @@ func _add_ability_rows(btn: Button, unit: UnitBase, cls: UnitBase.UnitClass,
 		desc.position       = Vector2(14, ry + ABIL_TITLE_H + 2.0)
 		desc.size           = Vector2(CARD_W - 28, ABIL_ROW_H - ABIL_TITLE_H - 6.0)
 		desc.mouse_filter   = Control.MOUSE_FILTER_IGNORE
-		UITheme.apply_rich_font(desc, UITheme.body_font(13) + 2)
-		desc.add_theme_color_override("default_color", Color(0.66, 0.68, 0.82))
+		UITheme.apply_read_rich(desc)
+		desc.add_theme_color_override("default_color", Color(0.78, 0.80, 0.90))
 		btn.add_child(desc)
 
+		var plain := ""
 		if r.is_empty() or (r["terms"] as Array).is_empty():
 			desc.text = _skill_short_desc(unit) if i == 1 else ""
-			continue
-		var body: String = str(r["template"])
-		for t in r["terms"]:
-			body = body.replace("{%s}" % t["id"],
-				"[font_size=%d][color=#%s]%s[/color][/font_size]"
-					% [UITheme.body_font(ABIL_VALUE_FONT) + 2, ABIL_VALUE_COL, t["display"]])
-		desc.text = body
+			plain = desc.text
+		else:
+			var body: String = str(r["template"])
+			plain = body
+			for t in r["terms"]:
+				body = body.replace("{%s}" % t["id"],
+					"[font_size=%d][color=#%s]%s[/color][/font_size]"
+						% [UITheme.FONT_READ + 2, ABIL_VALUE_COL, t["display"]])
+				plain = plain.replace("{%s}" % t["id"], str(t["display"]))
+			desc.text = body
+
+		# Size this row to its wrapped text. Measured on the plain string with
+		# the row's own font; +8% covers the slightly larger value numbers and
+		# word-wrap waste at line ends.
+		var px: int = UITheme.FONT_READ
+		var font: Font = desc.get_theme_font("normal_font")
+		var line_h: float = font.get_height(px) + 2.0
+		var text_w: float = font.get_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x * 1.08
+		var lines: int = maxi(1, ceili(text_w / (CARD_W - 28.0)))
+		var desc_h: float = lines * line_h + 4.0
+		desc.size.y = maxf(desc.size.y, desc_h)
+		ry = row_top + maxf(ABIL_ROW_H, ABIL_TITLE_H + 2.0 + desc_h + 6.0)
+	return ry
 
 func _run_card_reveal(delay: float, btn: Button, portrait: TextureRect,
 		name_lbl: Label, sub_rt: RichTextLabel, badge_lbl: Label, badge_bg: ColorRect,

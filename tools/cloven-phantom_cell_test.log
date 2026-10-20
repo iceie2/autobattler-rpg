@@ -1,0 +1,6 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+[Battle] reclaimed 9 phantom grid cell(s) held by dead/freed units
+[Battle] occupied_cells count: 5
+[Battle] Started — players: 1, enemies: 1
+PHANTOM_CELL_TEST: ALL PASS (boss closed in 2.4s)

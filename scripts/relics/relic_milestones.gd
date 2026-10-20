@@ -5,421 +5,421 @@ extends RefCounted
 const FAMILIES := ["opening", "momentum", "row", "execute", "ultrefund", "underdog", "goldscale"]
 const TABLE: Array = [
   {
-    "id": "opening_1",
-    "name": "Opening I",
-    "condition": "Win a fight in under 6 seconds.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "elapsed",
-        "lt",
-        6
-      ]
-    ]
+	"id": "opening_1",
+	"name": "Opening I",
+	"condition": "Win a fight in under 6 seconds.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"elapsed",
+		"lt",
+		6
+	  ]
+	]
   },
   {
-    "id": "opening_2",
-    "name": "Opening II",
-    "condition": "Beat an elite in under 10 seconds.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "elite",
-        "eq",
-        true
-      ],
-      [
-        "elapsed",
-        "lt",
-        10
-      ]
-    ]
+	"id": "opening_2",
+	"name": "Opening II",
+	"condition": "Beat an elite in under 10 seconds.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"elite",
+		"eq",
+		true
+	  ],
+	  [
+		"elapsed",
+		"lt",
+		10
+	  ]
+	]
   },
   {
-    "id": "momentum_1",
-    "name": "Momentum I",
-    "condition": "Win a fight lasting at least 40 seconds.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "elapsed",
-        "ge",
-        40
-      ]
-    ]
+	"id": "momentum_1",
+	"name": "Momentum I",
+	"condition": "Win a fight lasting at least 40 seconds.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"elapsed",
+		"ge",
+		40
+	  ]
+	]
   },
   {
-    "id": "momentum_2",
-    "name": "Momentum II",
-    "condition": "Beat a decade boss in a fight lasting at least 60 seconds.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "boss",
-        "eq",
-        true
-      ],
-      [
-        "elapsed",
-        "ge",
-        60
-      ]
-    ]
+	"id": "momentum_2",
+	"name": "Momentum II",
+	"condition": "Beat a decade boss in a fight lasting at least 60 seconds.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"boss",
+		"eq",
+		true
+	  ],
+	  [
+		"elapsed",
+		"ge",
+		60
+	  ]
+	]
   },
   {
-    "id": "row_1",
-    "name": "Row I",
-    "condition": "Win with at least 4 heroes in the front row.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "front",
-        "ge",
-        4
-      ]
-    ]
+	"id": "row_1",
+	"name": "Row I",
+	"condition": "Win with at least 4 heroes in the front row.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"front",
+		"ge",
+		4
+	  ]
+	]
   },
   {
-    "id": "row_2",
-    "name": "Row II",
-    "condition": "Beat a decade boss with at least 4 heroes in the front row.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "boss",
-        "eq",
-        true
-      ],
-      [
-        "front",
-        "ge",
-        4
-      ]
-    ]
+	"id": "row_2",
+	"name": "Row II",
+	"condition": "Beat a decade boss with at least 4 heroes in the front row.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"boss",
+		"eq",
+		true
+	  ],
+	  [
+		"front",
+		"ge",
+		4
+	  ]
+	]
   },
   {
-    "id": "execute_1",
-    "name": "Execute I",
-    "condition": "Beat the first decade boss (wave 10).",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "boss",
-        "eq",
-        true
-      ],
-      [
-        "round",
-        "eq",
-        10
-      ]
-    ]
+	"id": "execute_1",
+	"name": "Execute I",
+	"condition": "Beat the first decade boss (wave 10).",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"boss",
+		"eq",
+		true
+	  ],
+	  [
+		"round",
+		"eq",
+		10
+	  ]
+	]
   },
   {
-    "id": "execute_2",
-    "name": "Execute II",
-    "condition": "Beat a decade boss on Brutal.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "boss",
-        "eq",
-        true
-      ],
-      [
-        "brutal",
-        "eq",
-        true
-      ]
-    ]
+	"id": "execute_2",
+	"name": "Execute II",
+	"condition": "Beat a decade boss on Brutal.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"boss",
+		"eq",
+		true
+	  ],
+	  [
+		"brutal",
+		"eq",
+		true
+	  ]
+	]
   },
   {
-    "id": "ultrefund_1",
-    "name": "Ult Refund I",
-    "condition": "Cast 4 ultimates in one fight.",
-    "requirements": [
-      [
-        "ults",
-        "ge",
-        4
-      ]
-    ]
+	"id": "ultrefund_1",
+	"name": "Ult Refund I",
+	"condition": "Cast 4 ultimates in one fight.",
+	"requirements": [
+	  [
+		"ults",
+		"ge",
+		4
+	  ]
+	]
   },
   {
-    "id": "ultrefund_2",
-    "name": "Ult Refund II",
-    "condition": "Cast 10 ultimates in one fight.",
-    "requirements": [
-      [
-        "ults",
-        "ge",
-        10
-      ]
-    ]
+	"id": "ultrefund_2",
+	"name": "Ult Refund II",
+	"condition": "Cast 10 ultimates in one fight.",
+	"requirements": [
+	  [
+		"ults",
+		"ge",
+		10
+	  ]
+	]
   },
   {
-    "id": "underdog_2",
-    "name": "Underdog",
-    "condition": "Win a fight after losing half your team.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "lost_half",
-        "eq",
-        true
-      ]
-    ]
+	"id": "underdog_2",
+	"name": "Underdog",
+	"condition": "Win a fight after losing half your team.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"lost_half",
+		"eq",
+		true
+	  ]
+	]
   },
   {
-    "id": "goldscale_2",
-    "name": "Gold Scale",
-    "condition": "Start a fight holding at least 150 gold.",
-    "requirements": [
-      [
-        "start_gold",
-        "ge",
-        150
-      ]
-    ]
+	"id": "goldscale_2",
+	"name": "Gold Scale",
+	"condition": "Start a fight holding at least 2000 gold.",
+	"requirements": [
+	  [
+		"start_gold",
+		"ge",
+		2000
+	  ]
+	]
   },
   {
-    "id": "ladder_armor_dual",
-    "name": "Armor",
-    "condition": "Win with at least 3 Tanks.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "tanks",
-        "ge",
-        3
-      ]
-    ]
+	"id": "ladder_armor_dual",
+	"name": "Armor",
+	"condition": "Win with at least 3 Tanks.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"tanks",
+		"ge",
+		3
+	  ]
+	]
   },
   {
-    "id": "ladder_max_hp",
-    "name": "HP",
-    "condition": "A hero reaches 3,000 max HP.",
-    "requirements": [
-      [
-        "max_hp",
-        "ge",
-        3000
-      ]
-    ]
+	"id": "ladder_max_hp",
+	"name": "HP",
+	"condition": "A hero reaches 9,999 max HP.",
+	"requirements": [
+	  [
+		"max_hp",
+		"ge",
+		9999
+	  ]
+	]
   },
   {
-    "id": "ladder_magic_power",
-    "name": "Magic",
-    "condition": "Win with at least 3 Mages.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "mages",
-        "ge",
-        3
-      ]
-    ]
+	"id": "ladder_magic_power",
+	"name": "Magic",
+	"condition": "Win with at least 3 Mages.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"mages",
+		"ge",
+		3
+	  ]
+	]
   },
   {
-    "id": "ladder_atk_dmg",
-    "name": "Attack",
-    "condition": "Win with at least 3 Fighters.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "fighters",
-        "ge",
-        3
-      ]
-    ]
+	"id": "ladder_atk_dmg",
+	"name": "Attack",
+	"condition": "Win with at least 3 Fighters.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"fighters",
+		"ge",
+		3
+	  ]
+	]
   },
   {
-    "id": "ladder_attack_speed",
-    "name": "Attack Speed",
-    "condition": "Win with at least 3 Ranged heroes.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "ranged",
-        "ge",
-        3
-      ]
-    ]
+	"id": "ladder_attack_speed",
+	"name": "Attack Speed",
+	"condition": "Win with at least 3 Ranged heroes.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"ranged",
+		"ge",
+		3
+	  ]
+	]
   },
   {
-    "id": "ladder_lifesteal",
-    "name": "Lifesteal",
-    "condition": "Win with at least 2 Healers.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "healers",
-        "ge",
-        2
-      ]
-    ]
+	"id": "ladder_lifesteal",
+	"name": "Lifesteal",
+	"condition": "Win with at least 2 Healers.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"healers",
+		"ge",
+		2
+	  ]
+	]
   },
   {
-    "id": "ladder_crit_chance",
-    "name": "Crit Chance",
-    "condition": "A hero reaches 40% crit chance.",
-    "requirements": [
-      [
-        "crit_chance",
-        "ge",
-        0.4
-      ]
-    ]
+	"id": "ladder_crit_chance",
+	"name": "Crit Chance",
+	"condition": "A hero reaches 40% crit chance.",
+	"requirements": [
+	  [
+		"crit_chance",
+		"ge",
+		0.4
+	  ]
+	]
   },
   {
-    "id": "ladder_crit_damage",
-    "name": "Crit Damage",
-    "condition": "A hero reaches 3x crit damage.",
-    "requirements": [
-      [
-        "crit_damage",
-        "ge",
-        3
-      ]
-    ]
+	"id": "ladder_crit_damage",
+	"name": "Crit Damage",
+	"condition": "A hero reaches 3x crit damage.",
+	"requirements": [
+	  [
+		"crit_damage",
+		"ge",
+		3
+	  ]
+	]
   },
   {
-    "id": "ladder_gold_econ",
-    "name": "Gold",
-    "condition": "Finish a fight holding at least 200 gold.",
-    "requirements": [
-      [
-        "finished",
-        "eq",
-        true
-      ],
-      [
-        "gold",
-        "ge",
-        200
-      ]
-    ]
+	"id": "ladder_gold_econ",
+	"name": "Gold",
+	"condition": "Finish a fight holding at least 200 gold.",
+	"requirements": [
+	  [
+		"finished",
+		"eq",
+		true
+	  ],
+	  [
+		"gold",
+		"ge",
+		200
+	  ]
+	]
   },
   {
-    "id": "ladder_vs_boss",
-    "name": "Boss Damage",
-    "condition": "Beat 3 decade bosses across any runs.",
-    "requirements": [
-      [
-        "boss_wins",
-        "ge",
-        3
-      ]
-    ]
+	"id": "ladder_vs_boss",
+	"name": "Boss Damage",
+	"condition": "Beat 3 decade bosses across any runs.",
+	"requirements": [
+	  [
+		"boss_wins",
+		"ge",
+		3
+	  ]
+	]
   },
   {
-    "id": "ladder_double_atk",
-    "name": "Double Attack",
-    "condition": "Trigger 15 double attacks in one fight.",
-    "requirements": [
-      [
-        "doubles",
-        "ge",
-        15
-      ]
-    ]
+	"id": "ladder_double_atk",
+	"name": "Double Attack",
+	"condition": "Trigger 15 double attacks in one fight.",
+	"requirements": [
+	  [
+		"doubles",
+		"ge",
+		15
+	  ]
+	]
   },
   {
-    "id": "ladder_on_kill_atk",
-    "name": "On-Kill",
-    "condition": "One hero gets 8 kills in one fight.",
-    "requirements": [
-      [
-        "max_kills",
-        "ge",
-        8
-      ]
-    ]
+	"id": "ladder_on_kill_atk",
+	"name": "On-Kill",
+	"condition": "One hero gets 8 kills in one fight.",
+	"requirements": [
+	  [
+		"max_kills",
+		"ge",
+		8
+	  ]
+	]
   },
   {
-    "id": "ladder_start_shield",
-    "name": "Start Shield",
-    "condition": "Win a fight where shields absorb 1,000 damage.",
-    "requirements": [
-      [
-        "won",
-        "eq",
-        true
-      ],
-      [
-        "shield",
-        "ge",
-        1000
-      ]
-    ]
+	"id": "ladder_start_shield",
+	"name": "Start Shield",
+	"condition": "Win a fight where shields absorb 1,000 damage.",
+	"requirements": [
+	  [
+		"won",
+		"eq",
+		true
+	  ],
+	  [
+		"shield",
+		"ge",
+		1000
+	  ]
+	]
   },
   {
-    "id": "ladder_ult_charge",
-    "name": "Ult Charge",
-    "condition": "One hero casts 3 ultimates in one fight.",
-    "requirements": [
-      [
-        "max_ults",
-        "ge",
-        3
-      ]
-    ]
+	"id": "ladder_ult_charge",
+	"name": "Ult Charge",
+	"condition": "One hero casts 3 ultimates in one fight.",
+	"requirements": [
+	  [
+		"max_ults",
+		"ge",
+		3
+	  ]
+	]
   }
 ]
 

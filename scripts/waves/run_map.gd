@@ -12,10 +12,8 @@ extends RefCounted
 # What the player chooses is:
 # A row is 2–5 choices wide. Combat difficulties never repeat within a row.
 # Four-wide rows are Easy / Normal / Hard plus one utility node, five-wide rows
-# plus two (VD-14); narrower rows
-# show a distinct subset, possibly with one combat slot replaced by utility —
-# and that subset ALWAYS includes Normal (VD-12): a utility replaces a harder
-# fight, never the one a fresh account can take.
+# plus two (VD-14). Narrower rows contain fights only, always including Normal.
+# Utility choices are optional: every incoming path retains a combat exit.
 #
 # Interstitial nodes must never call GameState.start_battle_round(). That single
 # fact is the whole model; it's also the thing a later refactor is most likely
@@ -56,13 +54,14 @@ const INCLUDE_CAMP := true
 #
 # THE CONSEQUENCE, STATED PLAINLY: taking that event means you never fight that
 # wave. Paths no longer all fight ten waves — one can fight eight and reach the
-# boss poorer and lower-level for it. That's the trade the player is making, and
+# boss poorer for it (kill gold + item drops). NOT lower-level: since 2026-09-29
+# (owner: events must not be punished) a utility node pays that stage's Normal-
+# clear XP + early crystal floor — main_game._grant_skipped_wave_rewards. The
+# trade is gold/loot vs the node's own payoff, and
 # it's why a wave row always keeps at least one real fight (so the wave EXISTS
 # for anyone who wants it) and why the elite and boss rows are fights only.
 # Raised 2026-09-27 (VD-17, owner: "we need more events/merchants"): a route
 # met 0.93 events over ten stages at 0.30 / 4.
-const UTILITY_CHANCE := 0.60
-const MAX_UTILITY_NODES_PER_BIOME := 9
 
 # VD-17: where the two merchants go, and how hard generation tries to make
 # both reachable (see merchant_reach_problems).
@@ -93,10 +92,6 @@ var cleared: Dictionary = {}        # {node_id: true}
 var generation_seed: int = 0        # persisted so telemetry can reproduce the layout
 
 var _rng := RandomNumberGenerator.new()
-# Budget for optional utility replacements on narrower rows. Rows wider than
-# the three fight tiers always receive their utility (utilities_for_width) even
-# after this budget is spent.
-var _utility_budget: int = MAX_UTILITY_NODES_PER_BIOME
 
 # ── Generation ────────────────────────────────────────────────────────────────
 # roll_rewards=false skips the RoundReward/EquipmentManager rolls, so the
@@ -120,11 +115,10 @@ func _build(roll_rewards: bool) -> void:
 	rows.clear()
 	cleared.clear()
 	current_id = ""
-	_utility_budget = MAX_UTILITY_NODES_PER_BIOME
 	# TWO merchants per biome (VD-17, owner 2026-09-27: three runs to biome 3
 	# without meeting one). The first comes once the player has had a few
 	# fights' gold; the second after the elite, before the boss. Each merchant
-	# row is guaranteed to contain utility even when it rolls only two choices.
+	# row is widened to at least four choices to keep all three combat tiers.
 	var merchant_waves: Array = [_rng.randi_range(MERCHANT_EARLY.x, MERCHANT_EARLY.y),
 		_rng.randi_range(MERCHANT_LATE.x, MERCHANT_LATE.y)]
 
@@ -142,7 +136,6 @@ func _build(roll_rewards: bool) -> void:
 				rows.append(_build_tiered_row(r, int(plan["wave"]), NodeType.BOSS, roll_rewards))
 	_assign_layout()
 	_wire_edges()
-	_grant_relief_edges()
 
 # Give each generated map its own silhouette. Rows remain ordered and readable,
 # but they no longer sit on the same perfectly centred 2/3/4-lane stencil.
@@ -175,16 +168,15 @@ func _build_battle_row(r: int, wave: int, roll_rewards: bool,
 	# real choice of lane without the start looking like a starburst.
 	if r == 1:
 		width = mini(width, 3)
+	# Merchants remain on their scheduled stages, but need a wide column so
+	# they are a side choice rather than replacing a fight in a narrow fork.
+	if force_merchant:
+		width = maxi(width, 4)
 	# How many side nodes this row carries. Rows wider than the three fight
 	# tiers MUST spend the extra width on side nodes — that is what width is for
 	# (VD-14, owner: "so we can fit more events/rest/shop on our map") — and
-	# narrower rows may still roll one against the biome's budget.
+	# narrower rows contain fights only (owner, 2026-10-07).
 	var n_util: int = utilities_for_width(width)
-	if n_util == 0 and (force_merchant
-			or (_utility_budget > 0 and _rng.randf() < UTILITY_CHANCE)):
-		n_util = 1
-	elif force_merchant:
-		n_util = maxi(n_util, 1)
 	var util_types: Array = []
 	for u in range(n_util):
 		if u == 0 and force_merchant:
@@ -196,14 +188,15 @@ func _build_battle_row(r: int, wave: int, roll_rewards: bool,
 		if t in util_types and wave >= 3:
 			t = NodeType.EVENT if t == NodeType.CAMP else NodeType.CAMP
 		util_types.append(t)
-	_utility_budget = maxi(0, _utility_budget - n_util)
 	var tiers: Array = _distinct_tiers(width - n_util)
 	# Battles stay in ascending difficulty by COLUMN INDEX — col 0 is the mildest.
 	# Which direction that points on screen is the map screen's business (it
 	# currently draws col 0 as the topmost lane); nothing here should care. The
 	# utility slots move between runs, each replacing one conceptual lane rather
 	# than changing the order.
-	var slots: Array = range(width)
+	# Both outside lanes are fights. This permits non-crossing paths to give
+	# every parent a fight even when the next column includes side choices.
+	var slots: Array = range(1, width - 1)
 	var util_slots: Array = []
 	for _u in range(n_util):
 		util_slots.append(slots.pop_at(_rng.randi_range(0, slots.size() - 1)))
@@ -225,7 +218,7 @@ func _build_battle_row(r: int, wave: int, roll_rewards: bool,
 
 # Side nodes a row of this width must carry: whatever doesn't fit three fight
 # tiers. A 4-wide row is Normal / Veteran / Brutal plus one; a 5-wide row plus
-# two (VD-14). Narrower rows owe none, but may roll one.
+# two (VD-14). Narrower rows contain no utility nodes.
 static func utilities_for_width(width: int) -> int:
 	return maxi(0, width - 3)
 
@@ -257,17 +250,14 @@ func _distinct_tiers(count: int) -> Array:
 # Pick an ordinary utility. The one merchant is assigned separately so random
 # utility rolls can never create duplicates.
 func _pick_utility_type(wave: int) -> int:
-	# Wave 1 may surprise the player with an event, but never asks them to shop
-	# or rest before they have resources worth managing.
+	# The opening column is combat-only; later wide columns can offer camp.
 	if INCLUDE_CAMP and wave >= 3 and _rng.randf() < 0.30:
 		return NodeType.CAMP
 	return NodeType.EVENT
 
 # The elite and the boss are FORCED — every path meets them (owner's call), one
-# node per intensity. They are reached by the same proportional slices as every
-# other row, NOT by a fan from everything to everything: the lane you are in
-# does narrow which elite tiers you can reach, and that is the point — drifting
-# toward the easy lane before the wall is a decision you make three rows early.
+# node per intensity. They use the same easy/climb/hold guarantees as ordinary
+# stages, so players can retreat to easy at the elite or boss as well.
 func _build_tiered_row(r: int, wave: int, type: int, roll_rewards: bool) -> Array:
 	var out: Array = []
 	for c in range(3):
@@ -352,190 +342,71 @@ static func grade_for_reward(reward: Dictionary) -> String:
 	return "C"
 
 # ── Edges ─────────────────────────────────────────────────────────────────────
-# StS rules: no two edges may cross, and every node must have at least one
-# parent (an unreachable node is a lie drawn on the map).
-#
-# HOW, AND WHY NOT THE OBVIOUS WAY: the first version picked random children
-# then repaired the result — adopt orphans, then delete crossing edges. The
-# harness (--mode=map) failed it immediately on two counts: deleting a crossing
-# edge can strip a child's LAST parent, re-orphaning it after the adoption pass
-# had already run, and the repair order made that unfixable without looping.
-#
-# This version can't produce either fault, because it assigns MONOTONE ranges:
-# parents are walked left to right and each takes a contiguous block of
-# children that never starts before the previous parent's block did. Monotone
-# ranges cannot cross — that's the whole trick — the blocks are contiguous from
-# the first child to the last, so nothing is orphaned, and every parent is
-# handed at least one child so nothing dead-ends. No repair pass at all.
-#
-# ── AS MANY PATHS AS THE CROSSING RULE ALLOWS (owner rule, 2026-09-23) ────────
-# "Parent nodes should have as many of the next row's children as possible
-# without breaking our crossing rule."
-#
-# The walk is a staircase through the parent x child grid, and every cell it
-# visits is an edge. The most cells a non-crossing staircase can visit is
-# m + n - 1, and it gets there only if EVERY step moves one index — next parent
-# OR next child, never both. The old walk allowed that diagonal step and capped
-# every parent at two children; each diagonal skipped an edge the rule would
-# have allowed. Measured on the same 2000 maps (rows are built before wiring,
-# so the row widths are identical): 41.3 paths drawn per map before, 47.2 now,
-# and 47.2 is the ceiling for those rows. Unit steps make every wiring maximal
-# by construction, and validate() now fails any map where a path could still be
-# added. (A non-crossing edge set that can't take one more edge IS a unit-step
-# staircase from corner to corner — so "nothing addable" and "m + n - 1 edges"
-# are the same test.)
-#
-# WHICH maximal staircase: the balanced one. Every parent owns a proportional
-# slice of the next row, and the walk steps whichever index's slice ends first —
-# so no parent is left with one child while its neighbour hoards four, which is
-# the "every parent" half of the owner's rule. Where two slices end on the same
-# boundary the corner node goes to the HARDER lane (VD-12: always a way down),
-# and near a boundary WIRE_JITTER sometimes shifts a lane one step — only ever
-# downhill — so two maps with the same row widths still don't wire identically.
-const WIRE_JITTER := 0.25
-
+# Difficulty choices take priority over non-crossing geometry (owner, 2026-10-07).
+# Draw only required combat links and local utility branches; crossings are
+# allowed when they preserve a player's ability to climb or return to easy.
 func _wire_edges() -> void:
 	for r in range(rows.size() - 1):
 		var parents: Array = rows[r]
 		var children: Array = rows[r + 1]
-		var m: int = parents.size()
-		var n: int = children.size()
-		for i in range(m):
-			parents[i]["children"] = []
-
-		var pi := 0
-		var ci := 0
-		parents[pi]["children"].append(String(children[ci]["id"]))
-		while pi < m - 1 or ci < n - 1:
-			var step_parent: bool
-			if pi == m - 1:
-				step_parent = false
-			elif ci == n - 1:
-				step_parent = true
-			else:
-				# Where each current slice ends, cross-multiplied to stay in
-				# integers: parent pi's slice ends at (pi+1)/m, child ci's at
-				# (ci+1)/n of the row.
-				var parent_end: int = (pi + 1) * n
-				var child_end: int = (ci + 1) * m
-				# Stepping the PARENT first hands the node both lanes could
-				# reach to the harder lane — as its way down (VD-12). Stepping
-				# the child first would hand it to the easier lane as a way UP,
-				# which the crossing rule then pays for by taking the harder
-				# lane's way down. So ties, and the jitter, only lean downhill.
-				if parent_end == child_end:
-					step_parent = true
-				else:
-					step_parent = parent_end < child_end
-					if not step_parent and absi(parent_end - child_end) < mini(m, n) \
-							and _rng.randf() < WIRE_JITTER:
-						step_parent = true
-			if step_parent:
-				pi += 1
-			else:
-				ci += 1
-			var cid := String(children[ci]["id"])
-			if not cid in parents[pi]["children"]:
-				parents[pi]["children"].append(cid)
-
-# ── THE MERCY EDGE: the hard lane is a decision, not a one-way door ───────────
-# The monotone walk above produces a LEGAL graph, and a legal graph can still
-# hand a node exactly one child that is a HARDER fight than the node itself.
-# That is the failure the owner hit (2026-09-21): drift into the brutal lane on
-# wave 2, discover on wave 4 that the team can't carry it, and there is no move
-# left on the board — the run is decided several rows before it ends.
-#
-# So after wiring, every node that CAN be given a way out is given one. An "out"
-# is a way DOWN (_is_way_down): a fight strictly easier than the lane you're in,
-# or a side node, which is no fight at all; the Normal lane can't go lower, so
-# for it a Normal fight counts. VD-12 (2026-09-23) tightened this from "not
-# harder" — an equal-tier child only lets you hold, and "normal -> normal" was
-# exactly what the owner flagged. Choosing hard still costs you — you get the
-# Brutal reward table and the easy lane's rewards are gone — but it never
-# removes the steering wheel.
-#
-# The no-crossing rule still wins every argument. An out is only added when the
-# geometry allows it, and when it doesn't, the node keeps its hard-only children
-# and the map is simply pointed there. `validate()` re-derives this on the
-# finished graph, so the harness catches it if the two ever disagree.
-func _grant_relief_edges() -> void:
-	for r in range(rows.size() - 1):
-		# Each fix strictly moves one parent's block leftward, so the pass can
-		# only run as many times as there are lanes to give away; the guard is
-		# belt-and-braces against a future edit breaking that.
-		var guard: int = 0
-		while guard < 32:
-			guard += 1
-			var plan: Array = _relief_fixes(r)
-			if plan.is_empty():
-				break
-			_apply_relief_fix(r, plan[0])
-
-# Every parent in row r that has no out AND could legally be handed one.
-# Shared by the repair pass and by validate() so they can never drift apart.
-func _relief_fixes(r: int) -> Array:
-	var parents: Array = rows[r]
-	var children: Array = rows[r + 1]
-	var demands: Array = _row_demands(parents)
-	var kid_index: Dictionary = {}
-	for c in range(children.size()):
-		kid_index[String(children[c]["id"])] = c
-
-	var fixes: Array = []
-	for i in range(parents.size()):
-		var block: Array = _child_cols(parents[i], kid_index)
-		if block.is_empty():
-			continue
-		var demand: int = int(demands[i])
-		var has_out: bool = false
-		for ci in block:
-			if _is_way_down(children[ci], demand):
-				has_out = true
-				break
-		if has_out:
-			continue
-		# No way down inside the block, and columns run easy to hard, so the
-		# nearest one is left of it. Take the CLOSEST: it adds the fewest lines.
-		var target: int = -1
-		for c in range(int(block[0]) - 1, -1, -1):
-			if _is_way_down(children[c], demand):
-				target = c
-				break
-		if target < 0:
-			continue                      # no easier node exists on that row at all
-		if i > 0:
-			# Reaching left means the neighbour releases the lanes above `target`.
-			# It may not release its own first child — a parent with no children
-			# is a dead end, which is the one thing worse than a hard-only fork.
-			var left: Array = _child_cols(parents[i - 1], kid_index)
-			if left.is_empty() or int(left[0]) > target:
+		var demands: Array = _row_demands(parents)
+		for i in range(parents.size()):
+			# The opening relic has no difficulty commitment: offer every tier.
+			parents[i]["children"] = _required_combat_ids(children, 1 if r == 0 else int(demands[i]))
+		# Keep side branches local. Both merchants must remain available from
+		# every lane entering their stage, so they deliberately get wider access.
+		for child in children:
+			if is_battle_node(child):
 				continue
-		fixes.append({"parent": i, "target": target})
-	return fixes
+			if int(child["type"]) == NodeType.MERCHANT:
+				for parent in parents:
+					parent["children"].append(String(child["id"]))
+			else:
+				var nearest: int = 0
+				var distance: float = INF
+				for i in range(parents.size()):
+					var d: float = absf(float(parents[i].get("layout_lane", i))
+							- float(child.get("layout_lane", child["col"])))
+					if d < distance:
+						distance = d
+						nearest = i
+				parents[nearest]["children"].append(String(child["id"]))
 
-# Hand parent `fix.parent` every lane from `fix.target` up to the hardest child
-# it already had, and pull the neighbour to its left back to `target`.
-#
-# Nothing is orphaned: every child the neighbour gives up sits inside the block
-# the parent just took. Nothing crosses: blocks stay contiguous and stay in
-# column order. And the neighbour keeps its OWN out, because parents are ordered
-# easy-to-hard across a row, so anything that was an out for the neighbour is
-# also an out for this parent — and would therefore have been picked as
-# `target` or better.
-func _apply_relief_fix(r: int, fix: Dictionary) -> void:
-	var parents: Array = rows[r]
-	var children: Array = rows[r + 1]
-	var kid_index: Dictionary = {}
-	for c in range(children.size()):
-		kid_index[String(children[c]["id"])] = c
-	var i: int = int(fix["parent"])
-	var target: int = int(fix["target"])
-	var block: Array = _child_cols(parents[i], kid_index)
-	if i > 0:
-		var left: Array = _child_cols(parents[i - 1], kid_index)
-		_set_child_block(parents[i - 1], children, int(left[0]),
-				mini(int(left[left.size() - 1]), target))
-	_set_child_block(parents[i], children, target, int(block[block.size() - 1]))
+# Easy: easy + the next higher tier offered. Medium: all combat tiers.
+# Hard: easy + hard (or the hardest tier present in a narrow column).
+# Utility nodes inherit their neighbouring combat lane's demand.
+static func _required_combat_ids(children: Array, demand: int) -> Array:
+	var fights: Array = []
+	for child in children:
+		if is_battle_node(child):
+			fights.append(child)
+	fights.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a["difficulty"]) < int(b["difficulty"]))
+	var ids: Array = []
+	if fights.is_empty():
+		return ids
+	ids.append(String(fights[0]["id"]))
+	if demand == 1:
+		for fight in fights:
+			if not String(fight["id"]) in ids:
+				ids.append(String(fight["id"]))
+	elif fights.size() > 1:
+		var target: Dictionary = fights[1] if demand == 0 else fights.back()
+		ids.append(String(target["id"]))
+	return ids
+static func _every_parent_has_combat(parents: Array, children: Array) -> bool:
+	var combat_ids: Dictionary = {}
+	for child in children:
+		if is_battle_node(child):
+			combat_ids[String(child["id"])] = true
+	for parent in parents:
+		var has_combat := false
+		for cid in parent["children"]:
+			if combat_ids.has(String(cid)):
+				has_combat = true
+		if not has_combat:
+			return false
+	return true
 
 # Which columns of the next row a node currently points at, in order.
 func _child_cols(parent: Dictionary, kid_index: Dictionary) -> Array:
@@ -546,18 +417,11 @@ func _child_cols(parent: Dictionary, kid_index: Dictionary) -> Array:
 	cols.sort()
 	return cols
 
-func _set_child_block(parent: Dictionary, children: Array, lo: int, hi: int) -> void:
-	var ids: Array = []
-	for c in range(lo, hi + 1):
-		ids.append(String(children[c]["id"]))
-	parent["children"] = ids
-
 # How much difficulty a player standing on each node of a row has already taken
 # on. A fight reports its own tier. A side node reports the lane it sits in —
 # the tier of the fight to its left — because stepping onto an event doesn't
 # move you out of the brutal lane, it just doesn't fight you there. Columns run
-# easy to hard, so this is non-decreasing across a row, which is what makes the
-# neighbour-keeps-its-own-out argument above hold.
+# easy to hard, so this remains non-decreasing across a row.
 static func _row_demands(row: Array) -> Array:
 	var out: Array = []
 	var last: int = 0
@@ -565,38 +429,6 @@ static func _row_demands(row: Array) -> Array:
 		if is_battle_node(n):
 			last = int(n["difficulty"])
 		out.append(last)
-	return out
-
-# Every (parent, child) pair between rows r and r+1 that is NOT an edge but
-# could be one without crossing anything already there. This is the owner's rule
-# (2026-09-23) stated directly — "parents should have as many of the next row's
-# children as possible without breaking the crossing rule" — so a sound wiring
-# returns nothing here, and validate() says so.
-#
-# (a, b) crosses (i, j) exactly when one is left of the other in one row and
-# right of it in the next.
-func _addable_edges(r: int) -> Array:
-	var parents: Array = rows[r]
-	var children: Array = rows[r + 1]
-	var kid_index: Dictionary = {}
-	for c in range(children.size()):
-		kid_index[String(children[c]["id"])] = c
-	var existing: Array = []          # [parent_col, child_col]
-	for i in range(parents.size()):
-		for c in _child_cols(parents[i], kid_index):
-			existing.append(Vector2i(i, c))
-	var out: Array = []
-	for i in range(parents.size()):
-		for j in range(children.size()):
-			if Vector2i(i, j) in existing:
-				continue
-			var crosses: bool = false
-			for e: Vector2i in existing:
-				if (e.x < i and e.y > j) or (e.x > i and e.y < j):
-					crosses = true
-					break
-			if not crosses:
-				out.append(Vector2i(i, j))
 	return out
 
 # VD-12 (owner, 2026-09-23): "we want the player to always have ways to go
@@ -653,13 +485,16 @@ func _count_nodes_where(test: Callable) -> int:
 				count += 1
 	return count
 
-# How many paths the map is leaving out — see _addable_edges.
+# Required difficulty choices absent from the graph (arena telemetry).
 func missing_paths() -> int:
 	var total: int = 0
 	for r in range(rows.size() - 1):
-		total += _addable_edges(r).size()
+		var demands: Array = _row_demands(rows[r])
+		for i in range(rows[r].size()):
+			for cid in _required_combat_ids(rows[r + 1], 1 if r == 0 else int(demands[i])):
+				if not cid in rows[r][i]["children"]:
+					total += 1
 	return total
-
 func edge_count() -> int:
 	var total: int = 0
 	for r in range(rows.size() - 1):
@@ -923,7 +758,7 @@ func validate() -> Array:
 			if not tiers_seen.has(0):
 				bad.append("wave row %d offers no Normal fight" % r)
 			var owed: int = utilities_for_width(row.size())
-			if owed > 0 and utilities != owed:
+			if utilities != owed:
 				bad.append("%d-wide wave row %d has %d utility nodes, expected %d"
 					% [row.size(), r, utilities, owed])
 			if int(ROW_PLAN[r]["wave"]) == 1:
@@ -939,6 +774,9 @@ func validate() -> Array:
 			% [waves.size(), WAVES_PER_BIOME, str(waves)])
 	# Two merchants per biome, each reachable from where it must be (VD-17).
 	bad.append_array(merchant_reach_problems())
+	for r in range(rows.size() - 1):
+		if not _every_parent_has_combat(rows[r], rows[r + 1]):
+			bad.append("stage %d forces a utility-only exit" % r)
 
 	# Reachability: walk forward from row 0 and make sure every node is hit.
 	var reached: Dictionary = {}
@@ -955,44 +793,12 @@ func validate() -> Array:
 			if not reached.has(String(n["id"])):
 				bad.append("%s is unreachable" % n["id"])
 
-	# No crossing edges, ANYWHERE. The elite and boss rows used to be exempt
-	# because every node above them fanned out to all three intensities; they
-	# now take proportional slices like every other row (owner call — a screen
-	# full of crossed lines was the single most off-putting thing about the
-	# map), so the invariant applies to the whole graph with no exceptions.
+	# Difficulty freedom is mandatory, even where its paths cross.
 	for r in range(rows.size() - 1):
-		var col_of: Dictionary = {}
-		for c in rows[r + 1]:
-			col_of[String(c["id"])] = int(c["col"])
+		var demands: Array = _row_demands(rows[r])
 		for i in range(rows[r].size()):
-			for j in range(i + 1, rows[r].size()):
-				var a: Dictionary = rows[r][i]
-				var b: Dictionary = rows[r][j]
-				if int(a["col"]) >= int(b["col"]):
-					continue
-				for ea in a["children"]:
-					for eb in b["children"]:
-						if int(col_of[String(ea)]) > int(col_of[String(eb)]):
-							bad.append("edges cross between rows %d and %d (%s→%s vs %s→%s)"
-								% [r, r + 1, a["id"], ea, b["id"], eb])
-
-	# THE MERCY EDGE (see _grant_relief_edges). A node whose every child is a
-	# harder fight is a one-way door into the brutal lane; it is allowed only
-	# when no-crossing geometry leaves no alternative, never by accident. This
-	# re-derives the repair on the FINISHED graph, so a map that still has a fix
-	# available is a map the pass failed to converge on.
-	for r in range(rows.size() - 1):
-		for fix in _relief_fixes(r):
-			var stranded: Dictionary = rows[r][int(fix["parent"])]
-			var reachable: Dictionary = rows[r + 1][int(fix["target"])]
-			bad.append("%s has no way down though %s was reachable without a crossing"
-				% [stranded["id"], reachable["id"]])
-
-	# AS MANY PATHS AS THE CROSSING RULE ALLOWS (owner rule, 2026-09-23). Any
-	# (parent, child) pair that could be joined without crossing an existing
-	# edge is a path the map left out.
-	for r in range(rows.size() - 1):
-		for pair: Vector2i in _addable_edges(r):
-			bad.append("%s -> %s could be a path without crossing anything"
-				% [rows[r][pair.x]["id"], rows[r + 1][pair.y]["id"]])
+			var parent: Dictionary = rows[r][i]
+			for cid in _required_combat_ids(rows[r + 1], 1 if r == 0 else int(demands[i])):
+				if not cid in parent["children"]:
+					bad.append("%s cannot take required combat choice %s" % [parent["id"], cid])
 	return bad

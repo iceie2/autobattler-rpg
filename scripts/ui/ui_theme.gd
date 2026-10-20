@@ -76,6 +76,41 @@ static func set_ui_style(style: String) -> void:
 static func is_light() -> bool:
 	return ui_style() == "light"
 
+# ── Reduced motion (2026-10-07, run recap) ────────────────────────────────────
+# Long decorative animations (the end-of-run journey) open on their finished
+# state instead. Stored beside ui_style in settings.json; --reduced-motion
+# previews it without touching player settings, like --ui-style.
+static var _reduced_motion_cache: int = -1
+
+static func reduced_motion() -> bool:
+	for arg in OS.get_cmdline_user_args():
+		if arg == "--reduced-motion":
+			return true
+	if _reduced_motion_cache >= 0:
+		return _reduced_motion_cache == 1
+	_reduced_motion_cache = 0
+	if FileAccess.file_exists(SETTINGS_PATH):
+		var file := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
+		if file:
+			var parsed = JSON.parse_string(file.get_as_text())
+			if parsed is Dictionary and bool(parsed.get("reduced_motion", false)):
+				_reduced_motion_cache = 1
+	return _reduced_motion_cache == 1
+
+static func set_reduced_motion(on: bool) -> void:
+	_reduced_motion_cache = 1 if on else 0
+	var data: Dictionary = {}
+	if FileAccess.file_exists(SETTINGS_PATH):
+		var source := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
+		if source:
+			var parsed = JSON.parse_string(source.get_as_text())
+			if parsed is Dictionary:
+				data = parsed
+	data["reduced_motion"] = on
+	var target := FileAccess.open(SETTINGS_PATH, FileAccess.WRITE)
+	if target:
+		target.store_string(JSON.stringify(data))
+
 static func menu_title_color() -> Color:
 	return Color(0.28, 0.19, 0.10) if is_light() else Color(1.0, 0.89, 0.63)
 
@@ -173,8 +208,9 @@ static func body_font(base: int) -> int:
 #
 # So: LeagueGothic keeps the CHROME (headers, titles, the READY button), and a
 # normal-width companion takes the RUNNING TEXT (log lines, toasts, synergy
-# rows, stat readouts). BODY_FACE_MAX_PX is the one knob — every step at or
-# below it renders in the companion face.
+# rows, stat readouts). SUPERSEDED 2026-09-27: the face is now chosen by role
+# via apply_read_font / apply_read_rich (see "Role, not size" below).
+# BODY_FACE_MAX_PX survives only for event_panel.gd's own opt-in.
 #
 # Drop the companion into assets/Fonts/ and point BODY_FACE_PATH at it. Until
 # then body_face() returns null and every helper below falls through to
@@ -193,25 +229,57 @@ static func body_face() -> Font:
 			_body_face_cache = load(BODY_FACE_PATH) as Font
 	return _body_face_cache as Font
 
-# The ONE call every label/button should make. Sets the size and, for the
-# running-text steps, the companion face too. Route new controls through this
-# (or through a screen's _lbl() factory, which calls it) or they keep the
-# condensed face at a size it was never drawn for.
+# ── Role, not size (2026-09-27) ───────────────────────────────────────────────
+# Inter landed in assets/Fonts/ on 2026-09-27 (owner: "descriptions are a hair
+# too small ... in most games it feels so much easier"). Switching by SIZE, as
+# this file originally planned, was wrong in practice: it flipped every small
+# LABEL (PASSIVE, STATS, sidebar buttons) to the wider face — they collided and
+# overflowed — while the actual descriptions, drawn at 24px, stayed condensed.
+#
+# So the face is chosen by ROLE:
+#   apply_font / apply_rich_font  → LeagueGothic: titles, labels, tags,
+#                                   buttons, numbers. Everything, by default.
+#   apply_read_font / apply_read_rich → Inter: prose the player READS —
+#                                   ability/perk/relic descriptions, flavour.
+#
+# FONT_READ is Inter's own step. It is NOT a sixth LeagueGothic size: Inter's
+# open counters and taller x-height read larger at 18 than LeagueGothic at 24,
+# and take about the same line width, so it drops into the old 24px slots.
+const FONT_READ := 18
+
 static func apply_font(ctrl: Control, px: int) -> Control:
 	ctrl.add_theme_font_size_override("font_size", px)
-	if px <= BODY_FACE_MAX_PX:
-		var f := body_face()
-		if f:
-			ctrl.add_theme_font_override("font", f)
 	return ctrl
 
 # RichTextLabel keys its default size off "normal_font_size", not "font_size".
 static func apply_rich_font(rt: RichTextLabel, px: int) -> RichTextLabel:
 	rt.add_theme_font_size_override("normal_font_size", px)
-	if px <= BODY_FACE_MAX_PX:
-		var f := body_face()
-		if f:
-			rt.add_theme_font_override("normal_font", f)
+	return rt
+
+static func apply_read_font(ctrl: Control, px: int = FONT_READ) -> Control:
+	ctrl.add_theme_font_size_override("font_size", px)
+	var f := body_face()
+	if f:
+		ctrl.add_theme_font_override("font", f)
+	return ctrl
+
+# Godot's built-in hover tooltips (every `tooltip_text` in the game — 54 of
+# them) draw with the default theme's TooltipLabel font, i.e. the project
+# font LeagueGothic. Tooltips are prose, so point that one theme type at
+# Inter. Idempotent; called from main_game and main_menu _ready.
+static func install_read_tooltips() -> void:
+	var f := body_face()
+	if f == null:
+		return
+	var t := ThemeDB.get_default_theme()
+	t.set_font("font", "TooltipLabel", f)
+	t.set_font_size("font_size", "TooltipLabel", FONT_BODY)
+
+static func apply_read_rich(rt: RichTextLabel, px: int = FONT_READ) -> RichTextLabel:
+	rt.add_theme_font_size_override("normal_font_size", px)
+	var f := body_face()
+	if f:
+		rt.add_theme_font_override("normal_font", f)
 	return rt
 
 

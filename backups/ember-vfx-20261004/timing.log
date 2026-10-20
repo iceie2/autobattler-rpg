@@ -1,0 +1,26 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:316)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:316)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:316)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/ember_vfx.gd:0)
+SCRIPT ERROR: Compile Error: Identifier not found: Progression
+   at: GDScript::reload (res://scripts/units/unit_base.gd:316)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/goblin_shaman_vfx.gd:0)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/combat/projectile.gd:0)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+   at: GDScript::reload (res://scripts/tools/ember_vfx_check.gd:0)
+ERROR: Failed to load script "res://scripts/tools/ember_vfx_check.gd" with error "Compilation failed".
+   at: load (modules/gdscript/gdscript.cpp:3041)
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2548)
+SCRIPT ERROR: Assertion failed.
+   at: _initialize (res://scripts/tools/ember_vfx_check.gd:33)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://scripts/tools/ember_vfx_check.gd:33)

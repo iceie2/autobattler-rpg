@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/_doc_audit.gd" id="1_doca"]
+
+[node name="DocAudit" type="Node"]
+script = ExtResource("1_doca")

@@ -105,6 +105,18 @@ func _ready() -> void:
 	mg.auto_battle_manager.fallen_allies = [victim]
 	doc.revive_used = false
 	mg.auto_battle_manager._doc_field_surgery(doc, mg.auto_battle_manager.player_units)
+	# The v002 heartbeat effect deliberately lands after the cast begins. A
+	# committed Surgery must hold battle cleanup open until that delayed revive
+	# resolves; otherwise end_battle() clears _doc_pending and eats the ultimate.
+	mg.auto_battle_manager.battle_active = true
+	mg.auto_battle_manager.enemy_units.clear()
+	mg.auto_battle_manager.check_battle_end()
+	_check(mg.auto_battle_manager.battle_active,
+			"committed Field Surgery prevents battle-end cleanup")
+	mg.auto_battle_manager._tick_doc_pending(
+			mg.auto_battle_manager.DOC_SURGERY_IMPACT +
+			mg.auto_battle_manager.DOC_SURGERY_TRAVEL + 0.01)
+	mg.auto_battle_manager.battle_active = false
 	await get_tree().process_frame
 
 	if victim.current_hp <= 0:

@@ -1748,6 +1748,76 @@ rate cap). Icons: `relic_piece_icons.py md` wrote
 `Relic.icon_path` reads `arch_<piece>.png`. Not done: balance numbers
 (owner: no tuning sweeps unless asked), combat cues beyond the text pops.
 
+---
+
+## VD-23 - Mana is a run resource that drains - status: PARTIAL (refills built 2026-09-28; retune not started)
+
+**Owner goal (2026-09-28).**
+
+> "i want mana to be something that heros naturally drain. so the more you build
+> into mana the more you can cast. we still need room for the ultimate combo to
+> be mana regen and cooldown reduction"
+
+**Audit (Claude, 2026-09-28, no code changed).** Spend rate = cost / cooldown,
+since every hero skill but Shauna's fires on cooldown. Casting on cooldown in a
+~40 s fight:
+
+- Physical heroes (0 max mana per level) run dry at 23-56 s at every level.
+- By level 10, casters (+16-25 mana and +0.7-1.2 regen per level) barely drain.
+  Doc, Pastor, June, Lumen, Static and Reed never run out in a fight; Vail and
+  Spore gain mana while casting non-stop.
+- Shauna (1 s cooldown, 60 cost) empties in ~7 s.
+
+**The rule that follows.** Regen decides *whether* a hero ever runs out (regen
+>= spend rate means never). Max mana only decides *when*. So the pool can grow
+with level; regen must stay under the spend rate.
+
+**DECIDED (owner, verbatim where quoted):**
+
+1. **Mana and HP carry over between fights** ("pretty standard for most survival
+   rpgs"). No per-fight refill. This is already the behaviour.
+2. **Drain horizon:** an uninvested hero runs dry around halfway through a biome
+   ("it would give more reason to camps"). **Refill HP and mana at the start of
+   each new biome.** Not built yet; nothing refills there today.
+3. **Flatten per-level growth.** Max mana still grows with level: "physical heros
+   get less but still go up casters go up more". Most skills: "cooldown to go
+   down a bit and mana cost to go up", verified before shipping.
+4. **Heal and cleanse targeting changes** so support skills don't spend mana on
+   allies who don't need them.
+
+**DECIDED 2026-09-28 (follow-up):**
+
+5. **A level-up restores 50% of missing mana**, like HP ("should be 50% like hp").
+   It used to refill mana to full, which would undo the drain about three times
+   per biome.
+6. **Camp Rest restores mana too** ("they need to restore mana too not just hp"),
+   the same 50% of maximum as HP.
+
+**Built 2026-09-28 (Claude), decisions 2, 5 and 6:**
+
+- `UnitBase.level_up` restores 50% of missing mana.
+- Camp Rest restores `Balance.CAMP_REST_MANA_FRACTION` (0.5) of max mana, and
+  its panel text is updated.
+- `main_game._refill_on_new_biome` runs from `_open_run_map` and fills every
+  living fielded and benched hero. It's keyed on the saved run flag
+  `refilled_biome`, so it fires once per biome and never on a reload. A save
+  already past biome 1 gets one refill the first time its map opens.
+
+Verified with a throwaway check (level-up, camp, no refill in biome 0, refill in
+biome 1, no double refill). recruit_smoke, map_smoke and ceremony_smoke pass.
+
+**Verification needed first (for the retune).** The arena runs single fights and has no mana
+telemetry, so it can't see a drain that spans ten fights. Add a biome-run mode
+(ten waves back to back, HP and mana carried over, per-hero mana logged)
+before tuning numbers.
+
+**Files.** `scripts/units/unit_factory.gd` (base and growth tables, costs,
+cooldowns), `scripts/units/unit_base.gd` (level_up), `scripts/core/main_game.gd`
+(biome refill, camp), `scripts/combat/auto_battle_manager.gd` (support
+triggers), `scripts/arena/arena_main.gd` (biome mode). The crystal tree's Mana
+Well and Mana Flow values and the Chalice component will need rescaling to the
+new pool sizes.
+
 ## Sequence
 
 Revised 2026-09-21 after VD-03's measured sweep. VD-03 is now the *last* step of
